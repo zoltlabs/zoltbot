@@ -192,6 +192,10 @@ test("comparison supports keyboard activation, focus restoration and 200% text",
   await expect(dialog.getByLabel("Alternative version")).toBeInViewport();
   await dialog.getByLabel("Feedback").scrollIntoViewIfNeeded();
   await expect(dialog.getByLabel("Feedback")).toBeInViewport();
+  await dialog.getByLabel("Feedback").fill("Keep the larger text.\nLeave room for the controls.");
+  expect(
+    await dialog.getByLabel("Feedback").evaluate((node) => node.scrollHeight <= node.clientHeight),
+  ).toBe(true);
   expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   await page.screenshot({
     animations: "disabled",

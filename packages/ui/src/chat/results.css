@@ -110,3 +110,8 @@
   font-size: var(--zb-text-sm);
   color: var(--zb-text-secondary);
 }
+.chat-results .zb-button,
+.chat-completion .zb-button {
+  height: auto;
+  min-height: var(--zb-control-sm);
+}

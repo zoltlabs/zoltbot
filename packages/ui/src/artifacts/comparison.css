@@ -57,3 +57,11 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* Native rows and line height must remain usable with enlarged text. */
+.artifact-comparison-feedback .zb-input {
+  height: auto;
+}
+.zb-dialog:has(.artifact-comparison) .zb-button {
+  height: auto;
+  min-height: var(--zb-control-sm);
+}
