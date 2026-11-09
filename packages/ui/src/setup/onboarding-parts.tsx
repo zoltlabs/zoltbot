@@ -1,6 +1,5 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import { Button, Chip } from "../components/primitives.js";
-import { supportLabel } from "./doctor-data.js";
 import {
   type AgentRow,
   outsideRepository,
@@ -100,8 +99,6 @@ export function AgentRows({
                   Sign in
                 </Button>
               </>
-            ) : row.support === "newer" ? (
-              <Chip tone="warn">{supportLabel(row.support)}</Chip>
             ) : row.login === "unknown" ? (
               <Chip>Login unknown</Chip>
             ) : (
