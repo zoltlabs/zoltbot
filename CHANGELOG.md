@@ -7,7 +7,15 @@ The website publishes released entries only; Unreleased stays in this repository
 
 <!-- Add concise New, Fix, or Improvement bullets here as changes land. -->
 
+## v0.1.4: Zoltbot is open source
+
+November 8, 2026
+
+- New: Zoltbot is open source under the Apache-2.0 license. The Mac app, daemon, iPhone app, protocol and phone relay are developed at github.com/zoltlabs/zoltbot, and Mac builds are published as GitHub releases.
+- New: Zolt can schedule its own wake-ups, at a set time or after a chat's next turn, to check back on your work.
+- New: Zolt's notices reach you in the Inbox, the chat, desktop notifications and the iPhone's Home. Choose whether Zolt can notify your phone in Settings.
 - Improvement: The iPhone app uses the desktop's Graphite and Parchment themes and the Geist typeface, with neutral primary buttons.
+
 
 ## v0.1.3: Zolt, better chats and durable drafts
 
