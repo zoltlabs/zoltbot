@@ -164,3 +164,37 @@ test("an initial handoff appends once under Strict Mode", async ({ page }) => {
     "Keep this draft.\n\nReview this handoff.",
   );
 });
+
+test("comparison supports keyboard activation, focus restoration and 200% text", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Results", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const panel = page.getByRole("complementary", { name: "Results" });
+  const compare = panel.getByRole("button", { name: "Compare", exact: true });
+  await compare.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Compare artifacts" });
+  await expect(dialog.getByLabel("Baseline version")).toBeFocused();
+  await page.keyboard.press("Tab");
+  const hasIndicator = await page.locator(":focus").evaluate((node) => {
+    const style = getComputedStyle(node);
+    return style.outlineStyle !== "none" || style.boxShadow !== "none";
+  });
+  expect(hasIndicator).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(compare).toBeFocused();
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%";
+  });
+  await expect(page.getByRole("button", { name: "Results", exact: true })).toBeInViewport();
+  await compare.press("Enter");
+  await expect(dialog.getByLabel("Alternative version")).toBeInViewport();
+  await dialog.getByLabel("Feedback").scrollIntoViewIfNeeded();
+  await expect(dialog.getByLabel("Feedback")).toBeInViewport();
+  expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await page.screenshot({
+    animations: "disabled",
+    path: "output/results-comparison-text-resize.png",
+  });
+});
