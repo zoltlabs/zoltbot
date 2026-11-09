@@ -225,6 +225,7 @@ export function Button({
   a11y,
   style,
   icon,
+  expanded,
 }: {
   label: string;
   onPress: () => void;
@@ -233,13 +234,14 @@ export function Button({
   a11y?: string;
   style?: StyleProp<ViewStyle>;
   icon?: ReactNode;
+  expanded?: boolean;
 }) {
   const { c } = useTheme();
   const look =
     kind === "primary"
       ? { backgroundColor: c.primary, borderColor: c.primary }
       : kind === "secondary"
-        ? { backgroundColor: c["bg-raised"], borderColor: c["border-strong"] }
+        ? { backgroundColor: c["bg-raised"], borderColor: c["border-control"] }
         : { backgroundColor: "transparent", borderColor: "transparent" };
   return (
     <Pressable
@@ -247,7 +249,10 @@ export function Button({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={a11y ?? label}
-      accessibilityState={{ disabled: Boolean(disabled) }}
+      accessibilityState={{
+        disabled: Boolean(disabled),
+        ...(expanded === undefined ? {} : { expanded }),
+      }}
       style={({ pressed }) => [
         styles.button,
         look,
@@ -260,7 +265,10 @@ export function Button({
       <Txt
         v="bodyMedium"
         tone={kind === "primary" ? "onPrimary" : kind === "plain" ? "accent" : "text"}
-        style={kind === "primary" ? styles.strong : undefined}
+        style={[
+          { flexShrink: 1, textAlign: "center" },
+          kind === "primary" ? styles.strong : undefined,
+        ]}
       >
         {label}
       </Txt>
@@ -381,6 +389,7 @@ export const styles = StyleSheet.create({
   chipDot: { width: 6, height: 6, borderRadius: 3 },
   button: {
     minHeight: touch,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,

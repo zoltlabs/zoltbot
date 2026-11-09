@@ -159,6 +159,7 @@ export const artifactMethods = {
     }),
     result: Json,
   },
+  "artifact.phonePreview": { params: object({ id: Id, versionId: Id }), result: Json },
   "artifact.get": { params: object({ id: Id, versionId: Type.Optional(Id) }), result: Json },
   "artifact.versions": { params: id, result: Json },
   "artifact.add_to_repository": {

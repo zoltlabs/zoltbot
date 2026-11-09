@@ -24,9 +24,10 @@ export interface Tokens {
   "border-subtle": string;
   border: string;
   "border-strong": string;
+  "text-muted": string;
+  "border-control": string;
   text: string;
   "text-secondary": string;
-  "text-muted": string;
   "text-dim": string;
   "text-on-accent": string;
   accent: string;
@@ -168,9 +169,10 @@ export const dark: Tokens = {
   "border-subtle": "rgba(255, 255, 255, 0.045)",
   border: "rgba(255, 255, 255, 0.085)",
   "border-strong": "rgba(255, 255, 255, 0.2)",
+  "text-muted": "#a5adb1",
+  "border-control": "#a5adb1",
   text: "#eceeee",
   "text-secondary": "#b7bcbe",
-  "text-muted": "#a5adb1",
   "text-dim": "#a5adb1",
   "text-on-accent": "#ffffff",
   accent: "#b7cdbf",
@@ -312,9 +314,10 @@ export const light: Tokens = {
   "border-subtle": "rgba(63, 52, 69, 0.065)",
   border: "rgba(63, 52, 69, 0.14)",
   "border-strong": "rgba(63, 52, 69, 0.28)",
+  "text-muted": "#615763",
+  "border-control": "#615763",
   text: "#302a36",
   "text-secondary": "#5e5664",
-  "text-muted": "#615763",
   "text-dim": "#615763",
   "text-on-accent": "#ffffff",
   accent: "#725691",

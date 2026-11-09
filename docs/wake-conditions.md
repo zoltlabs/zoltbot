@@ -48,7 +48,10 @@ Waiting chats have a collapsible Waiting section in All chats and remain availab
 search and the Later mailbox. Questions and approvals still take precedence. A wake adds a
 transcript note and an unread Inbox marker, with an evidence link where available. Paired
 phones display the same condition, fallback, monitoring state, and cancel/resume controls.
-Reviewing or editing a proposed condition is available on the Mac.
+On the phone, **Wake when…** opens a full-screen editor for all six conditions. Proposed
+waits can be reviewed and saved there; saved waits can be edited with revision checks.
+Quick fallback buttons set a time one or 24 hours ahead, with a custom local time available.
+GitHub checks still use the paired Mac’s sign-in.
 
 ## Verification
 

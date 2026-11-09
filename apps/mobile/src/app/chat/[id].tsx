@@ -1,3 +1,4 @@
+import type { ArtifactTarget } from "@zoltbot/protocol";
 import { chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { artifactReference } from "../../data/artifacts";
 import { type Attachment, composeInput } from "../../data/attachments";
 import { threadChanges } from "../../data/changes";
 import { editsOf, forkInfo } from "../../data/forks";
@@ -26,10 +28,12 @@ import {
   transcript,
 } from "../../data/view";
 import { useAction } from "../../state/actions";
+import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
 import { Attachments } from "../../ui/Attachments";
+import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
@@ -49,6 +53,15 @@ export default function Chat() {
   const online = useClient((state) => state.status === "online");
   const { run, busy } = useAction();
   const [draft, setDraft] = useState(brief ?? "");
+  const [artifactTarget, setArtifactTarget] = useState<ArtifactTarget>();
+  const incoming = useChatDraft((s) => s.draft);
+  useEffect(() => {
+    if (incoming?.threadId !== id) return;
+    const handoff = useChatDraft.getState().take(id);
+    if (!handoff) return;
+    setDraft((current) => (current.trim() ? `${current}\n\n${handoff.text}` : handoff.text));
+    setArtifactTarget(handoff.target);
+  }, [id, incoming]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
@@ -61,6 +74,11 @@ export default function Chat() {
     (g) => g.id === compareMember?.compareId || g.summaryThreadId === id,
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
+  const activeWake = snapshot.entities.wake?.find(
+    (w) =>
+      w.threadId === id &&
+      ["draft", "waiting", "ready", "needs_attention"].includes(text(w.status)),
+  );
   const pending = pendingFor(snapshot, id);
   const request = pending[0];
   const { height } = useWindowDimensions();
@@ -88,7 +106,8 @@ export default function Chat() {
     };
   }, [id, online]);
   // Steering reaches the running turn only where the agent supports it; otherwise it waits.
-  const canSteer = !!turn && (session?.capabilities as Row | undefined)?.steer === "native";
+  const canSteer =
+    !artifactTarget && !!turn && (session?.capabilities as Row | undefined)?.steer === "native";
   const [delivery, setDelivery] = useState<"steer" | "queue">("steer");
   const send = async () => {
     const message = draft.trim();
@@ -96,12 +115,14 @@ export default function Chat() {
     const result = await run("turn.send", {
       threadId: id,
       input: composeInput(message, attachments),
+      ...(artifactTarget ? { artifactTarget } : {}),
       mode: canSteer ? delivery : "queue",
     });
     if (result) {
       void donateBotConversation(id).catch(() => undefined);
       setDraft("");
       setAttachments([]);
+      setArtifactTarget(undefined);
     }
   };
   const stop = () => turn && void run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
@@ -181,6 +202,41 @@ export default function Chat() {
         {turn ? <Chip label="Working" tone="accent" dot /> : null}
       </View>
       <PlanChecklist plan={latestPlan(snapshot, id)} />
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          gap: 8,
+        }}
+      >
+        <Button
+          label="Results"
+          style={{ flexGrow: 1 }}
+          onPress={() => router.push(`/chat/results?id=${encodeURIComponent(id)}`)}
+        />
+        {!compareReadOnly && !chief ? (
+          <Button
+            label={
+              activeWake
+                ? activeWake.status === "draft"
+                  ? "Review wait"
+                  : "Edit wait"
+                : "Wake when…"
+            }
+            style={{ flexGrow: 1 }}
+            disabled={!online}
+            onPress={() =>
+              router.push(
+                `/chat/wake?id=${encodeURIComponent(id)}${activeWake ? `&wakeId=${encodeURIComponent(text(activeWake.id))}` : ""}`,
+              )
+            }
+          />
+        ) : null}
+      </View>
+      <ChatWaiting threadId={id} />
+
       <ScrollView
         ref={scroll}
         contentContainerStyle={styles.body}
@@ -206,6 +262,7 @@ export default function Chat() {
         {rows.length === 0 ? <Txt tone="muted">{`Say what you want ${who} to do.`}</Txt> : null}
         {rows.map((row) => (
           <Message
+            threadId={id}
             key={row.id}
             row={row}
             {...(online && !busy ? { onEdit: (queued: TranscriptRow) => void edit(queued) } : {})}
@@ -235,6 +292,7 @@ export default function Chat() {
                 })}
           />
         ))}
+        <ChatOutcome threadId={id} />
       </ScrollView>
       {request ? (
         <ScrollView
@@ -259,6 +317,14 @@ export default function Chat() {
         ]}
         accessibilityLabel={`Message ${who}`}
       >
+        {artifactTarget ? (
+          <View style={{ gap: 8 }}>
+            <Txt tone="secondary">
+              Selected saved version: {artifactReference(snapshot, artifactTarget)}
+            </Txt>
+            <Button label="Remove version reference" onPress={() => setArtifactTarget(undefined)} />
+          </View>
+        ) : null}
         <View style={styles.controls}>
           {compareReadOnly ? (
             <Chip label="Read only · Compare" />

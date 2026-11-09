@@ -10,6 +10,7 @@ import {
   contentHash,
   versionDetail,
 } from "./model.js";
+import { queuedPhonePreview } from "./phone-preview.js";
 import { indexArtifactRepository } from "./repository-index.js";
 import { writeRepositoryVersion } from "./repository-write.js";
 export function artifactsApi(context: RuntimeContext) {
@@ -52,6 +53,8 @@ export function artifactsApi(context: RuntimeContext) {
         );
       return context.store.dispatch(commandId, () => ({ events: [], result: { results } })).result;
     }
+    if (method === "artifact.phonePreview")
+      return queuedPhonePreview(context.store, String(params.id), String(params.versionId));
     const artifact = artifactRecord(context.store, String(params.id));
     if (method === "artifact.versions")
       return {

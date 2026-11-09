@@ -40,3 +40,30 @@ describe("mobile theme", () => {
     expect(built.light.ok).toBe("#18794e");
   });
 });
+
+it("keeps mobile form boundaries and labels readable in both appearances", () => {
+  const luminance = (hex: string) => {
+    const channels =
+      hex
+        .slice(1)
+        .match(/../g)
+        ?.map((part) => {
+          const value = Number.parseInt(part, 16) / 255;
+          return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+        }) ?? [];
+    return channels.reduce((sum, value, i) => sum + value * ([0.2126, 0.7152, 0.0722][i] ?? 0), 0);
+  };
+  const ratio = (a: string, b: string) => {
+    const x = luminance(a),
+      y = luminance(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+  for (const palette of [dark, light]) {
+    for (const surface of ["bg-page", "bg-raised"] as const) {
+      expect(ratio(palette["border-control"], palette[surface])).toBeGreaterThanOrEqual(3);
+      for (const text of ["text", "text-secondary", "text-muted"] as const)
+        expect(ratio(palette[text], palette[surface])).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(ratio(palette["text-on-primary"], palette.primary)).toBeGreaterThanOrEqual(4.5);
+  }
+});

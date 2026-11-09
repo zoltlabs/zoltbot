@@ -1,3 +1,4 @@
+import { compareSessions } from "@zoltbot/protocol";
 import { text } from "@zoltbot/ui/chat/types";
 import type { Row, Snapshot } from "./transport.js";
 
@@ -85,4 +86,49 @@ export function artifactOccurrences(snapshot: Snapshot, threadId: string) {
     groups.set(id, { id, turnId, artifact: artifactCard(artifact, version) });
   }
   return [...groups.values()].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** Metadata selection stays usable offline; preview bytes are fetched only for the chosen versions. */
+export function comparisonVersions(snapshot: Snapshot, threadId: string) {
+  const visible = new Set(
+    artifactOccurrences(snapshot, threadId).map((o) => o.artifact.artifactId),
+  );
+  const artifacts = new Map(
+    (snapshot.entities.artifact ?? [])
+      .filter((a) => (a.threadId === threadId || visible.has(text(a.id))) && a.state === "active")
+      .map((a) => [a.id, a]),
+  );
+  return (snapshot.entities.artifactVersion ?? [])
+    .flatMap((version) => {
+      const artifact = artifacts.get(version.artifactId);
+      if (!artifact) return [];
+      return [
+        {
+          artifact,
+          version,
+          label: `${text(artifact.title)} · v${version.number}`,
+          available: !version.held && !version.metadataOnly,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        text(b.version.createdAt).localeCompare(text(a.version.createdAt)) ||
+        Number(b.version.number) - Number(a.version.number),
+    );
+}
+export function versionDraft(title: string, version: Row, feedback: string) {
+  return `Use “${title}” v${version.number} (${text(version.id)})${feedback.trim() ? `: ${feedback.trim()}` : "."}`;
+}
+
+/** Same eligibility as the desktop composer; the daemon remains authoritative at send time. */
+export function revisionAvailable(snapshot: Snapshot, threadId: string) {
+  const e = snapshot.entities;
+  const thread = e.thread?.find((t) => t.id === threadId);
+  if (!thread || thread.taskId || thread.archived) return false;
+  const session = e.session?.filter((s) => s.threadId === threadId).sort(compareSessions)[0];
+  const value = e.settings?.find((s) => s.key === `runtime.configuration.${session?.id}`)?.value as
+    | { launchManifest?: { artifact?: { sourceRead?: number } } }
+    | undefined;
+  return value?.launchManifest?.artifact?.sourceRead === 1;
 }

@@ -117,7 +117,9 @@ export default function Compare() {
             {turn ? "Running" : "Saved answer"}
           </Txt>
           {tab
-            ? transcript(snapshot, tab.id).map((row) => <Message key={row.id} row={row} />)
+            ? transcript(snapshot, tab.id).map((row) => (
+                <Message key={row.id} row={row} threadId={tab.id} />
+              ))
             : null}
           {tab && group?.state === "open"
             ? pendingFor(snapshot, tab.id).map((request) => (

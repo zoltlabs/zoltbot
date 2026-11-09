@@ -43,6 +43,8 @@
   --zb-border-subtle: rgba(var(--zb-ink), 0.05);
   --zb-border: rgba(var(--zb-ink), 0.08);
   --zb-border-strong: rgba(var(--zb-ink), 0.14);
+  /* Interactive boundaries remain visible on raised surfaces in both appearances. */
+  --zb-border-control: var(--zb-text-muted);
 
   /* Text. Contrast on --zb-bg-page: primary 16:1, secondary 9:1, muted 5:1. Dim is for
      marks, placeholders and disabled text only, never for copy that must be read. */

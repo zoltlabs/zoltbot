@@ -17,7 +17,7 @@ export function WakeStatus({ rows, online }: { rows: Row[]; online: boolean }) {
         <View key={w.id} style={{ gap: 8 }}>
           <Txt v="bodyMedium">
             {w.status === "draft"
-              ? "Proposed wait · review on your Mac"
+              ? "Proposed wait"
               : w.status === "ready"
                 ? "Ready · waiting for this chat to be idle"
                 : w.status === "needs_attention"
@@ -49,7 +49,18 @@ export function WakeStatus({ rows, online }: { rows: Row[]; online: boolean }) {
               }}
             />
           ) : null}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          <View style={{ gap: 8 }}>
+            {!w.itemId ? (
+              <Button
+                label={w.status === "draft" ? "Review and save" : "Edit wait"}
+                disabled={busy || !online}
+                onPress={() =>
+                  router.push(
+                    `/chat/wake?id=${encodeURIComponent(w.threadId)}&wakeId=${encodeURIComponent(w.id)}`,
+                  )
+                }
+              />
+            ) : null}
             {w.status !== "draft" && !w.itemId ? (
               <Button
                 label={w.behavior === "resume" ? "Resume now" : "Bring back now"}

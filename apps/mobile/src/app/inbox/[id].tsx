@@ -16,6 +16,7 @@ import { ago, profileName, text } from "../../data/view";
 import { useAction } from "../../state/actions";
 import { useSnapshot } from "../../state/link";
 import { touch, useTheme } from "../../theme";
+import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Card, Chip, Txt } from "../../ui/kit";
@@ -106,6 +107,11 @@ export default function InboxThread() {
               .join(" · ")}
           </Txt>
         </View>
+        <Button
+          label="Results"
+          onPress={() => router.push(`/chat/results?id=${encodeURIComponent(id)}`)}
+        />
+        <ChatWaiting threadId={id} />
         {letters.length ? null : <Txt tone="muted">Nothing has been said yet.</Txt>}
         {letters.map((letter) =>
           letter.id === newest || open.has(letter.id) || letter.queued ? (
@@ -146,6 +152,7 @@ export default function InboxThread() {
         {cards.map((request) => (
           <InteractionCard key={`${request.id}:${request.version}`} request={request} who={name} />
         ))}
+        <ChatOutcome threadId={id} />
       </ScrollView>
       <View
         style={[

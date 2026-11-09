@@ -112,10 +112,12 @@ export function Message({
   onEdit,
   onEditSent,
   onForward,
+  threadId,
   edits,
 }: {
   row: TranscriptRow;
   compact?: boolean;
+  threadId?: string;
   /** Takes a queued message back so it can be edited. */
   onEdit?: (row: TranscriptRow) => void;
   /** Starts a new chat from before a sent message, with an edited copy of it. */
@@ -179,7 +181,7 @@ export function Message({
         ? "This version is held for review on Mac."
         : artifact.availability === "unavailable"
           ? "Files unavailable. Open on the producing Mac."
-          : "View on Mac · Open this chat on the producing Mac to view this version.";
+          : "Saved version available. Open versions to preview or compare.";
     return (
       <View
         style={[styles.artifact, { borderColor: c.border, backgroundColor: c["bg-raised"] }]}
@@ -203,6 +205,16 @@ export function Message({
         <Txt v="meta" tone="muted">
           {fallback}
         </Txt>
+        {threadId ? (
+          <Button
+            label="View and compare versions"
+            onPress={() =>
+              router.push(
+                `/chat/artifacts?id=${encodeURIComponent(threadId ?? "")}&versionId=${encodeURIComponent(artifact.versionId)}`,
+              )
+            }
+          />
+        ) : null}
       </View>
     );
   }
