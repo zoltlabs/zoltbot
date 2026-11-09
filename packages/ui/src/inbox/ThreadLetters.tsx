@@ -1,8 +1,10 @@
 import { type Interaction, InteractionSchema, parse } from "@zoltbot/protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CompletionCard } from "../chat/CompletionCard.js";
 import { Markdown } from "../chat/Markdown.js";
+import { ResultsPanel } from "../chat/ResultsPanel.js";
 import { body, type ChatConnection, type Row, text } from "../chat/types.js";
-import { Button, Chip } from "../components/primitives.js";
+import { Button, Chip, Dialog } from "../components/primitives.js";
 import { InteractionCard } from "../interactions/InteractionCard.js";
 import { rowTime } from "./data.js";
 import {
@@ -29,6 +31,7 @@ export function ThreadLetters({
   busy = false,
   steer = false,
   onSent,
+  onResults,
   replyRef,
 }: {
   connection: ChatConnection;
@@ -38,9 +41,11 @@ export function ThreadLetters({
   busy?: boolean;
   steer?: boolean;
   onSent?: (settled: boolean) => void;
+  onResults?: (() => void) | undefined;
   /** Lets the page's R key reach the reply box. */
   replyRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
+  const [showResults, setShowResults] = useState(false);
   const entities = connection.snapshot.entities;
   const thread = entities.thread?.find((row) => row.id === threadId);
   const items = useMemo(
@@ -181,6 +186,21 @@ export function ThreadLetters({
           </section>
         ) : null}
       </div>
+      <CompletionCard
+        connection={connection}
+        threadId={threadId}
+        onResults={onResults ?? (() => setShowResults(true))}
+      />
+      {showResults ? (
+        <Dialog open wide title="Results" onClose={() => setShowResults(false)}>
+          <ResultsPanel
+            key={threadId}
+            connection={connection}
+            threadId={threadId}
+            onClose={() => setShowResults(false)}
+          />
+        </Dialog>
+      ) : null}
       <ReplyComposer
         connection={connection}
         threadId={threadId}

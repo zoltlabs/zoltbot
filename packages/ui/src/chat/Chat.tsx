@@ -7,7 +7,6 @@ import {
   terms,
 } from "@zoltbot/protocol";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ThreadArtifacts } from "../artifacts/Artifacts.js";
 import { artifactRevisionAvailable } from "../artifacts/OutputControl.js";
 import { CompareCeiling } from "../compare/CompareCeiling.js";
 import { ThreadLetters } from "../inbox/ThreadLetters.js";
@@ -15,6 +14,7 @@ import { setThreadView, useThreadView } from "../inbox/view-mode.js";
 import { ChatRoutineCards } from "../tasks/EventRoutine.js";
 import { BackgroundTasks } from "./BackgroundTasks.js";
 import { CompactControl } from "./CompactControl.js";
+import { CompletionCard } from "./CompletionCard.js";
 import { Composer } from "./Composer.js";
 import { EditDialog } from "./EditDialog.js";
 import { ForkControl, ForkHistory } from "./ForkControl.js";
@@ -26,6 +26,7 @@ import { PinnedTodo } from "./PinnedTodo.js";
 import { ProviderAccess } from "./ProviderAccess.js";
 import { backgroundTasks } from "./parity-data.js";
 import { QueueStrip } from "./QueueStrip.js";
+import { ResultsPanel } from "./ResultsPanel.js";
 import { RewindDialog } from "./RewindDialog.js";
 import { SessionBanner } from "./SessionBanner.js";
 import { messageSources } from "./sources.js";
@@ -59,6 +60,7 @@ export default function Chat({
 }) {
   const entities = connection.snapshot.entities;
   const [showContext, setShowContext] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const view = useThreadView();
   const terminalToggle = useRef<HTMLButtonElement>(null);
@@ -303,12 +305,25 @@ export default function Chat({
             Letters
           </Button>
         )}
+        <Button
+          size="sm"
+          aria-expanded={showResults}
+          onClick={() => {
+            setShowResults(!showResults);
+            setShowContext(false);
+          }}
+        >
+          Results
+        </Button>
         <IconButton
           icon="Info"
           size="sm"
           label={showContext ? "Hide conversation details" : "Show conversation details"}
           aria-expanded={showContext}
-          onClick={() => setShowContext((value) => !value)}
+          onClick={() => {
+            setShowContext((value) => !value);
+            setShowResults(false);
+          }}
         />
         <div className="chat-profile" title={`${name} · ${tool}`}>
           <Avatar
@@ -357,6 +372,10 @@ export default function Chat({
               name={name}
               busy={busy}
               steer={caps.steer === "native"}
+              onResults={() => {
+                setShowResults(true);
+                setShowContext(false);
+              }}
             />
           ) : (
             <Timeline
@@ -421,6 +440,16 @@ export default function Chat({
             </Suspense>
           ) : null}
           <CompareCeiling connection={connection} threadId={threadId} />
+          {!letters ? (
+            <CompletionCard
+              connection={connection}
+              threadId={threadId}
+              onResults={() => {
+                setShowResults(true);
+                setShowContext(false);
+              }}
+            />
+          ) : null}
           {letters ? null : (
             <Composer
               artifactTarget={artifactTarget}
@@ -448,9 +477,17 @@ export default function Chat({
             />
           )}
         </div>
+        {showResults ? (
+          <ResultsPanel
+            key={threadId}
+            connection={connection}
+            threadId={threadId}
+            onClose={() => setShowResults(false)}
+            onRevise={onRevise}
+          />
+        ) : null}
         {showContext ? (
           <section className="chat-context" aria-label="Conversation context">
-            <ThreadArtifacts connection={connection} threadId={threadId} />
             <h2 className="chat-context-title">Context</h2>
             <section className="chat-context-section" aria-label="Native session">
               <SectionLabel>Native session</SectionLabel>
