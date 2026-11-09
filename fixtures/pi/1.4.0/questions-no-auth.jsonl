@@ -1,0 +1,18 @@
+{"direction": "stdin", "message": {"id": "question-spike-0", "type": "get_session_stats"}}
+{"direction": "stdout", "message": {"id": "question-spike-0", "type": "response", "command": "get_session_stats", "success": true, "data": {"sessionFile": "<repo>/.cache/spikes/pi-question-home/sessions/2026-10-29T02-02-37-938Z_01a18565-19f2-7595-9b55-504c729ab752.jsonl", "sessionId": "01a18565-19f2-7595-9b55-504c729ab752", "userMessages": 0, "assistantMessages": 0, "toolCalls": 0, "toolResults": 0, "totalMessages": 0, "tokens": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}, "cost": 0}}}
+{"direction": "stdin", "message": {"id": "question-spike-2", "type": "prompt", "message": "/zoltbot_questions"}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "0c62880a-b777-433f-8e64-81b2e5a095c4", "method": "select", "title": "Choose synthetic option", "options": ["First", "Second"], "timeout": 5000}}
+{"direction": "stdin", "message": {"type": "extension_ui_response", "id": "0c62880a-b777-433f-8e64-81b2e5a095c4", "value": "Second"}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "ed16bc43-24f7-4530-abe7-b63e4cdabf25", "method": "input", "title": "Synthetic input", "placeholder": "Enter synthetic text", "timeout": 5000}}
+{"direction": "stdin", "message": {"type": "extension_ui_response", "id": "ed16bc43-24f7-4530-abe7-b63e4cdabf25", "value": "Synthetic answer"}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "8937ec6a-5526-4e61-b7aa-04d51723a05c", "method": "notify", "message": "{\"selected\":\"Second\",\"input\":\"Synthetic answer\"}", "notifyType": "info"}}
+{"direction": "stdout", "message": {"id": "question-spike-2", "type": "response", "command": "prompt", "success": true, "data": {"disposition": "handled"}}}
+{"direction": "stdin", "message": {"id": "question-spike-9", "type": "prompt", "message": "/zoltbot_questions"}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "6c3d88d0-f048-457b-801d-002db0fa5996", "method": "select", "title": "Choose synthetic option", "options": ["First", "Second"], "timeout": 5000}}
+{"direction": "stdin", "message": {"type": "extension_ui_response", "id": "6c3d88d0-f048-457b-801d-002db0fa5996", "cancelled": true}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "f160f06f-8fb5-4707-907c-ab134b970556", "method": "input", "title": "Synthetic input", "placeholder": "Enter synthetic text", "timeout": 5000}}
+{"direction": "stdin", "message": {"type": "extension_ui_response", "id": "f160f06f-8fb5-4707-907c-ab134b970556", "cancelled": true}}
+{"direction": "stdout", "message": {"type": "extension_ui_request", "id": "130b4164-11d9-4081-8319-92acbc6eaac4", "method": "notify", "message": "{\"selected\":null,\"input\":null}", "notifyType": "info"}}
+{"direction": "stdout", "message": {"id": "question-spike-9", "type": "response", "command": "prompt", "success": true, "data": {"disposition": "handled"}}}
+{"direction": "stdin", "message": {"id": "question-spike-16", "type": "get_session_stats"}}
+{"direction": "stdout", "message": {"id": "question-spike-16", "type": "response", "command": "get_session_stats", "success": true, "data": {"sessionFile": "<repo>/.cache/spikes/pi-question-home/sessions/2026-10-29T02-02-37-938Z_01a18565-19f2-7595-9b55-504c729ab752.jsonl", "sessionId": "01a18565-19f2-7595-9b55-504c729ab752", "userMessages": 0, "assistantMessages": 0, "toolCalls": 0, "toolResults": 0, "totalMessages": 0, "tokens": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}, "cost": 0}}}

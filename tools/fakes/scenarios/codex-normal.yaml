@@ -1,0 +1,13 @@
+name: normal
+provider: codex
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { userAgent: fake-codex } }
+  - on_input: { match: { method: initialized } }
+  - on_input: { match: { method: thread/start } }
+  - reply: { result: { thread: { id: fake-thread } } }
+  - on_input: { match: { method: turn/start } }
+  - reply: { result: { turn: { id: fake-turn, status: inProgress } } }
+  - emit: { method: item/agentMessage/delta, params: { threadId: fake-thread, turnId: fake-turn, itemId: m1, delta: ok } }
+  - emit: { method: item/completed, params: { item: { type: agentMessage, id: m1, text: ok, phase: final } } }
+  - emit: { method: turn/completed, params: { turn: { id: fake-turn, status: completed } } }

@@ -1,0 +1,25 @@
+{
+  "id": "kimi",
+  "displayName": "Kimi CLI",
+  "adapter": "acp",
+  "flavor": "kimi",
+  "binaryNames": ["kimi"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "kimi",
+    "args": ["acp"],
+    "env": {}
+  },
+  "install": {
+    "docsUrl": "https://moonshotai.github.io/kimi-cli/en/reference/kimi-command.html"
+  },
+  "testedVersions": "unverified",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

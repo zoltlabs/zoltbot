@@ -1,0 +1,20 @@
+name: config
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply:
+      result:
+        sessionId: fake-session
+        modes: { currentModeId: default, availableModes: [{ id: default, name: Default }, { id: plan, name: Plan }] }
+        configOptions: &options
+          - { id: opaque-model, category: model, type: select, name: Model, currentValue: small, options: [{ value: small, name: Small }, { value: large, name: Large }] }
+          - { id: opaque-effort, category: thought_level, type: select, name: Effort, currentValue: low, options: [{ value: low, name: Low }, { value: high, name: High }] }
+  - on_input: { match: { method: session/set_config_option, params: { sessionId: fake-session, configId: opaque-model, value: large } } }
+  - reply: { result: { configOptions: *options } }
+  - on_input: { match: { method: session/set_config_option, params: { sessionId: fake-session, configId: opaque-effort, value: high } } }
+  - reply: { result: { configOptions: *options } }
+  - on_input: { match: { method: session/set_mode, params: { sessionId: fake-session, modeId: plan } } }
+  - reply: { result: {} }
+  - hang: true

@@ -1,0 +1,22 @@
+{
+  "name": "@zoltbot/relay",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "TSX_DISABLE_CACHE=1 node --import tsx src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/main.mjs --external:bufferutil --external:utf-8-validate --alias:sodium-native=sodium-javascript --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\""
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.48",
+    "@zoltbot/link": "workspace:*",
+    "ws": "8.19.0"
+  },
+  "devDependencies": {
+    "sodium-javascript": "~0.8.0"
+  }
+}

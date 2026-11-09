@@ -1,0 +1,7 @@
+{
+  "id": "opencode",
+  "testedVersions": "1.19.4",
+  "mcpInjection": "session_new",
+  "instructionInjection": "first_block",
+  "readOnlyModes": ["plan"]
+}

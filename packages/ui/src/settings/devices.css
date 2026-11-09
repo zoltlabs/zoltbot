@@ -1,0 +1,85 @@
+.devices h3 {
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-lg);
+  font-weight: var(--zb-weight-semibold);
+}
+.device-relay {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--zb-space-2);
+}
+.device-relay .zb-field {
+  flex: 1;
+}
+.device-relay-hint {
+  margin-top: calc(var(--zb-space-2) * -1);
+}
+.device-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.device-error {
+  color: var(--zb-danger);
+}
+.device-pending {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-4);
+}
+.device-code {
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-xl);
+  letter-spacing: var(--zb-tracking-label);
+  font-variant-numeric: tabular-nums;
+}
+.device-offer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zb-space-4);
+}
+.device-qr {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  max-width: calc(var(--zb-space-12) * 5);
+}
+.device-qr svg {
+  width: calc(var(--zb-space-12) * 4);
+  height: calc(var(--zb-space-12) * 4);
+  border-radius: var(--zb-radius-md);
+}
+/* QR codes scan best as dark modules on white in both themes. */
+.device-qr-light {
+  fill: #ffffff; /* tokens: allow */
+}
+.device-qr-dark {
+  fill: #000000; /* tokens: allow */
+}
+.device-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--zb-border);
+}
+.device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-2) 0;
+  border-bottom: 1px solid var(--zb-border);
+}
+.device-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+.device-name {
+  font-weight: var(--zb-weight-medium);
+}

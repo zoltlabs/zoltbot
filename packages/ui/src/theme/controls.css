@@ -1,0 +1,115 @@
+/* Legacy class names, styled as the v3 kit. New code uses components/primitives.tsx. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zb-space-1-5);
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-raised);
+  color: var(--zb-text);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  font-weight: var(--zb-weight-medium);
+  white-space: nowrap;
+  transition: background-color var(--zb-duration-fast) var(--zb-ease-out);
+}
+.btn:hover:not(:disabled) {
+  background: var(--zb-bg-hover);
+}
+.btn:active:not(:disabled) {
+  background: var(--zb-bg-active);
+}
+.btn.pri {
+  border-color: transparent;
+  background: var(--zb-primary);
+  color: var(--zb-text-on-primary);
+}
+.btn.pri:hover:not(:disabled) {
+  background: var(--zb-primary-hover);
+}
+.btn.bad {
+  color: var(--zb-danger);
+}
+.btn.bad:hover:not(:disabled) {
+  background: var(--zb-danger-soft);
+}
+.btn.sm {
+  height: var(--zb-control-sm);
+  padding: 0 var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  height: var(--zb-control-xs);
+  padding: 0 var(--zb-space-1-5);
+  border: 0;
+  border-radius: var(--zb-radius-xs);
+  background: var(--zb-bg-active);
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-weight: var(--zb-weight-medium);
+  white-space: nowrap;
+}
+.chip.ok {
+  background: var(--zb-ok-soft);
+  color: var(--zb-ok);
+}
+.chip.warn {
+  background: var(--zb-warn-soft);
+  color: var(--zb-warn);
+}
+.chip.bad {
+  background: var(--zb-danger-soft);
+  color: var(--zb-danger);
+}
+.chip.need {
+  background: var(--zb-attention-soft);
+  color: var(--zb-attention);
+}
+.chip.acc {
+  background: var(--zb-accent-soft);
+  color: var(--zb-accent-text);
+}
+.chip.vio {
+  background: var(--zb-gate-soft);
+  color: var(--zb-gate);
+}
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--zb-space-1);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-xs);
+  background: var(--zb-bg-sunken);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-medium);
+}
+.card {
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-raised);
+}
+.card.live {
+  border-color: transparent;
+  box-shadow: var(--zb-attention-ring);
+}
+.hero {
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-raised);
+}

@@ -1,0 +1,37 @@
+{
+  "id": "cursor",
+  "displayName": "Cursor",
+  "adapter": "acp",
+  "flavor": "cursor",
+  "binaryNames": ["cursor-agent", "agent"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": ["acp"],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "CURSOR_API_KEY",
+    "loginCommand": ["login"],
+    "statusCommand": ["status"]
+  },
+  "update": {
+    "args": ["update"],
+    "latest": {
+      "url": "https://cursor.com/install",
+      "pattern": "downloads\\.cursor\\.com/lab/([0-9][0-9A-Za-z.-]+)/"
+    }
+  },
+  "install": {
+    "docsUrl": "https://cursor.com/docs/cli/acp"
+  },
+  "testedVersions": "2026.10.22-27dcf5f",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

@@ -1,0 +1,286 @@
+/*
+ * Zoltbot visual language v3: quiet neutrals, one accent, hairline borders.
+ * Every --zb-* token is declared here once, for the desktop app (@zoltbot/ui) and the
+ * other consumers, which verify copied styles against the pinned tokens package.
+ * Components read semantic tokens only (layer 2), never the primitives (layer 1) and
+ * never a literal color, size or radius.
+ *
+ * Dark is the base palette. Light changes values only and declares no new token.
+ * The theme is chosen with data-theme on the root element ("light" | "dark"); the app
+ * resolves "system" from prefers-color-scheme before writing the attribute.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------- layer 1: primitives (dark) ---------- */
+  --zb-gray-0: #08080a; /* window frame */
+  --zb-gray-1: #0f0f11; /* canvas */
+  --zb-gray-2: #151517; /* page / surface */
+  --zb-gray-3: #1b1b1e; /* raised: cards, composer */
+  --zb-gray-4: #222225; /* popover, control hover */
+  --zb-gray-5: #2a2a2e; /* control active */
+  --zb-ink: 255, 255, 255; /* translucent ink for hover and border */
+
+  --zb-indigo-500: #5e56ee;
+  --zb-indigo-400: #6760f0;
+  --zb-indigo-300: #a9a4ff;
+
+  /* ---------- layer 2: semantic ---------- */
+  /* Surfaces: each step is lighter in dark, so raised things come forward. */
+  --zb-bg-frame: var(--zb-gray-0);
+  --zb-bg-canvas: var(--zb-gray-1);
+  --zb-bg-page: var(--zb-gray-2);
+  --zb-bg-raised: var(--zb-gray-3);
+  --zb-bg-popover: var(--zb-gray-4);
+  --zb-bg-sunken: rgba(0, 0, 0, 0.24); /* code, inputs inside cards */
+  --zb-bg-hover: rgba(var(--zb-ink), 0.045);
+  --zb-bg-active: rgba(var(--zb-ink), 0.075);
+  --zb-bg-selected: rgba(var(--zb-ink), 0.07);
+  --zb-scrim: rgba(0, 0, 0, 0.5);
+
+  /* Borders are translucent ink, so they sit right on every surface. */
+  --zb-border-subtle: rgba(var(--zb-ink), 0.05);
+  --zb-border: rgba(var(--zb-ink), 0.08);
+  --zb-border-strong: rgba(var(--zb-ink), 0.14);
+
+  /* Text. Contrast on --zb-bg-page: primary 16:1, secondary 9:1, muted 5:1. Dim is for
+     marks, placeholders and disabled text only, never for copy that must be read. */
+  --zb-text: #f2f2f4;
+  --zb-text-secondary: #b7b7bd;
+  --zb-text-muted: #9a9aa2;
+  --zb-text-dim: #5f5f67;
+  --zb-text-on-accent: #ffffff;
+
+  /* The one accent: primary actions, focus, selection, "working". Not for decoration. */
+  --zb-accent: var(--zb-indigo-500);
+  --zb-accent-hover: var(--zb-indigo-400);
+  --zb-accent-text: var(--zb-indigo-300);
+  --zb-accent-soft: rgba(94, 86, 238, 0.18);
+  --zb-accent-border: rgba(94, 86, 238, 0.5);
+
+  /* Status. -text is for words and dots on neutral surfaces; -soft is a chip fill. */
+  --zb-ok: #3ec27a;
+  --zb-ok-soft: rgba(62, 194, 122, 0.13);
+  --zb-warn: #e6a23c;
+  --zb-warn-soft: rgba(230, 162, 60, 0.14);
+  --zb-danger: #ff6b70;
+  --zb-danger-soft: rgba(240, 86, 92, 0.14);
+  --zb-attention: #ff9a5c; /* "Needs you": the only warm color that may ring a card */
+  --zb-attention-soft: rgba(255, 154, 92, 0.13);
+  --zb-gate: #b592f5; /* human gates in pipelines */
+  --zb-gate-soft: rgba(181, 146, 245, 0.14);
+  --zb-diff-add: rgba(62, 194, 122, 0.12);
+  --zb-diff-del: rgba(240, 86, 92, 0.12);
+
+  /* Profile avatars: eight hues, identity only, never status. White initials read at 4.5:1. */
+  --zb-avatar-1: #5e56ee;
+  --zb-avatar-2: #1b7891;
+  --zb-avatar-3: #1a7d4c;
+  --zb-avatar-4: #996410;
+  --zb-avatar-5: #b84b26;
+  --zb-avatar-6: #b8407c;
+  --zb-avatar-7: #7d4fd6;
+  --zb-avatar-8: #646e7a;
+
+  /* Mobile character avatars still consume these colors; desktop uses tool logos. */
+  --zb-character-screen: #141416;
+  --zb-character-eye-1: #bbb8f8;
+  --zb-character-eye-2: #9fc6d1;
+  --zb-character-eye-3: #9fc8b4;
+  --zb-character-eye-4: #d4be9b;
+  --zb-character-eye-5: #e1b3a4;
+  --zb-character-eye-6: #e1afc8;
+  --zb-character-eye-7: #c8b5ee;
+  --zb-character-eye-8: #bec2c7;
+
+  /* Pastel tints: marketing tiles. Same in both
+     themes, always read with --zb-text-on-tint on top. */
+  --zb-tint-indigo: #aab4ff;
+  --zb-tint-violet: #c9b5ff;
+  --zb-tint-green: #9fe2bd;
+  --zb-tint-orange: #ffbf9b;
+  --zb-tint-blue: #93c6ff;
+  --zb-tint-yellow: #f6dd8c;
+  --zb-text-on-tint: #141416;
+  --zb-text-on-tint-muted: rgba(20, 20, 22, 0.7);
+
+  /* Provider marks. The only place a coding tool meets its color; never used for status. */
+  --zb-provider-claude: #d97757;
+  --zb-provider-codex: var(--zb-text);
+  --zb-provider-gemini: #7aa7ff;
+  --zb-provider-grok: var(--zb-text-muted);
+  --zb-provider-cursor: var(--zb-tint-violet);
+  --zb-provider-opencode: var(--zb-tint-green);
+  --zb-provider-pi: #3ea6c2;
+
+  /* ---------- type ---------- */
+  --zb-font-sans:
+    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --zb-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --zb-font-features: "cv01", "cv11", "ss03"; /* straight 1, single storey a, round quotes */
+
+  /* Six steps; each size has one line height. A size that is not here has nowhere to go. */
+  --zb-text-xs: 11px; /* section labels, kbd */
+  --zb-text-sm: 12px; /* meta, chips, secondary rows */
+  --zb-text-md: 13px; /* base UI */
+  --zb-text-lg: 14px; /* chat prose */
+  --zb-text-xl: 16px; /* card and panel titles */
+  --zb-text-2xl: 20px; /* page titles */
+  --zb-leading-xs: 16px;
+  --zb-leading-sm: 16px;
+  --zb-leading-md: 20px;
+  --zb-leading-lg: 22px;
+  --zb-leading-xl: 24px;
+  --zb-leading-2xl: 28px;
+  /* Marketing only, named for their surface so they do not read as scale steps. */
+  --zb-text-hero: clamp(52px, 8.6vw, 92px);
+  --zb-text-display: clamp(36px, 5.2vw, 56px);
+  --zb-text-title: 24px;
+  --zb-text-lede: clamp(17px, 1.9vw, 20px);
+  --zb-text-body: 16px;
+  --zb-leading-hero: 0.98;
+  --zb-leading-display: 1.04;
+  --zb-leading-title: 30px;
+  --zb-leading-body: 1.5;
+  --zb-tracking-display: -0.045em;
+  --zb-site-width: 1120px;
+  --zb-radius-site-card: 20px;
+
+  --zb-weight-regular: 400;
+  --zb-weight-medium: 510;
+  --zb-weight-semibold: 590;
+  --zb-tracking-tight: -0.011em; /* titles 16px and up */
+  --zb-tracking-label: 0.02em;
+
+  /* ---------- space, size, shape ---------- */
+  --zb-space-0-5: 2px;
+  --zb-space-1: 4px;
+  --zb-space-1-5: 6px;
+  --zb-space-2: 8px;
+  --zb-space-3: 12px;
+  --zb-space-4: 16px;
+  --zb-space-5: 20px;
+  --zb-space-6: 24px;
+  --zb-space-8: 32px;
+  --zb-space-12: 48px;
+
+  --zb-control-xs: 20px;
+  --zb-control-sm: 24px;
+  --zb-control-md: 28px; /* default button, input, sidebar row */
+  --zb-control-lg: 32px;
+  --zb-control-xl: 36px;
+
+  --zb-radius-xs: 4px; /* kbd, checkbox */
+  --zb-radius-sm: 6px; /* buttons, inputs, rows */
+  --zb-radius-md: 8px; /* menus, small cards */
+  --zb-radius-lg: 12px; /* cards, composer, page panel */
+  --zb-radius-xl: 16px; /* dialogs, command palette */
+  --zb-radius-pill: 999px;
+
+  --zb-icon-sm: 14px;
+  --zb-icon-md: 16px;
+  --zb-icon-lg: 20px;
+  --zb-icon-stroke: 1.5;
+
+  /* ---------- layout ---------- */
+  --zb-sidebar-width: 240px;
+  --zb-header-height: 44px;
+  --zb-statusbar-height: 28px;
+  --zb-panel-width: 320px;
+  --zb-reading-width: 720px; /* chat column and long forms */
+  --zb-frame-inset: 8px; /* gap between window frame and page panel */
+
+  /* ---------- elevation ---------- */
+  /* Borders do the work on the page. Shadows only on things that float over it. */
+  --zb-shadow-none: 0 0 0 transparent;
+  --zb-shadow-popover: 0 0 0 1px var(--zb-border), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --zb-shadow-dialog: 0 0 0 1px var(--zb-border-strong), 0 24px 64px rgba(0, 0, 0, 0.6);
+  --zb-focus-ring: 0 0 0 1px var(--zb-accent), 0 0 0 4px var(--zb-accent-soft);
+  --zb-attention-ring: 0 0 0 1px var(--zb-attention);
+
+  /* ---------- motion ---------- */
+  --zb-duration-fast: 100ms; /* hover, press */
+  --zb-duration-normal: 160ms; /* menus, popovers */
+  --zb-duration-slow: 240ms; /* panels, dialogs */
+  --zb-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --zb-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --zb-layer-dropdown: 40;
+  --zb-layer-popover: 60;
+  --zb-layer-dialog: 100;
+  --zb-layer-toast: 120;
+  --zb-layer-tooltip: 200;
+  --zb-chat-shimmer-background:
+    linear-gradient(
+      90deg,
+      var(--zb-text-muted) 0%,
+      var(--zb-text-muted) 40%,
+      var(--zb-text) 50%,
+      var(--zb-text-muted) 60%,
+      var(--zb-text-muted) 100%
+    )
+    0 0 / 300% 100%;
+  --zb-chat-warning-background: linear-gradient(var(--zb-warn-soft), var(--zb-warn-soft))
+    var(--zb-bg-raised);
+  --zb-review-leading: 1.4;
+  --zb-mobile-input-size: 1rem;
+  --zb-compose-radius: var(--zb-radius-xl, var(--zb-radius-lg));
+}
+
+/* Light changes values only. Raised surfaces are white on an off-white canvas; ink is dark. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --zb-ink: 16, 16, 20;
+
+  --zb-bg-frame: #ececee;
+  --zb-bg-canvas: #f4f4f5;
+  --zb-bg-page: #fcfcfc;
+  --zb-bg-raised: #ffffff;
+  --zb-bg-popover: #ffffff;
+  --zb-bg-sunken: rgba(var(--zb-ink), 0.035);
+  --zb-bg-hover: rgba(var(--zb-ink), 0.04);
+  --zb-bg-active: rgba(var(--zb-ink), 0.07);
+  --zb-bg-selected: rgba(var(--zb-ink), 0.06);
+  --zb-scrim: rgba(16, 16, 20, 0.24);
+
+  --zb-border-subtle: rgba(var(--zb-ink), 0.06);
+  --zb-border: rgba(var(--zb-ink), 0.09);
+  --zb-border-strong: rgba(var(--zb-ink), 0.15);
+
+  --zb-text: #18181b;
+  --zb-text-secondary: #3f3f46;
+  --zb-text-muted: #6b6b74;
+  --zb-text-dim: #a0a0a8;
+
+  --zb-accent: #5b52e8;
+  --zb-accent-hover: #4c43d6;
+  --zb-accent-text: #4b42d4;
+  --zb-accent-soft: rgba(91, 82, 232, 0.1);
+  --zb-accent-border: rgba(91, 82, 232, 0.4);
+
+  --zb-ok: #18794e;
+  --zb-ok-soft: rgba(24, 121, 78, 0.1);
+  --zb-warn: #95600b;
+  --zb-warn-soft: rgba(196, 128, 20, 0.12);
+  --zb-danger: #c9302f;
+  --zb-danger-soft: rgba(201, 48, 47, 0.09);
+  --zb-attention: #a8420a;
+  --zb-attention-soft: rgba(224, 96, 24, 0.1);
+  --zb-gate: #7443d0;
+  --zb-gate-soft: rgba(116, 67, 208, 0.09);
+  --zb-diff-add: rgba(24, 121, 78, 0.1);
+  --zb-diff-del: rgba(201, 48, 47, 0.08);
+
+  --zb-shadow-popover: 0 0 0 1px var(--zb-border), 0 8px 24px rgba(16, 16, 20, 0.1);
+  --zb-shadow-dialog: 0 0 0 1px var(--zb-border), 0 24px 64px rgba(16, 16, 20, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --zb-duration-fast: 0ms;
+    --zb-duration-normal: 0ms;
+    --zb-duration-slow: 0ms;
+  }
+}

@@ -1,0 +1,12 @@
+name: read_only_denial
+provider: acp
+steps:
+  - on_input: { match: { method: initialize, params: { protocolVersion: 1 } } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new, params: { mcpServers: [{ type: http, name: zoltbot, headers: [{ name: Authorization, value: "Bearer test-secret" }] }] } } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt, params: { prompt: [{ type: text, text: "Follow repository rules." }] } } }
+  - emit: { jsonrpc: "2.0", id: permission-1, method: session/request_permission, params: { sessionId: fake-session, toolCall: { toolCallId: tool-1, title: Execute command, kind: execute }, options: [{ optionId: opaque-allow, name: Allow once, kind: allow_once }, { optionId: opaque-deny, name: Deny, kind: reject_once }] } }
+  - on_input: { match: { id: permission-1, result: { outcome: { outcome: selected, optionId: opaque-deny } } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: tool_call, toolCallId: tool-1, title: Execute command, kind: execute, status: failed, rawOutput: accepted } } }
+  - hang: true

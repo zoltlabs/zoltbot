@@ -1,0 +1,16 @@
+/* Explicitly opened details remain reachable on narrower windows. */
+@media (max-width: 1050px) {
+  .chat-main:has(> .chat-context) {
+    flex-direction: column;
+  }
+  .chat-main > .chat-context {
+    display: block;
+    width: 100%;
+    max-height: 40%;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--zb-border);
+  }
+}
+.chat-context-hint > summary {
+  cursor: pointer;
+}

@@ -1,0 +1,25 @@
+{
+  "id": "qwen",
+  "displayName": "Qwen Code",
+  "adapter": "acp",
+  "flavor": "qwen",
+  "binaryNames": ["qwen"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "qwen",
+    "args": ["--acp"],
+    "env": {}
+  },
+  "install": {
+    "docsUrl": "https://github.com/QwenLM/qwen-code"
+  },
+  "testedVersions": "unverified",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

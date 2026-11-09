@@ -1,0 +1,12 @@
+name: extension
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", id: extension-1, method: _example/question, params: { sessionId: fake-session, prompt: Choose } }
+  - on_input: { match: { id: extension-1, result: { answer: chosen } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: agent_message_chunk, content: { type: text, text: accepted } } } }
+  - hang: true

@@ -1,0 +1,8 @@
+name: normal
+provider: claude
+steps:
+  - emit: { type: system, subtype: init, session_id: fake-session, model: fake-model, mcp_servers: [{ name: zoltbot, status: connected }] }
+  - on_input: { match: { type: user } }
+  - emit: { type: stream_event, event: { type: content_block_delta, delta: { type: text_delta, text: ok } } }
+  - emit: { type: assistant, message: { id: m1, content: [{ type: text, text: ok }] } }
+  - emit: { type: result, subtype: success, usage: { input_tokens: 10, output_tokens: 1 } }

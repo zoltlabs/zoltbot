@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>Zoltbot</title>
+  <rect width="512" height="512" rx="112" fill="#20211E"/>
+  <path d="M290 192H408L246 320H128L290 192Z" fill="#B77A18"/>
+  <path d="M152 112H424L408 192H80L152 112Z" fill="#FFBE3D"/>
+  <path d="M128 320H432L360 400H88L128 320Z" fill="#FFBE3D"/>
+</svg>

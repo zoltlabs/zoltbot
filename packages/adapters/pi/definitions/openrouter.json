@@ -1,0 +1,28 @@
+{
+  "id": "pi:openrouter",
+  "displayName": "OpenRouter via Pi",
+  "adapter": "pi",
+  "flavor": "openrouter",
+  "binaryNames": ["pi"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "pi",
+    "args": [],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "OPENROUTER_API_KEY"
+  },
+  "install": {
+    "docsUrl": "https://github.com/earendil-works/pi/tree/main/packages/coding-agent"
+  },
+  "testedVersions": "1.4.0",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": ["~/.pi/agent/sessions"],
+  "experimental": false
+}

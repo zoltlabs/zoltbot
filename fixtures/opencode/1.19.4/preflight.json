@@ -1,0 +1,9 @@
+{
+  "version": "1.19.4",
+  "source": "https://www.npmjs.com/package/opencode-ai/v/1.19.4",
+  "binary": "<repo>/.cache/spikes/opencode-cli/node_modules/.pnpm/opencode-darwin-arm64@1.19.4/node_modules/opencode-darwin-arm64/bin/opencode",
+  "sha256": "417af53923f3d529759ab85ce3e8dd09116f742efcd332de591d2da6ebae696b",
+  "isolatedHome": true,
+  "modelPromptsSent": false,
+  "loginAttempted": false
+}

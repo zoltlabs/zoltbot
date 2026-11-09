@@ -1,0 +1,25 @@
+{
+  "id": "cline",
+  "displayName": "Cline",
+  "adapter": "acp",
+  "flavor": "cline",
+  "binaryNames": ["cline"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "cline",
+    "args": ["--acp"],
+    "env": {}
+  },
+  "install": {
+    "docsUrl": "https://github.com/cline/cline/blob/main/docs/usage/acp.mdx"
+  },
+  "testedVersions": "unverified",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

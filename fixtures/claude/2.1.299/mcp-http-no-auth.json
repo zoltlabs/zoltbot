@@ -1,0 +1,18 @@
+[
+  {
+    "method": "server/discover",
+    "authorized": true
+  },
+  {
+    "method": "initialize",
+    "authorized": true
+  },
+  {
+    "method": "notifications/initialized",
+    "authorized": true
+  },
+  {
+    "method": "tools/list",
+    "authorized": true
+  }
+]

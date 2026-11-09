@@ -1,0 +1,520 @@
+.scope-chat.idle .zb-status-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--zb-text-dim);
+}
+.scope-chat.needs_you,
+.scope-chat.working,
+.scope-chat.on {
+  color: var(--zb-text);
+}
+.scope-lead {
+  flex: none;
+  padding: 0 var(--zb-space-1);
+  border: 1px solid var(--zb-accent-soft);
+  border-radius: var(--zb-radius-xs);
+  color: var(--zb-accent-text);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-medium);
+}
+.scope-older {
+  height: var(--zb-control-sm);
+  padding-inline: calc(var(--zb-space-1-5) + 15px);
+  color: var(--zb-text-dim);
+  font-size: var(--zb-text-sm);
+}
+.scope-older:hover {
+  color: var(--zb-text-secondary);
+}
+.scope-toggle,
+.scope-toggle-spacer {
+  width: 18px;
+  flex: 0 0 18px;
+}
+.scope-toggle {
+  display: grid;
+  place-items: center;
+  height: var(--zb-control-sm);
+  border: 0;
+  padding: 0;
+  border-radius: var(--zb-radius-xs);
+  background: transparent;
+  color: var(--zb-text-muted);
+}
+.scope-toggle:hover {
+  background: var(--zb-bg-hover);
+  color: var(--zb-text);
+}
+.tree-empty {
+  padding: 0 var(--zb-space-2);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-body);
+}
+@media (max-width: 1050px) {
+  .mo-columns,
+  .mo-columns + .mo-below + .mo-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .scope-form input,
+  .scope-form textarea,
+  .scope-form select {
+    font-size: var(--zb-text-xl);
+  }
+}
+
+/* First-run Workspaces page: a sample tree beside the call to action, centred in the page. */
+.workspaces-intro {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zb-space-8);
+  min-height: min(560px, 70vh);
+  padding: var(--zb-space-6) 0;
+}
+.wi-copy {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--zb-space-3);
+  max-width: 380px;
+}
+.wi-copy h1 {
+  margin: 0;
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-2xl);
+  font-weight: var(--zb-weight-semibold);
+  letter-spacing: var(--zb-tracking-tight);
+  text-wrap: balance;
+}
+.wi-copy p {
+  margin: 0;
+  text-wrap: pretty;
+}
+.wi-preview {
+  flex: 0 1 340px;
+  padding: var(--zb-space-4);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-sunken);
+  box-shadow: var(--zb-shadow-popover);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  user-select: none;
+}
+.wi-tree,
+.wi-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wi-tree ul {
+  margin-inline-start: 8px;
+  padding-inline-start: var(--zb-space-3);
+  border-inline-start: 1px solid var(--zb-border);
+}
+.wi-scope,
+.wi-chat {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-height: var(--zb-control-sm);
+}
+.wi-scope {
+  margin-top: var(--zb-space-1);
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+.wi-scope.root {
+  margin-top: 0;
+}
+.wi-chat {
+  color: var(--zb-text-secondary);
+}
+.wi-chat .zb-status-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* Workspace home: start a chat and see chats, with a short side list of what chats start with. */
+.scope-root {
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+.ws-home {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-6) var(--zb-space-8);
+  align-items: start;
+}
+.ws-main {
+  flex: 999 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-6);
+}
+.ws-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin: 0;
+  padding: var(--zb-space-4);
+  border: 1px solid var(--zb-border-strong);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-raised);
+}
+.ws-compose > label {
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-secondary);
+}
+.ws-compose textarea {
+  resize: vertical;
+  min-height: 72px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--zb-text);
+  font: inherit;
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-lg);
+}
+.ws-compose textarea:focus {
+  outline: none;
+}
+.ws-compose:focus-within {
+  border-color: var(--zb-accent-border);
+}
+.ws-compose-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+}
+.ws-compose-bar select {
+  max-width: 240px;
+}
+.ws-grow {
+  flex: 1;
+}
+.ws-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ws-chats h2,
+.ws-side > h2 {
+  margin: 0 0 var(--zb-space-2);
+  font-size: var(--zb-text-md);
+  font-weight: var(--zb-weight-semibold);
+}
+.ws-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-5);
+  border: 1px dashed var(--zb-border-strong);
+  border-radius: var(--zb-radius-lg);
+}
+.ws-empty p {
+  margin: 0;
+  color: var(--zb-text-secondary);
+}
+.ws-starter {
+  border-radius: var(--zb-radius-pill);
+  font-weight: var(--zb-weight-regular);
+}
+.ws-side {
+  flex: 1 1 260px;
+  max-width: 340px;
+  min-width: 0;
+}
+.ws-side > h2 {
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.ws-row {
+  display: flex;
+  align-items: start;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-3) 0;
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.ws-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.ws-row h3 {
+  margin: 0;
+  font-size: var(--zb-text-md);
+  font-weight: var(--zb-weight-medium);
+}
+.ws-row p {
+  margin: 2px 0 0;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+.ws-row code,
+.ws-saved pre {
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-xs);
+  color: var(--zb-text-secondary);
+}
+.ws-side .btn.ghost {
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--zb-accent-text);
+}
+.ws-side .btn.ghost:hover:not(:disabled) {
+  background: var(--zb-bg-hover);
+}
+.ws-links {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+.ws-link {
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--zb-text-secondary);
+  font: inherit;
+  font-size: var(--zb-text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.ws-link:hover {
+  color: var(--zb-text);
+  text-decoration: underline;
+}
+.ws-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-3);
+}
+.ws-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ws-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-2);
+}
+.ws-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-1);
+  margin: 0;
+  font-size: var(--zb-text-sm);
+}
+.ws-add input {
+  flex: 1;
+  min-width: 0;
+}
+.ws-saved {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-4);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  font-size: var(--zb-text-sm);
+}
+.ws-saved h3 {
+  margin: 0;
+  font-size: var(--zb-text-sm);
+  font-weight: var(--zb-weight-semibold);
+}
+.ws-saved p {
+  margin: 0;
+  color: var(--zb-text-muted);
+}
+.ws-saved pre {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: var(--zb-space-2) 0 0;
+}
+.ws-activity {
+  margin-top: var(--zb-space-4);
+  font-size: var(--zb-text-sm);
+}
+.ws-activity summary {
+  cursor: pointer;
+  color: var(--zb-text-secondary);
+}
+
+/* The workspace page is a draft: a centred heading and composer, the way a new chat starts. */
+.ws-home {
+  position: relative;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+.ws-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--zb-space-4);
+  width: 100%;
+  max-width: var(--zb-reading-width);
+  min-height: clamp(320px, 58vh, 620px);
+  margin: 0 auto;
+}
+.ws-home.has-chats .ws-hero {
+  min-height: clamp(260px, 40vh, 440px);
+}
+.ws-hero-title {
+  margin: 0;
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-2xl);
+  font-weight: var(--zb-weight-regular);
+  letter-spacing: var(--zb-tracking-tight);
+  text-align: center;
+  text-wrap: balance;
+}
+.ws-hero-title strong {
+  font-weight: var(--zb-weight-semibold);
+}
+.ws-picker {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border-radius: var(--zb-radius-md);
+  vertical-align: bottom;
+}
+.ws-picker select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.ws-picker strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--zb-space-1);
+  max-width: 100%;
+  padding: 0 var(--zb-space-1);
+  border-radius: var(--zb-radius-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-picker:hover strong {
+  background: var(--zb-bg-raised);
+}
+.ws-picker:focus-within strong {
+  outline: 2px solid var(--zb-accent-border);
+}
+.ws-picker-chevron {
+  display: inline-flex;
+  align-self: center;
+  color: var(--zb-text-muted);
+}
+.ws-hero .ws-compose {
+  border-radius: var(--zb-compose-radius);
+  box-shadow: var(--zb-shadow-popover);
+}
+.ws-starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--zb-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ws-chats {
+  width: 100%;
+  max-width: var(--zb-reading-width);
+  margin: 0 auto;
+}
+/* Details sits over the page, anchored under the header's Details button. */
+.ws-home > .ws-side {
+  position: absolute;
+  top: calc(-1 * var(--zb-space-4));
+  right: 0;
+  z-index: 20;
+  width: min(380px, 100%);
+  max-width: none;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  padding: var(--zb-space-4);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-popover);
+  box-shadow: var(--zb-shadow-popover);
+}
+.ws-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-2);
+}
+.ws-side-head h2 {
+  margin: 0;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.ws-default {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.ws-default select {
+  min-width: 0;
+  max-width: 220px;
+}
+
+/* Chat rows say what needs you on the right; holding ⌘ swaps that for a jump number. */
+.scope-state,
+.scope-jump {
+  flex: none;
+  margin-inline-start: auto;
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-medium);
+}
+.scope-state.approval {
+  color: var(--zb-attention);
+}
+.scope-state.input {
+  color: var(--zb-accent-text);
+}
+.scope-state.working {
+  color: var(--zb-text-secondary);
+}
+.scope-state.failed {
+  color: var(--zb-danger);
+}
+.scope-state.done {
+  color: var(--zb-ok);
+}
+.scope-jump {
+  padding: 0 var(--zb-space-1);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-xs);
+  color: var(--zb-text-secondary);
+  font-family: inherit;
+}
+.scope-chat.row-failed,
+.scope-chat.row-done {
+  color: var(--zb-text);
+}

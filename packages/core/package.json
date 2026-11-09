@@ -1,0 +1,19 @@
+{
+  "name": "@zoltbot/core",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./usage-meter": "./src/usage-meter.ts",
+    "./budgets": "./src/budgets.ts",
+    "./approval-rules": "./src/approval-rules.ts",
+    "./commands": "./src/commands.ts",
+    "./imports": "./src/imports.ts",
+    "./projectors": "./src/projectors.ts"
+  },
+  "dependencies": {
+    "@zoltbot/protocol": "workspace:*"
+  }
+}

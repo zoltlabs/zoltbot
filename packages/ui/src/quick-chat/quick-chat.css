@@ -1,0 +1,436 @@
+.quick-chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+.quick-recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-4) var(--zb-space-3);
+  border-right: 1px solid var(--zb-border-subtle);
+  overflow-y: auto;
+}
+.quick-recent ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quick-recent li {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-0-5);
+  border-radius: var(--zb-radius-md);
+}
+.quick-recent li.current,
+.quick-recent li:hover {
+  background: var(--zb-bg-hover);
+}
+.quick-recent-open {
+  flex: 1;
+  min-width: 0;
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border: 0;
+  background: transparent;
+  color: var(--zb-text);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.quick-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Matches the app header and the workspace chat header, so pages don't jump when you switch. */
+.quick-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-height: var(--zb-header-height);
+  padding: 0 var(--zb-space-3);
+}
+.quick-head h1 {
+  margin: 0;
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+}
+.quick-muted {
+  margin: 0;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.quick-empty {
+  align-self: center;
+  margin-top: var(--zb-space-12);
+}
+.quick-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-4);
+  align-self: center;
+  width: calc(100% - var(--zb-space-8));
+  max-width: var(--zb-reading-width);
+  margin: var(--zb-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+}
+.quick-message.user {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-raised);
+}
+.quick-user-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.quick-reply-meta {
+  margin: var(--zb-space-1) 0 0;
+  color: var(--zb-text-dim);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+}
+.quick-outcome {
+  margin: var(--zb-space-1) 0 0;
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-warn-soft);
+  color: var(--zb-text);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.quick-outcome.failed {
+  background: var(--zb-danger-soft);
+}
+.quick-composer {
+  position: sticky;
+  bottom: 0;
+}
+/* An empty chat centres its heading and composer in the pane; the composer drops to the
+   bottom once the first message is sent. */
+.quick-main.empty .quick-empty {
+  margin-top: auto;
+}
+.quick-main.empty .quick-composer {
+  position: static;
+  margin-bottom: auto;
+}
+.quick-messages[hidden] {
+  display: none;
+}
+.quick-controls {
+  flex-wrap: wrap;
+}
+.quick-billing {
+  align-self: center;
+  width: calc(100% - var(--zb-space-8));
+  max-width: var(--zb-reading-width);
+  margin: var(--zb-space-2) auto 0;
+  text-align: center;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.quick-notice {
+  display: block;
+  margin: var(--zb-space-1) 0 0;
+  color: var(--zb-text);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.quick-notice.danger {
+  color: var(--zb-danger);
+}
+.quick-chips,
+.quick-suggestions,
+.quick-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1);
+  margin: 0 0 var(--zb-space-1);
+  padding: 0;
+  list-style: none;
+}
+.quick-chip-remove {
+  margin-left: var(--zb-space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.quick-suggestions button,
+.quick-files button {
+  padding: var(--zb-space-0-5) var(--zb-space-2);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-pill);
+  background: var(--zb-bg-page);
+  color: var(--zb-text);
+  font: inherit;
+  font-size: var(--zb-text-sm);
+  cursor: pointer;
+}
+.quick-files {
+  max-height: 160px;
+  overflow-y: auto;
+}
+.quick-context-panel,
+.quick-connections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin: var(--zb-space-2) 0;
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-page);
+}
+.quick-connections {
+  align-self: center;
+  width: calc(100% - var(--zb-space-8));
+  max-width: var(--zb-reading-width);
+}
+.quick-connections h2,
+.quick-connections h3 {
+  margin: 0;
+}
+.quick-context-actions {
+  flex-wrap: wrap;
+  gap: var(--zb-space-1);
+}
+.quick-connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quick-connection-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.quick-connection-list li > div {
+  display: flex;
+  flex-direction: column;
+}
+.quick-connection-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--zb-space-4);
+}
+.quick-connection-forms > * {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+}
+.quick-check {
+  display: flex;
+  gap: var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.quick-handoff-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  min-width: min(560px, 80vw);
+}
+@media (max-width: 760px) {
+  .quick-chat {
+    grid-template-columns: 1fr;
+  }
+  .quick-recent {
+    border-right: 0;
+    border-bottom: 1px solid var(--zb-border-subtle);
+    max-height: 30vh;
+  }
+}
+.quick-tools {
+  margin: var(--zb-space-1) 0 0;
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+}
+.quick-request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-1-5);
+  margin: var(--zb-space-2) 0 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-warn-soft);
+}
+.quick-request p {
+  margin: 0;
+}
+.quick-request-title {
+  font-weight: var(--zb-weight-semibold);
+}
+.quick-request-detail {
+  margin: 0;
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-sunken);
+  font-size: var(--zb-text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.quick-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1-5);
+}
+.quick-request-done {
+  margin: var(--zb-space-1) 0 0;
+  font-size: var(--zb-text-xs);
+}
+
+.quick-head {
+  flex-wrap: wrap;
+}
+.quick-head h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.quick-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--zb-space-3);
+  padding: 0 var(--zb-space-4);
+}
+.quick-empty h2 {
+  margin: 0;
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-2xl);
+  text-align: center;
+}
+.quick-empty .quick-suggestions {
+  justify-content: center;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-2);
+}
+.quick-empty .quick-suggestions button {
+  padding: var(--zb-space-2) var(--zb-space-4);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  color: var(--zb-text-secondary);
+}
+.quick-empty .quick-suggestions button:hover {
+  border-color: var(--zb-border-strong);
+  background: var(--zb-bg-hover);
+  color: var(--zb-text);
+}
+.quick-switcher {
+  width: auto;
+  max-width: 200px;
+}
+.quick-model-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-1);
+  margin-bottom: var(--zb-space-2);
+}
+.quick-more summary {
+  cursor: pointer;
+  font-weight: var(--zb-weight-semibold);
+}
+.quick-more[open] summary {
+  margin-bottom: var(--zb-space-2);
+}
+.zb-dialog .quick-connections {
+  width: 100%;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* One bottom bar: tool, context, and send controls share the same row. */
+.quick-controls > .quick-context {
+  flex: none;
+}
+.quick-controls .quick-context-panel,
+.quick-controls .quick-suggestions {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(100% + var(--zb-space-2));
+  z-index: var(--zb-layer-popover);
+  max-height: min(420px, 55vh);
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: var(--zb-shadow-popover);
+}
+.quick-controls .quick-suggestions {
+  padding: var(--zb-space-2);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-popover);
+}
+
+/* Settings gets room for connection rows and paired forms without a long narrow stack. */
+.zb-dialog:has(.quick-connections) {
+  box-sizing: border-box;
+  width: min(760px, calc(100% - var(--zb-space-6)));
+  max-height: calc(100dvh - var(--zb-space-6));
+  overflow-y: auto;
+}
+.zb-dialog .quick-connections {
+  max-width: none;
+  container-type: inline-size;
+}
+.quick-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1);
+  padding-block: var(--zb-space-2);
+}
+.quick-settings-section:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-3);
+}
+.quick-settings-section .quick-connection-list li {
+  padding-block: var(--zb-space-2);
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.quick-settings-section .quick-connection-list li > .grow {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.quick-settings-section .quick-more {
+  padding-block-start: var(--zb-space-3);
+}
+.quick-connection-forms {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zb-space-6);
+}
+.quick-connection-forms > * {
+  min-width: 0;
+}
+@container (max-width: 540px) {
+  .quick-connection-forms {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

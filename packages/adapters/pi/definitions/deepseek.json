@@ -1,0 +1,28 @@
+{
+  "id": "pi:deepseek",
+  "displayName": "DeepSeek via Pi",
+  "adapter": "pi",
+  "flavor": "deepseek",
+  "binaryNames": ["pi"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "pi",
+    "args": [],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "DEEPSEEK_API_KEY"
+  },
+  "install": {
+    "docsUrl": "https://github.com/earendil-works/pi/tree/main/packages/coding-agent"
+  },
+  "testedVersions": "1.4.0",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": ["~/.pi/agent/sessions"],
+  "experimental": false
+}

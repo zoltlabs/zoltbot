@@ -1,0 +1,13 @@
+name: cursor_question
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: tool_call, toolCallId: question-tool, title: Question, kind: other, status: pending } } }
+  - emit: { jsonrpc: "2.0", id: native-question, method: cursor/ask_question, params: { toolCallId: question-tool, questions: [{ id: choice, prompt: Choose, options: [{ id: native-option, label: One }] }] } }
+  - on_input: { match: { id: native-question, result: { outcome: { outcome: answered, answers: [{ questionId: choice, selectedOptionIds: [native-option] }] } } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: tool_call_update, toolCallId: question-tool, status: completed, rawOutput: accepted } } }
+  - hang: true

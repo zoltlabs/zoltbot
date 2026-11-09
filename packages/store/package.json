@@ -1,0 +1,17 @@
+{
+  "name": "@zoltbot/store",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./projections": "./src/projections.ts",
+    "./migrations/*": "./migrations/*"
+  },
+  "dependencies": {
+    "@zoltbot/core": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "better-sqlite3": "12.6.2"
+  }
+}

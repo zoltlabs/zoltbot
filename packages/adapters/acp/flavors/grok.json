@@ -1,0 +1,8 @@
+{
+  "id": "grok",
+  "testedVersions": "1.0.70",
+  "mcpInjection": "session_new",
+  "instructionInjection": "first_block",
+  "approvalCapability": "coarse",
+  "readOnlyModes": ["plan"]
+}

@@ -1,0 +1,69 @@
+.event-routine-form,
+.event-routine-card {
+  padding: var(--zb-space-4, 16px);
+  margin-block: 16px;
+}
+.event-routine-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr);
+  gap: 24px;
+}
+.event-routine-grid label {
+  display: block;
+  margin-block: 12px 6px;
+}
+.event-routine-grid input,
+.event-routine-grid select,
+.event-routine-grid textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.event-routine-grid textarea {
+  min-height: 120px;
+}
+.event-routine-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.event-routine-card p,
+.event-routine-grid p {
+  overflow-wrap: anywhere;
+}
+.event-preview {
+  border-inline-start: 2px solid currentColor;
+  padding-inline-start: 16px;
+  margin-block: 16px;
+}
+@media (max-width: 760px) {
+  .event-routine-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.event-routine-card > p {
+  margin-block: 8px;
+}
+.event-routine-card h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.event-routine-card .task-actions,
+.event-routine-form .task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.event-routine-history {
+  min-width: 0;
+}
+.event-routine-card .task-actions button,
+.event-routine-form .task-actions button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+  min-height: 32px;
+}

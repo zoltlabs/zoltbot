@@ -1,0 +1,70 @@
+.sidebar-section {
+  min-width: 0;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.sidebar-section > summary {
+  min-height: var(--zb-control-md);
+  padding: var(--zb-space-2);
+  color: var(--zb-text-muted);
+  cursor: pointer;
+}
+.quick-history > .zb-button {
+  margin: var(--zb-space-2);
+}
+.quick-history > p {
+  padding: var(--zb-space-2);
+}
+.quick-history > ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quick-history li {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  border-radius: var(--zb-radius-sm);
+}
+.quick-history li.current {
+  background: var(--zb-bg-selected);
+}
+.quick-history .quick-recent-open {
+  flex: 1;
+  min-width: 0;
+  padding: var(--zb-space-2);
+  border: 0;
+  background: transparent;
+  color: var(--zb-text-secondary);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.quick-row-actions {
+  flex: none;
+}
+.quick-row-actions > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--zb-control-sm);
+  min-height: var(--zb-control-md);
+  list-style: none;
+  cursor: pointer;
+}
+.quick-row-actions > summary::-webkit-details-marker {
+  display: none;
+}
+.quick-row-actions > div {
+  display: flex;
+  flex-direction: column;
+}
+.quick-history form {
+  min-width: 0;
+}
+.quick-history input {
+  width: 100%;
+  min-width: 0;
+}

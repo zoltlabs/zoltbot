@@ -1,0 +1,9 @@
+name: hang
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - hang: true

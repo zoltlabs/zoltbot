@@ -1,0 +1,316 @@
+import { router } from "expo-router";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { childSummary, type TranscriptRow } from "../data/view";
+import { mono, useTheme } from "../theme";
+import { Icon } from "./icons";
+import { Button, Txt } from "./kit";
+
+function ToolRow({ row }: { row: TranscriptRow }) {
+  const { c } = useTheme();
+  const label = row.status === "running" ? "running" : row.status === "ok" ? "done" : "failed";
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${row.text}, ${label}${row.added ? `, ${row.added} lines added, ${row.removed} removed` : ""}`}
+      style={[styles.tool, { backgroundColor: c["bg-sunken"], borderColor: c.border }]}
+    >
+      <Icon
+        name={row.status === "running" ? "spinner" : row.status === "ok" ? "check" : "plus"}
+        size={14}
+        stroke={2.4}
+        color={row.status === "running" ? c["accent-text"] : row.status === "ok" ? c.ok : c.danger}
+      />
+      <Txt v="meta" tone="secondary" lines={1} style={[styles.toolText, { fontFamily: mono }]}>
+        {row.text}
+      </Txt>
+      {row.added !== undefined ? (
+        <Txt v="meta" style={{ fontFamily: mono, color: c.ok }}>{`+${row.added}`}</Txt>
+      ) : null}
+      {row.removed !== undefined ? (
+        <Txt v="meta" style={{ fontFamily: mono, color: c.danger }}>{`−${row.removed}`}</Txt>
+      ) : null}
+    </View>
+  );
+}
+
+/** A tool that started a subagent, with the subagent's steps folded underneath. */
+function ToolGroup({ row }: { row: TranscriptRow }) {
+  const { c } = useTheme();
+  const children = row.children ?? [];
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.group}>
+      <ToolRow row={row} />
+      <Pressable
+        onPress={() => setOpen(!open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`Subagent steps, ${childSummary(children)}`}
+        style={styles.groupToggle}
+      >
+        <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>
+          <Icon name="chevron" size={12} color={c["text-muted"]} stroke={2} />
+        </View>
+        <Txt v="meta" tone="muted">
+          {childSummary(children)}
+        </Txt>
+      </Pressable>
+      {open ? (
+        <View style={[styles.children, { borderLeftColor: c.border }]}>
+          {children.map((child) => (
+            <Message key={child.id} row={child} compact />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Zoltbot's own notice to the agent: a wake-up or the brief, folded to one line. */
+function EventRow({ row }: { row: TranscriptRow }) {
+  const { c } = useTheme();
+  const [open, setOpen] = useState(false);
+  const title =
+    row.event === "brief" ? "Morning brief" : row.event === "wake" ? "Woke up on its own" : "";
+  if (!title)
+    return (
+      <View style={styles.asked} accessible accessibilityLabel={row.text}>
+        <Icon name="spark" size={14} color={c["text-muted"]} stroke={2} />
+        <Txt v="meta" tone="muted" style={styles.flex}>
+          {row.text}
+        </Txt>
+      </View>
+    );
+  return (
+    <Pressable
+      onPress={() => setOpen(!open)}
+      disabled={!row.text}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={title}
+      style={styles.event}
+    >
+      <View style={styles.asked}>
+        <Icon name="spark" size={14} color={c["accent-text"]} stroke={2} />
+        <Txt v="meta" tone="muted">
+          {title}
+        </Txt>
+      </View>
+      {open ? (
+        <Txt v="meta" tone="muted" style={styles.eventText}>
+          {row.text}
+        </Txt>
+      ) : null}
+    </Pressable>
+  );
+}
+
+export function Message({
+  row,
+  compact,
+  onEdit,
+  onEditSent,
+  onForward,
+  edits,
+}: {
+  row: TranscriptRow;
+  compact?: boolean;
+  /** Takes a queued message back so it can be edited. */
+  onEdit?: (row: TranscriptRow) => void;
+  /** Starts a new chat from before a sent message, with an edited copy of it. */
+  onEditSent?: (row: TranscriptRow) => void;
+  /** How many edited copies of this message exist, and how to open the newest. */
+  edits?: { count: number; open: () => void };
+  /** Sends a copy of an agent's message to another chat. */
+  onForward?: (row: TranscriptRow) => void;
+}) {
+  const { c } = useTheme();
+  if (row.event) return <EventRow row={row} />;
+  if (row.brief && row.kind === "message")
+    return (
+      <View
+        style={[styles.artifact, { borderColor: c.border, backgroundColor: c["bg-raised"] }]}
+        accessibilityLabel={`Morning brief: ${row.text}`}
+      >
+        <View style={styles.asked}>
+          <Icon name="spark" size={14} color={c["accent-text"]} stroke={2} />
+          <Txt v="meta" tone="accent">
+            Morning brief
+          </Txt>
+        </View>
+        <Txt style={styles.prose}>{row.text}</Txt>
+        <Button kind="plain" label="Open Needs you" onPress={() => router.navigate("/")} />
+      </View>
+    );
+  if (row.compareId)
+    return (
+      <View accessibilityLabel="Compare result">
+        <Txt>{row.text}</Txt>
+        <Button
+          label="View side by side"
+          onPress={() => router.push(`/chat/compare/${row.compareId}`)}
+        />
+      </View>
+    );
+  if (row.kind === "artifact" && row.artifact) {
+    const artifact = row.artifact;
+    const version = artifact.number ? `v${artifact.number}` : "Version unavailable";
+    const fallback =
+      artifact.availability === "held"
+        ? "This version is held for review on Mac."
+        : artifact.availability === "unavailable"
+          ? "Files unavailable. Open on the producing Mac."
+          : "View on Mac · Open this chat on the producing Mac to view this version.";
+    return (
+      <View
+        style={[styles.artifact, { borderColor: c.border, backgroundColor: c["bg-raised"] }]}
+        accessible
+        accessibilityLabel={`${row.unanchored ? "From an earlier or unloaded turn. " : ""}${artifact.title}, ${artifact.kind}, ${version}. ${artifact.newer ? "Newer version available on Mac. " : ""}${fallback}`}
+      >
+        {row.unanchored ? (
+          <Txt v="meta" tone="muted">
+            From an earlier or unloaded turn
+          </Txt>
+        ) : null}
+        <Txt v="cardTitle">{artifact.title}</Txt>
+        <Txt v="meta" tone="secondary">
+          {artifact.kind} · {version}
+        </Txt>
+        {artifact.newer ? (
+          <Txt v="meta" tone="muted">
+            Newer version available on Mac
+          </Txt>
+        ) : null}
+        <Txt v="meta" tone="muted">
+          {fallback}
+        </Txt>
+      </View>
+    );
+  }
+  if (row.kind === "tool")
+    return row.children?.length ? <ToolGroup row={row} /> : <ToolRow row={row} />;
+  if (row.kind === "interaction")
+    return (
+      <View style={styles.asked} accessible accessibilityLabel={row.text}>
+        <View
+          style={[styles.askedDot, { backgroundColor: row.pending ? c.attention : c["text-dim"] }]}
+        />
+        <Txt v="meta" tone={row.pending ? "attention" : "muted"}>
+          {row.text}
+        </Txt>
+      </View>
+    );
+  if (row.kind === "user")
+    return (
+      <View style={styles.mine}>
+        <Pressable
+          disabled={!(row.turnId && onEditSent)}
+          onLongPress={() => onEditSent?.(row)}
+          accessibilityLabel={`You: ${row.text}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
+          {...(row.turnId && onEditSent
+            ? {
+                accessibilityHint: "Touch and hold to edit and send again",
+                accessibilityActions: [{ name: "edit", label: "Edit and send again" }],
+                onAccessibilityAction: () => onEditSent(row),
+              }
+            : {})}
+          style={[styles.bubble, { backgroundColor: c["bg-popover"] }]}
+        >
+          {row.artifactReference ? (
+            <Txt v="meta" tone="secondary">
+              Artifact reference: {row.artifactReference}
+            </Txt>
+          ) : null}
+          <Txt>{row.text}</Txt>
+        </Pressable>
+        {edits?.count ? (
+          <Button
+            kind="plain"
+            label={`${edits.count} ${edits.count === 1 ? "edit" : "edits"}`}
+            a11y={`Open the newest of ${edits.count} edited copies`}
+            onPress={edits.open}
+            style={styles.edit}
+          />
+        ) : null}
+        {row.delivery ? (
+          <View style={styles.delivery}>
+            {row.queued && onEdit ? (
+              <Button
+                kind="plain"
+                label="Edit"
+                a11y="Take back and edit"
+                onPress={() => onEdit(row)}
+                style={styles.edit}
+              />
+            ) : null}
+            <Txt v="meta" tone="muted">
+              {row.delivery}
+            </Txt>
+          </View>
+        ) : null}
+      </View>
+    );
+  const prose = (
+    <Txt
+      v={compact ? "meta" : "body"}
+      tone={row.kind === "thought" || compact ? "muted" : "text"}
+      lines={compact ? 4 : undefined}
+      style={compact ? undefined : styles.prose}
+    >
+      {row.kind === "thought" ? `Thinking: ${row.text}` : row.text}
+      {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}
+    </Txt>
+  );
+  if (!onForward || row.kind !== "message" || row.streaming || compact) return prose;
+  return (
+    <Pressable
+      onLongPress={() => onForward(row)}
+      accessibilityHint="Touch and hold to send to another chat"
+      accessibilityActions={[{ name: "forward", label: "Send to another chat" }]}
+      onAccessibilityAction={() => onForward(row)}
+    >
+      {prose}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  artifact: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 14, gap: 6 },
+  flex: { flex: 1 },
+  mine: { alignItems: "flex-end", gap: 2 },
+  delivery: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4 },
+  edit: { minHeight: 32, paddingHorizontal: 0 },
+  event: { gap: 4, minHeight: 32, justifyContent: "center" },
+  eventText: { paddingLeft: 26 },
+  bubble: {
+    alignSelf: "flex-end",
+    marginLeft: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderBottomRightRadius: 6,
+  },
+  prose: { lineHeight: 22 },
+  tool: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  toolText: { flex: 1, fontSize: 12 },
+  group: { gap: 4 },
+  groupToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 32,
+    paddingHorizontal: 8,
+  },
+  children: { marginLeft: 14, paddingLeft: 10, borderLeftWidth: 2, gap: 8 },
+  asked: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 4 },
+  askedDot: { width: 6, height: 6, borderRadius: 3 },
+});

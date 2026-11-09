@@ -1,0 +1,210 @@
+.compare-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.compare-header,
+.compare-column-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-3);
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.compare-header {
+  flex: none;
+}
+.compare-prompt {
+  padding: var(--zb-space-3) var(--zb-space-4);
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.compare-prompt p {
+  margin: 0 0 var(--zb-space-2);
+  white-space: pre-wrap;
+}
+.compare-prompt small,
+.compare-column-header small {
+  display: block;
+  color: var(--zb-text-secondary);
+}
+.compare-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.compare-column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--zb-border-subtle);
+}
+.compare-column[hidden] {
+  display: none;
+}
+.compare-column .chat-timeline-wrap {
+  flex: 1;
+  min-height: 0;
+}
+.compare-metrics {
+  padding: var(--zb-space-2) var(--zb-space-3);
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.compare-stacked {
+  display: block;
+  overflow-y: auto;
+}
+.compare-stacked .compare-column {
+  height: calc(var(--zb-panel-width) * 2);
+  min-height: var(--zb-control-lg);
+}
+.compare-status {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--zb-space-2) var(--zb-space-4);
+  border-top: 1px solid var(--zb-border-subtle);
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.compare-picker {
+  position: relative;
+}
+.compare-picker-panel {
+  position: absolute;
+  bottom: 100%;
+  z-index: 20;
+  min-width: var(--zb-sidebar-width);
+  max-height: calc(var(--zb-panel-width) * 2);
+  overflow: auto;
+  background: var(--zb-bg-popover);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  box-shadow: var(--zb-shadow-popover);
+  padding: var(--zb-space-3);
+}
+.compare-picker-option {
+  display: flex;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-2);
+}
+.compare-picker-option small {
+  display: block;
+  color: var(--zb-text-secondary);
+}
+.compare-chips {
+  display: flex;
+  gap: var(--zb-space-2);
+  flex-wrap: wrap;
+}
+.compare-readonly {
+  color: var(--zb-ok);
+  font-size: var(--zb-text-sm);
+}
+
+.compare-layout {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: var(--zb-space-1);
+}
+
+.compare-header h1 {
+  margin: 0;
+  font-size: var(--zb-text-md);
+  font-weight: var(--zb-weight-semibold);
+}
+
+.compare-member-actions,
+.compare-bar,
+.compare-ceiling,
+.compare-marker {
+  padding: var(--zb-space-3);
+  border-top: 1px solid var(--zb-border-subtle);
+}
+.compare-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+}
+.compare-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+}
+.compare-followup {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.compare-followup textarea {
+  flex: 1;
+  min-width: 0;
+}
+.compare-review {
+  display: grid;
+  gap: var(--zb-space-3);
+  max-height: calc(var(--zb-panel-width) * 2);
+  overflow: auto;
+}
+.compare-review label,
+.compare-review textarea {
+  display: block;
+  width: 100%;
+}
+.compare-sidebar {
+  list-style: none;
+  padding: 0;
+  margin: var(--zb-space-2) 0;
+}
+.compare-sidebar .item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.compare-sidebar details {
+  padding-left: var(--zb-space-3);
+}
+.compare-sidebar-chip {
+  font-size: var(--zb-text-xs);
+  color: var(--zb-text-secondary);
+}
+.compare-marker {
+  background: var(--zb-bg-raised);
+  border-radius: var(--zb-radius-md);
+}
+.compare-ceiling {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+
+.compare-marker-avatars,
+.compare-member-dots {
+  display: inline-flex;
+  gap: var(--zb-space-1);
+}
+.compare-marker-avatars > * + * {
+  margin-left: calc(var(--zb-space-2) * -1);
+}
+
+.compare-differences {
+  flex: none;
+  max-height: var(--zb-panel-width);
+  overflow: auto;
+  padding: var(--zb-space-3) var(--zb-space-4);
+  background: var(--zb-bg-raised);
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.compare-differences-preview {
+  width: 100%;
+  display: block;
+}

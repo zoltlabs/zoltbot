@@ -1,0 +1,32 @@
+{
+  "id": "codex",
+  "displayName": "Codex",
+  "adapter": "codex",
+  "binaryNames": ["codex"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": [],
+    "env": {}
+  },
+  "auth": {
+    "statusCommand": ["login", "status"],
+    "loginCommand": ["login"]
+  },
+  "update": {
+    "args": ["update"],
+    "latest": {
+      "url": "https://registry.npmjs.org/@openai/codex/latest",
+      "key": "version"
+    }
+  },
+  "testedVersions": "0.164.0",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": ["~/.codex/sessions"],
+  "experimental": false
+}

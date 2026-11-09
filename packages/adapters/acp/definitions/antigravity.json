@@ -1,0 +1,36 @@
+{
+  "id": "antigravity",
+  "displayName": "Antigravity",
+  "adapter": "acp",
+  "flavor": "antigravity",
+  "binaryNames": ["agy"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": ["acp", "--process-per-session"],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "GEMINI_API_KEY",
+    "loginCommand": []
+  },
+  "update": {
+    "args": ["update"],
+    "latest": {
+      "url": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/{os}_{arch}.json",
+      "key": "version"
+    }
+  },
+  "install": {
+    "docsUrl": "https://antigravity.google/docs/cli/acp/"
+  },
+  "testedVersions": "1.4.12",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": false
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

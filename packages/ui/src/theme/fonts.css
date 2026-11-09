@@ -1,0 +1,36 @@
+/* Locally bundled Geist, SIL Open Font License; see fonts/OFL.txt. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 400; /* tokens: allow -- font-face descriptor */
+  font-display: swap;
+  src: url("./fonts/geist-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 500; /* tokens: allow -- font-face descriptor */
+  font-display: swap;
+  src: url("./fonts/geist-500.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 600; /* tokens: allow -- font-face descriptor */
+  font-display: swap;
+  src: url("./fonts/geist-600.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 700; /* tokens: allow -- font-face descriptor */
+  font-display: swap;
+  src: url("./fonts/geist-700.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 400; /* tokens: allow -- font-face descriptor */
+  font-display: swap;
+  src: url("./fonts/geist-mono.ttf") format("truetype");
+}

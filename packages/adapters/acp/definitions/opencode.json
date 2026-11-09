@@ -1,0 +1,28 @@
+{
+  "id": "opencode",
+  "displayName": "OpenCode",
+  "adapter": "acp",
+  "flavor": "opencode",
+  "binaryNames": ["opencode"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "opencode",
+    "args": ["acp"],
+    "env": {}
+  },
+  "auth": {
+    "loginCommand": ["auth", "login"]
+  },
+  "install": {
+    "docsUrl": "https://docs.opencode.ai/docs/acp/"
+  },
+  "testedVersions": "1.19.4",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

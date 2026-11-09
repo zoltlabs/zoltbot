@@ -1,0 +1,40 @@
+{
+  "name": "@zoltbot/mobile",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "theme": "node scripts/build-theme.mjs"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.48",
+    "@zoltbot/link": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/ui": "workspace:*",
+    "expo": "~58.0.23",
+    "expo-camera": "~58.0.14",
+    "expo-constants": "~58.0.15",
+    "expo-crypto": "~58.0.7",
+    "expo-document-picker": "~58.0.4",
+    "expo-font": "~58.0.11",
+    "expo-image-picker": "~58.0.10",
+    "expo-linking": "~58.0.16",
+    "expo-notifications": "~58.1.8",
+    "expo-router": "~58.0.30",
+    "expo-secure-store": "~58.0.2",
+    "expo-status-bar": "~58.0.4",
+    "expo-system-ui": "~58.0.7",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1",
+    "react-native-svg": "15.16.0",
+    "zustand": "5.0.10"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0"
+  }
+}

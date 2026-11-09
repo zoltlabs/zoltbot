@@ -1,0 +1,8 @@
+name: startup_controls
+provider: claude
+steps:
+  - on_input: { match: { type: control_request, request: { subtype: initialize } } }
+  - control_reply: { subtype: success, response: { claude_code_version: 2.1.299, current_permission_mode: default, capabilities: [] } }
+  - on_input: { match: { type: control_request, request: { subtype: mcp_status } } }
+  - control_reply: { subtype: success, response: { mcpServers: [{ name: zoltbot, status: connected }] } }
+  - hang: true

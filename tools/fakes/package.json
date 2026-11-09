@@ -1,0 +1,32 @@
+{
+  "name": "@zoltbot/tools-fakes",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zoltbot/adapters-acp": "workspace:*",
+    "@zoltbot/adapters-codex": "workspace:*",
+    "@zoltbot/adapters-sdk": "workspace:*",
+    "@zoltbot/core": "workspace:*",
+    "@zoltbot/daemon": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "ajv": "8.17.1",
+    "yaml": "2.8.2",
+    "@zoltbot/adapters-claude": "workspace:*",
+    "@zoltbot/adapters-pi": "workspace:*",
+    "@zoltbot/store": "workspace:*",
+    "@zoltbot/hostmcp": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@zoltbot/cloud-contracts": "workspace:*"
+  },
+  "bin": {
+    "fake-claude": "./src/fake-claude.ts",
+    "fake-codex": "./src/fake-codex.ts",
+    "fake-acp": "./src/fake-acp.ts",
+    "fake-pi": "./src/fake-pi.ts"
+  }
+}

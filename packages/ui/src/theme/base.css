@@ -1,0 +1,141 @@
+/* Preserve saved text-size preferences; 115% is the established default. */
+:root {
+  --zb-font-scale: 1.15;
+  --zb-text-xs: calc(0.75rem * var(--zb-font-scale) / 1.15);
+  --zb-text-sm: calc(0.8125rem * var(--zb-font-scale) / 1.15);
+  --zb-text-md: calc(0.875rem * var(--zb-font-scale) / 1.15);
+  --zb-text-lg: calc(1rem * var(--zb-font-scale) / 1.15);
+  --zb-text-xl: calc(1.125rem * var(--zb-font-scale) / 1.15);
+  --zb-text-2xl: calc(1.375rem * var(--zb-font-scale) / 1.15);
+  --zb-leading-xs: 1.4;
+  --zb-leading-sm: 1.45;
+  --zb-leading-md: 1.5;
+  --zb-leading-lg: 1.6;
+  --zb-leading-xl: 1.35;
+  --zb-leading-2xl: 1.25;
+  --zb-control-xs: max(24px, calc(24px * var(--zb-font-scale) / 1.15));
+  --zb-control-sm: max(28px, calc(28px * var(--zb-font-scale) / 1.15));
+  --zb-control-md: max(32px, calc(32px * var(--zb-font-scale) / 1.15));
+  --zb-control-lg: max(36px, calc(36px * var(--zb-font-scale) / 1.15));
+  --zb-control-xl: max(40px, calc(40px * var(--zb-font-scale) / 1.15));
+}
+body {
+  margin: 0;
+}
+.zb {
+  font-family: var(--zb-font-sans);
+  font-feature-settings: var(--zb-font-features);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  color: var(--zb-text);
+  background: var(--zb-bg-page);
+  -webkit-font-smoothing: antialiased;
+}
+.zb * {
+  box-sizing: border-box;
+}
+.zb button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.zb h1,
+.zb h2,
+.zb h3,
+.zb p {
+  margin: 0;
+}
+.zb ol,
+.zb ul {
+  margin: 0;
+}
+/* Headings focused on page change (tabIndex -1) move the reading position; no ring needed. */
+.zb [tabindex="-1"]:focus-visible:not(:is(button, a, input, select, textarea)) {
+  box-shadow: none;
+}
+.zb :focus-visible {
+  outline: none;
+  box-shadow: var(--zb-focus-ring);
+}
+.mono,
+.zb code,
+.zb kbd,
+.zb pre {
+  font-family: var(--zb-font-mono);
+}
+.mono {
+  font-size: var(--zb-text-sm);
+}
+.dim {
+  color: var(--zb-text-muted);
+}
+.sm {
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.sec {
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-medium);
+  letter-spacing: var(--zb-tracking-label);
+  text-transform: uppercase;
+}
+.r {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.c {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.sp {
+  flex: 1;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* One look for every native form control; the kit's Input, Select and Textarea share it. */
+:where(.zb)
+  :where(
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+    select,
+    textarea
+  ) {
+  min-height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-sunken);
+  color: var(--zb-text);
+  font: inherit;
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+}
+:where(.zb) :where(textarea) {
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  line-height: var(--zb-leading-body);
+}
+:where(.zb) :where(input, select, textarea):where(:hover:not(:disabled)) {
+  border-color: var(--zb-border-strong);
+}
+:where(.zb) :where(input, select, textarea):where(:focus-visible) {
+  border-color: var(--zb-accent);
+}
+:where(.zb) :where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--zb-accent);
+}
+:where(.zb) ::placeholder {
+  color: var(--zb-text-dim);
+}

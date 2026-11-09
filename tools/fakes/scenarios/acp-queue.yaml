@@ -1,0 +1,13 @@
+name: queue
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - sleep_ms: 100
+  - reply: { result: { stopReason: end_turn } }
+  - on_input: { match: { method: session/prompt, params: { prompt: [{ type: text, text: second }] } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: agent_message_chunk, content: { type: text, text: second } } } }
+  - reply: { result: { stopReason: end_turn } }

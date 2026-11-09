@@ -1,0 +1,49 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!design",
+      "!marketing",
+      "!cloud",
+      "!zoltbot.ai",
+      "!.cache",
+      "!.playwright-cli",
+      "!test-results",
+      "!playwright-report",
+      "!pnpm-lock.yaml",
+      "!fixtures",
+      "!packages/artifact-kit/v1/chart-4.5.1.umd.js",
+      "!packages/protocol/schema",
+      "!output",
+      "!dist",
+      "!**/dist",
+      "!**/node_modules",
+      "!apps/mobile/ios",
+      "!apps/mobile/android",
+      "!apps/mobile/.expo",
+      "!!.claude",
+      "!!.codex",
+      "!!.agents"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

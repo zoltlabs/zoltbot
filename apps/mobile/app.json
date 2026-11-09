@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Zoltbot",
+    "slug": "zoltbot",
+    "scheme": "zoltbot",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#17191b",
+    "ios": {
+      "bundleIdentifier": "com.zoltlabs.zoltbot",
+      "supportsTablet": false,
+      "buildNumber": "1"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-system-ui",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Zoltbot uses the camera to scan the pairing code your Mac shows.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos to send to your Mac.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-document-picker",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/geist-400.ttf",
+            "./assets/fonts/geist-500.ttf",
+            "./assets/fonts/geist-600.ttf",
+            "./assets/fonts/geist-700.ttf",
+            "./assets/fonts/geist-mono.ttf"
+          ]
+        }
+      ],
+      "expo-notifications",
+      "./plugins/with-bot-sharing.cjs"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      }
+    },
+    "owner": "zoltlabs",
+    "icon": "./assets/icon.png"
+  }
+}

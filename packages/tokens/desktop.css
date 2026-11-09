@@ -1,0 +1,73 @@
+/* Desktop appearances. Marketing keeps the shared visual language in tokens.css. */
+:root {
+  --zb-font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --zb-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --zb-font-features: normal;
+  --zb-weight-medium: 500;
+  --zb-weight-semibold: 600;
+  --zb-frame-inset: 8px;
+
+  /* Graphite: quiet chrome, soft green focus and a neutral primary action. */
+  --zb-bg-frame: #17191b;
+  --zb-bg-canvas: #17191b;
+  --zb-bg-page: #1d1f21;
+  --zb-bg-raised: #252729;
+  --zb-bg-popover: #292c2e;
+  --zb-bg-sunken: rgba(0, 0, 0, 0.12);
+  --zb-bg-hover: rgba(255, 255, 255, 0.04);
+  --zb-bg-active: rgba(255, 255, 255, 0.06);
+  --zb-bg-selected: rgba(255, 255, 255, 0.07);
+  --zb-border-subtle: rgba(255, 255, 255, 0.045);
+  --zb-border: rgba(255, 255, 255, 0.085);
+  --zb-border-strong: rgba(255, 255, 255, 0.2);
+  --zb-text: #eceeee;
+  --zb-text-secondary: #b7bcbe;
+  --zb-text-muted: #a5adb1;
+  --zb-text-dim: #a5adb1;
+  --zb-accent: #b7cdbf;
+  --zb-accent-hover: #c7dacd;
+  --zb-accent-text: #bfd7cb;
+  --zb-accent-soft: rgba(183, 205, 191, 0.12);
+  --zb-accent-border: rgba(183, 205, 191, 0.55);
+  --zb-primary: #e5e9e8;
+  --zb-primary-hover: #ffffff;
+  --zb-text-on-primary: #202525;
+  --zb-attention: #d9be94;
+  --zb-attention-soft: rgba(217, 190, 148, 0.12);
+  --zb-focus-ring: 0 0 0 2px var(--zb-accent);
+  --zb-attention-ring: 0 0 0 1px var(--zb-attention);
+  --zb-header-height: 52px;
+}
+
+:root[data-theme="light"] {
+  /* Parchment: paper surfaces, plum ink and restrained violet. */
+  --zb-ink: 48, 42, 54;
+  --zb-bg-frame: #e8e4db;
+  --zb-bg-canvas: #e8e4db;
+  --zb-bg-page: #f7f4ed;
+  --zb-bg-raised: #fffdf8;
+  --zb-bg-popover: #fffdf8;
+  --zb-bg-sunken: rgba(63, 52, 69, 0.035);
+  --zb-bg-hover: rgba(63, 52, 69, 0.045);
+  --zb-bg-active: rgba(114, 86, 145, 0.08);
+  --zb-bg-selected: rgba(114, 86, 145, 0.12);
+  --zb-border-subtle: rgba(63, 52, 69, 0.065);
+  --zb-border: rgba(63, 52, 69, 0.14);
+  --zb-border-strong: rgba(63, 52, 69, 0.28);
+  --zb-text: #302a36;
+  --zb-text-secondary: #5e5664;
+  --zb-text-muted: #615763;
+  --zb-text-dim: #615763;
+  --zb-accent: #725691;
+  --zb-accent-hover: #62477f;
+  --zb-accent-text: #674983;
+  --zb-accent-soft: rgba(114, 86, 145, 0.1);
+  --zb-accent-border: rgba(114, 86, 145, 0.5);
+  --zb-primary: #725691;
+  --zb-primary-hover: #62477f;
+  --zb-text-on-primary: #ffffff;
+  --zb-attention: #78502b;
+  --zb-attention-soft: rgba(120, 80, 43, 0.08);
+  /* Darker than the shared danger so its label reads at 4.5:1 on a failed row over the page. */
+  --zb-danger: #b02827;
+}

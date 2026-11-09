@@ -1,0 +1,374 @@
+/* Tool renderers by normalized kind. Shares .chat-tool rows from chat.css. */
+.tool-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.tool-kind-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--zb-text-muted);
+}
+.chat-tool-status.bad {
+  background: var(--zb-danger);
+}
+.tool-status {
+  display: inline-flex;
+  flex: none;
+  color: var(--zb-accent);
+}
+.chat-spin svg {
+  animation: tool-spin 1s linear infinite;
+}
+@keyframes tool-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-spin svg {
+    animation: none;
+  }
+}
+.tool-empty {
+  margin: 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  color: var(--zb-text-muted);
+}
+.tool-more {
+  margin: 0 var(--zb-space-3) var(--zb-space-2);
+}
+.tool-output pre {
+  max-height: 320px;
+}
+
+/* Execute: a terminal block with the command as its header. */
+.tool-terminal {
+  margin: var(--zb-space-2);
+  overflow: hidden;
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-sunken);
+}
+.tool-terminal-command {
+  padding: var(--zb-space-1-5) var(--zb-space-3);
+  border-bottom: 1px solid var(--zb-border-subtle);
+  color: var(--zb-text);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tool-terminal-command > span {
+  color: var(--zb-text-dim);
+}
+.tool-terminal .chat-terminal {
+  background: transparent;
+}
+
+/* Diffs: unified, colored, with counts in the header. */
+.tool-diff-list {
+  display: grid;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-2);
+}
+.tool-diff {
+  overflow: hidden;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-sunken);
+}
+.tool-diff > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border-bottom: 1px solid var(--zb-border-subtle);
+  background: var(--zb-bg-raised);
+  cursor: pointer;
+}
+.tool-diff:not([open]) > summary {
+  border-bottom: 0;
+}
+.tool-diff > summary .truncate {
+  flex: 1;
+  min-width: 0;
+}
+.tool-diff-counts {
+  display: inline-flex;
+  flex: none;
+  gap: var(--zb-space-1-5);
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-variant-numeric: tabular-nums;
+}
+.tool-diff-add {
+  color: var(--zb-ok);
+}
+.tool-diff-del {
+  color: var(--zb-danger);
+}
+pre.tool-diff-lines {
+  max-height: 420px;
+  margin: 0;
+  padding: var(--zb-space-1) 0;
+  overflow: auto;
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-body);
+  white-space: pre;
+}
+.tool-diff-line {
+  display: block;
+  min-width: 100%;
+  width: fit-content;
+  padding-right: var(--zb-space-3);
+}
+.tool-diff-gutter {
+  display: inline-block;
+  width: var(--zb-space-6);
+  color: var(--zb-text-dim);
+  text-align: center;
+  user-select: none;
+}
+.tool-diff-line.add {
+  background: var(--zb-diff-add);
+}
+.tool-diff-line.add .tool-diff-gutter {
+  color: var(--zb-ok);
+}
+.tool-diff-line.del {
+  background: var(--zb-diff-del);
+}
+.tool-diff-line.del .tool-diff-gutter {
+  color: var(--zb-danger);
+}
+.tool-diff-line.hunk,
+.tool-diff-line.meta {
+  color: var(--zb-text-muted);
+  background: var(--zb-bg-raised);
+}
+
+/* Read, search and fetch: compact path chips and match lists. */
+.tool-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1-5);
+  margin: 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  list-style: none;
+}
+.tool-path {
+  max-width: 100%;
+  padding: var(--zb-space-0-5) var(--zb-space-2);
+  overflow: hidden;
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-pill);
+  background: var(--zb-bg-sunken);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-search-pattern,
+.tool-fetch-target {
+  margin: 0;
+  padding: var(--zb-space-2) var(--zb-space-3) 0;
+  overflow-wrap: anywhere;
+}
+.tool-search-pattern code {
+  font-family: var(--zb-font-mono);
+}
+.tool-matches {
+  display: grid;
+  gap: var(--zb-space-0-5);
+  max-height: 260px;
+  margin: 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  overflow: auto;
+  list-style: none;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-body);
+}
+.tool-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-2) var(--zb-space-3);
+}
+.tool-image {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-sunken);
+  cursor: zoom-in;
+}
+.tool-image img {
+  display: block;
+  max-width: 160px;
+  max-height: 120px;
+  object-fit: contain;
+}
+.tool-image.expanded {
+  cursor: zoom-out;
+}
+.tool-image.expanded img {
+  max-width: min(640px, 100%);
+  max-height: 480px;
+}
+
+/* Interactive tools: one quiet line; the interaction card carries the detail. */
+.tool-oneline {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+}
+.tool-oneline strong {
+  font-weight: var(--zb-weight-medium);
+}
+.chat-tool.tool-interactive {
+  background: transparent;
+}
+
+/* Subagents: a nested card holding the subagent's own rows. */
+.chat-subagent {
+  overflow: hidden;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-raised);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.chat-subagent > details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  list-style: none;
+  cursor: pointer;
+}
+.chat-subagent > details > summary::-webkit-details-marker {
+  display: none;
+}
+.chat-subagent > details > summary:hover {
+  background: var(--zb-bg-hover);
+}
+.chat-subagent > details > summary strong {
+  font-weight: var(--zb-weight-medium);
+}
+.chat-subagent > details > summary .truncate {
+  flex: 1;
+  min-width: 0;
+}
+.chat-subagent-body {
+  border-top: 1px solid var(--zb-border-subtle);
+  border-left: 2px solid var(--zb-accent-border);
+  margin-left: var(--zb-space-1-5);
+}
+.chat-subagent-rows {
+  display: grid;
+  gap: var(--zb-space-0-5);
+  margin: 0;
+  padding: var(--zb-space-1) var(--zb-space-1) var(--zb-space-1) var(--zb-space-1-5);
+  list-style: none;
+}
+.chat-subagent-rows .chat-message {
+  padding: var(--zb-space-1) 0;
+}
+.chat-subagent-result {
+  padding: 0 var(--zb-space-3) var(--zb-space-2);
+}
+.chat-subagent-result .sec {
+  padding: var(--zb-space-2) 0 var(--zb-space-1);
+}
+
+/* Collapsed rows read as quiet lines; the card frame appears when a row opens. */
+.chat-tool:has(> details:not([open])),
+.chat-tool.tool-interactive {
+  border-color: transparent;
+  background: transparent;
+}
+.chat-tool.failed {
+  box-shadow: inset 2px 0 0 var(--zb-danger);
+}
+.chat-tool.failed:has(> details[open]) {
+  background: var(--zb-danger-soft);
+}
+.chat-tool.failed .chat-tool-state.bad {
+  color: var(--zb-text);
+}
+/* A single file diff inside its tool row: the row's summary is the header. */
+.tool-diff-bare {
+  background: var(--zb-bg-sunken);
+}
+.tool-diff-bare pre.tool-diff-lines {
+  width: 100%;
+}
+
+/* The diff dialog: a file list beside the selected file's diff. */
+.chat-diff-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--zb-space-3);
+}
+.chat-diff-body {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: var(--zb-space-3);
+  max-height: calc(100vh - 16rem);
+  min-height: 0;
+}
+.chat-diff-body.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.chat-diff-files {
+  display: grid;
+  align-content: start;
+  gap: var(--zb-space-0-5, 2px);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.chat-diff-files .item {
+  display: flex;
+  gap: var(--zb-space-2);
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  font-size: var(--zb-text-sm);
+}
+.chat-diff-files .item[aria-current="true"] {
+  background: var(--zb-bg-active);
+}
+.chat-diff-view {
+  min-width: 0;
+  overflow: auto;
+}
+@media (max-width: 760px) {
+  .chat-diff-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chat-diff-files {
+    max-height: 8rem;
+  }
+}
+.chat-tool-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--zb-space-2);
+}

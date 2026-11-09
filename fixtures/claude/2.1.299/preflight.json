@@ -1,0 +1,22 @@
+{
+  "kind": "preflight_only",
+  "version": "2.1.299",
+  "advertisedFlags": {
+    "--permission-prompts": true,
+    "--strict-mcp-config": true,
+    "--mcp-config": true,
+    "--exclude-dynamic-system-prompt-sections": true,
+    "--include-partial-messages": true,
+    "--replay-user-messages": true,
+    "--autocompact": true,
+    "--session-id": true
+  },
+  "defaultAuth": {
+    "loggedIn": true,
+    "authMethod": "claude.ai"
+  },
+  "isolatedAuth": {
+    "loggedIn": false,
+    "authMethod": "none"
+  }
+}

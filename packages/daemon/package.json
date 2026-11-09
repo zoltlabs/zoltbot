@@ -1,0 +1,33 @@
+{
+  "name": "@zoltbot/daemon",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./supervisor": "./src/supervisor.ts",
+    "./logging": "./src/logging.ts",
+    "./transport": "./src/transport.ts",
+    "./notifications": "./src/notifications.ts"
+  },
+  "dependencies": {
+    "@playwright/cli": "0.1.23",
+    "@sinclair/typebox": "0.34.48",
+    "@zoltbot/adapters-acp": "workspace:*",
+    "@zoltbot/adapters-claude": "workspace:*",
+    "@zoltbot/adapters-codex": "workspace:*",
+    "@zoltbot/adapters-pi": "workspace:*",
+    "@zoltbot/adapters-sdk": "workspace:*",
+    "@zoltbot/core": "workspace:*",
+    "@zoltbot/detect": "workspace:*",
+    "@zoltbot/hostmcp": "workspace:*",
+    "@zoltbot/knowledge": "workspace:*",
+    "@zoltbot/link": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/store": "workspace:*",
+    "node-pty": "1.1.0",
+    "ws": "8.19.0",
+    "@zoltbot/artifact-validation": "workspace:*"
+  }
+}

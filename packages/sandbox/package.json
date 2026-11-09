@@ -1,0 +1,17 @@
+{
+  "name": "@zoltbot/sandbox",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./conformance": "./src/conformance/index.ts",
+    "./fake": "./src/targets/fake/index.ts",
+    "./docker": "./src/targets/docker/index.ts",
+    "./e2b": "./src/targets/e2b/index.ts"
+  },
+  "dependencies": {
+    "e2b": "2.62.2"
+  }
+}

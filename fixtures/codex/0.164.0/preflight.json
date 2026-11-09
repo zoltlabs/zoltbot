@@ -1,0 +1,9 @@
+{
+  "provider": "codex",
+  "version": "0.164.0",
+  "installation": "repository_local",
+  "isolatedHome": true,
+  "login": "signed_out",
+  "schemaExit": 0,
+  "schemaExperimental": false
+}

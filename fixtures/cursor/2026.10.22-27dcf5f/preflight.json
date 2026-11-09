@@ -1,0 +1,9 @@
+{
+  "version": "2026.10.22-27dcf5f",
+  "source": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz",
+  "binary": "<repo>/.cache/spikes/cursor-current/dist-package/cursor-agent",
+  "sha256": "2ccc9a8e167797641448b5e5c936f006ba137a2555f117f38c5eb76a5238a233",
+  "isolatedHome": true,
+  "modelPromptsSent": false,
+  "loginAttempted": false
+}

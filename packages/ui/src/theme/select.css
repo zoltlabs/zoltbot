@@ -1,0 +1,116 @@
+/* biome-ignore-all lint/correctness/noUnknownPseudoElement: Biome does not know the customizable select pseudo-elements (::picker(), ::picker-icon, ::checkmark) yet. */
+/*
+ * Every single-value select, the kit's Select and raw ones alike, opens a themed picker where the
+ * engine supports customizable selects (Chromium 135+, so every Electron build). The element stays a
+ * native select: keyboard, typeahead, ARIA, forms and edge flipping come from the engine, and other
+ * engines keep the plain control from base.css.
+ */
+@supports (appearance: base-select) {
+  :where(.zb) :where(select:not([multiple], [size])),
+  :where(.zb) :where(select:not([multiple], [size]))::picker(select) {
+    appearance: base-select;
+  }
+
+  :where(.zb) :where(select:not([multiple], [size])) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--zb-space-1-5);
+    padding-inline: var(--zb-space-2) var(--zb-space-1-5);
+    background: var(--zb-bg-sunken);
+    color: var(--zb-text);
+    text-align: start;
+    cursor: default;
+    transition:
+      border-color var(--zb-duration-fast) var(--zb-ease-out),
+      background-color var(--zb-duration-fast) var(--zb-ease-out);
+  }
+  :where(.zb) :where(select:not([multiple], [size])):where(:disabled) {
+    opacity: 0.55;
+  }
+  :where(.zb) :where(select:not([multiple], [size])):where(:open) {
+    border-color: var(--zb-accent);
+  }
+  :where(.zb) :where(select:not([multiple], [size])):where(:focus-visible) {
+    outline: none;
+    box-shadow: var(--zb-focus-ring);
+  }
+  :where(.zb) :where(select:not([multiple], [size]))::picker-icon {
+    content: "";
+    flex: none;
+    width: var(--zb-icon-sm);
+    height: var(--zb-icon-sm);
+    margin-inline-start: auto;
+    background: var(--zb-text-muted);
+    mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    transition: rotate var(--zb-duration-fast) var(--zb-ease-out);
+  }
+  :where(.zb) :where(select:not([multiple], [size])):where(:open)::picker-icon {
+    rotate: 180deg;
+  }
+
+  /* The popup: the menu surface, anchored to the control and flipped to whichever side has room. */
+  :where(.zb) :where(select:not([multiple], [size]))::picker(select) {
+    min-inline-size: anchor-size(inline);
+    max-inline-size: min(420px, calc(100vw - 2 * var(--zb-space-2)));
+    /* At most half the window, so one side of the control always has room and nothing clips. */
+    max-block-size: min(360px, calc(50dvh - 24px));
+    margin-block: var(--zb-space-1);
+    padding: var(--zb-space-1);
+    border: 0;
+    border-radius: var(--zb-radius-md);
+    background: var(--zb-bg-popover);
+    box-shadow: var(--zb-shadow-popover);
+    color: var(--zb-text);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Open below like a native menu; flip only when below has no room. */
+    position-try-order: normal;
+    position-try-fallbacks:
+      block-start span-inline-end,
+      block-end span-inline-start,
+      block-start span-inline-start;
+  }
+
+  :where(.zb) :where(select:not([multiple], [size])) :where(option) {
+    display: flex;
+    align-items: center;
+    gap: var(--zb-space-2);
+    min-height: var(--zb-control-md);
+    padding: 0 var(--zb-space-2);
+    border-radius: var(--zb-radius-sm);
+    color: var(--zb-text);
+    font-size: var(--zb-text-md);
+    line-height: var(--zb-leading-md);
+    white-space: nowrap;
+    cursor: default;
+  }
+  :where(.zb) :where(select:not([multiple], [size])) :where(option):where(:hover, :focus-visible) {
+    background: var(--zb-bg-hover);
+  }
+  /* The highlighted row is the focus cue inside the picker; the global ring would crowd it. */
+  .zb select:not([multiple], [size]) option:focus-visible {
+    box-shadow: none;
+  }
+  :where(.zb) :where(select:not([multiple], [size])) :where(option):where(:checked) {
+    font-weight: var(--zb-weight-medium);
+  }
+  :where(.zb) :where(select:not([multiple], [size])) :where(option):where(:disabled) {
+    color: var(--zb-text-dim);
+    background: transparent;
+  }
+  :where(.zb) :where(select:not([multiple], [size])) :where(option)::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+    padding-inline-start: var(--zb-space-3);
+    color: var(--zb-accent);
+    content: "✓";
+  }
+  :where(.zb) :where(select:not([multiple], [size])) :where(optgroup) {
+    padding-block-start: var(--zb-space-1);
+    color: var(--zb-text-muted);
+    font-size: var(--zb-text-sm);
+    font-weight: var(--zb-weight-medium);
+  }
+}

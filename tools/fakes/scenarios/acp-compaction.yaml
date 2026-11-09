@@ -1,0 +1,14 @@
+name: compaction
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: available_commands_update, availableCommands: [{ name: compact, description: Compact context }] } } }
+  - reply: { result: { stopReason: end_turn } }
+  - on_input: { match: { method: session/prompt, params: { prompt: [{ type: text, text: /compact keep decisions }] } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: compaction_update, compactionId: c1, status: in_progress } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: compaction_update, compactionId: c1, status: completed } } }
+  - reply: { result: { stopReason: end_turn } }

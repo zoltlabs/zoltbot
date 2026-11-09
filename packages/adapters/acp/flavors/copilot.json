@@ -1,0 +1,8 @@
+{
+  "id": "copilot",
+  "testedVersions": "1.0.105",
+  "mcpInjection": "session_new",
+  "instructionInjection": "first_block",
+  "approvalCapability": "coarse",
+  "readOnlyModes": ["plan", "ask", "read_only"]
+}

@@ -1,0 +1,48 @@
+/* The coding tool's logo on a neutral tile, ringed in the profile hue so agents on one tool differ. */
+.zb-avatar-tool {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--zb-radius-pill);
+  background: var(--zb-bg-raised);
+  box-shadow: inset 0 0 0 1.5px var(--zb-avatar-ring);
+  color: var(--zb-text);
+}
+.zb-avatar.s16 .zb-avatar-tool {
+  box-shadow: inset 0 0 0 1px var(--zb-avatar-ring);
+}
+.zb-tool-logo {
+  display: block;
+  flex: none;
+}
+.zb-tool-logo.mono {
+  background: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+.zb-avatar-tool.h1 {
+  --zb-avatar-ring: var(--zb-avatar-1);
+}
+.zb-avatar-tool.h2 {
+  --zb-avatar-ring: var(--zb-avatar-2);
+}
+.zb-avatar-tool.h3 {
+  --zb-avatar-ring: var(--zb-avatar-3);
+}
+.zb-avatar-tool.h4 {
+  --zb-avatar-ring: var(--zb-avatar-4);
+}
+.zb-avatar-tool.h5 {
+  --zb-avatar-ring: var(--zb-avatar-5);
+}
+.zb-avatar-tool.h6 {
+  --zb-avatar-ring: var(--zb-avatar-6);
+}
+.zb-avatar-tool.h7 {
+  --zb-avatar-ring: var(--zb-avatar-7);
+}
+.zb-avatar-tool.h8 {
+  --zb-avatar-ring: var(--zb-avatar-8);
+}

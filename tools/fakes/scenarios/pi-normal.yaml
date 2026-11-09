@@ -1,0 +1,11 @@
+name: normal
+provider: pi
+steps:
+  - on_input: { match: { type: prompt } }
+  - emit: { type: response, command: prompt, id: '1', success: true, data: { disposition: started } }
+  - emit: { type: agent_start }
+  - emit: { type: turn_start }
+  - emit: { type: message_update, assistantMessageEvent: { type: text_delta, delta: ok } }
+  - emit: { type: message_end, message: { role: assistant, content: [{ type: text, text: ok }] } }
+  - emit: { type: agent_end }
+  - emit: { type: agent_settled }

@@ -1,0 +1,16 @@
+{
+  "name": "@zoltbot/adapters-codex",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./definitions": "./src/definitions.ts"
+  },
+  "dependencies": {
+    "@zoltbot/adapters-sdk": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "ajv": "8.18.0"
+  }
+}

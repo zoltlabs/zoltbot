@@ -1,0 +1,167 @@
+/* The main agent's page: its chat, and beside it a compact overview of every other chat. */
+.chief-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  height: 100%;
+  min-height: 0;
+}
+.chief-chat {
+  min-width: 0;
+  min-height: 0;
+}
+.chief-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-4);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--zb-space-4) var(--zb-space-3);
+  border-left: 1px solid var(--zb-border-subtle);
+  background: var(--zb-bg-sunken);
+}
+/* Narrow windows keep the chat; the full Overview is a click away. */
+@media (max-width: 1000px) {
+  .chief-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chief-rail {
+    display: none;
+  }
+}
+.chief-rail-title {
+  margin: 0;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+  font-weight: var(--zb-weight-medium);
+  letter-spacing: var(--zb-tracking-label);
+  text-transform: uppercase;
+}
+.chief-rail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  margin: 0 0 var(--zb-space-1);
+  font-size: var(--zb-text-sm);
+  font-weight: var(--zb-weight-medium);
+}
+.chief-rail-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chief-rail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zb-space-2);
+  width: 100%;
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border: 0;
+  border-radius: var(--zb-radius-sm);
+  background: transparent;
+  color: var(--zb-text-secondary);
+  text-align: left;
+}
+.chief-rail-row:hover {
+  background: var(--zb-bg-hover);
+}
+.chief-rail-row .zb-status-dot,
+.chief-rail-row > :first-child {
+  margin-top: 5px;
+}
+.chief-rail-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: var(--zb-text-sm);
+}
+.chief-rail-text strong {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-medium);
+}
+.chief-muted {
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+}
+.chief-note {
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-xs);
+}
+.chief-summary {
+  margin: 0;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.chief-start {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--zb-space-6) var(--zb-space-4);
+}
+.chief-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-3);
+  max-width: 34rem;
+  padding: var(--zb-space-6);
+}
+.chief-start-card h1 {
+  margin: 0;
+  font-size: var(--zb-text-xl);
+}
+.chief-start-card p {
+  margin: 0;
+}
+.chief-start-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+/* On the Overview: the main agent's summary card and its note on each chat. */
+.overview-chief {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-3) var(--zb-space-4);
+}
+.overview-chief p {
+  margin: 0;
+  color: var(--zb-text-secondary);
+}
+.overview-chief strong {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-medium);
+}
+.overview-note {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.chief-wakeups p {
+  margin: var(--zb-space-1) 0 0;
+  font-size: var(--zb-text-xs);
+}
+.chief-wake-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  font-size: var(--zb-text-sm);
+  font-weight: var(--zb-weight-medium);
+}
+.chief-brief {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-3);
+}
+.chief-brief input[type="time"] {
+  height: var(--zb-control-xs);
+  padding: 0 var(--zb-space-1);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-raised);
+  color: var(--zb-text);
+  font: inherit;
+  font-size: var(--zb-text-sm);
+}

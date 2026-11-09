@@ -1,0 +1,15 @@
+name: cancel_resume
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: agent_message_chunk, content: { type: text, text: started } } } }
+  - on_input: { match: { method: session/cancel, params: { sessionId: fake-session } } }
+  - emit: { jsonrpc: "2.0", id: 2, result: { stopReason: cancelled } }
+  - on_input: { match: { method: session/load, params: { sessionId: fake-session } } }
+  - reply: { result: {} }
+  - on_input: { match: { method: session/prompt } }
+  - reply: { result: { stopReason: end_turn } }

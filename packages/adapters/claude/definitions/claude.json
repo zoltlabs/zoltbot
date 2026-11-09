@@ -1,0 +1,32 @@
+{
+  "id": "claude",
+  "displayName": "Claude Code",
+  "adapter": "claude",
+  "binaryNames": ["claude"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": [],
+    "env": {}
+  },
+  "auth": {
+    "statusCommand": ["auth", "status"],
+    "loginCommand": ["auth", "login"]
+  },
+  "update": {
+    "args": ["update"],
+    "latest": {
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
+      "key": "version"
+    }
+  },
+  "testedVersions": "2.1.299",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": ["~/.claude/projects"],
+  "experimental": false
+}

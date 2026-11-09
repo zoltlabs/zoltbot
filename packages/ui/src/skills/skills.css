@@ -1,0 +1,56 @@
+.skills-settings {
+  min-width: 0;
+}
+.skills-settings label {
+  display: grid;
+  gap: 6px;
+  margin-block: 12px;
+}
+.skills-settings input,
+.skills-settings textarea,
+.skills-settings select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.skills-settings pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--zb-text-sm);
+  max-height: 320px;
+  overflow: auto;
+}
+.skills-settings .r {
+  flex-wrap: wrap;
+}
+.skills-settings li {
+  overflow-wrap: anywhere;
+  margin-block: 8px;
+}
+.skills-import {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.skills-import label {
+  flex: 1;
+  min-width: 180px;
+}
+.skills-detail {
+  border-top: 1px solid var(--zb-border);
+  padding-block: 16px;
+  margin-top: 16px;
+}
+.skills-body {
+  min-height: 220px;
+}
+.skills-settings dialog {
+  max-width: min(560px, 90vw);
+  color: var(--zb-text);
+  background: var(--zb-bg-popover);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+}
+.skills-list {
+  padding-inline-start: 20px;
+}

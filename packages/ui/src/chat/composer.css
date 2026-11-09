@@ -1,0 +1,113 @@
+.composer-editor-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  padding-bottom: var(--zb-space-2);
+}
+.composer-editor-tools > fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1);
+}
+.composer-editor-tools button[aria-pressed="true"] {
+  background: var(--zb-bg-hover);
+  color: var(--zb-text);
+}
+.composer-preview {
+  border-top: 1px solid var(--zb-border);
+  padding-top: var(--zb-space-2);
+  margin-top: var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+}
+.composer-preview summary {
+  cursor: pointer;
+  color: var(--zb-text-muted);
+}
+.composer-preview .chat-markdown {
+  max-height: 240px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: var(--zb-space-2) 0;
+}
+.composer-editor-tools button:focus-visible,
+.composer-preview summary:focus-visible {
+  outline: 2px solid var(--zb-accent);
+  outline-offset: 2px;
+}
+
+.composer-editor-tools,
+.composer-editor-tools > fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* One row under the editor: output, compare and mode on the left; attach, dictate and send on the right. */
+.composer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-2);
+  min-width: 0;
+}
+/* Very narrow windows wrap instead of overflowing. */
+@media (max-width: 520px) {
+  .composer-row {
+    flex-wrap: wrap;
+  }
+}
+.composer-row > * {
+  flex: none;
+}
+.composer-row > .sp {
+  flex: 1;
+}
+.composer-row .chat-send {
+  margin-left: 0;
+}
+.composer-row .dictation-controls {
+  display: inline-flex;
+}
+.chat-composer .btn.icon-only {
+  justify-content: center;
+  width: var(--zb-control-sm);
+  padding: 0;
+}
+/* Formatting sits in the top right corner and opens the toolbar above the text. */
+.chat-composer {
+  --composer-corner: var(--zb-space-2);
+}
+.composer-format-toggle {
+  position: absolute;
+  top: var(--composer-corner);
+  right: var(--composer-corner);
+  color: var(--zb-text-muted);
+}
+.composer-format-toggle[aria-pressed="true"] {
+  background: var(--zb-bg-hover);
+  color: var(--zb-text);
+}
+.chat-composer textarea {
+  padding-right: calc(var(--zb-control-sm) + var(--zb-space-2));
+}
+.composer-editor-tools {
+  padding-right: calc(var(--zb-control-sm) + var(--zb-space-2));
+}
+/* Output reads as one compact control: a muted label inside the select's pill. */
+.composer-row .artifact-output-control {
+  gap: 0;
+  height: var(--zb-control-sm);
+  padding-left: var(--zb-space-2);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+}
+.composer-row .artifact-output-label {
+  color: var(--zb-text-muted);
+}
+.composer-row .artifact-output-control select {
+  height: 100%;
+  border: 0;
+  background-color: transparent;
+}

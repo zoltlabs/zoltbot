@@ -1,0 +1,30 @@
+[
+  {
+    "method": "initialize",
+    "authorized": true
+  },
+  {
+    "method": "notifications/initialized",
+    "authorized": true
+  },
+  {
+    "method": "tools/list",
+    "authorized": true
+  },
+  {
+    "method": "local_completion",
+    "toolRequested": true
+  },
+  {
+    "method": "local_completion",
+    "toolRequested": false
+  },
+  {
+    "method": "local_completion",
+    "toolRequested": true
+  },
+  {
+    "method": "local_completion",
+    "toolRequested": false
+  }
+]

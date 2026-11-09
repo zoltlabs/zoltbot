@@ -1,0 +1,34 @@
+[
+  {
+    "method": "initialize",
+    "authorized": true
+  },
+  {
+    "method": "notifications/initialized",
+    "authorized": true
+  },
+  {
+    "method": "tools/list",
+    "authorized": true
+  },
+  {
+    "method": "initialize",
+    "authorized": true
+  },
+  {
+    "method": "notifications/initialized",
+    "authorized": true
+  },
+  {
+    "method": "tools/list",
+    "authorized": true
+  },
+  {
+    "method": "resources/templates/list",
+    "authorized": true
+  },
+  {
+    "method": "resources/list",
+    "authorized": true
+  }
+]

@@ -1,0 +1,116 @@
+.activity-details {
+  margin-block: var(--zb-space-2);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.activity-details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-height: var(--zb-control-md);
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--zb-space-1) var(--zb-space-1-5);
+  border-radius: var(--zb-radius-sm);
+  list-style: none;
+  cursor: pointer;
+}
+.activity-details > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-details[open] > summary > svg:last-child {
+  transform: rotate(90deg);
+}
+.activity-details > ol,
+.activity-details > ul {
+  display: grid;
+  gap: var(--zb-space-2);
+  margin: var(--zb-space-2) 0;
+  padding-inline-start: var(--zb-space-4);
+  border-inline-start: 1px solid var(--zb-border-subtle);
+  list-style: none;
+}
+.activity-details > ul > li {
+  display: flex;
+  gap: var(--zb-space-2);
+  justify-content: space-between;
+}
+.activity-details .chat-thought summary {
+  padding-block: var(--zb-space-1);
+}
+
+/* A finished turn folds to one quiet line above its answer. */
+.turn-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-1);
+  margin: var(--zb-space-1) 0;
+  padding: var(--zb-space-0-5, 2px) 0;
+  border: 0;
+  background: none;
+  color: var(--zb-text-muted);
+  font: inherit;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.turn-fold:hover {
+  color: var(--zb-text);
+}
+
+/* Work in progress: a highlight sweeps across the label. Still text when motion is reduced. */
+.chat-shimmer {
+  background: var(--zb-chat-shimmer-background);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chat-shimmer 2s linear infinite;
+}
+@keyframes chat-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-shimmer {
+    animation: none;
+    background: none;
+    color: var(--zb-text-muted);
+  }
+}
+.chat-working {
+  display: block;
+  margin: var(--zb-space-1) 0;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-variant-numeric: tabular-nums;
+}
+.turn-fold-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-3);
+}
+.turn-changes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  padding: var(--zb-space-0-5, 2px) var(--zb-space-1-5);
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-sm);
+  background: none;
+  color: var(--zb-text-muted);
+  font: inherit;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  cursor: pointer;
+}
+.turn-changes:hover {
+  color: var(--zb-text);
+  border-color: var(--zb-border);
+}

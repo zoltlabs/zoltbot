@@ -1,0 +1,61 @@
+.browser-panel,
+.browser-capture {
+  display: grid;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-3);
+  min-width: 0;
+}
+.browser-panel p,
+.browser-capture h4 {
+  margin: 0;
+}
+.browser-panel p {
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-secondary);
+  overflow-wrap: anywhere;
+}
+.browser-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+}
+.browser-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--zb-space-3);
+}
+.browser-thumbnail {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: var(--zb-bg-sunken);
+  cursor: zoom-in;
+  border-radius: var(--zb-radius-sm);
+  overflow: hidden;
+}
+.browser-thumbnail img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+.browser-capture code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--zb-text-xs);
+}
+.browser-full-image {
+  display: block;
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+.browser-capture dialog {
+  max-width: 90vw;
+  padding: var(--zb-space-4);
+  background: var(--zb-bg-popover);
+  color: var(--zb-text);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+}

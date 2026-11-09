@@ -1,0 +1,355 @@
+/* Chat: a 720 px reading column, compact tool rows, a floating composer and a quiet side panel. */
+.main-content.chat-page {
+  padding: 0;
+  overflow: hidden;
+}
+.chat-route > .workspace-header {
+  display: none;
+}
+.chat-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.chat-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zb-space-2);
+  height: var(--zb-header-height);
+  padding: 0 var(--zb-space-3);
+  border-bottom: 1px solid transparent;
+}
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  min-width: 0;
+  color: var(--zb-text-muted);
+}
+/* The place keeps its full name up to a cap; the chat title gives way first. */
+.chat-place {
+  flex: 0 0 auto;
+  max-width: 16rem;
+}
+.chat-header h1 {
+  overflow: hidden;
+  color: var(--zb-text);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  font-weight: var(--zb-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  color: var(--zb-text-secondary);
+  white-space: nowrap;
+}
+.chat-error {
+  margin: var(--zb-space-3) var(--zb-space-4) 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-danger-soft);
+  color: var(--zb-danger);
+  line-height: var(--zb-leading-body);
+}
+.chat-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.chat-conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Session notice: in flow just above the composer, opaque so nothing reads through it. */
+.chat-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-4);
+  margin-top: var(--zb-space-2);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-chat-warning-background);
+  color: var(--zb-text-secondary);
+}
+/* Not connected yet is not a problem: sending starts the tool, so this stays a quiet note. */
+.chat-session-banner.note {
+  padding: 0 var(--zb-space-1);
+  border: 0;
+  background: none;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+}
+.chat-session-banner strong {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-medium);
+}
+.chat-session-banner p {
+  margin-top: var(--zb-space-0-5);
+  line-height: var(--zb-leading-body);
+}
+.chat-session-banner .btn {
+  flex-shrink: 0;
+}
+
+/* Timeline */
+.chat-timeline-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.chat-timeline {
+  height: 100%;
+  padding: 0 var(--zb-space-4);
+  overflow: auto;
+  overflow-anchor: none;
+  scrollbar-gutter: stable both-edges;
+}
+/* Two classes so the theme's `.zb ol { margin: 0 }` reset cannot pin the list to the left. */
+.chat-timeline .chat-virtual-list {
+  position: relative;
+  max-width: var(--zb-reading-width);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.chat-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: var(--zb-space-2) 0;
+}
+.chat-message {
+  min-width: 0;
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-body);
+  overflow-wrap: break-word;
+}
+.chat-message-label {
+  margin: 0 0 var(--zb-space-1);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-weight: var(--zb-weight-medium);
+}
+.chat-human {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.chat-human-bubble {
+  max-width: 80%;
+  padding: var(--zb-space-3) var(--zb-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-active);
+  color: var(--zb-text);
+}
+.chat-human-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.chat-human .chat-message-label:last-child {
+  margin: var(--zb-space-1) 0 0;
+}
+.chat-markdown {
+  overflow-wrap: break-word;
+}
+.chat-markdown p {
+  margin: 0 0 var(--zb-space-3);
+}
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  margin: var(--zb-space-4) 0 var(--zb-space-2);
+  font-size: var(--zb-text-xl);
+  line-height: var(--zb-leading-xl);
+  font-weight: var(--zb-weight-semibold);
+  text-wrap: balance;
+}
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-lg);
+  font-weight: var(--zb-weight-semibold);
+}
+.chat-markdown a {
+  color: var(--zb-accent-text);
+  text-decoration-thickness: from-font;
+  text-underline-offset: 3px;
+}
+.chat-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+  border-collapse: collapse;
+}
+.chat-markdown th,
+.chat-markdown td {
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border: 1px solid var(--zb-border);
+  text-align: start;
+}
+.chat-markdown blockquote {
+  margin-left: 0;
+  padding-left: var(--zb-space-3);
+  border-left: 2px solid var(--zb-border-strong);
+  color: var(--zb-text-muted);
+}
+.chat-code {
+  margin: var(--zb-space-3) 0;
+  overflow: hidden;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-sunken);
+}
+.chat-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--zb-space-1) var(--zb-space-2);
+  border-bottom: 1px solid var(--zb-border-subtle);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.chat-code pre,
+.chat-tool pre {
+  margin: 0;
+  padding: var(--zb-space-3);
+  overflow: auto;
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-body);
+  white-space: pre;
+}
+.chat-markdown :not(pre) > code {
+  padding: 1px var(--zb-space-1);
+  border-radius: var(--zb-radius-xs);
+  background: var(--zb-bg-sunken);
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-sm);
+}
+.chat-thought {
+  color: var(--zb-text-muted);
+}
+.chat-thought summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.chat-thought details[open] summary {
+  margin-bottom: var(--zb-space-2);
+}
+
+/* Tool steps: compact rows that read as one grouped list. */
+.chat-tool {
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-inline-start-color: var(--zb-border-strong);
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.chat-virtual-row:has(> .chat-tool) {
+  padding-block: var(--zb-space-0-5);
+}
+.chat-tool summary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  list-style: none;
+  cursor: pointer;
+}
+.chat-tool summary::-webkit-details-marker {
+  display: none;
+}
+.chat-tool summary:hover {
+  background: var(--zb-bg-hover);
+}
+.chat-tool summary strong {
+  font-weight: var(--zb-weight-medium);
+}
+.chat-tool summary .truncate {
+  flex: 1;
+  min-width: 0;
+  color: var(--zb-text-muted);
+}
+.chat-tool-status {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--zb-radius-pill);
+  background: var(--zb-warn);
+}
+.chat-tool-status.ok {
+  background: var(--zb-ok);
+}
+.chat-tool-status.running {
+  background: var(--zb-accent);
+}
+.chat-tool-state {
+  color: var(--zb-text-muted);
+}
+.chat-tool-detail {
+  border-top: 1px solid var(--zb-border-subtle);
+}
+.chat-tool-detail > .sec {
+  padding: var(--zb-space-2) var(--zb-space-3) 0;
+}
+.chat-terminal {
+  max-height: 280px;
+  background: var(--zb-bg-sunken);
+}
+.chat-diff {
+  margin: var(--zb-space-2);
+  overflow: hidden;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+}
+.chat-diff > summary {
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  cursor: pointer;
+}
+.chat-diff pre {
+  max-height: 360px;
+}
+.chat-diff-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.chat-diff-split > div {
+  min-width: 0;
+  overflow: hidden;
+}
+.chat-diff-split .sec {
+  padding: var(--zb-space-2);
+}
+.diff-added {
+  background: var(--zb-ok-soft);
+  color: var(--zb-ok);
+}
+.diff-removed {
+  background: var(--zb-danger-soft);
+  color: var(--zb-danger);
+}

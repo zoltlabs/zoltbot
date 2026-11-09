@@ -1,0 +1,50 @@
+{
+  "name": "account",
+  "provider": "codex",
+  "steps": [
+    {
+      "on_input": {
+        "match": {
+          "method": "initialize"
+        }
+      }
+    },
+    {
+      "reply": {
+        "result": {
+          "userAgent": "fake-codex",
+          "codexHome": "/work/repo/.codex",
+          "platformFamily": "unix",
+          "platformOs": "macos"
+        }
+      }
+    },
+    {
+      "on_input": {
+        "match": {
+          "method": "initialized"
+        }
+      }
+    },
+    {
+      "on_input": {
+        "match": {
+          "method": "account/read"
+        }
+      }
+    },
+    {
+      "reply": {
+        "result": {
+          "account": {
+            "type": "apiKey"
+          },
+          "requiresOpenaiAuth": true
+        }
+      }
+    },
+    {
+      "hang": true
+    }
+  ]
+}

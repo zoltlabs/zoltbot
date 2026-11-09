@@ -1,0 +1,9 @@
+{
+  "version": "1.0.70",
+  "source": "https://x.ai/cli/grok-1.0.70-macos-aarch64",
+  "binary": "<repo>/.cache/spikes/grok-cli/grok",
+  "sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+  "isolatedHome": true,
+  "modelPromptsSent": false,
+  "loginAttempted": false
+}

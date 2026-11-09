@@ -1,0 +1,17 @@
+{
+  "name": "@zoltbot/apps-desktop",
+  "version": "0.1.3",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zoltbot/daemon": "workspace:*",
+    "electron": "40.0.0",
+    "ws": "8.19.0",
+    "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/cloud-contracts": "workspace:*"
+  }
+}

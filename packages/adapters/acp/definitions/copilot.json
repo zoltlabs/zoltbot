@@ -1,0 +1,28 @@
+{
+  "id": "copilot",
+  "displayName": "GitHub Copilot",
+  "adapter": "acp",
+  "flavor": "copilot",
+  "binaryNames": ["copilot"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "copilot",
+    "args": ["--acp", "--stdio"],
+    "env": {}
+  },
+  "auth": {
+    "loginCommand": ["login"]
+  },
+  "install": {
+    "docsUrl": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server"
+  },
+  "testedVersions": "1.0.105",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

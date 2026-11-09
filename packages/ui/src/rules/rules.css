@@ -1,0 +1,226 @@
+.rules-page {
+  max-width: 960px;
+  margin: 0 auto;
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-body);
+}
+.rules-page h2 {
+  margin: 0 0 8px;
+  font-size: var(--zb-text-xl);
+  line-height: var(--zb-leading-xl);
+  text-wrap: balance;
+  font-weight: var(--zb-weight-semibold);
+  letter-spacing: var(--zb-tracking-tight);
+}
+.rules-page h3 {
+  margin: 0 0 8px;
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-lg);
+  text-wrap: balance;
+  font-weight: var(--zb-weight-semibold);
+}
+.rules-page p {
+  max-width: 72ch;
+  text-wrap: pretty;
+}
+.rules-heading,
+.rules-list-heading,
+.rules-actions,
+.rules-filters,
+.rules-paging {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rules-heading,
+.rules-list-heading {
+  justify-content: space-between;
+  margin-bottom: var(--zb-space-4);
+}
+.rules-heading p {
+  margin: 0;
+}
+.rules-create,
+.rules-preview,
+.rules-list {
+  padding: var(--zb-space-4);
+  margin-bottom: var(--zb-space-4);
+  min-width: 0;
+}
+.rules-create > p,
+.rules-preview > p,
+.rules-create form > p {
+  margin-top: 0;
+}
+.rules-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  font-weight: var(--zb-weight-medium);
+}
+.rules-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zb-space-4);
+  max-width: 820px;
+}
+.rules-wide {
+  grid-column: 1 / -1;
+}
+.rules-help {
+  margin: -7px 0 0;
+  font-size: var(--zb-text-md);
+}
+.rules-scope-note {
+  margin: 0;
+  align-self: end;
+  padding-bottom: 10px;
+}
+.rules-page form > .rules-actions {
+  margin-top: 18px;
+}
+.rules-review {
+  margin: 20px 0;
+  max-width: 820px;
+}
+.rules-review > div {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: var(--zb-space-4);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--zb-border);
+}
+.rules-review dt {
+  color: var(--zb-text-muted);
+}
+.rules-review dd {
+  margin: 0;
+  min-width: 0;
+}
+.rules-page code {
+  font-family: var(--zb-font-mono);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.rules-error {
+  color: var(--zb-danger);
+  padding: 10px 12px;
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-danger-soft);
+}
+.rules-notice {
+  color: var(--zb-ok);
+}
+.rules-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-sunken);
+}
+.rules-result.allow {
+  color: var(--zb-ok);
+  background: var(--zb-ok-soft);
+}
+.rules-result.deny {
+  color: var(--zb-danger);
+  background: var(--zb-danger-soft);
+}
+.rules-filters label {
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-muted);
+}
+.rules-filters select {
+  color: var(--zb-text);
+  min-width: 130px;
+}
+.rules-table {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-lg);
+}
+.rules-table table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 840px;
+  text-align: start;
+}
+.rules-table th {
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  font-weight: var(--zb-weight-medium);
+  background: var(--zb-bg-sunken);
+  white-space: nowrap;
+}
+.rules-table th,
+.rules-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--zb-border);
+  vertical-align: top;
+}
+.rules-table tr:last-child td {
+  border-bottom: 0;
+}
+.rules-table td:nth-child(2) {
+  max-width: 340px;
+  min-width: 160px;
+}
+.rules-table td:nth-child(3) {
+  max-width: 220px;
+  overflow-wrap: break-word;
+}
+.rules-table time {
+  font-size: var(--zb-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.rules-meta {
+  display: block;
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-muted);
+  margin-top: 4px;
+}
+.rules-paging {
+  margin-top: 16px;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+.rules-paging > span {
+  margin-right: auto;
+  font-size: var(--zb-text-sm);
+}
+.rules-empty {
+  padding: 22px 0 10px;
+}
+@media (max-width: 700px) {
+  .rules-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .rules-page input,
+  .rules-page select {
+    font-size: var(--zb-text-xl);
+  }
+  .rules-review > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.rules-notice,
+.rules-error {
+  display: block;
+  margin: 14px 0;
+}
+
+.rules-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}

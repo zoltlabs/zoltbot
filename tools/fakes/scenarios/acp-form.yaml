@@ -1,0 +1,12 @@
+name: form
+provider: acp
+steps:
+  - on_input: { match: { method: initialize, params: { clientCapabilities: { elicitation: { form: {} } } } } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", id: form-1, method: elicitation/create, params: { sessionId: fake-session, mode: form, message: Configure, requestedSchema: { type: object, properties: { name: { type: string } }, required: [name] } } }
+  - on_input: { match: { id: form-1, result: { action: accept, content: { name: chosen } } } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: agent_message_chunk, content: { type: text, text: accepted } } } }
+  - hang: true

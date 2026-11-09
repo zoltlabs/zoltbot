@@ -1,0 +1,95 @@
+.artifact-cards {
+  display: grid;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-4);
+}
+.artifact-cards h2 {
+  font-size: var(--zb-text-sm);
+}
+.artifact-card {
+  display: grid;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+}
+.artifact-card span {
+  font-size: var(--zb-text-sm);
+}
+.chat-context:has(.artifact-panel) {
+  width: min(60vw, 1000px);
+}
+.chat-context:has(.artifact-panel) > :not(.artifact-cards) {
+  display: none;
+}
+.artifact-panel h2 {
+  margin-block: var(--zb-space-3);
+}
+.artifact-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-4);
+}
+.artifact-frame {
+  display: block;
+  width: 100%;
+  height: 62vh;
+  border: 1px solid var(--zb-border);
+  background: white;
+}
+.artifact-cards:has(.artifact-panel) > .artifact-card {
+  display: none;
+}
+.artifact-output-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+}
+.artifact-output-control select {
+  max-width: 160px;
+}
+
+.artifact-inline {
+  margin: var(--zb-space-3) 0;
+  min-height: 110px;
+}
+.artifact-inline > .artifact-frame {
+  height: min(360px, 60vh);
+}
+.artifact-inline .artifact-toolbar {
+  flex-wrap: wrap;
+}
+.artifact-inline-panel .artifact-panel {
+  position: fixed;
+  inset: 8vh 3vw 5vh 40vw;
+  z-index: 30;
+  padding: var(--zb-space-4);
+  overflow: auto;
+  background: var(--zb-bg-page);
+  border: 1px solid var(--zb-border);
+}
+@media (max-width: 1000px) {
+  .artifact-inline-panel .artifact-panel {
+    inset: 5vh 3vw;
+  }
+}
+
+.artifact-online-sharing {
+  margin-block: var(--zb-space-3);
+  padding: var(--zb-space-3);
+  overflow-wrap: anywhere;
+}
+.artifact-online-sharing p,
+.artifact-online-sharing h3 {
+  margin-block: var(--zb-space-2);
+}
+.artifact-online-sharing .zb-button {
+  margin-block: var(--zb-space-1);
+  margin-inline-end: var(--zb-space-2);
+}
+.artifact-online-sharing output {
+  display: block;
+  margin-block-start: var(--zb-space-2);
+}

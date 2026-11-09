@@ -1,0 +1,25 @@
+{
+  "id": "goose",
+  "displayName": "Goose",
+  "adapter": "acp",
+  "flavor": "goose",
+  "binaryNames": ["goose"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "goose",
+    "args": ["acp"],
+    "env": {}
+  },
+  "install": {
+    "docsUrl": "https://github.com/agentclientprotocol/registry/blob/main/goose/agent.json"
+  },
+  "testedVersions": "unverified",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

@@ -1,0 +1,354 @@
+@import "../theme/index.css";
+:root {
+  font-size: 100%;
+}
+body {
+  margin: 0;
+  background: var(--zb-bg-canvas);
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+
+/* Frame: the sidebar sits on the canvas, and the page is an inset panel beside it. */
+.workspace-shell {
+  --sidebar-width: var(--zb-sidebar-width);
+  display: flex;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--zb-bg-canvas);
+}
+.workspace-sidebar {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--zb-space-4);
+  width: var(--sidebar-width);
+  padding: var(--zb-space-3) var(--zb-space-2) var(--zb-space-2);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.workspace-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  margin: var(--zb-frame-inset) var(--zb-frame-inset) var(--zb-frame-inset) 0;
+  overflow: hidden;
+  border: 1px solid var(--zb-border-subtle);
+  border-radius: var(--zb-radius-lg);
+  background: var(--zb-bg-page);
+}
+
+/* Sidebar */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  border: 0;
+  border-radius: var(--zb-radius-sm);
+  background: transparent;
+  color: var(--zb-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.brand:hover {
+  background: var(--zb-bg-hover);
+}
+.brand strong {
+  flex: 1;
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  font-weight: var(--zb-weight-semibold);
+}
+.sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  width: 100%;
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--zb-radius-sm);
+  background: transparent;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  text-align: left;
+}
+.sidebar-search:hover {
+  border-color: var(--zb-border-strong);
+  color: var(--zb-text-secondary);
+}
+.sidebar-search .grow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The global Quick Chat entry: always one click away, outside any workspace. */
+.sidebar-quick-chat {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  width: 100%;
+  height: var(--zb-control-md);
+  padding: 0 var(--zb-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--zb-radius-sm);
+  background: transparent;
+  color: var(--zb-text);
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  text-align: left;
+}
+.sidebar-quick-chat:hover,
+.sidebar-quick-chat.on {
+  background: var(--zb-bg-selected);
+}
+.sidebar-quick-chat .zb-kbd {
+  color: var(--zb-text-secondary);
+}
+.workspace-sidebar nav,
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--zb-space-0-5);
+}
+.sidebar-bottom {
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+.sidebar-collapsed .sidebar-bottom {
+  flex-direction: column;
+  align-items: center;
+}
+.sidebar-bottom .zb-icon-button.on {
+  background: var(--zb-bg-selected);
+  color: var(--zb-text);
+}
+/* The add button floats on the summary row so it lines up with the "Workspaces" label. */
+.project-tree-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.project-tree-wrap > .tree-add {
+  position: absolute;
+  top: 0;
+  right: var(--zb-space-1);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  /* Same box as the summary row: one sidebar-section line plus its padding. */
+  height: calc(1lh + var(--zb-space-2) * 2);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.project-tree {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-1);
+  overflow: auto;
+}
+.tree-label {
+  padding: 0 var(--zb-space-2);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-medium);
+  letter-spacing: var(--zb-tracking-label);
+  text-transform: uppercase;
+}
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 4px;
+  height: auto;
+  margin: 0;
+  border: 0;
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible {
+  background: var(--zb-accent-soft);
+}
+.sidebar-collapsed .workspace-sidebar {
+  width: 52px;
+  padding-inline: var(--zb-space-2);
+}
+.sidebar-collapsed .sidebar-label {
+  display: none;
+}
+.sidebar-collapsed .brand,
+.sidebar-collapsed .sidebar-search,
+.sidebar-collapsed .sidebar-quick-chat,
+.sidebar-collapsed .zb-row {
+  justify-content: center;
+  padding: 0;
+}
+.sidebar-collapsed .zb-row-label:has(> .sidebar-label:only-child) {
+  display: none;
+}
+
+/* Header */
+.workspace-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zb-space-2);
+  height: var(--zb-header-height);
+  padding: 0 var(--zb-space-3);
+  border-bottom: 1px solid var(--zb-border-subtle);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  min-width: 0;
+  color: var(--zb-text-muted);
+}
+.breadcrumb .page-title {
+  overflow: hidden;
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usage-chip {
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+
+/* Page */
+.main-content {
+  flex: 1;
+  padding: var(--zb-space-6) var(--zb-space-8);
+  overflow: auto;
+  outline: none;
+}
+.main-content:focus-visible {
+  box-shadow: none;
+}
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-5);
+  max-width: 960px;
+  margin: 0 auto;
+}
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-3);
+  margin: var(--zb-space-3) var(--zb-space-8) 0;
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-warn-soft);
+  color: var(--zb-warn);
+}
+.offline-banner strong {
+  font-weight: var(--zb-weight-medium);
+}
+.offline-banner p {
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.workspace-status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zb-space-3);
+  height: var(--zb-statusbar-height);
+  padding: 0 var(--zb-space-3);
+  border-top: 1px solid var(--zb-border-subtle);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+  font-variant-numeric: tabular-nums;
+}
+.status-separator {
+  height: 12px;
+  border-left: 1px solid var(--zb-border);
+}
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--zb-space-4);
+  z-index: var(--zb-layer-toast);
+}
+.skip-link:focus {
+  top: var(--zb-space-2);
+}
+
+/* Overview */
+.overview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-3);
+}
+.overview-head h1 {
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-2xl);
+  font-weight: var(--zb-weight-semibold);
+  letter-spacing: var(--zb-tracking-tight);
+}
+.overview-filter {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-canvas);
+}
+.overview-filter button {
+  height: var(--zb-control-sm);
+  padding: 0 var(--zb-space-3);
+  border: 0;
+  border-radius: var(--zb-radius-xs);
+  background: transparent;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+}
+.overview-filter button:hover {
+  color: var(--zb-text-secondary);
+}
+.overview-filter button[aria-pressed="true"] {
+  background: var(--zb-bg-raised);
+  color: var(--zb-text);
+}
+.overview-setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-4);
+  padding: var(--zb-space-4);
+}
+.overview-setup h2 {
+  font-size: var(--zb-text-lg);
+  line-height: var(--zb-leading-lg);
+  font-weight: var(--zb-weight-semibold);
+}

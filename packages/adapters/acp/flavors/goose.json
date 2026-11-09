@@ -1,0 +1,8 @@
+{
+  "id": "goose",
+  "testedVersions": "unverified",
+  "mcpInjection": "session_new",
+  "instructionInjection": "first_block",
+  "approvalCapability": "coarse",
+  "readOnlyModes": ["plan", "ask", "read_only"]
+}

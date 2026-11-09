@@ -1,0 +1,24 @@
+{
+  "cli": {
+    "version": ">= 27.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "node": "24.22.1"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "$APPLE_TEAM_ID",
+        "ascAppId": "$EXPO_ASC_APP_ID",
+        "ascApiKeyPath": "$EXPO_ASC_API_KEY_PATH",
+        "ascApiKeyId": "$EXPO_ASC_KEY_ID",
+        "ascApiKeyIssuerId": "$EXPO_ASC_ISSUER_ID"
+      }
+    }
+  }
+}

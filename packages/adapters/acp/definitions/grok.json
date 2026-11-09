@@ -1,0 +1,29 @@
+{
+  "id": "grok",
+  "displayName": "Grok Build",
+  "adapter": "acp",
+  "flavor": "grok",
+  "binaryNames": ["grok"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "grok",
+    "args": ["--no-auto-update", "agent", "stdio"],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "XAI_API_KEY",
+    "loginCommand": ["login"]
+  },
+  "install": {
+    "docsUrl": "https://docs.x.ai/build/cli/headless-scripting"
+  },
+  "testedVersions": "1.0.70",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": true
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

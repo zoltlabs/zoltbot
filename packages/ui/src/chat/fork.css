@@ -1,0 +1,43 @@
+.fork-history {
+  margin: var(--zb-space-4);
+  padding: var(--zb-space-3);
+  max-block-size: 40vh;
+  overflow: auto;
+  flex: none;
+}
+.fork-history summary {
+  cursor: pointer;
+  font-weight: var(--zb-weight-semibold);
+}
+.fork-history[open] summary {
+  margin-bottom: var(--zb-space-3);
+}
+.fork-history-row {
+  padding-top: var(--zb-space-2);
+  border-top: 1px solid var(--zb-border-subtle);
+}
+.fork-history-row small {
+  color: var(--zb-text-muted);
+}
+
+.fork-form {
+  display: grid;
+  gap: var(--zb-space-3);
+  line-height: var(--zb-leading-body);
+}
+.fork-form label {
+  display: grid;
+  gap: var(--zb-space-1);
+}
+.fork-form select,
+.fork-form input {
+  width: 100%;
+  min-width: 0;
+}
+.fork-form p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fork-form output {
+  display: block;
+}

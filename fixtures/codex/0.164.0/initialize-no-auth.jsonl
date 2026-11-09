@@ -1,0 +1,8 @@
+{"direction": "stdin", "message": {"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "zoltbot-spike", "title": "Zoltbot protocol spike", "version": "0.1.0"}, "capabilities": {"experimentalApi": false}}}}
+{"direction": "stdout", "message": {"id": 1, "result": {"userAgent": "zoltbot-spike/0.164.0 (Mac OS 26.6.2; arm64) unknown (zoltbot-spike; 0.1.0)", "codexHome": "/work/repo/.cache/spikes/codex-home", "platformFamily": "unix", "platformOs": "macos"}}}
+{"direction": "stdin", "message": {"method": "initialized", "params": {}}}
+{"direction": "stdin", "message": {"id": 2, "method": "account/read", "params": {"refreshToken": false}}}
+{"direction": "stdout", "message": {"method": "remoteControl/status/changed", "params": {"status": "disabled", "serverName": "[REDACTED]", "installationId": "[REDACTED]", "environmentId": null}, "emittedAtMs": 1793104304863}}
+{"direction": "stdout", "message": {"id": 2, "result": {"account": null, "requiresOpenaiAuth": true, "workspaceRouting": null}}}
+{"direction": "stdin", "message": {"id": 3, "method": "thread/list", "params": {"limit": 1}}}
+{"direction": "stdout", "message": {"id": 3, "result": {"data": [], "readStates": {}, "nextCursor": null, "backwardsCursor": null}}}

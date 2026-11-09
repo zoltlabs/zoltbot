@@ -1,0 +1,8 @@
+{
+  "version": "0.164.0",
+  "command": "codex app-server generate-json-schema --out <repository cache>",
+  "experimental": false,
+  "sha256": "b75671be000af1e50690af2c6938f22625c592b49d667e76ae71744114e395de",
+  "generatedFiles": 320,
+  "experimentalSha256": "c62b223880ea2d85771fe550454e107bef88692e545cbe8a5113528684b5a416"
+}

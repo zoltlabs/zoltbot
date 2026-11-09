@@ -1,0 +1,46 @@
+.message-details {
+  margin-block-start: var(--zb-space-1);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.message-details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1);
+  width: fit-content;
+  min-height: var(--zb-control-sm);
+  padding-inline: var(--zb-space-1);
+  border-radius: var(--zb-radius-xs);
+  list-style: none;
+  cursor: pointer;
+}
+.message-details > summary::-webkit-details-marker {
+  display: none;
+}
+.message-details[open] > summary {
+  color: var(--zb-text-secondary);
+}
+.message-details-content {
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border-inline-start: 1px solid var(--zb-border-strong);
+  overflow-wrap: anywhere;
+}
+.message-details-content .chat-usage {
+  margin: 0;
+}
+/* Opacity keeps the disclosure in the keyboard order and reserves its resting space. */
+@media (hover: hover) {
+  .message-details:not([open]) > summary,
+  .message-secondary {
+    opacity: 0;
+  }
+  .chat-message:hover .message-details > summary,
+  .chat-message:focus-within .message-details > summary,
+  .quick-message:hover .message-details > summary,
+  .quick-message:focus-within .message-details > summary,
+  .chat-message:hover .message-secondary,
+  .chat-message:focus-within .message-secondary {
+    opacity: 1;
+  }
+}

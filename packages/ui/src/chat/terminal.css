@@ -1,0 +1,34 @@
+.terminal-panel {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-top: 1px solid var(--zb-border);
+  background: var(--zb-bg-page);
+  padding: var(--zb-space-3);
+}
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  flex-wrap: wrap;
+}
+.terminal-status {
+  flex: 1;
+  color: var(--zb-text-muted);
+}
+.terminal-message {
+  color: var(--zb-text-secondary);
+  margin-block: var(--zb-space-2);
+  overflow-wrap: anywhere;
+}
+.terminal-screen {
+  height: clamp(8rem, 25vh, 20rem);
+  min-width: 0;
+  overflow: hidden;
+  margin-top: var(--zb-space-2);
+}
+.terminal-screen:empty {
+  display: none;
+}
+.terminal-screen .xterm {
+  height: 100%;
+}

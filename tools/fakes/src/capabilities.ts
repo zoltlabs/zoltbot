@@ -1,0 +1,27 @@
+import type { Capabilities } from "@zoltbot/protocol";
+export const referenceCapabilities: Capabilities = {
+  slashCommands: [
+    { name: "fixture", description: "Native fixture command", argumentHint: "optional text" },
+  ],
+  resume: true,
+  fork: true,
+  steer: "native",
+  concurrentTurns: false,
+  interrupt: "native",
+  modes: ["default", "plan", "acceptEdits", "bypassPermissions"],
+  safeModes: ["default", "plan", "acceptEdits"],
+  models: { selectable: true },
+  effort: ["low", "high"],
+  approvals: "granular",
+  questions: "native",
+  planReview: "native",
+  elicitation: "form",
+  usage: { tokens: true, cost: true, context: true, cache: true },
+  compaction: { auto: true, manual: true, events: true },
+  hostTools: "mcp_http",
+  images: true,
+  nativeSessions: { list: true, adopt: true, visibleInOfficialApps: "unknown" },
+  worktreeAware: true,
+  rewind: true,
+  backgroundTasks: true,
+};

@@ -1,0 +1,152 @@
+.task-changes {
+  display: grid;
+  gap: var(--zb-space-3);
+  min-width: 0;
+}
+.task-changes h4,
+.task-changes p {
+  margin: 0;
+}
+.task-changes pre {
+  max-width: 100%;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--zb-space-3);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-canvas);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.task-changes code {
+  overflow-wrap: anywhere;
+}
+.task-changes .zb-card {
+  display: grid;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-4);
+}
+.review-workspace {
+  display: grid;
+  gap: var(--zb-space-3);
+  min-width: 0;
+}
+.review-columns {
+  display: grid;
+  grid-template-columns: minmax(150px, 28%) minmax(0, 1fr);
+  gap: var(--zb-space-3);
+}
+.review-columns nav {
+  max-height: 480px;
+  overflow: auto;
+}
+.review-columns ul {
+  list-style: none;
+  padding: 0;
+}
+.review-columns button {
+  display: grid;
+  text-align: left;
+  width: 100%;
+  padding: var(--zb-space-2);
+  background: var(--zb-bg-canvas);
+  color: inherit;
+  border: 1px solid transparent;
+  overflow-wrap: anywhere;
+}
+.review-columns button[aria-current] {
+  border-color: currentColor;
+}
+.review-file {
+  min-width: 0;
+}
+.review-file h5 {
+  overflow-wrap: anywhere;
+  margin: 0 0 var(--zb-space-2);
+}
+.review-workspace label {
+  display: grid;
+  gap: var(--zb-space-2);
+}
+.review-workspace textarea {
+  min-height: 80px;
+}
+.review-file .tool-diff-lines {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+@media (max-width: 700px) {
+  .review-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .review-columns nav {
+    max-height: 180px;
+  }
+}
+.review-split .tool-diff-line {
+  display: grid;
+  grid-template-columns: 1.5em minmax(0, 1fr) minmax(0, 1fr);
+}
+.review-split .review-old,
+.review-split .review-new {
+  overflow-x: auto;
+  padding-inline: var(--zb-space-2);
+  border-inline-start: 1px solid currentColor;
+}
+.review-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--zb-space-3);
+}
+.review-toolbar label {
+  max-width: 100%;
+  min-width: 0;
+}
+.review-workspace :is(input, select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.review-revisions {
+  overflow-wrap: anywhere;
+}
+.review-provenance {
+  max-width: 75ch;
+}
+.review-columns nav {
+  overscroll-behavior: contain;
+}
+.review-columns button {
+  text-align: start;
+  border-radius: var(--zb-radius-sm);
+}
+.review-columns button[aria-current] {
+  background: var(--zb-bg-selected);
+}
+.review-file h5 {
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-review-leading);
+}
+.review-empty {
+  display: grid;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-4);
+}
+.review-workspace .tool-diff-counts {
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) {
+  .review-columns button:hover {
+    background: var(--zb-bg-hover);
+  }
+}
+@media (max-width: 700px) {
+  .review-workspace :is(input, select, textarea) {
+    font-size: var(--zb-mobile-input-size);
+  }
+}
+/* Counts retain +/− semantics on selected surfaces in both appearances. */
+.review-workspace .tool-diff-counts :is(.tool-diff-add, .tool-diff-del) {
+  color: var(--zb-text-secondary);
+}

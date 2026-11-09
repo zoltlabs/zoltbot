@@ -1,0 +1,91 @@
+.shipping-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+.shipping-attention {
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+}
+.shipping-panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(760px, 100vw);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--zb-bg-page);
+  border-left: 1px solid var(--zb-border);
+  box-shadow: var(--zb-shadow-dialog);
+}
+.shipping-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-4);
+  border-bottom: 1px solid var(--zb-border);
+}
+.shipping-header h2 {
+  margin: 0;
+  font-size: var(--zb-text-lg);
+  font-weight: var(--zb-weight-semibold);
+  overflow-wrap: anywhere;
+}
+.shipping-content {
+  overflow: auto;
+  padding: var(--zb-space-4);
+  display: grid;
+  gap: var(--zb-space-4);
+}
+.shipping-content section {
+  min-width: 0;
+}
+.shipping-content h3 {
+  font-size: var(--zb-text-md);
+  font-weight: var(--zb-weight-semibold);
+}
+.shipping-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 340px;
+  overflow: auto;
+  background: var(--zb-bg-sunken);
+  padding: var(--zb-space-3);
+  border-radius: var(--zb-radius-md);
+  font-size: var(--zb-text-sm);
+}
+.shipping-content code {
+  overflow-wrap: anywhere;
+}
+.shipping-content input:not([type="checkbox"]),
+.shipping-content textarea,
+.shipping-content select {
+  max-width: 100%;
+}
+.shipping-content textarea {
+  width: 100%;
+}
+.shipping-form,
+.shipping-proposal {
+  display: grid;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+}
+.shipping-thread,
+.shipping-check {
+  padding: var(--zb-space-3) 0;
+  border-bottom: 1px solid var(--zb-border);
+}
+.shipping-thread label,
+.shipping-check label {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .shipping-panel {
+    width: 100%;
+  }
+}

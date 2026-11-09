@@ -1,0 +1,5 @@
+# Upload only what the Dockerfile needs. dist/ is ignored by git but must be uploaded.
+*
+!Dockerfile
+!dist/
+!dist/main.mjs

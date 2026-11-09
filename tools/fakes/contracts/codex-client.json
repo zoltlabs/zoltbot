@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Provisional request envelope from the repository specification. Replace with an installed version schema in adapter contract tests.",
+  "type": "object",
+  "required": ["method"],
+  "properties": {
+    "id": { "type": ["integer", "string"] },
+    "jsonrpc": { "const": "2.0" },
+    "method": { "type": "string", "minLength": 1 },
+    "params": { "type": "object" }
+  },
+  "additionalProperties": false
+}

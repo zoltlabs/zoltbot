@@ -1,0 +1,12 @@
+name: read_only_mode_config
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/new } }
+  - reply: { result: { sessionId: fake-session, configOptions: [{ id: opaque-mode, name: Mode, category: mode, type: select, currentValue: build, options: [{ value: build, name: Build }, { value: plan, name: Plan }] }] } }
+  - on_input: { match: { method: session/set_config_option, params: { configId: opaque-mode, value: plan } } }
+  - reply: { result: { configOptions: [{ id: opaque-mode, name: Mode, category: mode, type: select, currentValue: plan, options: [{ value: build, name: Build }, { value: plan, name: Plan }] }] } }
+  - on_input: { match: { method: session/prompt } }
+  - emit: { jsonrpc: "2.0", method: session/update, params: { sessionId: fake-session, update: { sessionUpdate: agent_message_chunk, content: { type: text, text: ok } } } }
+  - reply: { result: { stopReason: end_turn } }

@@ -1,0 +1,9 @@
+name: resume-empty
+provider: acp
+steps:
+  - on_input: { match: { method: initialize } }
+  - reply: { result: { protocolVersion: 1, agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } }, authMethods: [] } }
+  - on_input: { match: { method: session/load } }
+  - reply: { result: {} }
+  - on_input: { match: { method: session/prompt, params: { prompt: [{ type: text, text: Follow repository rules. }, { type: text, text: hello }] } } }
+  - reply: { result: { stopReason: end_turn } }
