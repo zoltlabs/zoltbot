@@ -20,6 +20,7 @@ import {
   startedByUser,
 } from "./identity.js";
 import { chiefInbox } from "./inbox.js";
+import { notifyTools } from "./notify.js";
 import {
   type ChiefRank,
   type ChiefRecommendation,
@@ -28,6 +29,7 @@ import {
   chiefRanks,
   queueCandidates,
 } from "./queue.js";
+import { timerTools } from "./timers.js";
 import {
   bounded,
   type ChiefAction,
@@ -611,6 +613,8 @@ export function chiefTools(context: RuntimeContext) {
         };
       },
     ],
+    ...timerTools(context),
+    ...notifyTools(context),
   ]);
   return {
     tools,

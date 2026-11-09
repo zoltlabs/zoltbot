@@ -38,6 +38,20 @@ describe("sign in", () => {
     expect(mac.id).toBe(linkId(mac.identity.publicKey));
   });
 
+  it("tells a Mac, and only a Mac, which pushes it delivers", async () => {
+    const { url, registry } = await start();
+    const mac = await signIn(url, "mac");
+    expect(await mac.client.next("features")).toEqual({
+      t: "features",
+      push: ["needs_you", "task_done", "zolt"],
+    });
+    const phone = createIdentity();
+    await registry.allowDevice(mac.id, linkId(phone.publicKey));
+    const device = await signIn(url, "device", { identity: phone, macId: mac.id });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(device.client.received.some((frame) => frame.t === "features")).toBe(false);
+  });
+
   it("refuses a signature over the wrong nonce", async () => {
     const { url } = await start();
     const client = await Client.open(`${url}${relayPaths.mac}`);
@@ -353,11 +367,17 @@ describe("push", () => {
       },
     });
 
+    // A notice opens the main agent's chat when tapped; it carries the thread id, no text.
+    mac.client.send({ t: "push", deviceId: phone.id, kind: "zolt", count: 1, threadId: "chief" });
+    await expect.poll(() => push.sent.length).toBe(3);
+    expect(push.sent[2]).toMatchObject({ kind: "zolt", count: 1, threadId: "chief" });
+    expect(push.sent[2]).not.toHaveProperty("action");
+
     // A device of another Mac gets nothing.
     const stranger = await signIn(url, "mac");
     stranger.client.send({ t: "push", deviceId: phone.id, kind: "task_done", count: 1 });
     await new Promise((r) => setTimeout(r, 100));
-    expect(push.sent).toHaveLength(2);
+    expect(push.sent).toHaveLength(3);
   });
 
   it("drops a token APNs says is gone", async () => {

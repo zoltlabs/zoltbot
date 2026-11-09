@@ -224,7 +224,24 @@ export function zolt(snapshot: Snapshot): ZoltSummary {
   const items = rows(snapshot, "item")
     .filter((item) => item.threadId === threadId)
     .sort((a, b) => Number(b.seq) - Number(a.seq));
-  const said = items.find((item) => item.kind === "message" && text(body(item).text).trim());
+  // Turns a wake-up started hold notes to itself; only its notices and briefs are for you.
+  const wakeTurns = new Set(
+    items
+      .filter(
+        (item) =>
+          item.kind === "user" &&
+          text(item.id).startsWith(chiefWakePrefix) &&
+          !text(item.id).startsWith(`${chiefWakePrefix}brief:`),
+      )
+      .map((item) => text(item.turnId))
+      .filter(Boolean),
+  );
+  const said = items.find(
+    (item) =>
+      ((item.kind === "note" && body(item).code === "chief_notify") ||
+        (item.kind === "message" && !wakeTurns.has(text(item.turnId)))) &&
+      text(body(item).text).trim(),
+  );
   // A brief is the reply to the daemon's `chief-wake:brief:` item in the same turn.
   const brief =
     !!said &&

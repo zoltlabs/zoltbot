@@ -262,3 +262,190 @@ it("halves the allowance after three wasted wake-ups and stays off when turned o
     f.close();
   }
 });
+
+/** A wake-up turn whose work may call tools. */
+async function wakeTurn(
+  fixture: Awaited<ReturnType<typeof setup>>,
+  id: string,
+  work: () => Promise<unknown> = async () => {},
+) {
+  const { change, put, notices } = fixture;
+  const notice = notices().at(-1);
+  const started = fixture.advance(0);
+  change({
+    type: "create",
+    kind: "turn",
+    value: {
+      id,
+      sessionId: "session",
+      threadId: "thread",
+      status: "running",
+      origin: "system",
+      startedAt: started,
+    },
+  });
+  if (notice)
+    put("item", notice.id, {
+      body: {
+        queueVersion: 1,
+        input: [{ type: "text", text: notice.text }],
+        mode: "queue",
+        queueState: "handled",
+      },
+    });
+  await work();
+  put("turn", id, { status: "completed", endedAt: fixture.advance(1) });
+}
+
+it("wakes when a chat it is waiting on finishes, past the gap, and only once", async () => {
+  const fixture = await setup();
+  const { f, waker, advance, call, change, put, wakes, notices, settingValue } = fixture;
+  try {
+    expect(await call("chief_wake_later", { op: "set", key: "api", afterChatId: "api" })).toEqual({
+      error: "reason_required",
+    });
+    expect(
+      await call("chief_wake_later", {
+        op: "set",
+        key: "api",
+        reason: "Check the API tests",
+        afterChatId: "api",
+        at: new Date(Date.now() + 3_600_000).toISOString(),
+      }),
+    ).toEqual({ error: "set_at_or_afterChatId" });
+    expect(
+      await call("chief_wake_later", {
+        op: "set",
+        key: "soon",
+        reason: "Too soon",
+        at: new Date(Date.now() + minute).toISOString(),
+      }),
+    ).toMatchObject({ error: "time_out_of_range" });
+    expect(
+      await call("chief_wake_later", {
+        op: "set",
+        key: "api",
+        reason: "Check the API tests",
+        afterChatId: "api",
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await call("chief_wake_later", { op: "cancel", key: "none" })).toEqual({
+      error: "not_found",
+    });
+    // The tool stamps the real time; move the test clock past it.
+    advance(Math.ceil((Date.now() - Date.parse(advance(0))) / minute) + 30);
+    // Nothing happened in the chat yet: the wake-up waits.
+    expect(await waker.tick()).toEqual({ wake: false, reason: "nothing" });
+    const ended = advance(1);
+    change({
+      type: "create",
+      kind: "turn",
+      value: {
+        id: "api-turn",
+        sessionId: "worker-session",
+        threadId: "api",
+        status: "running",
+        origin: "human",
+        startedAt: ended,
+      },
+    });
+    put("turn", "api-turn", { status: "completed", endedAt: ended });
+    // Zolt picked the moment, so it does not wait for the burst window.
+    expect(await waker.tick()).toMatchObject({
+      wake: true,
+      signals: [{ kind: "scheduled", text: expect.stringContaining("Check the API tests") }],
+    });
+    expect(notices().at(-1)?.text).toContain("Wake-ups you set:");
+    expect(settingValue("chief.timers")).toEqual({ items: [] });
+    await wakeTurn(fixture, "chief-turn-a");
+    advance(5);
+    await waker.tick();
+    expect(wakes).toEqual(["thread"]);
+  } finally {
+    f.close();
+  }
+});
+
+it("skips the gap for a timed wake-up but keeps the allowance", async () => {
+  const fixture = await setup();
+  const { f, waker, advance, change, request, settingValue } = fixture;
+  try {
+    request("worker", { type: "approval", title: "First" });
+    advance(11);
+    expect(await waker.tick()).toMatchObject({ wake: true });
+    await wakeTurn(fixture, "chief-turn-a");
+    const due = advance(20);
+    change({
+      type: "create",
+      kind: "settings",
+      value: {
+        key: "chief.timers",
+        value: {
+          items: [{ id: "timer-1", key: "landing", reason: "Flight lands", setAt: due, at: due }],
+        },
+      },
+    });
+    expect(await waker.tick()).toMatchObject({ wake: true, signals: [{ kind: "scheduled" }] });
+    expect(settingValue("chief.timers")).toEqual({ items: [] });
+    expect(settingValue("chief.wake")).toMatchObject({ used: 2 });
+  } finally {
+    f.close();
+  }
+});
+
+it("reaches the user only through chief_notify, and a silent wake-up leaves the chat read", async () => {
+  const fixture = await setup();
+  const { f, waker, advance, request, put, call, settingValue } = fixture;
+  const thread = () => f.store.record("thread", "thread");
+  try {
+    put("thread", "thread", { lastReadAt: advance(0) });
+    request("worker", { type: "approval", title: "First" });
+    advance(11);
+    expect(await waker.tick()).toMatchObject({ wake: true });
+    await wakeTurn(fixture, "chief-turn-a");
+    advance(1);
+    await waker.tick();
+    // It wrote nothing for the user, so the chat stays read and the wake-up was wasted.
+    expect(thread()?.lastReadAt).toBe(f.store.record("turn", "chief-turn-a")?.endedAt);
+    expect(settingValue("chief.wake")).toMatchObject({ wasted: 1 });
+
+    request("api", { type: "approval", title: "Second" });
+    advance(120);
+    expect(await waker.tick()).toMatchObject({ wake: true });
+    await wakeTurn(fixture, "chief-turn-b", async () => {
+      expect(
+        await call("chief_notify", {
+          key: "deploy",
+          text: "The deploy needs your OK.",
+          chatId: "api",
+        }),
+      ).toMatchObject({ ok: true });
+      // The same key never sends twice.
+      await call("chief_notify", { key: "deploy", text: "The deploy needs your OK." });
+    });
+    advance(1);
+    await waker.tick();
+    const notes = (f.store.runtimeSnapshot("thread").item ?? []).filter(
+      (row) => (row.body as { code?: string }).code === "chief_notify",
+    );
+    expect(notes).toEqual([
+      expect.objectContaining({
+        kind: "note",
+        turnId: "chief-turn-b",
+        body: {
+          code: "chief_notify",
+          text: "The deploy needs your OK.",
+          chatId: "api",
+          chatTitle: "API work",
+        },
+      }),
+    ]);
+    // A notice is something to read: the chat is unread and the wake-up counted.
+    expect(
+      String(thread()?.lastReadAt) < String(f.store.record("turn", "chief-turn-b")?.endedAt),
+    ).toBe(true);
+    expect(settingValue("chief.wake")).toMatchObject({ wasted: 0 });
+  } finally {
+    f.close();
+  }
+});

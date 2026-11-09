@@ -584,6 +584,7 @@ export function sampleSnapshot(now = Date.now()): Snapshot {
       },
       { key: "mobile.this-iphone.notifyNeedsYou", value: true },
       { key: "mobile.this-iphone.notifyResults", value: true },
+      { key: "mobile.this-iphone.notifyZolt", value: true },
       { key: "mobile.this-iphone.pushTitles", value: false },
       { key: "mobile.this-iphone.keepAwake", value: true },
     ],

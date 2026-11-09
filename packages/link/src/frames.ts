@@ -84,6 +84,9 @@ export const PushRegisterFrame = object({
 });
 /** Opaque daemon record id. Never text: an id says nothing about the request it names. */
 export const PushRecordId = Type.String({ pattern: "^[A-Za-z0-9._:-]{1,128}$" });
+/** What a push can be about. `zolt`: the main agent sent the person a notice. */
+export const pushKinds = ["needs_you", "task_done", "zolt"] as const;
+export type PushKind = (typeof pushKinds)[number];
 /**
  * Mac → relay: send a push to a device. Pushes carry no content: the app shows a fixed text
  * for the kind and the count, then fetches details over the link. When exactly one simple
@@ -94,7 +97,7 @@ export const PushRecordId = Type.String({ pattern: "^[A-Za-z0-9._:-]{1,128}$" })
 export const PushFrame = object({
   t: Type.Literal("push"),
   deviceId: LinkId,
-  kind: values(["needs_you", "task_done"]),
+  kind: values(pushKinds),
   count: Type.Integer({ minimum: 0, maximum: 999 }),
   category: Type.Optional(values(["approval"])),
   interactionId: Type.Optional(PushRecordId),
@@ -112,6 +115,16 @@ export const DataFrame = object({
   payload: Type.Unknown(),
 });
 
+/**
+ * Relay → Mac, right after ready: the push kinds this relay delivers. A relay that predates it
+ * sends nothing, and the Mac then sends only the kinds every relay knows. The list is loose so
+ * a Mac never rejects the frame over a kind it does not know.
+ */
+export const FeaturesFrame = object({
+  t: Type.Literal("features"),
+  push: Type.Array(Type.String({ minLength: 1, maxLength: 40 }), { maxItems: 20 }),
+});
+
 export const ClientFrame = Type.Union([
   HelloFrame,
   OfferFrame,
@@ -126,6 +139,7 @@ export const ServerFrame = Type.Union([
   ReadyFrame,
   RelayErrorFrame,
   PresenceFrame,
+  FeaturesFrame,
   DataFrame,
 ]);
 export type ClientFrame = Static<typeof ClientFrame>;

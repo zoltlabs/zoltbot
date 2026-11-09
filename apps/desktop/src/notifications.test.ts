@@ -161,3 +161,39 @@ it("keeps requests the main agent ranked for later quiet, and withdraws one alre
     notifications.close();
   }
 });
+
+it("shows each notice from the main agent once, under its name, and never while you read its chat", () => {
+  let focused: string | undefined;
+  const notifications = desktopNotifications({
+    focusedThread: () => focused,
+    open: vi.fn(),
+    failed: vi.fn(),
+  });
+  const notice = (id: string, threadId = "chief") => ({
+    id,
+    threadId,
+    kind: "note",
+    seq: 1,
+    body: { code: "chief_notify", text: "The deploy needs your OK." },
+    createdAt: at,
+    updatedAt: at,
+  });
+  try {
+    notifications.snapshot({ settings: [{ key: "chief.name", value: "Atlas" }] });
+    notifications.event("item", { ...notice("one"), body: { code: "other", text: "x" } });
+    expect(fake.notices).toHaveLength(0);
+    notifications.event("item", notice("one"));
+    notifications.event("item", notice("one"));
+    expect(fake.notices.map((row) => row.options)).toEqual([
+      expect.objectContaining({ title: "Atlas", body: "Open Zoltbot to read it." }),
+    ]);
+    // Reading the chat takes it down, and a later notice there stays quiet.
+    focused = "chief";
+    notifications.tick();
+    expect(fake.notices[0]?.closed).toBe(1);
+    notifications.event("item", notice("two"));
+    expect(fake.notices).toHaveLength(1);
+  } finally {
+    notifications.close();
+  }
+});

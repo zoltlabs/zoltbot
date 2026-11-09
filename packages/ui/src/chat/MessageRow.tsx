@@ -68,6 +68,22 @@ export const MessageRow = memo(function MessageRow({
 }) {
   const value = body(item),
     kind = text(item.kind);
+  // What the main agent sent you from a turn it started itself; the rest of that turn is its notes.
+  if (kind === "note" && value.code === "chief_notify")
+    return (
+      <article className="chat-notice" aria-label={`${name} sent you`}>
+        <div className="chat-notice-label">
+          <Icon name="Chief" size="sm" />
+          Sent to you
+          {text(value.chatId) ? (
+            <a href={`#chat/${encodeURIComponent(text(value.chatId))}`}>
+              {text(value.chatTitle) || "Open chat"}
+            </a>
+          ) : null}
+        </div>
+        <p>{text(value.text)}</p>
+      </article>
+    );
   if (kind === "note" && value.code === "compare")
     return (
       <article className="compare-marker" aria-label="Compare result">

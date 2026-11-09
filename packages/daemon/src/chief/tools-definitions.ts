@@ -166,5 +166,37 @@ export const chiefToolDefinitions = [
       additionalProperties: false,
     },
   },
+  {
+    name: "chief_wake_later",
+    description:
+      "set: wake at a time (ISO, 10 min to 7 days ahead) or after a chat's next turn (afterChatId), with a reason. cancel: by key.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        op: { type: "string", enum: ["set", "cancel"] },
+        key,
+        reason: { type: "string", maxLength: 200 },
+        at: { type: "string", maxLength: 40 },
+        afterChatId: chatId,
+      },
+      required: ["op", "key"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "chief_notify",
+    description:
+      "In a turn you started yourself, tell the user something via their Inbox and notifications. chatId links a chat.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        key,
+        text: { type: "string", minLength: 1, maxLength: 600 },
+        chatId,
+      },
+      required: ["key", "text"],
+      additionalProperties: false,
+    },
+  },
 ];
 export const chiefToolNames = new Set(chiefToolDefinitions.map((tool) => tool.name));

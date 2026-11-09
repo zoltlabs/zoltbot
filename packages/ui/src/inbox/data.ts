@@ -22,7 +22,9 @@ export const mailboxHints: Record<Mailbox, string> = {
 function latestMessages(entities: Entities) {
   const latest = new Map<string, Row>();
   for (const item of entities.item ?? []) {
-    if (item.kind !== "message") continue;
+    // The main agent's notices to you count as its messages; its notes to itself are messages too.
+    const notice = item.kind === "note" && body(item).code === "chief_notify";
+    if (item.kind !== "message" && !notice) continue;
     const id = text(item.threadId),
       previous = latest.get(id);
     if (!previous || Number(item.seq) > Number(previous.seq)) latest.set(id, item);

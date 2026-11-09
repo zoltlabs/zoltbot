@@ -22,6 +22,8 @@ export function desktopNotifications(host: {
   const planner = new NotificationPlanner();
   const requests = new Map<string, Interaction>();
   const routines = new Map<string, RoutineOccurrence>();
+  const notices = new Map<string, { id: string; threadId: string; text: string }>();
+  let chiefName = "Zolt";
   const names = new Map<string, string>();
   const native = new Map<string, Notification>();
   let previews = false;
@@ -51,6 +53,17 @@ export function desktopNotifications(host: {
         enabled,
         quiet: inQuietHours(quietHours, now),
         agentNames: names,
+      }),
+    );
+    changes.push(
+      ...planner.reconcileNotices([...notices.values()], {
+        focusedThreadId: host.focusedThread(),
+        idle: powerMonitor.getSystemIdleTime() >= 60,
+        previews,
+        enabled,
+        quiet: inQuietHours(quietHours, now),
+        agentNames: names,
+        chiefName,
       }),
     );
     for (const change of changes) {
@@ -110,6 +123,22 @@ export function desktopNotifications(host: {
     if (kind === "agent" && typeof value.id === "string" && typeof value.name === "string")
       names.set(value.id, value.name);
     if (kind === "settings" && value.key === "chief.queue") later = laterIds(value.value);
+    if (kind === "settings" && value.key === "chief.name")
+      chiefName =
+        typeof value.value === "string" && value.value.trim() ? value.value.trim() : "Zolt";
+    // Only live events reach here, so a notice from before the app started never shows.
+    if (
+      kind === "item" &&
+      value.kind === "note" &&
+      (value.body as { code?: unknown } | undefined)?.code === "chief_notify" &&
+      typeof value.id === "string" &&
+      typeof value.threadId === "string"
+    )
+      notices.set(value.id, {
+        id: value.id,
+        threadId: value.threadId,
+        text: String((value.body as { text?: unknown }).text ?? ""),
+      });
     if (kind === "settings" && value.key === "notifications") {
       const setting = value.value;
       if (setting && typeof setting === "object" && !Array.isArray(setting)) {
@@ -132,6 +161,7 @@ export function desktopNotifications(host: {
       requests.clear();
       routines.clear();
       names.clear();
+      chiefName = "Zolt";
       previews = false;
       enabled = true;
       quietHours = undefined;
@@ -151,6 +181,7 @@ export function desktopNotifications(host: {
       native.clear();
       requests.clear();
       routines.clear();
+      notices.clear();
       names.clear();
     },
   };

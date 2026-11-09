@@ -226,6 +226,9 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
       const status =
         value.status === "running" ? "running" : value.status === "ok" ? "ok" : "failed";
       row = { ...base, kind: "tool", text: toolTitle(item), status, ...diffCounts(value) };
+    } else if (item.kind === "note" && value.code === "chief_notify") {
+      // What the main agent sent you reads as its message.
+      row = { ...base, kind: "message", text: text(value.text) };
     } else if (item.kind === "note" && value.code === "compare") {
       row = {
         ...base,

@@ -72,6 +72,8 @@ export function relayLink(options: RelayLinkOptions) {
   let reconnect: ReturnType<typeof setTimeout> | undefined;
   let heartbeat: ReturnType<typeof setInterval> | undefined;
   let closed = false;
+  /** Push kinds beyond needs_you and task_done that this relay announced it delivers. */
+  let pushKinds = new Set<string>();
   const sessions = new Map<string, { session: LinkSession; client: LinkClient }>();
   const waiters = new Set<() => void>();
 
@@ -128,6 +130,10 @@ export function relayLink(options: RelayLinkOptions) {
       for (const wake of [...waiters]) wake();
       options.log("info", "Relay connected");
       options.ready();
+      return;
+    }
+    if (frame.t === "features") {
+      pushKinds = new Set(frame.push);
       return;
     }
     if (frame.t === "error") {
@@ -196,6 +202,7 @@ export function relayLink(options: RelayLinkOptions) {
   function connect() {
     if (closed || !url) return;
     status = "connecting";
+    pushKinds = new Set();
     const current = new WebSocket(`${url}${relayPaths.mac}`, {
       maxPayload: maxFrameBytes + frameOverhead,
       handshakeTimeout: 10_000,
@@ -289,6 +296,10 @@ export function relayLink(options: RelayLinkOptions) {
       });
     },
     send: raw,
+    /** Whether this relay delivers a push kind. needs_you and task_done always reach it. */
+    delivers(kind: string) {
+      return kind === "needs_you" || kind === "task_done" || pushKinds.has(kind);
+    },
     drop,
     /** Sends to one phone's session whether or not it subscribed. */
     notify(deviceId: string, text: string) {

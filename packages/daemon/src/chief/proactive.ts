@@ -15,7 +15,9 @@ import {
   settingCommand,
 } from "./identity.js";
 import { chiefInbox } from "./inbox.js";
+import { chiefNotices } from "./notify.js";
 import { chiefQueue, lessonCandidates, queueCandidates, settleQueue } from "./queue.js";
+import { chiefTimers, timerCommand, timerDue } from "./timers.js";
 
 // Zolt wakes itself, rarely, when it has work only it can do.
 // Everything here is decided from records with no model call: which signals are open, whether a
@@ -91,7 +93,7 @@ export function allowance(config: ChiefProactive, wake: ChiefWakeState): number 
     : config.maxTurnsPerDay;
 }
 
-export type ChiefSignalKind = "needs_you" | "failed" | "question" | "stuck";
+export type ChiefSignalKind = "needs_you" | "failed" | "question" | "stuck" | "scheduled";
 export interface ChiefSignal {
   id: string;
   kind: ChiefSignalKind;
@@ -172,6 +174,16 @@ export function chiefSignals(state: ChiefState, now: number): ChiefSignal[] {
         at: entry.at,
         text: `Question from "${entry.fromTitle}" (${entry.fromThread}): ${entry.text.slice(0, 200)}`,
       });
+  for (const timer of chiefTimers(state)) {
+    const why = timerDue(state, timer, now);
+    if (why)
+      signals.push({
+        id: `scheduled:${timer.id}`,
+        kind: "scheduled",
+        at: timer.at ?? new Date(now).toISOString(),
+        text: `${timer.reason} (${timer.key}; due because ${why}).`,
+      });
+  }
   return signals.sort((a, b) => a.at.localeCompare(b.at));
 }
 
@@ -201,10 +213,16 @@ export function wakeVerdict(
   if (!config.enabled || !config.maxTurnsPerDay) return { wake: false, reason: "off" };
   const signals = chiefSignals(state, input.now);
   if (!signals.length) return { wake: false, reason: "nothing" };
-  if (input.now - Date.parse(signals[0]?.at ?? "") < coalesceMs)
+  // A wake-up Zolt set is already timed, so it skips the waits meant for bursts.
+  const scheduled = signals.some((signal) => signal.kind === "scheduled");
+  if (!scheduled && input.now - Date.parse(signals[0]?.at ?? "") < coalesceMs)
     return { wake: false, reason: "coalescing" };
   const wake = wakeState(state, input.now);
-  if (wake.lastWakeAt && input.now - Date.parse(wake.lastWakeAt) < config.minGapMinutes * minute)
+  if (
+    !scheduled &&
+    wake.lastWakeAt &&
+    input.now - Date.parse(wake.lastWakeAt) < config.minGapMinutes * minute
+  )
     return { wake: false, reason: "gap" };
   if (input.now - input.lastActive < activeMs) return { wake: false, reason: "user_active" };
   if (
@@ -228,6 +246,7 @@ export function wakeMessage(state: ChiefState, signals: ChiefSignal[]): string {
     ["failed", "Failed"],
     ["stuck", "Stuck"],
     ["question", "Questions to you"],
+    ["scheduled", "Wake-ups you set"],
   ];
   const lines = [`[Zoltbot] ${name}, this is a wake-up, not a message from the user.`];
   for (const [kind, title] of groups) {
@@ -239,13 +258,14 @@ export function wakeMessage(state: ChiefState, signals: ChiefSignal[]): string {
       `The user overruled you ${lesson.count} times on ${lesson.kind}: ${lesson.examples.join("; ")}. Propose one preference with chief_learn, citing ${lesson.evidence.join(", ")}.`,
     );
   lines.push(
-    "Leave something the user can use: triage new items with chief_triage (a recommendation, and a draft where a reply is needed), propose a fix or a nudge for failed or stuck chats, or promote a good idea. If nothing needs doing, end the turn without writing to the user. Do not report status; they check back on their own. Never call chief_answer here.",
+    "Leave something the user can use: triage new items with chief_triage (a recommendation, and a draft where a reply is needed), propose a fix or a nudge for failed or stuck chats, promote a good idea, or set a wake-up with chief_wake_later. What you write here is a note to yourself; only chief_notify reaches the user, so use it when they need to know or act now. If nothing needs doing, end the turn. Do not report status; they check back on their own. Never call chief_answer here.",
   );
   return lines.join("\n");
 }
 
-/** What the turn after a wake-up left behind: triage, a proposed action or idea, or a lesson. */
+/** What the turn after a wake-up left behind: triage, a proposed action or idea, a lesson, a notice. */
 export function usefulSince(state: ChiefState, chief: string, since: string): boolean {
+  if (chiefNotices(state).some((notice) => notice.at >= since)) return true;
   if (Object.values(chiefQueue(state).items).some((triage) => triage.at >= since)) return true;
   if (
     (state.interaction ?? []).some((row) => row.threadId === chief && text(row.createdAt) >= since)
@@ -254,6 +274,26 @@ export function usefulSince(state: ChiefState, chief: string, since: string): bo
   return (state.knowledgeProposal ?? []).some(
     (row) => row.threadId === chief && text(row.createdAt) >= since,
   );
+}
+
+/**
+ * A wake-up that told the user nothing leaves Zolt's chat as read as it was: when the chat was
+ * read before the wake-up, its new read mark is the end of that turn. Undefined to leave it.
+ */
+export function silentRead(state: ChiefState, chief: string, since: string): string | undefined {
+  const time = (value: unknown) => Date.parse(text(value)) || 0;
+  const turns = (state.turn ?? []).filter((row) => row.threadId === chief);
+  const before = Math.max(
+    0,
+    ...turns.map((row) => time(row.endedAt)).filter((at) => at < time(since)),
+  );
+  const after = Math.max(
+    0,
+    ...turns.filter((row) => time(row.startedAt) >= time(since)).map((row) => time(row.endedAt)),
+  );
+  const lastRead = time(state.thread?.find((row) => row.id === chief)?.lastReadAt);
+  if (!after || lastRead < before || lastRead >= after) return undefined;
+  return new Date(after).toISOString();
 }
 
 export interface ChiefWakerOptions {
@@ -325,6 +365,8 @@ export function chiefWaker(options: ChiefWakerOptions) {
     if (!failed && !ended) return;
     // A brief is useful when Zolt wrote one; a wake-up when it left something to act on.
     const brief = wake.pending.itemId.startsWith(`${chiefWakePrefix}brief:`);
+    const notes = { ...state, item: options.store.runtimeSnapshot(chief).item ?? [] };
+    const notified = chiefNotices(notes).some((notice) => notice.at >= (wake.pending?.at ?? ""));
     const useful =
       !failed &&
       (brief
@@ -334,7 +376,7 @@ export function chiefWaker(options: ChiefWakerOptions) {
               row.kind === "message" &&
               text(row.createdAt) >= (wake.pending?.at ?? ""),
           )
-        : usefulSince(state, chief, wake.pending.at));
+        : usefulSince(notes, chief, wake.pending.at));
     const next: ChiefWakeState = {
       ...wake,
       wasted: failed ? wake.wasted : useful ? 0 : wake.wasted + 1,
@@ -343,13 +385,27 @@ export function chiefWaker(options: ChiefWakerOptions) {
     delete next.pending;
     const commandId = `chief-judge:${wake.pending.itemId}`;
     if (options.store.receipt(commandId)) return;
-    dispatch(commandId, (current) =>
-      handle(current, settingCommand(current, chiefKeys.wake, next), {
+    const read =
+      !brief && !failed && !notified ? silentRead(state, chief, wake.pending.at) : undefined;
+    dispatch(commandId, (current) => {
+      const judged = handle(current, settingCommand(current, chiefKeys.wake, next), {
         commandId,
         at: iso,
         actor: system,
-      }),
-    );
+      });
+      if (!read) return judged;
+      const marked = handle(
+        applyEvents(current, judged.events),
+        { type: "update", kind: "thread", id: chief, changes: { lastReadAt: read } },
+        { commandId: `${commandId}:read`, at: iso, actor: system },
+      );
+      return {
+        events: [...judged.events, ...marked.events].map((event, index) => ({
+          ...event,
+          eventId: `${commandId}:${index}`,
+        })),
+      };
+    });
   }
   /** Closes today's brief without sending one: nothing happened, or it is too late. */
   function skipBrief(day: string, at: string) {
@@ -409,6 +465,22 @@ export function chiefWaker(options: ChiefWakerOptions) {
         settingCommand(current, chiefKeys.wake, next),
         { commandId: `${commandId}:state`, at: iso, actor: system },
       );
+      const fired = new Set(
+        verdict.signals
+          .filter((signal) => signal.kind === "scheduled")
+          .map((signal) => signal.id.slice("scheduled:".length)),
+      );
+      const afterSaved = applyEvents(applyEvents(current, queued.events), saved.events);
+      const timers = fired.size
+        ? handle(
+            afterSaved,
+            timerCommand(
+              afterSaved,
+              chiefTimers(afterSaved).filter((timer) => !fired.has(timer.id)),
+            ),
+            { commandId: `${commandId}:timers`, at: iso, actor: system },
+          ).events
+        : [];
       const day = brief.due
         ? handle(
             applyEvents(applyEvents(current, queued.events), saved.events),
@@ -417,7 +489,7 @@ export function chiefWaker(options: ChiefWakerOptions) {
           ).events
         : [];
       return {
-        events: [...queued.events, ...saved.events, ...day].map((event, index) => ({
+        events: [...queued.events, ...saved.events, ...timers, ...day].map((event, index) => ({
           ...event,
           eventId: `${commandId}:${index}`,
         })),

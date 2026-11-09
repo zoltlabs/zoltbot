@@ -20,6 +20,13 @@ describe("push text", () => {
     expect(pushText("needs_you", 1)).toBe("Zoltbot needs you");
     expect(pushText("needs_you", 4)).toBe("Zoltbot needs you (4)");
     expect(pushText("task_done", 2)).toBe("A task finished");
+    expect(pushText("zolt", 3)).toBe("A message from your main agent");
+    // A notice leaves the badge alone and only names the chat a tap opens.
+    expect(apnsPayload("zolt", 1, undefined, "chief")).toEqual({
+      aps: { alert: { body: "A message from your main agent" }, sound: "default" },
+      threadId: "chief",
+      body: { threadId: "chief" },
+    });
     expect(apnsPayload("needs_you", 2)).toEqual({
       aps: { alert: { body: "Zoltbot needs you (2)" }, badge: 2, sound: "default" },
     });

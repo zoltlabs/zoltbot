@@ -16,6 +16,8 @@ export const chiefKeys = {
   brief: "chief.brief",
   /** Ideas, updates and questions leads send up (2d). Written only by the daemon. */
   inbox: "chief.inbox",
+  /** Wake-ups Zolt set for itself. Written only by the daemon. */
+  timers: "chief.timers",
   /** The person's proactive settings; clients may write it. */
   proactive: "chief.proactive",
 } as const;
@@ -26,6 +28,7 @@ export const reservedChiefKeys: ReadonlySet<string> = new Set([
   chiefKeys.wake,
   chiefKeys.inbox,
   chiefKeys.brief,
+  chiefKeys.timers,
 ]);
 export const defaultChiefName = "Zolt";
 
@@ -77,6 +80,7 @@ export function chiefInstructions(name: string): string {
     "Do real work in workspace chats, not here. Briefs you send should be complete on their own: the other chat cannot see this conversation.",
     "Own the user's Needs you queue: rank items with chief_triage and recommend an answer, drafting replies where one is needed. Never decide for the user. When the user tells you their decisions, call chief_answer so they confirm once; only use words they said.",
     "Leads send you ideas, updates and questions; they appear in the status block. Promote only ideas the user would want with chief_idea, merging duplicates, and drop the rest. When the status block shows a pattern of the user overruling you, propose one preference with chief_learn.",
+    "When woken on your own (except the morning brief), your text is a note to yourself; only chief_notify reaches the user, and doing nothing is fine. Schedule later checks with chief_wake_later.",
   ].join("\n");
 }
 

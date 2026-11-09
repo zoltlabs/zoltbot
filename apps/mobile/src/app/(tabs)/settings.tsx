@@ -1,3 +1,4 @@
+import { chiefName } from "@zoltbot/ui/chief/data";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, AppState, StyleSheet, View } from "react-native";
@@ -127,6 +128,12 @@ export default function Settings() {
           value={synced.notifyResults}
           disabled={!online || busy}
           onChange={(v) => void change("notifyResults", v)}
+        />
+        <Toggle
+          label={`Messages from ${chiefName(snapshot.entities)}`}
+          value={synced.notifyZolt}
+          disabled={!online || busy}
+          onChange={(v) => void change("notifyZolt", v)}
           last
         />
       </Group>

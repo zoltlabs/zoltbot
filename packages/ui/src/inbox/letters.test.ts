@@ -32,6 +32,15 @@ describe("lettersFrom", () => {
     ]);
     expect(letters[1]).toMatchObject({ summary: "Done", tools: 2 });
   });
+
+  it("sums up a letter by the main agent's notice, not its notes to itself", () => {
+    const [, letter] = lettersFrom([
+      item(1, "user", { input: [{ type: "text", text: "[Zoltbot] Zolt, this is a wake-up" }] }),
+      item(2, "note", { code: "chief_notify", text: "The deploy needs your OK." }),
+      item(3, "message", { text: "Notified; nothing else to do." }),
+    ]);
+    expect(letter?.summary).toBe("The deploy needs your OK.");
+  });
 });
 
 const ask = (id: string, createdAt: string, items: Record<string, unknown>[], extra = {}) => ({

@@ -3,11 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Command } from "@zoltbot/core";
-import { parsePairingUrl } from "@zoltbot/link";
+import { createIdentity, parsePairingUrl } from "@zoltbot/link";
 import { afterEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { type Daemon, startDaemon } from "./index.js";
 import type { PrivateVault } from "./private-context.js";
+import { relayLink } from "./relay-link.js";
 import { type FakeRelay, fakePhone, startFakeRelay } from "./relay-test-fixture.js";
 
 const roots: string[] = [];
@@ -250,6 +251,41 @@ describe("relay link", () => {
     expect(push).toEqual({ t: "push", deviceId: phone.id, kind: "needs_you", count: 2 });
     await delay(100);
     expect(relay.fromMac.filter((frame) => frame.t === "push")).toHaveLength(1);
+  });
+
+  it("sends a notice push only to a relay that announced it, forgetting that on reconnect", async () => {
+    const connect = async (relay: FakeRelay) => {
+      const link = relayLink({
+        identity: async () => createIdentity(),
+        answer: async () => undefined,
+        allowed: () => false,
+        serve: async () => undefined,
+        attach() {},
+        detach() {},
+        ready() {},
+        presence() {},
+        log() {},
+        retry: { baseMs: 10, maxMs: 10 },
+      });
+      cleanups.push(() => link.close());
+      link.configure(relay.url);
+      expect(await link.online(2000)).toBe(true);
+      return link;
+    };
+    // The relay deployed today knows nothing of notices and would count the frame against us.
+    const old = await startFakeRelay();
+    cleanups.push(() => old.close());
+    const before = await connect(old);
+    await delay(50);
+    expect([before.delivers("needs_you"), before.delivers("zolt")]).toEqual([true, false]);
+
+    const relay = await startFakeRelay({ features: ["needs_you", "task_done", "zolt"] });
+    cleanups.push(() => relay.close());
+    const link = await connect(relay);
+    await waitFor(() => link.delivers("zolt"));
+    link.configure(old.url);
+    expect(await link.online(2000)).toBe(true);
+    expect(link.delivers("zolt")).toBe(false);
   });
 
   it("makes a single simple approval push actionable with ids only", async () => {

@@ -9,6 +9,7 @@ import {
   fromB64,
   linkId,
   maxFrameBytes,
+  pushKinds,
   type RelayErrorFrame,
   relayPaths,
   type ServerFrame,
@@ -278,6 +279,7 @@ export function createRelay(options: RelayOptions): Relay {
     if (previous) replace(previous);
     macs.set(id, conn);
     ready(conn, id);
+    send(conn, { t: "features", push: [...pushKinds] });
     log("info", "mac_ready", { id });
     for (const device of devices.get(id)?.values() ?? []) {
       send(device, { t: "presence", id, online: true });
@@ -422,7 +424,9 @@ export function createRelay(options: RelayOptions): Relay {
               version: frame.version,
             },
           }
-        : {}),
+        : frame.threadId !== undefined
+          ? { threadId: frame.threadId }
+          : {}),
     };
     // Not awaited, so a slow APNs never holds up this Mac's data frames.
     void push

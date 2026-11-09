@@ -121,6 +121,35 @@ describe("mobile view helpers", () => {
       { kind: "message", brief: true },
     ]);
   });
+  it("shows Zolt's notice on Home, never the notes it wrote to itself on a wake-up", () => {
+    const at = "2026-11-03T11:59:00.000Z";
+    const extra = [
+      { id: "chief-wake:2026-11-03:1:abc", kind: "user", seq: 900, turnId: "wake-turn", body: {} },
+      {
+        id: "notice",
+        kind: "note",
+        seq: 901,
+        turnId: "wake-turn",
+        body: { code: "chief_notify", text: "The deploy needs your OK." },
+      },
+      {
+        id: "to-self",
+        kind: "message",
+        seq: 902,
+        turnId: "wake-turn",
+        body: { text: "Told them." },
+      },
+    ].map((row) => ({ ...row, threadId: "thread-zolt", createdAt: at, updatedAt: at }));
+    const woke = {
+      ...snapshot,
+      entities: { ...snapshot.entities, item: [...(snapshot.entities.item ?? []), ...extra] },
+    };
+    expect(zolt(woke).latest).toEqual({ text: "The deploy needs your OK.", at, brief: false });
+    expect(transcript(woke, "thread-zolt").at(-2)).toMatchObject({
+      kind: "message",
+      text: "The deploy needs your OK.",
+    });
+  });
   it("lists chats that ended in the past day, failures included", () => {
     expect(recentlyDone(snapshot, now)).toEqual([
       expect.objectContaining({ title: "Sync API errors", failed: true }),

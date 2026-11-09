@@ -3,6 +3,7 @@ import type { Store } from "@zoltbot/store";
 import { type ChiefState, chiefNotes, chiefThreadId } from "./identity.js";
 import { chiefInbox } from "./inbox.js";
 import { agreement, chiefQueue, lessonCandidates, queueOrder } from "./queue.js";
+import { timerLines } from "./timers.js";
 
 // The chief's view of every chat, built from records with no model call (file 13 section 3.2).
 
@@ -195,7 +196,12 @@ export function chiefDigest(state: ChiefState, now = new Date(), extra: string[]
   }
   const idle = chats.filter((chat) => chat.status === "idle").length;
   if (lines.length === 1 + (notes.summary ? 1 : 0)) lines.push("Nothing is running or waiting.");
-  lines.push(...inboxLines(state, now), ...learningLines(state, now), ...extra);
+  lines.push(
+    ...inboxLines(state, now),
+    ...timerLines(state),
+    ...learningLines(state, now),
+    ...extra,
+  );
   if (idle) lines.push(`${idle} other chats are idle.`);
   let digest = lines.join("\n");
   if (digest.length > digestBudget) {

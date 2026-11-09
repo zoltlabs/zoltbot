@@ -12,6 +12,7 @@ import {
   type UserInput,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { notifyCode } from "./chief/notify.js";
 
 type Row = Record<string, unknown>;
 type Call = (
@@ -98,6 +99,13 @@ export function inboxApi(host: {
       preview: (ids) => {
         const latest = store.latestItems(ids, "message"),
           texts = new Map<string, string>();
+        // A newer notice from the main agent is what it wants you to read.
+        for (const [id, note] of store.latestItems(ids, "note"))
+          if (
+            (note.body as { code?: unknown } | undefined)?.code === notifyCode &&
+            Number(note.seq) > Number(latest.get(id)?.seq ?? 0)
+          )
+            latest.set(id, note);
         for (const [id, item] of latest) {
           const body = item.body as { text?: unknown } | undefined;
           if (typeof body?.text === "string") texts.set(id, body.text);

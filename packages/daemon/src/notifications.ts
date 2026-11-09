@@ -133,6 +133,41 @@ export class NotificationPlanner {
     }
     return changes;
   }
+  /** Notices the main agent sent with chief_notify: shown once, like routine results. */
+  reconcileNotices(
+    notices: readonly { id: string; threadId: string; text: string }[],
+    context: NotificationContext & { chiefName: string },
+  ): NotificationChange[] {
+    const changes: NotificationChange[] = [];
+    for (const notice of notices) {
+      const key = `notice:${notice.id}`;
+      if (
+        this.routineVisible.has(key) &&
+        (!context.enabled || context.quiet || context.focusedThreadId === notice.threadId)
+      ) {
+        changes.push({ action: "withdraw", key });
+        this.routineVisible.delete(key);
+      }
+      if (this.routineDelivered.has(key)) continue;
+      if (!context.enabled || context.focusedThreadId === notice.threadId) {
+        this.routineDelivered.add(key);
+        continue;
+      }
+      if (context.quiet) continue;
+      changes.push({
+        action: "show",
+        key,
+        interactionId: key,
+        threadId: notice.threadId,
+        title: context.chiefName,
+        body: context.previews ? notice.text.slice(0, 160) : "Open Zoltbot to read it.",
+        silent: false,
+      });
+      this.routineDelivered.add(key);
+      this.routineVisible.add(key);
+    }
+    return changes;
+  }
   reset(): NotificationChange[] {
     const changes: NotificationChange[] = [...this.visible].map((id) => ({
       action: "withdraw",

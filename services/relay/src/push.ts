@@ -1,10 +1,11 @@
 import { sign } from "node:crypto";
 import http2 from "node:http2";
+import type { PushKind } from "@zoltbot/link";
 import type { PushPlatform } from "./registry.js";
 
 // Pushes carry no content. The text is fixed per kind; the app fetches details over the link.
 
-export type PushKind = "needs_you" | "task_done";
+export type { PushKind };
 
 /** A simple approval the app can answer from the notification. Ids only, never text. */
 export interface PushAction {
@@ -19,6 +20,8 @@ export interface PushRequest {
   kind: PushKind;
   count: number;
   action?: PushAction;
+  /** The chat a tap opens, for a push with no action. An id, never text. */
+  threadId?: string;
 }
 
 /** `gone` means APNs says the token is no longer valid and should be forgotten. */
@@ -31,12 +34,17 @@ export interface PushSender {
 
 export function pushText(kind: PushKind, count: number) {
   if (kind === "task_done") return "A task finished";
+  if (kind === "zolt") return "A message from your main agent";
   return count > 1 ? `Zoltbot needs you (${count})` : "Zoltbot needs you";
 }
 
-export function apnsPayload(kind: PushKind, count: number, action?: PushAction) {
-  const aps = { alert: { body: pushText(kind, count) }, badge: count, sound: "default" };
-  if (!action) return { aps };
+export function apnsPayload(kind: PushKind, count: number, action?: PushAction, threadId?: string) {
+  // A notice is not a request, so it leaves the badge (what needs you) as it is.
+  const aps =
+    kind === "zolt"
+      ? { alert: { body: pushText(kind, count) }, sound: "default" }
+      : { alert: { body: pushText(kind, count) }, badge: count, sound: "default" };
+  if (!action) return threadId ? { aps, threadId, body: { threadId } } : { aps };
   // The app registers the "approval" category with Allow once and Reject buttons. The ids sit
   // at the top level of the APNs payload (the app's notification data) and are mirrored under
   // `body`, which expo-notifications prefers as data when present.
@@ -130,7 +138,9 @@ export class ApnsPush implements PushSender {
   }
 
   send(request: PushRequest): Promise<PushResult> {
-    const body = JSON.stringify(apnsPayload(request.kind, request.count, request.action));
+    const body = JSON.stringify(
+      apnsPayload(request.kind, request.count, request.action, request.threadId),
+    );
     return new Promise((resolve) => {
       let stream: http2.ClientHttp2Stream;
       try {

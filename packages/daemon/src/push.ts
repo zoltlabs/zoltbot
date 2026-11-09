@@ -2,6 +2,7 @@ import { routineShouldNotify } from "@zoltbot/core";
 import type { DomainEvent, Interaction } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { chiefKeys } from "./chief/identity.js";
+import { notifyCode } from "./chief/notify.js";
 import type { DeviceBook } from "./devices.js";
 import { inQuietHours, laterIds, notificationChoices } from "./notifications.js";
 import type { RelayLink } from "./relay-link.js";
@@ -27,6 +28,8 @@ export function pushNotifier(options: {
   let reviewed = false;
   let finished = 0;
   let created: string[] = [];
+  /** Threads the main agent sent a notice from in this batch. */
+  let notices: string[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   function flush() {
@@ -39,6 +42,7 @@ export function pushNotifier(options: {
       reviewed = false;
       finished = 0;
       created = [];
+      notices = [];
       return;
     }
     if (inQuietHours(preferences?.quietHours, Date.now())) {
@@ -53,6 +57,7 @@ export function pushNotifier(options: {
       reviewed = false;
       finished = 0;
       created = [];
+      notices = [];
       return;
     }
     const state = options.store.snapshot(["interaction", "task", "settings"]);
@@ -73,9 +78,12 @@ export function pushNotifier(options: {
           created.filter((id) => !later.has(id)),
         )
       : undefined;
-    // Each phone can turn off its own pushes (mobile.<deviceId>.notifyNeedsYou / notifyResults).
+    // Each phone can turn off its own pushes (mobile.<deviceId>.notifyNeedsYou / notifyResults /
+    // notifyZolt).
     const off = (deviceId: string, field: string) =>
       state.settings?.find((row) => row.key === `mobile.${deviceId}.${field}`)?.value === false;
+    // A tap opens the chat of the newest notice.
+    const opened = notices.at(-1);
     for (const device of devices) {
       if (needsYou && !off(device.id, "notifyNeedsYou"))
         link.send({
@@ -87,11 +95,21 @@ export function pushNotifier(options: {
         });
       if (finished && !off(device.id, "notifyResults"))
         link.send({ t: "push", deviceId: device.id, kind: "task_done", count: cap(finished) });
+      // A relay that never announced notices would refuse the frame and count it against us.
+      if (notices.length && link.delivers("zolt") && !off(device.id, "notifyZolt"))
+        link.send({
+          t: "push",
+          deviceId: device.id,
+          kind: "zolt",
+          count: cap(notices.length),
+          ...(opaque(opened) ? { threadId: opened } : {}),
+        });
     }
     needsYou = false;
     reviewed = false;
     finished = 0;
     created = [];
+    notices = [];
   }
 
   return {
@@ -110,6 +128,17 @@ export function pushNotifier(options: {
             routineShouldNotify(occurrence.notify, occurrence.outcome)
           ) {
             finished += 1;
+            changed = true;
+          }
+        }
+        if (event.type === "item.created") {
+          const item = event.payload as { kind?: unknown; threadId?: unknown; body?: unknown };
+          if (
+            item.kind === "note" &&
+            (item.body as { code?: unknown } | undefined)?.code === notifyCode &&
+            typeof item.threadId === "string"
+          ) {
+            notices.push(item.threadId);
             changed = true;
           }
         }
@@ -146,12 +175,14 @@ export function pushNotifier(options: {
   };
 }
 
+/** A record id the push frame may carry. */
+const opaque = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(value);
+
 /** Actionable only for exactly one new, still pending approval that offers both choices. */
 function approvalAction(rows: readonly Record<string, unknown>[], created: readonly string[]) {
   if (created.length !== 1) return undefined;
   const row = rows.find((value) => value.id === created[0]);
-  const opaque = (value: unknown) =>
-    typeof value === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(value);
   if (!row || typeof row.version !== "number" || !opaque(row.id) || !opaque(row.threadId))
     return undefined;
   const choices = notificationChoices(row as unknown as Interaction);

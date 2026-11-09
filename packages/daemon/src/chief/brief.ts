@@ -122,6 +122,6 @@ export function briefMessage(state: ChiefState, facts: string[]): string {
   return [
     `[Zoltbot] ${chiefName(state)}, this is the user's morning brief, not a message from the user.`,
     ...facts,
-    "Triage anything new with chief_triage first. Then write the user a brief of at most eight short lines: what finished or failed, what needs them in queue order with your recommendation, and the one thing you would start today. No greeting and no status filler. Never call chief_answer here.",
+    "Triage anything new with chief_triage first. Then reply with the brief, which unlike other wake-ups reaches the user as written (no chief_notify): at most eight short lines, what finished or failed, what needs them in queue order with your recommendation, and the one thing you would start today. No greeting and no status filler. Never call chief_answer here.",
   ].join("\n");
 }

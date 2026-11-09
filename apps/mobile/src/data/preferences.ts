@@ -3,6 +3,8 @@ import type { Row } from "./transport.js";
 export const phoneDefaults = {
   notifyNeedsYou: true,
   notifyResults: true,
+  /** Notices the main agent sends you; a relay that predates them never delivers them. */
+  notifyZolt: true,
   pushTitles: false,
   keepAwake: true,
 };

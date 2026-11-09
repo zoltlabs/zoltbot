@@ -458,6 +458,29 @@
     width: calc(100% - var(--zb-space-6));
   }
 }
+/* A notice the main agent sent you with chief_notify. */
+.chat-notice {
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border: 1px solid var(--zb-border-subtle);
+  border-left: 2px solid var(--zb-accent);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-raised);
+}
+.chat-notice-label {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.chat-notice-label a {
+  margin-left: auto;
+}
+.chat-notice p {
+  margin: var(--zb-space-1) 0 0;
+  white-space: pre-wrap;
+}
 /* Zoltbot's notices to an agent, such as a wake-up: shown as events, not as your messages. */
 .chat-system-event {
   display: flex;

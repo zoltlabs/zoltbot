@@ -57,7 +57,13 @@ export function lettersFrom(items: Row[]): Letter[] {
       .filter((item) => item.kind === "user" || item.kind === "message")
       .map(itemText)
       .filter(Boolean);
-    letter.summary = firstLine(words.at(-1) ?? words[0] ?? "") || (letter.tools ? "Worked" : "");
+    // A notice from the main agent is what that letter is for; the rest is its notes.
+    const notice = letter.items.findLast(
+      (item) => item.kind === "note" && body(item).code === "chief_notify",
+    );
+    letter.summary =
+      firstLine(notice ? itemText(notice) : (words.at(-1) ?? words[0] ?? "")) ||
+      (letter.tools ? "Worked" : "");
   }
   return letters;
 }

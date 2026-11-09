@@ -30,7 +30,8 @@ interface Peer {
   macId?: string;
 }
 export type FakeRelay = Awaited<ReturnType<typeof startFakeRelay>>;
-export async function startFakeRelay() {
+/** `features`: the push kinds to announce after ready; none, like a relay that predates them. */
+export async function startFakeRelay(options: { features?: string[] } = {}) {
   const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
   const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -82,6 +83,7 @@ export async function startFakeRelay() {
           macs.set(id, peer);
           macSignIns += 1;
           send(socket, { t: "ready", id });
+          if (options.features) send(socket, { t: "features", push: options.features });
           for (const device of devices.values())
             if (device.macId === id) {
               send(socket, { t: "presence", id: device.id, online: true });
