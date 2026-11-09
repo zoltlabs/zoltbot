@@ -19,4 +19,4 @@
 
 ## Design
 
-Follow `DESIGN.md` for all interface and visual design work. Do not use eyebrow labels or all-capital headings.
+Before any interface, styling, component, or UI copy change, read `DESIGN.md`. Follow its token source map, design and accessibility rules, skill selection guidance, and verification requirements. Use the relevant installed `better-*` skills, including `better-accessibility` for interactive UI changes. Do not use eyebrow labels or all-capital headings.
