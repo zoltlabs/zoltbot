@@ -9,9 +9,9 @@ import {
 import { lazy, type ReactNode, Suspense, useMemo, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { Button, Chip, Spinner } from "../components/primitives.js";
-import { Devices } from "../settings/Devices.js";
 import { doctorChecks } from "./doctor-data.js";
 import { importPreview } from "./import-data.js";
+import { OnboardingDefaults } from "./OnboardingDefaults.js";
 import {
   type AgentRow,
   agentRows,
@@ -35,15 +35,6 @@ const ImportReview = lazy(() => import("./ImportReview.js"));
 const steps = ["welcome", "agents", "sessions", "tools", "defaults", "ready"] as const;
 type Step = (typeof steps)[number];
 const numbered = steps.length - 2;
-const approvals: [PermissionProfile, string, string][] = [
-  [
-    "workspace_write",
-    "Edit freely inside the project",
-    "Agents edit files and run safe commands in the project. Anything outside it asks first.",
-  ],
-  ["full_access", "Full access", "No approvals. Best for sandboxes and throwaway repositories."],
-  ["read_only", "Read only", "Agents read and suggest. Some coding tools do not offer this mode."],
-];
 export default function Setup({
   connection,
   onOpen,
@@ -682,67 +673,19 @@ export default function Setup({
       },
     );
   else if (step === "defaults") {
-    const settings = entities.settings ?? [];
     view = frame(
       "How should agents work?",
       "You can change this per project or per agent later.",
-      <>
-        <fieldset className="onb-choices">
-          <legend className="onb-label">Approvals</legend>
-          {approvals.map(([value, title, text]) => (
-            <label key={value} className="onb-choice">
-              <input
-                type="radio"
-                name="onboarding-approval"
-                checked={approval === value}
-                onChange={() => setApproval(value)}
-              />
-              <span>
-                <b>
-                  {title}{" "}
-                  {value === "workspace_write" ? <Chip tone="accent">Recommended</Chip> : null}
-                </b>
-                <span className="onb-meta">{text}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        <section className="card onb-card" aria-label="Phone">
-          <label className="onb-row onb-toggle">
-            <span className="onb-main">
-              <span className="onb-name">Answer from my phone</span>
-              <span className="onb-meta">
-                Pair the Zoltbot app with a code. You can also do this later in Settings.
-              </span>
-            </span>
-            <input
-              type="checkbox"
-              role="switch"
-              aria-checked={phone}
-              checked={phone}
-              onChange={(event) => setPhone(event.target.checked)}
-            />
-          </label>
-          {phone ? (
-            <Devices
-              call={connection.call}
-              devices={entities.device ?? []}
-              relayUrl={String(
-                settings.find((setting) => setting.key === "link.relayUrl")?.value ?? "",
-              )}
-              online={!offline}
-            />
-          ) : null}
-        </section>
-        {finish.isError ? (
-          <p role="alert" className="doctor-error">
-            {finish.error instanceof Error &&
-            finish.error.message.includes("definition_private_configuration_required")
-              ? "A coding tool needs protected credential configuration first. No credential was copied."
-              : "Setup could not be finished. Anything already saved is kept. Try again."}
-          </p>
-        ) : null}
-      </>,
+      <OnboardingDefaults
+        connection={connection}
+        approval={approval}
+        setApproval={setApproval}
+        phone={phone}
+        setPhone={setPhone}
+        offline={offline}
+        failed={finish.isError}
+        error={finish.error}
+      />,
       {
         label: finish.isPending ? "Finishing…" : "Finish setup",
         disabled: !connected.length,
