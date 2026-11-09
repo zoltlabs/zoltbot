@@ -27,6 +27,7 @@
     "test:e2e": "pnpm build:desktop --fixtures && playwright test",
     "dev:desktop": "pnpm build:desktop && node scripts/launch-desktop.mjs",
     "theme:mobile": "TSX_DISABLE_CACHE=1 node --import tsx apps/mobile/scripts/build-theme.ts",
+    "test:results": "playwright test --config tests/results/playwright.config.ts",
     "test:shipping": "playwright test --config playwright.shipping.config.ts",
     "test:compare": "playwright test --config playwright.compare.config.ts",
     "postinstall": "node scripts/postinstall.mjs",

@@ -18,6 +18,10 @@ native app; do this only when you intend to open a window. Automated browser che
 stay headless. There is no hosted CI. Run Electron acceptance on an isolated display, or obtain
 explicit authorization for that local run. `pnpm check` includes Electron acceptance.
 
+`pnpm test:results` checks Results, artifact comparison, completion cards and waiting
+states in a headless browser, including both themes, narrow layouts and keyboard access.
+`pnpm test:compare` and `pnpm test:shipping` cover the existing comparison and shipping flows.
+
 Developer builds leave hosted accounts and broker integrations disabled unless
 configured. See [hosted services](hosted-services.md). Explicit third-party agent
 and API traffic follows the tools and credentials you select.
