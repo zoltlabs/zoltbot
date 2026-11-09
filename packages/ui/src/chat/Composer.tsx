@@ -119,7 +119,8 @@ function ComposerSession({
   const comparing = compareProfiles.length > 1;
   const sourceThread = connection.snapshot.entities.thread?.find((r) => r.id === threadId);
   const compareAvailable = !busy && !sourceThread?.taskId && !artifactTarget;
-  const handoff = useShell.getState().chatDraft;
+  const handoff = useShell((state) => state.chatDraft);
+  const initialHandoff = useRef(handoff);
   const persisted = useComposerDraft(
     threadId,
     handoff?.threadId === threadId ? handoff.text : undefined,
@@ -141,11 +142,17 @@ function ComposerSession({
   const modHeld = useModifierHeld(busy && steer);
   const { update } = persisted;
   useEffect(() => {
-    if (useShell.getState().chatDraft?.threadId === threadId) {
-      update({});
+    if (handoff?.threadId === threadId) {
+      const previous = persisted.current.current.text;
+      update(
+        handoff === initialHandoff.current
+          ? {}
+          : { text: previous ? `${previous}\n\n${handoff.text}` : handoff.text },
+      );
+      initialHandoff.current = undefined;
       useShell.getState().clearChatDraft(threadId);
     }
-  }, [threadId, update]);
+  }, [threadId, update, handoff, persisted.current]);
   const editor = useRef<HTMLTextAreaElement>(null),
     picker = useRef<HTMLInputElement>(null),
     retryTarget = useRef<string | undefined>(undefined),

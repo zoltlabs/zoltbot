@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { ArtifactComparison } from "../artifacts/ArtifactComparison.js";
+import { visualOptions } from "../artifacts/comparison-data.js";
 import { type ChatConnection, text } from "../chat/types.js";
 import { useShell } from "../state.js";
 import { CompareBar, CompareMemberActions } from "./CompareBar.js";
@@ -22,6 +24,7 @@ export default function CompareView({
   connection: ChatConnection;
   id: string;
 }) {
+  const [showArtifacts, setShowArtifacts] = useState(false);
   const actions = useCompareActions(connection);
   const e = connection.snapshot.entities;
   const group = e.compare?.find((r) => r.id === id);
@@ -163,6 +166,13 @@ export default function CompareView({
         }
       }}
     >
+      {showArtifacts ? (
+        <ArtifactComparison
+          connection={connection}
+          threadIds={members.map((member) => text(member.threadId))}
+          onClose={() => setShowArtifacts(false)}
+        />
+      ) : null}
       <header className="compare-header">
         <h1>Compare · {members.length}</h1>
         <output>
@@ -173,6 +183,15 @@ export default function CompareView({
             : `${done} of ${members.length} done`}
         </output>
         <span className="sp" />
+        {visualOptions(
+          e.artifact ?? [],
+          e.artifactVersion ?? [],
+          members.map((member) => text(member.threadId)),
+        ).length > 1 ? (
+          <button type="button" className="btn sm" onClick={() => setShowArtifacts(true)}>
+            Compare artifacts
+          </button>
+        ) : null}
         {differences.control}
         <fieldset className="compare-layout" aria-label="Compare layout">
           {(["columns", "tabs", "stacked"] as const).map((value) => (

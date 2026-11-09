@@ -1,0 +1,59 @@
+.artifact-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zb-space-4);
+}
+.artifact-comparison-side {
+  display: grid;
+  align-content: start;
+  gap: var(--zb-space-3);
+  min-width: 0;
+}
+.artifact-comparison-label {
+  display: grid;
+  gap: var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+}
+.artifact-comparison-label select {
+  width: 100%;
+  min-width: 0;
+}
+.artifact-comparison-preview {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 240px;
+  max-height: 60vh;
+  border: 1px solid var(--zb-border);
+}
+.artifact-comparison-preview .artifact-frame {
+  height: 48vh;
+  border: 0;
+}
+.artifact-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+  padding: var(--zb-space-2);
+}
+.artifact-preview-controls select {
+  max-width: 100%;
+}
+.artifact-comparison-feedback {
+  display: grid;
+  gap: var(--zb-space-2);
+  margin-block-start: var(--zb-space-4);
+}
+.artifact-comparison .artifact-preview-canvas {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.zb-dialog:has(.artifact-comparison) {
+  width: min(1400px, 96vw);
+  max-width: 96vw;
+}
+@media (max-width: 700px) {
+  .artifact-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

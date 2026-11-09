@@ -1,6 +1,8 @@
 import { ArtifactSchema, type ArtifactTarget, parse } from "@zoltbot/protocol";
 import { useState } from "react";
+import { ArtifactComparison } from "../artifacts/ArtifactComparison.js";
 import { ArtifactPanel } from "../artifacts/Artifacts.js";
+import { visualOptions } from "../artifacts/comparison-data.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { Markdown } from "./Markdown.js";
@@ -20,6 +22,12 @@ export function ResultsPanel({
   onClose(): void;
   onRevise?: ((target: ArtifactTarget) => void) | undefined;
 }) {
+  const [comparing, setComparing] = useState(false);
+  const options = visualOptions(
+    connection.snapshot.entities.artifact ?? [],
+    connection.snapshot.entities.artifactVersion ?? [],
+    [threadId],
+  );
   const data = threadResults(connection.snapshot.entities, threadId);
   const [selected, setSelected] = useState<string>(),
     [changes, setChanges] = useState(false);
@@ -38,6 +46,11 @@ export function ResultsPanel({
     <aside className="chat-results" aria-label="Results">
       <header className="chat-results-header">
         <h2>Results</h2>
+        {options.length > 1 ? (
+          <Button size="sm" onClick={() => setComparing(true)}>
+            Compare
+          </Button>
+        ) : null}
         <Button size="sm" onClick={onClose}>
           Close
         </Button>
@@ -156,6 +169,14 @@ export function ResultsPanel({
           ) : null}
         </>
       )}
+      {comparing ? (
+        <ArtifactComparison
+          connection={connection}
+          threadIds={[threadId]}
+          onClose={() => setComparing(false)}
+          onChoose={onRevise}
+        />
+      ) : null}
       {changes ? (
         <DiffDialog
           title="Latest turn changes"

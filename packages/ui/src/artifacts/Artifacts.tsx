@@ -94,15 +94,21 @@ export function ArtifactPreview({
   connection,
   artifact,
   versionId,
+  controls = false,
 }: {
   connection: ChatConnection;
   artifact: Artifact;
   versionId: string;
+  controls?: boolean;
 }) {
   const [detail, setDetail] = useState<Detail>();
+  const [screen, setScreen] = useState("");
+  const [zoom, setZoom] = useState("100");
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
+    void attempt;
     setDetail(undefined);
     setError(false);
     void connection
@@ -116,17 +122,69 @@ export function ArtifactPreview({
     return () => {
       active = false;
     };
-  }, [connection.call, artifact.id, versionId]);
-  if (error) return <p role="alert">Could not load this version. Expand to retry.</p>;
+  }, [connection.call, artifact.id, versionId, attempt]);
+  if (error)
+    return (
+      <div>
+        <p role="alert">Could not load this version.</p>
+        <Button size="sm" onClick={() => setAttempt((value) => value + 1)}>
+          Retry
+        </Button>
+      </div>
+    );
   if (!detail) return <output>Loading version…</output>;
+  if (detail.version.held) return <p>Preview held for review.</p>;
   if (!detail.manifest || detail.version.metadataOnly)
     return <p>Files not available on this Mac.</p>;
+  const path =
+    detail.manifest.screens.find((entry) => entry.id === screen)?.path ?? detail.manifest.entry;
   return (
-    <ArtifactFrame
-      manifestHash={detail.version.manifestHash}
-      path={detail.manifest.entry}
-      title={`${artifact.title}, version ${detail.version.number}`}
-    />
+    <>
+      {controls ? (
+        <div className="artifact-preview-controls">
+          {detail.manifest.screens.length ? (
+            <label>
+              Screen{" "}
+              <select
+                aria-label={`${artifact.title} screen`}
+                value={screen}
+                onChange={(event) => setScreen(event.target.value)}
+              >
+                <option value="">Overview</option>
+                {detail.manifest.screens.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label>
+            Zoom{" "}
+            <select
+              aria-label={`${artifact.title} zoom`}
+              value={zoom}
+              onChange={(event) => setZoom(event.target.value)}
+            >
+              {[50, 75, 100, 125, 150, 200].map((value) => (
+                <option key={value} value={value}>
+                  {value}%
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
+      <div className="artifact-preview-canvas">
+        <div style={controls ? { zoom: Number(zoom) / 100 } : undefined}>
+          <ArtifactFrame
+            manifestHash={detail.version.manifestHash}
+            path={path}
+            title={`${artifact.title}, version ${detail.version.number}`}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 export function ArtifactPanel({
@@ -255,7 +313,9 @@ export function ArtifactPanel({
                 ? `Based on v${versions.find((v) => v.id === detail.version.baseVersionId)?.number ?? "unavailable"}`
                 : "Base unknown"}
             </p>
-            {!["document", "page", "chart", "diagram", "image"].includes(artifact.kind) ? (
+            {!["document", "page", "design", "chart", "diagram", "image"].includes(
+              artifact.kind,
+            ) ? (
               <p>Preview is unavailable for this artifact type.</p>
             ) : detail.manifest && slot ? (
               <ArtifactFrame

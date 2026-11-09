@@ -15,11 +15,15 @@ const subscribe = (listener: () => void) => {
 function schedule() {
   let inline = 0,
     expanded = 0;
+  const hasExpanded = [...requests.values()].some(
+    (request) => request.expanded && (request.visible || request.focused),
+  );
   granted = new Set(
     [...requests]
       .sort((a, b) => Number(b[1].focused) - Number(a[1].focused))
       .filter(([, request]) => {
         if (!request.visible && !request.focused) return false;
+        if (hasExpanded && !request.expanded) return false;
         return request.expanded ? expanded++ < 1 : inline++ < 2;
       })
       .map(([id]) => id),
