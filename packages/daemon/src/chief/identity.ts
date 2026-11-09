@@ -112,6 +112,7 @@ export function startedByUser(store: Pick<Store, "runtimeSnapshot">, threadId: s
   return (
     !String(delivered.id).startsWith(chiefWakePrefix) &&
     !body.sourceInteractionId &&
-    body.origin !== "agent"
+    body.origin !== "agent" &&
+    body.origin !== "system"
   );
 }

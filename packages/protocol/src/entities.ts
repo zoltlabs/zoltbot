@@ -93,6 +93,8 @@ export const ThreadSchema = object({
   lastReadAt: Type.Optional(At),
   /** Hidden in the Later mailbox until then, unless the agent asks for something. */
   snoozedUntil: Type.Optional(At),
+  wakePending: Type.Optional(Type.Boolean()),
+  wakeUnreadAt: Type.Optional(At),
   /** Settled while still working: archive it once the work ends. */
   archiveWhenIdle: Type.Optional(Type.Boolean()),
 });

@@ -8,7 +8,13 @@ export const MailboxSchema = values(mailboxes);
 export type Mailbox = Static<typeof MailboxSchema>;
 
 export interface MailboxInput {
-  thread: { archived: boolean; lastReadAt?: string; snoozedUntil?: string };
+  thread: {
+    archived: boolean;
+    lastReadAt?: string;
+    snoozedUntil?: string;
+    wakePending?: boolean;
+    wakeUnreadAt?: string;
+  };
   /** A request is waiting on the owner. */
   pending: boolean;
   /** A turn is running or input is queued. */
@@ -26,6 +32,8 @@ export function threadMailbox(input: MailboxInput, now = new Date()): Mailbox | 
   if (input.pending) return "needs_you";
   if (input.working) return "working";
   if (thread.archived) return "settled";
+  if (thread.wakePending) return "later";
+  if (thread.wakeUnreadAt && thread.wakeUnreadAt > (thread.lastReadAt ?? "")) return "review";
   if (thread.snoozedUntil && Date.parse(thread.snoozedUntil) > now.getTime()) return "later";
   if (input.lastTurnEndedAt && input.lastTurnEndedAt > (thread.lastReadAt ?? "")) return "review";
   return undefined;
@@ -198,7 +206,9 @@ export function inboxRows(
     return {
       thread: thread as InboxRow["thread"],
       mailbox,
-      unread: !!endedAt && endedAt > String(thread.lastReadAt ?? ""),
+      unread:
+        (!!endedAt && endedAt > String(thread.lastReadAt ?? "")) ||
+        String(thread.wakeUnreadAt ?? "") > String(thread.lastReadAt ?? ""),
       preview: previewText(previews.get(id) ?? ""),
       pending: facts.pending(id) ?? {},
       ...(endedAt ? { lastTurnEndedAt: endedAt } : {}),

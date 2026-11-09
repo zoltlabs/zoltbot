@@ -16,6 +16,7 @@ import {
   teamToolNames,
   teamTools,
 } from "./team-tools.js";
+import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 import {
   workspaceToolDefinitions,
   workspaceToolNames,
@@ -51,6 +52,7 @@ export function runtimeTools(
       ) === true
     );
   }
+  const chatWake = wakeTools(context);
   const eventRoutine = eventRoutineTools(context);
   const workspace = workspaceTools(context);
   const knowledge = knowledgeTools(context);
@@ -75,6 +77,7 @@ export function runtimeTools(
     // Forks are ordinary side conversations, never inherited managers/task executors.
     const thread = context.store.record("thread", actor.threadId);
     if (thread?.fork && name !== "team_get_knowledge") return false;
+    if (name === "chat_wake") return !thread?.fork;
     if (name === "routine_draft") return eventRoutine.authorize(actor);
     if (name === "native_app") {
       const frozen = context.store.record("settings", `runtime.configuration.${actor.sessionId}`)
@@ -112,6 +115,7 @@ export function runtimeTools(
         "native_app",
         (call) => options.cua?.call(call) ?? Promise.resolve({ error: "cua_unavailable" }),
       ],
+      ["chat_wake", chatWake],
       ["routine_draft", eventRoutine.call],
       ["team_artifact", artifacts.call],
       ["team_browser_evidence", browser.register],
@@ -186,8 +190,9 @@ export const browserRuntimeToolDefinitions = [
 ];
 
 const artifactDescriptions: Record<string, string> = {
-  team_write_knowledge:
-    "Write durable shared facts, not progress notes; prefer revising. Daemon decides applied or proposed.",
+  chat_wake: "Chat waits: list returns contract; human saves proposals.",
+  routine_draft: "Scoped routines. get explains authorization; stable key.",
+  team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
@@ -226,7 +231,13 @@ function compactTool<T extends { name: string; description: string; inputSchema:
               .map(([key, item]) => [key, compact(item)]),
           )
         : value;
-  const inputSchema = compact(tool.inputSchema) as { properties?: Record<string, unknown> };
+  const inputSchema = (
+    tool.name === "chat_wake"
+      ? { type: "object", properties: { action: { type: "string" } } }
+      : compact(tool.inputSchema)
+  ) as { properties?: Record<string, unknown> };
+  if (tool.name === "chat_wake" && inputSchema.properties)
+    inputSchema.properties.input = { type: "object" };
   for (const field of artifactOmittedFields[tool.name] ?? [])
     delete inputSchema.properties?.[field];
   return {
@@ -244,6 +255,7 @@ function compactTool<T extends { name: string; description: string; inputSchema:
 export const indirectRuntimeToolDefinitions = [
   compactTool(knowledgeWriteToolDefinition),
   compactTool(eventRoutineToolDefinition),
+  compactTool(wakeToolDefinition),
 ];
 export const artifactRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter(
@@ -262,6 +274,7 @@ export const allRuntimeToolDefinitions = [
   ...legacyTeamToolDefinitions,
   ...chiefToolDefinitions,
   eventRoutineToolDefinition,
+  wakeToolDefinition,
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,

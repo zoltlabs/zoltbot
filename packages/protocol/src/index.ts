@@ -28,3 +28,4 @@ export * from "./skill-views.js";
 export * from "./terminal.js";
 export * from "./validation.js";
 export * from "./vocabulary.js";
+export * from "./wakes.js";

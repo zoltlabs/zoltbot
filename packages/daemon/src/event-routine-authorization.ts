@@ -40,6 +40,7 @@ export function routineHumanAuthorization(
     message?.id !== messageId ||
     body?.queueVersion !== 1 ||
     body.origin === "agent" ||
+    body.origin === "system" ||
     body.sourceMessageId ||
     body.sourceInteractionId ||
     String(message.createdAt) < routine.updatedAt ||

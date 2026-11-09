@@ -67,6 +67,7 @@ import { skillsApi } from "./skills-api.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
+import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
 import { worktreeService } from "./worktree-service.js";
 
@@ -318,6 +319,16 @@ async function startOwnedDaemon(
     publish,
     onError: (code) => logger.write("warn", code),
   });
+  const wakes = wakeService({
+    store,
+    publish,
+    wake: runtimeContext.wake,
+    checkPublic: (value) => privacy.prepareData(value),
+    ...(options.routineClock ? { now: options.routineClock } : {}),
+    ...(options.eventRoutineTransport ? { transport: options.eventRoutineTransport } : {}),
+    onError: (code) => logger.write("warn", code),
+  });
+  resources.push(() => wakes.close());
   const shipping = shippingService({
     store,
     publish,
@@ -573,6 +584,7 @@ async function startOwnedDaemon(
       }
       default: {
         const result =
+          (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??
           (await chats.quick.api(request.method, params, commandId)) ??

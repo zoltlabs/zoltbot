@@ -8,7 +8,7 @@ export const QueuedInputBodySchema = object({
   input: UserInputSchema,
   mode: Type.Optional(values(["queue", "steer"])),
   queueState: values(["queued", "sending", "sent", "handled", "failed", "uncertain"]),
-  origin: Type.Optional(values(["human", "agent"])),
+  origin: Type.Optional(values(["human", "agent", "system"])),
   sourceMessageId: Type.Optional(Id),
   sourceInteractionId: Type.Optional(Id),
   sessionId: Type.Optional(Id),

@@ -34,7 +34,7 @@ import { withCopiedContext } from "./copied-fork-context.js";
 import { forkWorkspaceBusy } from "./fork-workspaces.js";
 import type { Redactor } from "./logging.js";
 import { firstNativePromptPending } from "./runtime-configuration.js";
-import { dispatchControlPending } from "./runtime-dispatch.js";
+import { dispatchControlPending, rejectChangedWake } from "./runtime-dispatch.js";
 import { redactRuntimeEvent } from "./runtime-redaction.js";
 
 export interface RuntimeStream {
@@ -450,7 +450,6 @@ export class RuntimeWorker {
       return true;
     return dispatchControlPending(state, this.options.threadId, this.options.sessionId);
   }
-
   private async drain() {
     while (this.dirty && !this.stopped) {
       this.dirty = false;
@@ -620,6 +619,10 @@ export class RuntimeWorker {
         this.body(currentQueue.item?.find((row) => row.id === candidate.id)?.body)?.queueState !==
         "queued"
       ) {
+        this.dirty = true;
+        continue;
+      }
+      if (rejectChangedWake(currentQueue, candidate, (work) => this.commit(work))) {
         this.dirty = true;
         continue;
       }

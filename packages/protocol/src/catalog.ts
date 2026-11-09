@@ -75,7 +75,10 @@ import {
 import { skillMacOnlyMethods, skillMethods } from "./skills.js";
 import { terminalMethods } from "./terminal.js";
 
+import { WakeSchema, wakeMethods } from "./wakes.js";
+
 export const entitySchemas = {
+  wake: WakeSchema,
   compare: CompareSchema,
   compareMember: CompareMemberSchema,
   orchestration: OrchestrationSchema,
@@ -152,6 +155,7 @@ const agent = crud(ProfileSchema),
   task = crud(TaskSchema);
 
 export const methodCatalog = {
+  ...wakeMethods,
   ...terminalMethods,
   ...inboxMethods,
   ...compareMethods,

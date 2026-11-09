@@ -31,7 +31,7 @@ export const workspaceToolDefinitions = [
   {
     name: "workspace_create",
     description:
-      "Create a project, a sub-project under parent, or a chat under parent. Use a stable key for retries. New projects, deeper levels, manager chats and wider permissions wait for human approval and return pending; the outcome arrives later as a message.",
+      "Create a project, sub-project or chat under parent. Stable key. New projects, deeper levels, manager chats and wider permissions await human approval; pending outcomes arrive by message.",
     inputSchema: {
       type: "object" as const,
       properties: {

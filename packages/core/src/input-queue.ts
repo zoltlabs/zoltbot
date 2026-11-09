@@ -66,6 +66,7 @@ function queueInput(
     ...(input.outputMode ? { outputMode: input.outputMode } : {}),
     ...(input.artifactTarget ? { artifactTarget: input.artifactTarget } : {}),
     ...(context.actor.kind === "agent" ? { origin: "agent" } : {}),
+    ...(context.actor.kind === "system" ? { origin: "system" } : {}),
     input: structuredClone(input.input),
     mode: input.mode,
     queueState: "queued",

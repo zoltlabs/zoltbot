@@ -205,6 +205,7 @@ it("authorizes writes like reads and keeps the indirect tool out of direct surfa
     expect(indirectRuntimeToolDefinitions.map((tool) => tool.name)).toEqual([
       "team_write_knowledge",
       "routine_draft",
+      "chat_wake",
     ]);
     for (const tool of indirectRuntimeToolDefinitions)
       expect(referenceTokenEstimate(JSON.stringify(tool))).toBeLessThanOrEqual(300);

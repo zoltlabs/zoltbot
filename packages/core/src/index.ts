@@ -29,4 +29,5 @@ export * from "./transitions.js";
 export * from "./turn-interrupt.js";
 export * from "./usage-ledger.js";
 export * from "./usage-meter.js";
+export * from "./wakes.js";
 export * from "./workspace-shape.js";

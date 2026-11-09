@@ -2,6 +2,7 @@ import type { DomainEvent } from "@zoltbot/protocol";
 import type Database from "better-sqlite3";
 
 export const tableMap: Record<string, string> = {
+  wake: "wakes",
   compare: "compares",
   compareMember: "compare_members",
   orchestration: "orchestrations",
