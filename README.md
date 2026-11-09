@@ -1,4 +1,6 @@
-# Zoltbot
+<p align="center">
+  <img src="docs/assets/readme-banner.svg" alt="Zoltbot — Your coding agents. One team." width="100%">
+</p>
 
 Zoltbot is a local-first Mac app for running coding agents as a team. Run Claude Code, Codex, Cursor, Antigravity, OpenCode, GitHub Copilot, Grok, Pi or any [ACP](https://agentclientprotocol.com) agent side by side. They can message each other and hand off tasks into isolated git worktrees. When an agent needs you, its question shows up as a card you can answer quickly, on the Mac or from your phone.
 
