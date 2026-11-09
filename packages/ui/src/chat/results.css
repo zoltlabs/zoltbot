@@ -83,3 +83,30 @@
   color: var(--zb-text-muted);
   font-weight: normal;
 }
+/* Keep the added panel control reachable alongside existing chat actions. */
+@media (max-width: 800px) {
+  .chat-header {
+    height: auto;
+    min-height: var(--zb-header-height);
+    flex-wrap: wrap;
+    padding-block: var(--zb-space-2);
+  }
+  .chat-header .chat-title {
+    flex: 1 1 calc(100% - 48px);
+  }
+  .chat-header .chat-place {
+    max-width: 35%;
+  }
+  .chat-header > .sp {
+    display: none;
+  }
+}
+
+.results-preview-preference {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  margin-block-start: var(--zb-space-5);
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-secondary);
+}

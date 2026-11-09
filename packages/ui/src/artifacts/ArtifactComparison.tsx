@@ -21,8 +21,8 @@ export function ArtifactComparison({
 }) {
   const entities = connection.snapshot.entities;
   const options = visualOptions(entities.artifact ?? [], entities.artifactVersion ?? [], threadIds);
-  const [left, setLeft] = useState(options[0]?.version.id ?? ""),
-    [right, setRight] = useState(options[1]?.version.id ?? "");
+  const [left, setLeft] = useState(options[1]?.version.id ?? ""),
+    [right, setRight] = useState(options[0]?.version.id ?? "");
   const [feedback, setFeedback] = useState("");
   const stage = useRef<HTMLDivElement>(null);
   const slot = usePreviewSlot(stage, options.length > 1, true);
@@ -65,6 +65,9 @@ export function ArtifactComparison({
                     {options.map((entry) => (
                       <option key={entry.version.id} value={entry.version.id}>
                         {entry.artifact.title} · v{entry.version.number}
+                        {threadIds.length > 1
+                          ? ` · ${String(entities.agent?.find((profile) => profile.id === entry.artifact.profileId)?.name ?? entry.artifact.provider)}`
+                          : ""}
                       </option>
                     ))}
                   </select>

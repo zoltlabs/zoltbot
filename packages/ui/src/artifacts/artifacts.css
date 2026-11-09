@@ -1,11 +1,3 @@
-.artifact-cards {
-  display: grid;
-  gap: var(--zb-space-3);
-  padding: var(--zb-space-4);
-}
-.artifact-cards h2 {
-  font-size: var(--zb-text-sm);
-}
 .artifact-card {
   display: grid;
   gap: var(--zb-space-2);
@@ -15,12 +7,6 @@
 }
 .artifact-card span {
   font-size: var(--zb-text-sm);
-}
-.chat-context:has(.artifact-panel) {
-  width: min(60vw, 1000px);
-}
-.chat-context:has(.artifact-panel) > :not(.artifact-cards) {
-  display: none;
 }
 .artifact-panel h2 {
   margin-block: var(--zb-space-3);
@@ -38,9 +24,6 @@
   border: 1px solid var(--zb-border);
   background: white;
 }
-.artifact-cards:has(.artifact-panel) > .artifact-card {
-  display: none;
-}
 .artifact-output-control {
   display: inline-flex;
   align-items: center;
@@ -55,7 +38,7 @@
   margin: var(--zb-space-3) 0;
   min-height: 110px;
 }
-.artifact-inline > .artifact-frame {
+.artifact-inline .artifact-frame {
   height: min(360px, 60vh);
 }
 .artifact-inline .artifact-toolbar {

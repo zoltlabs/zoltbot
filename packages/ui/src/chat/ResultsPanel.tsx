@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArtifactComparison } from "../artifacts/ArtifactComparison.js";
 import { ArtifactPanel } from "../artifacts/Artifacts.js";
 import { visualOptions } from "../artifacts/comparison-data.js";
+import { setInlinePreviews, useInlinePreviews } from "../artifacts/preview-lifecycle.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { Markdown } from "./Markdown.js";
@@ -22,6 +23,7 @@ export function ResultsPanel({
   onClose(): void;
   onRevise?: ((target: ArtifactTarget) => void) | undefined;
 }) {
+  const inline = useInlinePreviews();
   const [comparing, setComparing] = useState(false);
   const options = visualOptions(
     connection.snapshot.entities.artifact ?? [],
@@ -114,7 +116,8 @@ export function ResultsPanel({
             <section>
               <h3>Changes</h3>
               <Button size="sm" onClick={() => setChanges(true)}>
-                View {new Set(data.diffs.map((diff) => diff.path)).size} changed files
+                View {new Set(data.diffs.map((diff) => diff.path)).size} changed{" "}
+                {new Set(data.diffs.map((diff) => diff.path)).size === 1 ? "file" : "files"}
               </Button>
             </section>
           ) : null}
@@ -169,6 +172,14 @@ export function ResultsPanel({
           ) : null}
         </>
       )}
+      <label className="results-preview-preference">
+        <input
+          type="checkbox"
+          checked={inline}
+          onChange={(event) => setInlinePreviews(event.target.checked)}
+        />{" "}
+        Previews in chat
+      </label>
       {comparing ? (
         <ArtifactComparison
           connection={connection}

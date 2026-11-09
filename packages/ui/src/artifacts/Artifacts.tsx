@@ -1,15 +1,13 @@
-import {
-  type Artifact,
-  type ArtifactManifest,
-  ArtifactSchema,
-  type ArtifactTarget,
-  type ArtifactVersion,
-  parse,
+import type {
+  Artifact,
+  ArtifactManifest,
+  ArtifactTarget,
+  ArtifactVersion,
 } from "@zoltbot/protocol";
 import { useEffect, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
-import { setInlinePreviews, useInlinePreviews, usePreviewSlot } from "./preview-lifecycle.js";
+import { usePreviewSlot } from "./preview-lifecycle.js";
 import { SaveOnline } from "./SaveOnline.js";
 import "./artifacts.css";
 
@@ -336,52 +334,6 @@ export function ArtifactPanel({
           <output>Loading version…</output>
         )}
       </div>
-    </section>
-  );
-}
-export function ThreadArtifacts({
-  connection,
-  threadId,
-}: {
-  connection: ChatConnection;
-  threadId: string;
-}) {
-  const [selected, setSelected] = useState<string>();
-  const inline = useInlinePreviews();
-  const artifacts = (connection.snapshot.entities.artifact ?? [])
-    .filter((v) => v.threadId === threadId && v.state !== "archived")
-    .map((v) => parse(ArtifactSchema, v));
-  const artifact = artifacts.find((v) => v.id === selected);
-  if (!artifacts.length) return null;
-  return (
-    <section className="artifact-cards" aria-label="Conversation artifacts">
-      <h2>Artifacts</h2>
-      <label className="sm">
-        <input
-          type="checkbox"
-          checked={inline}
-          onChange={(event) => setInlinePreviews(event.target.checked)}
-        />{" "}
-        Interactive previews in chat
-      </label>
-      {artifacts.map((a) => (
-        <article className="artifact-card" key={a.id} aria-label={a.title}>
-          <strong>{a.title}</strong>
-          <span>
-            {a.kind} · {a.repositoryState.replaceAll("_", " ")}
-          </span>
-          <Button size="sm" onClick={() => setSelected(a.id)}>
-            Open {a.title}
-          </Button>
-        </article>
-      ))}
-      {artifact ? (
-        <ArtifactPanel
-          connection={connection}
-          artifact={artifact}
-          close={() => setSelected(undefined)}
-        />
-      ) : null}
     </section>
   );
 }

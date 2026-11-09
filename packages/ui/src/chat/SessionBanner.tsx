@@ -32,13 +32,15 @@ export function SessionBanner({
     title = "Message delivery needs review";
     description =
       "A saved message may already have reached your coding tool. Check the native session before retrying. Zoltbot will not resend it automatically.";
-  } else if (
-    waiting &&
-    ["connection", "provider"].includes(waiting.kind) &&
-    waiting.label !== "Sign-in required"
-  ) {
-    title = waiting.label;
+  } else if (waiting && ["connection", "provider"].includes(waiting.kind)) {
+    note = true;
     description = waiting.description;
+    if (waiting.label === "Sign-in required") action = "Reconnect";
+    else if (
+      waiting.label === "Coding tool needs attention" &&
+      ["closed", "failed"].includes(text(session?.state))
+    )
+      action = "Reconnect";
   } else if (!session) {
     // D082: connecting records a human intent, so it is never automatic. Sending already opens
     // the session (turn.send wakes the runtime), so Connect only loads commands and modes early.

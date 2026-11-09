@@ -26,7 +26,7 @@ export function InlineArtifact({
   const node = useRef<HTMLElement>(null);
   const version = row.versions.find((v) => v.id === selected);
   const enabled = useInlinePreviews();
-  const previewable = ["page", "chart", "diagram", "image"].includes(artifact.kind);
+  const previewable = ["page", "design", "chart", "diagram", "image"].includes(artifact.kind);
   const slot = usePreviewSlot(
     node,
     enabled && previewable && !expanded && !version?.metadataOnly && !version?.held,

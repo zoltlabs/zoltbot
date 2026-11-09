@@ -1,7 +1,54 @@
+import { compareSessions } from "@zoltbot/protocol";
+import { backgroundTasks } from "./parity-data.js";
 import { fileDiffs } from "./tools/diff-data.js";
 import { body, type Row, text } from "./types.js";
 
 type Entities = Record<string, Row[] | undefined>;
+
+/** Task children and manager delegations use the relationships already recorded by the daemon. */
+export function delegatedWork(entities: Entities, threadId: string): Row[] {
+  const task = entities.task?.find((row) => row.threadId === threadId);
+  const children = task ? (entities.task ?? []).filter((row) => row.parentId === task.id) : [];
+  const ids = new Set(
+    (entities.audit ?? [])
+      .filter(
+        (row) =>
+          row.action === "manager.delegate" &&
+          (row.detail as Row | undefined)?.managerThreadId === threadId,
+      )
+      .map((row) => text(row.target)),
+  );
+  const linked = (entities.thread ?? []).filter(
+    (row) => ids.has(text(row.id)) && !children.some((task) => task.threadId === row.id),
+  );
+  return [
+    ...children,
+    ...linked.map((thread) => {
+      const turns = (entities.turn ?? [])
+        .filter((row) => row.threadId === thread.id)
+        .sort((a, b) => text(b.startedAt).localeCompare(text(a.startedAt)));
+      const needs = entities.interaction?.some(
+        (row) => row.threadId === thread.id && row.state === "pending",
+      );
+      const queued = entities.item?.some(
+        (row) =>
+          row.threadId === thread.id &&
+          row.kind === "user" &&
+          ["queued", "sending", "uncertain"].includes(text(body(row).queueState)),
+      );
+      const state = needs
+        ? "needs_you"
+        : turns.some((row) => row.status === "running")
+          ? "running"
+          : queued
+            ? "queued"
+            : text(turns[0]?.status) || "idle";
+      return { id: thread.id, threadId: thread.id, title: thread.title, state };
+    }),
+  ];
+}
+export const delegatedActive = (row: Row) =>
+  ["queued", "running", "blocked", "needs_you"].includes(text(row.state));
 export function threadResults(entities: Entities, threadId: string) {
   const items = (entities.item ?? []).filter((row) => row.threadId === threadId);
   const turns = (entities.turn ?? []).filter((row) => row.threadId === threadId);
@@ -19,7 +66,7 @@ export function threadResults(entities: Entities, threadId: string) {
   const requests = (entities.interaction ?? []).filter(
     (row) => row.threadId === threadId && row.state === "pending",
   );
-  const children = task ? (entities.task ?? []).filter((row) => row.parentId === task.id) : [];
+  const children = delegatedWork(entities, threadId);
   const diffs = items
     .filter(
       (row) => row.turnId === latestTurn?.id && row.kind === "tool" && body(row).kind === "edit",
@@ -44,16 +91,12 @@ export function threadResults(entities: Entities, threadId: string) {
       row.kind === "user" &&
       ["queued", "sending", "uncertain"].includes(text(body(row).queueState)),
   );
-  const sessions = (entities.session ?? []).filter((row) => row.threadId === threadId);
-  const background = sessions.some(
-    (row) =>
-      Array.isArray(row.background) &&
-      row.background.some((entry: Row) => entry.state === "running"),
-  );
+  const session = (entities.session ?? [])
+    .filter((row) => row.threadId === threadId)
+    .sort(compareSessions)[0];
+  const background = backgroundTasks(session).some((task) => task.state === "running");
   const working =
-    turns.some((row) => row.status === "running") ||
-    children.some((row) => ["queued", "running", "blocked"].includes(text(row.state))) ||
-    background;
+    turns.some((row) => row.status === "running") || children.some(delegatedActive) || background;
   const complete =
     latestTurn?.status === "completed" &&
     !working &&

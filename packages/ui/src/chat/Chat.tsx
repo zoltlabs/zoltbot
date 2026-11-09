@@ -255,7 +255,9 @@ export default function Chat({
           <h1>{text(thread.title) || "Conversation"}</h1>
         </div>
         {waiting ? (
-          <Chip tone={waiting.kind === "request" ? "attention" : "neutral"}>{waiting.label}</Chip>
+          <Chip tone={["request", "provider"].includes(waiting.kind) ? "attention" : "neutral"}>
+            {waiting.label}
+          </Chip>
         ) : busy ? (
           <Chip tone="accent" dot>
             Working
@@ -487,7 +489,7 @@ export default function Chat({
             connection={connection}
             threadId={threadId}
             onClose={() => setShowResults(false)}
-            onRevise={onRevise}
+            onRevise={letters ? undefined : onRevise}
           />
         ) : null}
         {showContext ? (

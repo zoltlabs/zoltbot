@@ -1,5 +1,6 @@
 import { compareSessions } from "@zoltbot/protocol";
 import { backgroundTasks } from "./parity-data.js";
+import { delegatedActive, delegatedWork } from "./results-data.js";
 import { body, type Row, text } from "./types.js";
 
 type Entities = Record<string, Row[] | undefined>;
@@ -84,13 +85,7 @@ export function waitingState(
   if (entities.turn?.some((row) => row.threadId === threadId && row.status === "running"))
     return undefined;
   const task = entities.task?.find((row) => row.threadId === threadId);
-  if (
-    task &&
-    entities.task?.some(
-      (row) =>
-        row.parentId === task.id && ["queued", "running", "blocked"].includes(text(row.state)),
-    )
-  )
+  if (delegatedWork(entities, threadId).some(delegatedActive))
     return {
       label: "Delegated work in progress",
       description: "Open Results to check the delegated tasks.",
