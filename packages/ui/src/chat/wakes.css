@@ -31,6 +31,7 @@
   margin-block-start: var(--zb-space-3);
 }
 .wake-form {
+  --wake-control-border: color-mix(in srgb, var(--zb-text) 55%, var(--zb-bg-popover));
   display: grid;
   gap: var(--zb-space-2);
   min-width: 0;
@@ -39,6 +40,7 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  border-color: var(--wake-control-border);
 }
 .wake-form p {
   margin: 0;
@@ -69,4 +71,8 @@
 /* Native date/time subfields keep focus inside the host input. */
 .wake-form input[type="datetime-local"]:focus-within {
   box-shadow: var(--zb-focus-ring);
+}
+
+.wake-form :is(input, select, textarea):focus-visible {
+  border-color: var(--zb-accent);
 }

@@ -107,6 +107,40 @@ test("Wake when: save, edit, cancel, fallback, and accessible responsive review"
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
       await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+      const boundaryContrast = await dialog.evaluate((d) => {
+        const input = d.querySelector("input"),
+          canvas = document.createElement("canvas"),
+          ctx = canvas.getContext("2d");
+        if (!input || !ctx) throw new Error("input contrast unavailable");
+        const rgba = (value: string) => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = value;
+          ctx.fillRect(0, 0, 1, 1);
+          return Array.from(ctx.getImageData(0, 0, 1, 1).data);
+        };
+        const over = (fg: number[], bg: number[]) =>
+          fg
+            .slice(0, 3)
+            .map((v, i) => (v * (fg[3] ?? 255)) / 255 + (bg[i] ?? 0) * (1 - (fg[3] ?? 255) / 255));
+        const luma = (rgb: number[]) =>
+          rgb.slice(0, 3).reduce((n, v, i) => {
+            const c = v / 255;
+            return (
+              n +
+              (i === 0 ? 0.2126 : i === 1 ? 0.7152 : 0.0722) *
+                (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+            );
+          }, 0);
+        const ratio = (a: number[], b: number[]) =>
+          (Math.max(luma(a), luma(b)) + 0.05) / (Math.min(luma(a), luma(b)) + 0.05);
+        const style = getComputedStyle(input),
+          outside = rgba(getComputedStyle(d).backgroundColor),
+          inside = over(rgba(style.backgroundColor), outside),
+          border = over(rgba(style.borderTopColor), inside);
+        return { inside: ratio(border, inside), outside: ratio(border, outside) };
+      });
+      expect(boundaryContrast.inside).toBeGreaterThanOrEqual(3);
+      expect(boundaryContrast.outside).toBeGreaterThanOrEqual(3);
       await page.setViewportSize({ width: 320, height: 740 });
       expect((await new AxeBuilder({ page }).include("dialog").analyze()).violations).toEqual([]);
       expect(await dialog.evaluate((d) => d.scrollWidth <= d.clientWidth + 1)).toBe(true);
