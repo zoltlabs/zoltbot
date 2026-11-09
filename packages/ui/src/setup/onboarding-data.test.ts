@@ -118,3 +118,17 @@ it("names ID-only sessions without opening them", () => {
   ).toBe("Untitled session");
   expect(sessionTitle(session("Fix the flaky test", 0))).toBe("Fix the flaky test");
 });
+
+it("imports selected repositories without any session history", () => {
+  expect(
+    importSelection(items, new Set(), new Set(), new Set(["/code/app", "/code/tool"])),
+  ).toEqual(["p1", "p3"]);
+});
+it("combines repository-only choices with sessions from another repository", () => {
+  expect(importSelection(items, new Set(["c"]), new Set(["m1"]), new Set(["/code/app"]))).toEqual([
+    "c",
+    "m1",
+    "p1",
+    "p3",
+  ]);
+});

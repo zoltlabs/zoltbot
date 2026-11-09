@@ -109,16 +109,18 @@ const baseName = (folder: string) => folder.split(/[\\/]/).filter(Boolean).pop()
 
 /**
  * The import selection: chosen sessions and MCP servers, plus the project for each repository a
- * chosen session belongs to. Repositories without chosen sessions do not become projects.
+ * chosen session belongs to, plus repositories explicitly selected without sessions.
  */
 export function importSelection(
   items: readonly ImportItem[],
   sessions: ReadonlySet<string>,
   servers: ReadonlySet<string>,
+  repositoryRoots: ReadonlySet<string> = new Set(),
 ): string[] {
   const roots = new Set(
     items.flatMap((item) => (sessions.has(item.id) && item.repoRoot ? [item.repoRoot] : [])),
   );
+  for (const root of repositoryRoots) roots.add(root);
   const projects = new Map<string, string>();
   for (const item of items)
     if (item.kind === "project" && item.path) {

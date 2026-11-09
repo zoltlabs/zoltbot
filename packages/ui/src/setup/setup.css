@@ -401,6 +401,10 @@
 .onb-row.onb-repo {
   grid-template-columns: 20px minmax(0, 1fr) auto;
 }
+.onb-repo .zb-menu {
+  left: auto;
+  right: 0;
+}
 .onb-row.onb-toggle {
   grid-template-columns: minmax(0, 1fr) auto;
 }

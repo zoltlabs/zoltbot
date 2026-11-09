@@ -1,5 +1,5 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
-import { Button, Chip } from "../components/primitives.js";
+import { Button, Chip, Menu } from "../components/primitives.js";
 import {
   type AgentRow,
   outsideRepository,
@@ -114,12 +114,16 @@ export function AgentRows({
 export function RepositoryRows({
   groups,
   sessions,
+  repositories,
+  toggleRepository,
   open,
   setOpen,
   toggle,
 }: {
   groups: SessionGroup[];
   sessions: ReadonlySet<string>;
+  repositories: ReadonlySet<string>;
+  toggleRepository(group: SessionGroup, on: boolean): void;
   open: ReadonlySet<string>;
   setOpen: Dispatch<SetStateAction<Set<string>>>;
   toggle: Toggle;
@@ -130,17 +134,19 @@ export function RepositoryRows({
         const ids = group.sessions.map((row) => row.id);
         const count = ids.filter((id) => sessions.has(id)).length;
         const expanded = open.has(group.key);
+        const selected = group.repoRoot ? repositories.has(group.key) : count > 0;
         return (
           <div key={group.key}>
-            <div className={`onb-row onb-repo${count ? "" : " off"}`}>
+            <div className={`onb-row onb-repo${selected ? "" : " off"}`}>
               <input
                 type="checkbox"
                 aria-label={`Import ${group.name}`}
-                checked={count === ids.length}
+                checked={group.repoRoot ? selected : count === ids.length}
                 ref={(element) => {
-                  if (element) element.indeterminate = count > 0 && count < ids.length;
+                  if (element)
+                    element.indeterminate = !group.repoRoot && count > 0 && count < ids.length;
                 }}
-                onChange={(event) => toggle(ids, event.target.checked)}
+                onChange={(event) => toggleRepository(group, event.target.checked)}
               />
               <span className="onb-main">
                 <span className={`onb-name${group.key === outsideRepository ? " onb-loose" : ""}`}>
@@ -150,6 +156,13 @@ export function RepositoryRows({
               <span className="onb-end onb-count">
                 {count !== ids.length ? `${count.toLocaleString()} of ` : ""}
                 {ids.length.toLocaleString()}
+                <Menu
+                  label={`Session options for ${group.name}`}
+                  items={[
+                    { label: "Select all sessions", onSelect: () => toggle(ids, true) },
+                    { label: "Deselect all sessions", onSelect: () => toggle(ids, false) },
+                  ]}
+                />
                 <button
                   type="button"
                   className="onb-expand"

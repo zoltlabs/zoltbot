@@ -20,6 +20,7 @@ import {
   historySources,
   importSelection,
   type Range,
+  type SessionGroup,
   serverRows,
   sessionGroups,
   sourceName,
@@ -67,6 +68,7 @@ export default function Setup({
   const [items, setItems] = useState<{ id: string; items: ImportItem[] }>();
   const [range, setRange] = useState<Range>(90);
   const [query, setQuery] = useState("");
+  const [repositories, setRepositories] = useState(new Set<string>());
   const [sessions, setSessions] = useState(new Set<string>());
   const [open, setOpen] = useState(new Set<string>());
   const [servers, setServers] = useState(new Set<string>());
@@ -120,6 +122,13 @@ export default function Setup({
       ),
     onSuccess: (preview) => {
       setItems(preview);
+      setRepositories(
+        new Set(
+          sessionGroups(preview.items, 90)
+            .groups.filter((group) => group.repoRoot)
+            .map((group) => group.key),
+        ),
+      );
       setSessions(
         new Set(
           sessionGroups(preview.items, 90).groups.flatMap((group) =>
@@ -136,6 +145,9 @@ export default function Setup({
   );
   const inRange = groups.flatMap((group) => group.sessions.map((row) => row.id));
   const chosenSessions = new Set(inRange.filter((id) => sessions.has(id)));
+  const chosenRepositories = groups.filter(
+    (group) => group.repoRoot && repositories.has(group.key),
+  );
   const mcp = serverRows(items?.items ?? []);
   const chosenServers = new Set(
     mcp.filter((row) => servers.has(row.name)).flatMap((row) => row.ids),
@@ -144,7 +156,12 @@ export default function Setup({
   const finish = useMutation({
     mutationFn: async () => {
       if (items) {
-        const ids = importSelection(items.items, chosenSessions, chosenServers);
+        const ids = importSelection(
+          items.items,
+          chosenSessions,
+          chosenServers,
+          new Set(chosenRepositories.flatMap((group) => (group.repoRoot ? [group.repoRoot] : []))),
+        );
         if (ids.length)
           await connection.call(
             "import.apply",
@@ -404,7 +421,19 @@ export default function Setup({
     );
   } else if (step === "sessions") {
     const total = groups.reduce((sum, group) => sum + group.sessions.length, 0);
-    const toggle = (ids: string[], on: boolean) =>
+    const toggle = (ids: string[], on: boolean) => {
+      if (on)
+        setRepositories(
+          (previous) =>
+            new Set([
+              ...previous,
+              ...groups
+                .filter(
+                  (group) => group.repoRoot && group.sessions.some((row) => ids.includes(row.id)),
+                )
+                .map((group) => group.key),
+            ]),
+        );
       setSessions((previous) => {
         const next = new Set(previous);
         for (const id of ids) {
@@ -413,9 +442,22 @@ export default function Setup({
         }
         return next;
       });
+    };
+    const toggleRepository = (group: SessionGroup, on: boolean) => {
+      setRepositories((previous) => {
+        const next = new Set(previous);
+        if (on) next.add(group.key);
+        else next.delete(group.key);
+        return next;
+      });
+      toggle(
+        group.sessions.map((row) => row.id),
+        on,
+      );
+    };
     const sources = historySources(connected.map((row) => row.id)).map(sourceName);
     view = frame(
-      "Select sessions to import",
+      "Select repositories and sessions",
       items
         ? `${plural(total, "session")} ${range === "all" ? "" : `from the last ${range} days `}in ${sources.join(" and ")}`
         : "List past sessions here so you can pick them up again from Zoltbot.",
@@ -461,6 +503,13 @@ export default function Setup({
                     onClick={() => {
                       // A new range starts with every session in it chosen, as on first load.
                       setRange(value);
+                      setRepositories(
+                        new Set(
+                          sessionGroups(items?.items ?? [], value)
+                            .groups.filter((group) => group.repoRoot)
+                            .map((group) => group.key),
+                        ),
+                      );
                       setSessions(
                         new Set(
                           sessionGroups(items?.items ?? [], value).groups.flatMap((group) =>
@@ -484,18 +533,37 @@ export default function Setup({
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
+            <div className="onb-toolbar">
+              <Button onClick={() => setSessions(new Set())}>Import repositories only</Button>
+            </div>
             <section className="card onb-card" aria-label="Repositories">
               <div className="onb-card-head">
                 <input
                   type="checkbox"
-                  aria-label="Select all sessions"
-                  checked={inRange.length > 0 && chosenSessions.size === inRange.length}
+                  aria-label="Select all repositories and sessions"
+                  checked={
+                    groups.length > 0 &&
+                    chosenRepositories.length === groups.filter((group) => group.repoRoot).length &&
+                    chosenSessions.size === inRange.length
+                  }
                   ref={(element) => {
                     if (element)
                       element.indeterminate =
-                        chosenSessions.size > 0 && chosenSessions.size < inRange.length;
+                        (chosenSessions.size > 0 || chosenRepositories.length > 0) &&
+                        (chosenSessions.size < inRange.length ||
+                          chosenRepositories.length <
+                            groups.filter((group) => group.repoRoot).length);
                   }}
-                  onChange={(event) => toggle(inRange, event.target.checked)}
+                  onChange={(event) => {
+                    setRepositories(
+                      new Set(
+                        event.target.checked
+                          ? groups.filter((group) => group.repoRoot).map((group) => group.key)
+                          : [],
+                      ),
+                    );
+                    toggle(inRange, event.target.checked);
+                  }}
                 />
                 Repositories <span className="onb-n">{shown.length}</span>
               </div>
@@ -503,6 +571,8 @@ export default function Setup({
                 <RepositoryRows
                   groups={shown}
                   sessions={sessions}
+                  repositories={repositories}
+                  toggleRepository={toggleRepository}
                   open={open}
                   setOpen={setOpen}
                   toggle={toggle}
@@ -515,7 +585,8 @@ export default function Setup({
               </div>
             </section>
             <p className="onb-hint">
-              {plural(chosenSessions.size, "session")} selected. They stay in{" "}
+              {plural(chosenRepositories.length, "repository", "repositories")} and{" "}
+              {plural(chosenSessions.size, "session")} selected. Sessions stay in{" "}
               {sources.join(" and ") || "your agents"}; Zoltbot only lists them and can resume them.
               {brief ? ` ${plural(brief, "very short session")} hidden.` : ""}{" "}
               <button type="button" className="onb-link" onClick={() => setAdvanced(true)}>
@@ -534,12 +605,17 @@ export default function Setup({
         ) : null}
       </>,
       {
-        label: chosenSessions.size ? `Import ${plural(chosenSessions.size, "session")}` : "Next",
+        label: chosenSessions.size
+          ? `Import ${plural(chosenSessions.size, "session")}`
+          : chosenRepositories.length
+            ? `Import ${plural(chosenRepositories.length, "repository", "repositories")}`
+            : "Next",
         hidden: !items,
         onClick: () => go("tools"),
       },
       () => {
         setSessions(new Set());
+        setRepositories(new Set());
         go("tools");
       },
     );

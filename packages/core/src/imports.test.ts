@@ -164,3 +164,10 @@ it("keeps project scoped MCP entries distinct inside one native config file", ()
   >[];
   expect(registry.map((item) => item.scopePath)).toEqual(["/work/one", "/work/two"]);
 });
+
+it("imports a repository without creating any native sessions", () => {
+  const selected = { ...receipt, items: receipt.items.filter((item) => item.id === "repo") };
+  const state = applyEvents({}, importOutcome({}, selected, context, true).events);
+  expect(state.project).toHaveLength(1);
+  expect(state.nativeSession ?? []).toEqual([]);
+});
