@@ -14,7 +14,8 @@ export const mailboxHints: Record<Mailbox, string> = {
   needs_you: "Questions and approvals, one row per conversation",
   review: "Finished work you have not opened",
   working: "Still running. Each one writes when it needs you or is done",
-  later: "Snoozed until a time you picked, or until the agent asks for something",
+  later:
+    "Waiting for a saved condition or snoozed until a time you picked. Questions and approvals still reach Needs you.",
   settled: "Done and put away",
 };
 
@@ -23,7 +24,7 @@ function latestMessages(entities: Entities) {
   const latest = new Map<string, Row>();
   for (const item of entities.item ?? []) {
     // The main agent's notices to you count as its messages; its notes to itself are messages too.
-    const notice = item.kind === "note" && body(item).code === "chief_notify";
+    const notice = item.kind === "note" && ["chief_notify", "wake"].includes(text(body(item).code));
     if (item.kind !== "message" && !notice) continue;
     const id = text(item.threadId),
       previous = latest.get(id);

@@ -38,6 +38,7 @@ import { Avatar, Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { BackgroundChip, ModeChip, ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { ShippingContext } from "../../ui/ShippingContext";
 import { Message } from "../../ui/Transcript";
+import { WakeStatus } from "../../ui/WakeStatus";
 
 export default function Chat() {
   // A Quick Chat handoff passes its brief to wait in the composer, unsent.
@@ -186,6 +187,10 @@ export default function Chat() {
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
       >
         <OfflineBanner />
+        <WakeStatus
+          rows={(snapshot.entities.wake ?? []).filter((w) => w.threadId === id)}
+          online={online}
+        />
         {fork ? <ForkBanner threadId={id} info={fork} /> : null}
         {snapshot.entities.task
           ?.filter((task) => task.threadId === id)

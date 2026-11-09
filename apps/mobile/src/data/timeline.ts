@@ -15,6 +15,8 @@ export interface TranscriptRow {
   streaming: boolean;
   artifact?: ArtifactCard;
   compareId?: string;
+  wake?: boolean;
+  wakeEvidence?: string;
   artifactReference?: string;
   unanchored?: boolean;
   status?: "running" | "ok" | "failed";
@@ -229,6 +231,14 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
     } else if (item.kind === "note" && value.code === "chief_notify") {
       // What the main agent sent you reads as its message.
       row = { ...base, kind: "message", text: text(value.text) };
+    } else if (item.kind === "note" && value.code === "wake") {
+      row = {
+        ...base,
+        kind: "other",
+        text: text(value.text),
+        wake: true,
+        ...(text(value.evidenceUrl) ? { wakeEvidence: text(value.evidenceUrl) } : {}),
+      };
     } else if (item.kind === "note" && value.code === "compare") {
       row = {
         ...base,

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { mono, useTheme } from "../theme";
 import { Icon } from "./icons";
@@ -126,6 +126,24 @@ export function Message({
   onForward?: (row: TranscriptRow) => void;
 }) {
   const { c } = useTheme();
+  if (row.wake)
+    return (
+      <View style={{ gap: 8 }} accessibilityLabel="Chat woke up">
+        <Txt v="bodyMedium">Chat woke up</Txt>
+        <Txt>{row.text}</Txt>
+        {row.wakeEvidence ? (
+          <Button
+            label="View wake evidence"
+            onPress={() => {
+              const url = row.wakeEvidence ?? "";
+              if (url.startsWith("#chat/"))
+                router.push(`/chat/${decodeURIComponent(url.slice(6))}`);
+              else if (url.startsWith("https://github.com/")) void Linking.openURL(url);
+            }}
+          />
+        ) : null}
+      </View>
+    );
   if (row.event) return <EventRow row={row} />;
   if (row.brief && row.kind === "message")
     return (

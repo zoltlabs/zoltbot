@@ -1,0 +1,72 @@
+.chat-wakes {
+  padding: var(--zb-space-3) var(--zb-space-4);
+}
+.wake-card {
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  padding: var(--zb-space-3);
+  margin-block-start: var(--zb-space-2);
+  overflow-wrap: anywhere;
+}
+.wake-card p {
+  margin-block: 6px;
+}
+.wake-card dl {
+  display: grid;
+  gap: var(--zb-space-2);
+  font-size: var(--zb-text-sm);
+}
+.wake-card dl > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: var(--zb-space-2);
+}
+.wake-card dd {
+  margin: 0;
+}
+.wake-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  margin-block-start: var(--zb-space-3);
+}
+.wake-form {
+  display: grid;
+  gap: var(--zb-space-2);
+  min-width: 0;
+}
+.wake-form :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.wake-form p {
+  margin: 0;
+}
+@media (max-width: 400px) {
+  .wake-card dl > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+.wake-waiting {
+  margin-block: var(--zb-space-3);
+}
+.wake-waiting summary {
+  cursor: pointer;
+  padding-block: var(--zb-space-2);
+}
+.wake-waiting ul {
+  display: grid;
+  gap: var(--zb-space-3);
+  padding-inline-start: var(--zb-space-4);
+}
+.wake-waiting p {
+  margin-block: var(--zb-space-1);
+  overflow-wrap: anywhere;
+}
+/* Native date/time subfields keep focus inside the host input. */
+.wake-form input[type="datetime-local"]:focus-within {
+  box-shadow: var(--zb-focus-ring);
+}

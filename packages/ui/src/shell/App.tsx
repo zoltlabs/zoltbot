@@ -519,6 +519,7 @@ export function App() {
               </Suspense>
             ) : route === "Sessions" ? (
               <AllChats
+                wakes={entities.wake ?? emptyRows}
                 threads={entities.thread ?? emptyRows}
                 projects={entities.project ?? emptyRows}
                 directions={entities.subproject ?? emptyRows}

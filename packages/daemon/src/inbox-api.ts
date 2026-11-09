@@ -99,10 +99,12 @@ export function inboxApi(host: {
       preview: (ids) => {
         const latest = store.latestItems(ids, "message"),
           texts = new Map<string, string>();
-        // A newer notice from the main agent is what it wants you to read.
+        // A wake or newer notice from the main agent is what the person should read.
         for (const [id, note] of store.latestItems(ids, "note"))
           if (
-            (note.body as { code?: unknown } | undefined)?.code === notifyCode &&
+            [notifyCode, "wake"].includes(
+              String((note.body as { code?: unknown } | undefined)?.code),
+            ) &&
             Number(note.seq) > Number(latest.get(id)?.seq ?? 0)
           )
             latest.set(id, note);

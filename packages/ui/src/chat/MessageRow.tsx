@@ -84,6 +84,14 @@ export const MessageRow = memo(function MessageRow({
         <p>{text(value.text)}</p>
       </article>
     );
+  if (kind === "note" && value.code === "wake")
+    return (
+      <article className="chat-note" aria-label="Chat woke up">
+        <strong>Chat woke up</strong>
+        <p>{text(value.text)}</p>
+        {text(value.evidenceUrl) ? <a href={text(value.evidenceUrl)}>View wake evidence</a> : null}
+      </article>
+    );
   if (kind === "note" && value.code === "compare")
     return (
       <article className="compare-marker" aria-label="Compare result">

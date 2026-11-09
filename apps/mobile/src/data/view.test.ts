@@ -283,3 +283,25 @@ it("finds where a fork came from and pages through the edits of one message", ()
   expect(forkInfo(forks, "a")).toBeUndefined();
   expect(editsOf(forks, "a")).toEqual(new Map([["t2", ["c", "b"]]]));
 });
+
+it("preserves wake history and evidence links on the phone", () => {
+  const copy = structuredClone(snapshot);
+  copy.entities.item = [
+    {
+      id: "woke",
+      threadId: "wake-chat",
+      kind: "note",
+      seq: 1,
+      createdAt: "2026-11-03T12:00:00Z",
+      updatedAt: "2026-11-03T12:00:00Z",
+      body: { code: "wake", text: "Tests finished", evidenceUrl: "#chat/source" },
+    },
+  ];
+  expect(transcript(copy, "wake-chat")).toEqual([
+    expect.objectContaining({
+      text: "Tests finished",
+      wakeEvidence: "#chat/source",
+      kind: "other",
+    }),
+  ]);
+});

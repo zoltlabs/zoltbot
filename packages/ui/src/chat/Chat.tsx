@@ -33,6 +33,7 @@ import { messageSources } from "./sources.js";
 import { Timeline } from "./Timeline.js";
 import { groupTimeline, stableNested } from "./timeline-data.js";
 import { body, type ChatConnection, type Row, text } from "./types.js";
+import { WakeControl } from "./WakeControl.js";
 import { waitingState } from "./waiting-state.js";
 import "./chat.css";
 import "./context.css";
@@ -398,6 +399,7 @@ export default function Chat({
               onEdit={compareReadOnly ? undefined : onEdit}
             />
           )}
+          <WakeControl key={threadId} connection={connection} threadId={threadId} />
           <ChatRoutineCards connection={connection} threadId={threadId} />
           {editing ? (
             <EditDialog
