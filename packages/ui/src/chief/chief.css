@@ -33,8 +33,6 @@
   color: var(--zb-text-muted);
   font-size: var(--zb-text-xs);
   font-weight: var(--zb-weight-medium);
-  letter-spacing: var(--zb-tracking-label);
-  text-transform: uppercase;
 }
 .chief-rail-section h3 {
   display: flex;

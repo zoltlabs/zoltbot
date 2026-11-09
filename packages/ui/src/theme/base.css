@@ -78,8 +78,6 @@ body {
   font-size: var(--zb-text-xs);
   line-height: var(--zb-leading-xs);
   font-weight: var(--zb-weight-medium);
-  letter-spacing: var(--zb-tracking-label);
-  text-transform: uppercase;
 }
 .r {
   display: flex;
