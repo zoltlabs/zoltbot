@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Chat from "../../packages/ui/src/chat/Chat.js";
 import type { ChatConnection, Row } from "../../packages/ui/src/chat/types.js";
+import { useShell } from "../../packages/ui/src/state.js";
 import "../../packages/ui/src/shell/shell.css";
 
 const at = "2026-11-01T12:00:00Z";
@@ -218,5 +219,12 @@ function Fixture() {
     </main>
   );
 }
+if (new URLSearchParams(location.search).has("handoff"))
+  useShell.setState({ chatDraft: { threadId: "thread", text: "Review this handoff." } });
 const root = document.getElementById("root");
-if (root) createRoot(root).render(<Fixture />);
+if (root)
+  createRoot(root).render(
+    <StrictMode>
+      <Fixture />
+    </StrictMode>,
+  );

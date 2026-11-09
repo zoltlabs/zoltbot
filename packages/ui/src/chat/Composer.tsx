@@ -142,7 +142,7 @@ function ComposerSession({
   const modHeld = useModifierHeld(busy && steer);
   const { update } = persisted;
   useEffect(() => {
-    if (handoff?.threadId === threadId) {
+    if (handoff?.threadId === threadId && useShell.getState().chatDraft === handoff) {
       const previous = persisted.current.current.text;
       update(
         handoff === initialHandoff.current

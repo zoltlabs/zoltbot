@@ -103,7 +103,7 @@ test("results and comparison remain accessible in both themes and narrow layouts
       document.documentElement.dataset.theme = value;
     }, theme);
     const panel = page.getByRole("complementary", { name: "Results" });
-    await page.screenshot({ path: `output/results-panel-${theme}.png` });
+    await page.screenshot({ animations: "disabled", path: `output/results-panel-${theme}.png` });
     await panel.getByRole("button", { name: "Compare", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Compare artifacts" });
     await expect(dialog.locator("iframe")).toHaveCount(2);
@@ -111,7 +111,10 @@ test("results and comparison remain accessible in both themes and narrow layouts
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
     expect(audit.violations).toEqual([]);
-    await page.screenshot({ path: `output/results-comparison-${theme}.png` });
+    await page.screenshot({
+      animations: "disabled",
+      path: `output/results-comparison-${theme}.png`,
+    });
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
   }
@@ -123,7 +126,7 @@ test("results and comparison remain accessible in both themes and narrow layouts
   const dialog = page.getByRole("dialog", { name: "Compare artifacts" });
   await expect(dialog.getByLabel("Alternative version")).toBeVisible();
   expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
-  await page.screenshot({ path: "output/results-comparison-narrow.png" });
+  await page.screenshot({ animations: "disabled", path: "output/results-comparison-narrow.png" });
   await dialog.getByLabel("Feedback").scrollIntoViewIfNeeded();
   await expect(dialog.getByLabel("Feedback")).toBeVisible();
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
@@ -147,4 +150,17 @@ test("letters share completion actions and Results preserves the preview prefere
   await expect(results.locator("iframe")).toHaveCount(1);
   await results.getByRole("button", { name: "Close artifact" }).click();
   await expect(results.getByLabel("Previews in chat")).not.toBeChecked();
+});
+
+test("an initial handoff appends once under Strict Mode", async ({ page }) => {
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "zoltbot.composerDraft.v1:thread",
+      JSON.stringify({ text: "Keep this draft.", attachments: [], outputMode: "auto" }),
+    ),
+  );
+  await page.goto("http://127.0.0.1:5197/tests/results/?handoff=1");
+  await expect(page.getByRole("textbox", { name: /Message/ })).toHaveValue(
+    "Keep this draft.\n\nReview this handoff.",
+  );
 });
