@@ -23,6 +23,7 @@ import { CommandPalette } from "./CommandPalette.js";
 import { Icon } from "./icons.js";
 import { Overview } from "./Overview.js";
 import { SettingsPage } from "./SettingsPage.js";
+import { Sidebar, useSidebarDrawer } from "./Sidebar.js";
 
 const CompareView = lazy(() => import("../compare/CompareView.js"));
 const ArtifactPage = lazy(() => import("../artifacts/ArtifactPage.js"));
@@ -74,6 +75,8 @@ export function App() {
     toggleSidebar = useShell((s) => s.toggleSidebar),
     width = useShell((s) => s.width),
     setWidth = useShell((s) => s.setWidth);
+  const drawer = useSidebarDrawer();
+  const expandedSidebar = drawer.narrow || sidebar;
   const [systemDark, setSystemDark] = useState(
     () => matchMedia("(prefers-color-scheme: dark)").matches,
   );
@@ -295,23 +298,29 @@ export function App() {
           </span>
         ) : undefined
       }
-      onClick={() => navigate(name)}
+      onClick={() => {
+        navigate(name);
+        drawer.close();
+      }}
     />
   );
   return (
     <ProfileHues.Provider value={hues}>
       <div
-        className={`zb workspace-shell${sidebar ? "" : " sidebar-collapsed"}`}
+        className={`zb workspace-shell${drawer.narrow ? " sidebar-overlay" : sidebar ? "" : " sidebar-collapsed"}`}
         style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}
       >
         <a className="skip-link zb-button secondary" href="#main-content">
           Skip to content
         </a>
-        <aside className="workspace-sidebar" aria-label="Workspace sidebar">
+        <Sidebar narrow={drawer.narrow} open={drawer.open} onClose={drawer.close}>
           <button
             type="button"
             className="brand"
-            onClick={() => openQuickChat()}
+            onClick={() => {
+              openQuickChat();
+              drawer.close();
+            }}
             aria-label="Zoltbot: open quick chat"
             title="Open quick chat"
           >
@@ -323,7 +332,10 @@ export function App() {
           <button
             type="button"
             className={`sidebar-quick-chat sidebar-chief${route === "Chief" ? " on" : ""}`}
-            onClick={() => navigate("Chief")}
+            onClick={() => {
+              navigate("Chief");
+              drawer.close();
+            }}
             aria-label={chiefLabel}
             title={`${chiefLabel}: your main agent across every ${terms.workspace.one}`}
           >
@@ -333,7 +345,10 @@ export function App() {
           <button
             type="button"
             className={`sidebar-quick-chat${route === "QuickChat" ? " on" : ""}`}
-            onClick={() => openQuickChat()}
+            onClick={() => {
+              openQuickChat();
+              drawer.close();
+            }}
             aria-label="Quick chat"
             title="Quick chat: ask anything without choosing a workspace"
           >
@@ -358,7 +373,7 @@ export function App() {
           </button>
           <nav aria-label="Workspace">
             {navRoutes.filter((name) => name === "Overview" || name === "Inbox").map(navigationRow)}
-            {sidebar ? null : (
+            {expandedSidebar ? null : (
               <>
                 {navRoutes
                   .filter((name) => name !== "Overview" && name !== "Inbox")
@@ -377,7 +392,7 @@ export function App() {
                 .map(navigationRow)}
             </details>
           </nav>
-          {sidebar ? <QuickHistory connection={connection} /> : null}
+          {expandedSidebar ? <QuickHistory connection={connection} /> : null}
           <div className="project-tree-wrap grow sidebar-label">
             {/* Sits beside the summary rather than inside it, so it never toggles the section. */}
             <span className="tree-add">
@@ -417,10 +432,13 @@ export function App() {
               className={
                 ["Settings", "Doctor", "Connections", "Rules"].includes(route) ? "on" : undefined
               }
-              onClick={() => navigate("Settings")}
+              onClick={() => {
+                navigate("Settings");
+                drawer.close();
+              }}
             />
           </div>
-          {sidebar ? (
+          {sidebar && !drawer.narrow ? (
             <hr
               className="sidebar-resizer"
               tabIndex={0}
@@ -442,7 +460,7 @@ export function App() {
               }}
             />
           ) : null}
-        </aside>
+        </Sidebar>
         <div
           className={`workspace-body${route === "Chat" || route === "QuickChat" || route === "Chief" || route === "Compare" ? " chat-route" : ""}`}
         >
@@ -450,8 +468,10 @@ export function App() {
             <IconButton
               icon="Menu"
               size="sm"
-              onClick={toggleSidebar}
-              label={sidebar ? "Hide sidebar" : "Show sidebar"}
+              onClick={drawer.narrow ? drawer.show : toggleSidebar}
+              aria-expanded={drawer.narrow ? drawer.open : sidebar}
+              aria-controls="workspace-sidebar"
+              label={drawer.narrow || !sidebar ? "Show sidebar" : "Hide sidebar"}
             />
             <nav className="breadcrumb" aria-label="Breadcrumb">
               <span>Zoltbot</span>
