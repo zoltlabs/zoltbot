@@ -6,6 +6,7 @@ import { Connections } from "../settings/Connections.js";
 import { Devices } from "../settings/Devices.js";
 import { OrchestrationSettings } from "../settings/OrchestrationSettings.js";
 import { VoiceSettings } from "../settings/Voice.js";
+import { resetOnboarding } from "../setup/onboarding-state.js";
 import { UpdateSettings } from "../setup/UpdateNotice.js";
 import { GitHubSettings } from "../shipping/GitHubSettings.js";
 import { SkillsSettings } from "../skills/SkillsSettings.js";
@@ -97,6 +98,7 @@ export function SettingsPage({
           setFontScale={setFontScale}
           theme={theme}
           setTheme={setTheme}
+          navigate={navigate}
         />
       )}
     </div>
@@ -111,6 +113,7 @@ function GeneralSettings({
   setFontScale,
   theme,
   setTheme,
+  navigate,
 }: {
   connection: ReturnType<typeof useConnection>;
   settings: Row[];
@@ -119,6 +122,7 @@ function GeneralSettings({
   setFontScale(scale: number): void;
   theme: Theme;
   setTheme(theme: Theme): void;
+  navigate(route: Route): void;
 }) {
   return (
     <>
@@ -162,6 +166,23 @@ function GeneralSettings({
           <Button onClick={() => setFontScale(defaultFontScale)}>Reset font size</Button>
         </div>
         <UpdateSettings connection={connection} settings={settings} />
+      </section>
+      <section className="zb-card settings-panel">
+        <h2>Onboarding</h2>
+        <p className="settings-hint">
+          Walk through setup again from the beginning. Your chats, projects, and connected agents
+          are kept.
+        </p>
+        <div>
+          <Button
+            onClick={() => {
+              resetOnboarding();
+              navigate("Setup");
+            }}
+          >
+            Restart onboarding
+          </Button>
+        </div>
       </section>
       <VoiceSettings />
       <Devices

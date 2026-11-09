@@ -25,6 +25,7 @@ import {
   sourceName,
 } from "./onboarding-data.js";
 import { AccountLink, AgentRows, plural, RepositoryRows } from "./onboarding-parts.js";
+import { completeOnboarding } from "./onboarding-state.js";
 import { starterDraft } from "./starter.js";
 import "./setup.css";
 
@@ -182,6 +183,7 @@ export default function Setup({
       }
     },
     onSuccess: () => {
+      completeOnboarding();
       setAgent(firstChatAgent(connected.map((row) => row.id)) ?? "");
       go("ready");
     },
@@ -747,6 +749,9 @@ export default function Setup({
               ))}
             </select>
             <span className="grow" />
+            <Button variant="ghost" disabled={busy} onClick={onSkip}>
+              Go to workspace
+            </Button>
             <Button
               variant="primary"
               disabled={busy || offline || !agent}

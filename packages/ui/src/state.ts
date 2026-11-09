@@ -1,5 +1,6 @@
 import { terms } from "@zoltbot/protocol";
 import { create } from "zustand";
+import { needsOnboarding } from "./setup/onboarding-state.js";
 import type { WorkspaceScope } from "./workspaces/view.js";
 export const routes = ["Overview", "Inbox", "Tasks", "Routines", "Projects", "Sessions"] as const;
 /** Inbox is labelled "Needs you" in the sidebar, and Projects "Workspaces". */
@@ -126,7 +127,10 @@ export const useShell = create<{
     location.hash = "tasks";
     set({ shippingTaskId: undefined });
   },
-  route: "Overview",
+  route:
+    typeof location !== "undefined" && !location.hash.slice(1) && needsOnboarding()
+      ? "Setup"
+      : "Overview",
   threadId: undefined,
   requestId: undefined,
   openRequest: (id) => {

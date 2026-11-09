@@ -35,7 +35,6 @@ import {
   Settings,
   Shield,
   ShieldAlert,
-  Sparkles,
   Split,
   Square,
   SquarePen,
@@ -48,6 +47,7 @@ import {
   Workflow,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
 import { memo } from "react";
 
@@ -97,7 +97,7 @@ const icons: Record<string, LucideIcon> = {
   Tool: Wrench,
   Rewind: RotateCcw,
   Fork: Split,
-  Chief: Sparkles,
+  Chief: Zap,
   Loader: LoaderCircle,
   Todo: ListTodo,
   Attach: Paperclip,

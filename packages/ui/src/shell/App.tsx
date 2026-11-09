@@ -10,6 +10,7 @@ import { Chip, EmptyState, IconButton, Kbd, ListRow, StatusDot } from "../compon
 import { inboxFromSnapshot } from "../inbox/data.js";
 import { markRead, mergeSeen, useSeenMigration } from "../inbox/read-state.js";
 import { QuickHistory } from "../quick-chat/QuickHistory.js";
+import { completeOnboarding, needsOnboarding } from "../setup/onboarding-state.js";
 import { UpdateNotice } from "../setup/UpdateNotice.js";
 import { navRoutes, routeLabels, routes, useShell } from "../state.js";
 import { useConnection } from "../use-connection.js";
@@ -198,13 +199,17 @@ export function App() {
     if (launched.current || connection.status !== "online") return;
     launched.current = true;
     if (location.hash.slice(1)) return;
+    if (needsOnboarding()) {
+      navigate("Setup");
+      return;
+    }
     const project = mostRecentProject(
       entities.project ?? emptyRows,
       entities.thread ?? emptyRows,
       entities.subproject ?? emptyRows,
     );
     if (project) openScope({ type: "project", id: String(project.id) });
-  }, [connection.status, entities, openScope]);
+  }, [connection.status, entities, openScope, navigate]);
   // A chat on screen counts as read, including turns that finish while you watch it.
   const seen = useSeen();
   // useConnection returns a new object each render, and markSeen re-renders App, so depending on
@@ -541,7 +546,10 @@ export function App() {
                 <Setup
                   connection={connection}
                   onOpen={openThread}
-                  onSkip={() => navigate("Overview")}
+                  onSkip={() => {
+                    completeOnboarding();
+                    navigate("Overview");
+                  }}
                   onDoctor={() => navigate("Doctor")}
                 />
               </Suspense>
