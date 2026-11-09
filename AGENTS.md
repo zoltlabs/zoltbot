@@ -16,3 +16,7 @@
 - Do not launch visible test windows, bring apps to the foreground, move the user's mouse, send desktop-wide keyboard input, or otherwise take control of the user's desktop without explicit user authorization for that run.
 - Prefer non-interactive checks and isolated automation. If a required check cannot run without disrupting the user's desktop, complete the unaffected checks, explain the limitation, and ask before running the disruptive check. Do not silently skip it or claim it passed.
 - These instructions apply to all work in this repository, including test scripts, debugging, verification, and delegated agents. Preserve this behavior when adding or changing test tooling.
+
+## Design
+
+Follow `DESIGN.md` for all interface and visual design work. Do not use eyebrow labels or all-capital headings.
