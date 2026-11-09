@@ -61,3 +61,16 @@ and archive cancellation. Daemon tests cover restart reconciliation, projection 
 idempotent API retries and GitHub identity binding. The headless shipping test exercises the
 editor and saved card through the daemon API, keyboard modal behavior, automated accessibility,
 light/dark themes and narrow viewports. Native app tests require a separately authorized run.
+
+An authorized macOS run on 2026-11-09 used the actual Electron app with isolated app data,
+a synthetic provider process and controlled GitHub responses. It exercised native save/edit,
+cancel and bring-back controls; PR, CI, task, exact-turn, topic and background-job results;
+fallback without automatic execution; source failure and recovery; and persisted wake notes
+after quitting and relaunching. The background-job continuation remained queued while the
+native session was unavailable after restart.
+
+Native design checks covered light and dark themes and the minimum 900 by 760 window.
+Accessibility checks inspected macOS accessibility names and roles, keyboard selection,
+Tab navigation and Escape dismissal. VoiceOver speech and live GitHub/provider credentials
+were not exercised. Source recovery exposed a stale error field, now cleared when a matching
+source result is confirmed; daemon regression tests cover that recovery.

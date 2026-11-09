@@ -143,6 +143,8 @@ it("reconciles exact GitHub state and attempt, binds identities, and rejects cha
       status: "queued",
       evidenceUrl: "https://github.com/example/app/pull/4",
     });
+    expect(f.store.record("wake", w.id)?.error).toBeUndefined();
+    expect(f.store.record("wake", w.id)?.lastCheckedAt).toBe(f.now());
     expect(calls).toContain("/repos/example/app/pulls/4");
   } finally {
     await service.close();

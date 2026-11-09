@@ -330,6 +330,10 @@ export function fireWake(
     ...(match?.evidenceUrl ? { evidenceUrl: match.evidenceUrl } : {}),
     updatedAt: context.at,
   };
+  if (match) {
+    if (!permissionChanged) delete wake.error;
+    wake.lastCheckedAt = context.at;
+  }
   const events: DomainEvent[] = [];
   const itemId = `wake-input:${id}`;
   if (resume && !busy) {
