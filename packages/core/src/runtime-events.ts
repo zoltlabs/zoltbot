@@ -67,8 +67,9 @@ export function observeRuntimeEvent(
   if (event.t === "session.ready") {
     if (session.nativeId !== undefined && session.nativeId !== event.nativeId)
       throw new Error("runtime_native_identity_changed");
+    const { runtimeStatus: _status, ...rest } = session;
     append("session", {
-      ...session,
+      ...rest,
       nativeId: event.nativeId,
       capabilities: event.capabilities,
       providerVersion: event.providerVersion,
@@ -85,8 +86,25 @@ export function observeRuntimeEvent(
       events,
       result: { service: event.t.startsWith("interaction.") ? "interaction" : "usage" },
     };
-  if (event.t === "status" || event.t === "queue.updated")
-    return { events, result: { transient: true } };
+  if (event.t === "status") {
+    const { runtimeStatus: _previous, ...rest } = session;
+    append(
+      "session",
+      event.state === "ready"
+        ? rest
+        : {
+            ...session,
+            runtimeStatus: {
+              state: event.state,
+              ...(event.detail ? { detail: event.detail } : {}),
+              ...(event.resetsAt ? { resetsAt: event.resetsAt } : {}),
+              observedAt: context.at,
+            },
+          },
+    );
+    return { events, result: { status: event.state } };
+  }
+  if (event.t === "queue.updated") return { events, result: { transient: true } };
   // Session scoped state: providers report these between turns as well as inside them.
   if (event.t === "mode.changed") {
     if (session.mode === event.mode) return ignored;
@@ -134,7 +152,8 @@ export function observeRuntimeEvent(
       },
       "created",
     );
-    append("session", { ...session, state: "running" });
+    const { runtimeStatus: _status, ...rest } = session;
+    append("session", { ...rest, state: "running" });
     return { events, result: { started: true, turnId: event.turnId } };
   }
   if (event.t === "compaction") {
@@ -218,7 +237,10 @@ export function observeRuntimeEvent(
       ...(event.stopReason ? { stopReason: event.stopReason } : {}),
       ...(event.error ? { error: event.error } : {}),
     });
-    if (!terminal) append("session", { ...session, state: "ready" });
+    if (!terminal) {
+      const { runtimeStatus: _status, ...rest } = session;
+      append("session", { ...(event.status === "completed" ? rest : session), state: "ready" });
+    }
     for (const item of state.item ?? []) {
       const body = item.body as Record<string, unknown> | undefined;
       if (item.turnId === turn.id && item.kind === "tool" && body?.status === "running")

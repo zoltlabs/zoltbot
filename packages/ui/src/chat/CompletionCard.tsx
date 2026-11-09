@@ -3,6 +3,7 @@ import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { threadResults } from "./results-data.js";
 import type { ChatConnection } from "./types.js";
+import { waitingState } from "./waiting-state.js";
 import "./results.css";
 
 /** One end-of-turn action surface shared by chat and the Inbox's letter view. */
@@ -19,7 +20,13 @@ export function CompletionCard({
     [error, setError] = useState("");
   const data = threadResults(connection.snapshot.entities, threadId);
   const thread = connection.snapshot.entities.thread?.find((row) => row.id === threadId);
-  if (!data.complete || thread?.archived || thread?.archiveWhenIdle) return null;
+  if (
+    !data.complete ||
+    thread?.archived ||
+    thread?.archiveWhenIdle ||
+    waitingState(connection.snapshot.entities, threadId, connection.status)
+  )
+    return null;
   const hasResults = !!(
     data.artifacts.length ||
     data.diffs.length ||

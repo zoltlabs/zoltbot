@@ -537,3 +537,58 @@ it("projects mode changes and background tasks between turns without a running t
     ).result,
   ).toEqual({ ignored: true });
 });
+
+it("persists provider waits across snapshots and clears them on native recovery or new work", () => {
+  const state = started();
+  const limited = applyEvents(
+    state,
+    observeRuntimeEvent(
+      state,
+      {
+        ...input,
+        event: {
+          t: "status",
+          state: "rate_limited",
+          resetsAt: "2026-11-02T12:00:00Z",
+          detail: "Usage limit",
+        },
+      },
+      context,
+    ).events,
+  );
+  expect(limited.session?.[0]?.runtimeStatus).toMatchObject({
+    state: "rate_limited",
+    resetsAt: "2026-11-02T12:00:00Z",
+    observedAt: at,
+  });
+  const failed = applyEvents(
+    limited,
+    observeRuntimeEvent(
+      limited,
+      { ...input, event: { t: "turn.done", turnId: "turn", status: "failed" } },
+      context,
+    ).events,
+  );
+  expect(failed.session?.[0]?.runtimeStatus).toMatchObject({ state: "rate_limited" });
+  const ready = applyEvents(
+    failed,
+    observeRuntimeEvent(failed, { ...input, event: { t: "status", state: "ready" } }, context)
+      .events,
+  );
+  expect(ready.session?.[0]?.runtimeStatus).toBeUndefined();
+  const resumed = applyEvents(
+    failed,
+    observeRuntimeEvent(failed, { ...input, event: { t: "turn.started", turnId: "next" } }, context)
+      .events,
+  );
+  expect(resumed.session?.[0]?.runtimeStatus).toBeUndefined();
+  const done = applyEvents(
+    limited,
+    observeRuntimeEvent(
+      limited,
+      { ...input, event: { t: "turn.done", turnId: "turn", status: "completed" } },
+      context,
+    ).events,
+  );
+  expect(done.session?.[0]?.runtimeStatus).toBeUndefined();
+});

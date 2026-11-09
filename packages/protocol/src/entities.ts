@@ -119,7 +119,14 @@ export const SessionEndReasonSchema = values([
   "interaction_delivery_uncertain",
 ]);
 export type SessionEndReason = Static<typeof SessionEndReasonSchema>;
+export const RuntimeStatusSchema = object({
+  state: values(["auth_required", "rate_limited", "error", "reconnecting"]),
+  detail: OptionalText,
+  resetsAt: OptionalText,
+  observedAt: At,
+});
 export const SessionSchema = object({
+  runtimeStatus: Type.Optional(RuntimeStatusSchema),
   id: Id,
   threadId: Id,
   provider: Id,

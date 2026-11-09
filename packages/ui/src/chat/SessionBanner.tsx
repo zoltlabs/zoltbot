@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { body, type ChatConnection, type Row, text } from "./types.js";
+import { waitingState } from "./waiting-state.js";
 
 export function SessionBanner({
   connection,
@@ -18,6 +19,7 @@ export function SessionBanner({
     (row) => row.kind === "user" && body(row).queueState === "uncertain",
   );
   const reason = text(session?.endReason);
+  const waiting = waitingState(connection.snapshot.entities, threadId, connection.status);
   let title = "",
     description = "",
     action = "",
@@ -30,6 +32,13 @@ export function SessionBanner({
     title = "Message delivery needs review";
     description =
       "A saved message may already have reached your coding tool. Check the native session before retrying. Zoltbot will not resend it automatically.";
+  } else if (
+    waiting &&
+    ["connection", "provider"].includes(waiting.kind) &&
+    waiting.label !== "Sign-in required"
+  ) {
+    title = waiting.label;
+    description = waiting.description;
   } else if (!session) {
     // D082: connecting records a human intent, so it is never automatic. Sending already opens
     // the session (turn.send wakes the runtime), so Connect only loads commands and modes early.

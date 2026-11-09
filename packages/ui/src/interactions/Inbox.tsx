@@ -7,6 +7,7 @@ import {
 } from "@zoltbot/protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type ChatConnection, type Row, text } from "../chat/types.js";
+import { waitingState } from "../chat/waiting-state.js";
 import { type ChiefTriage, chiefName, chiefTriage } from "../chief/data.js";
 import { Avatar, Button, Chip, EmptyState, Kbd, Menu } from "../components/primitives.js";
 import {
@@ -385,6 +386,12 @@ export default function Inbox({ connection }: { connection: ChatConnection }) {
                           {label}
                         </Chip>
                       ))}
+                      {(() => {
+                        const wait = waitingState(entities, row.thread.id, connection.status);
+                        return wait && (wait.kind === "provider" || wait.kind === "work") ? (
+                          <Chip>{wait.label}</Chip>
+                        ) : null;
+                      })()}
                       {row.mailbox === "working" && row.thread.archiveWhenIdle ? (
                         <Chip>Settles when done</Chip>
                       ) : null}

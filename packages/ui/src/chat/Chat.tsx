@@ -33,6 +33,7 @@ import { messageSources } from "./sources.js";
 import { Timeline } from "./Timeline.js";
 import { groupTimeline, stableNested } from "./timeline-data.js";
 import { body, type ChatConnection, type Row, text } from "./types.js";
+import { waitingState } from "./waiting-state.js";
 import "./chat.css";
 import "./context.css";
 import {
@@ -113,6 +114,7 @@ export default function Chat({
           text(b.id).localeCompare(text(a.id)),
       )[0];
   const busy = !!activeTurn;
+  const waiting = waitingState(entities, threadId, connection.status);
   const threadTurns = useMemo(
     () => (entities.turn ?? []).filter((row) => row.threadId === threadId),
     [entities.turn, threadId],
@@ -252,7 +254,9 @@ export default function Chat({
           <Icon name="ChevronRight" size="sm" />
           <h1>{text(thread.title) || "Conversation"}</h1>
         </div>
-        {busy ? (
+        {waiting ? (
+          <Chip tone={waiting.kind === "request" ? "attention" : "neutral"}>{waiting.label}</Chip>
+        ) : busy ? (
           <Chip tone="accent" dot>
             Working
           </Chip>
