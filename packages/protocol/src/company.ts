@@ -56,6 +56,14 @@ const taskInput = object({
   budgetUsd: Type.Optional(Type.Number({ minimum: 0 })),
 });
 export const CompanyChangeSchema = Type.Union([
+  object({ kind: Type.Literal("assignManager"), id: Id, parent: ScopeSchema, why: Text }),
+  object({
+    kind: Type.Literal("moveTask"),
+    id: Id,
+    initiativeId: Type.Optional(Id),
+    accountableThreadId: Type.Optional(Id),
+    why: Text,
+  }),
   object({ kind: Type.Literal("team"), id: Id, name: Text, parent: ScopeSchema, why: Text }),
   object({
     kind: Type.Literal("chat"),
@@ -94,6 +102,7 @@ export const CompanyPlanSchema = object({
     object({
       initiativeId: Id,
       maxTasks: Type.Integer({ minimum: 1, maximum: 100 }),
+      reviewTasks: Type.Optional(Type.Boolean()),
       permissionCeiling: PermissionProfileSchema,
       budgetUsd: Type.Number({ minimum: 0 }),
     }),
@@ -112,6 +121,16 @@ export const ProjectBriefSchema = object({
 });
 export type ProjectBrief = Static<typeof ProjectBriefSchema>;
 export const companyMethods = {
+  "company.review": {
+    params: object({
+      taskId: Id,
+      revision: Type.Integer({ minimum: 1 }),
+      decision: values(["accept", "changes", "reject"]),
+      feedback: Type.Optional(Text),
+      planId: Type.Optional(Id),
+    }),
+    result: Json,
+  },
   "company.read": { params: object({ projectId: Type.Optional(Id) }), result: Json },
   "company.propose": {
     params: object({

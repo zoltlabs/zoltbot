@@ -140,7 +140,8 @@ it("briefs an existing chat two teams down and a new chat in a lower team", asyn
       node: { type: "subproject", id: "paid" },
       kind: "side",
     });
-    expect(woken).toEqual(["video", "video", fresh.childId]);
+    expect(woken).toEqual([]); // Task runner owns dispatch, including after retries.
+    expect(f.store.snapshot(["task"]).task).toHaveLength(2);
     await expect(
       delegate({
         actor: manager,
@@ -209,7 +210,7 @@ it("delivers a report from a working chat to its team manager and wakes it", asy
       turnId: "t-video",
     };
     expect(tools.authorize(video, "team_report", {})).toBe(true);
-    expect(tools.authorize(video, "team_delegate", {})).toBe(false);
+    expect(tools.authorize(video, "team_delegate", {})).toBe(true);
     const report = tools.tools.get("team_report");
     if (!report) throw new Error("missing_tool");
     expect(

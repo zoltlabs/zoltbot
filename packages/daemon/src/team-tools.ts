@@ -20,10 +20,12 @@ export const teamToolDefinitions = [
   {
     name: "team_delegate",
     description:
-      "Managers only. Brief a new chat (title, optional profileId and teamId of a team below you) or an existing chat or manager below you (chatId). Brief up to 2000 characters, stable key for retries. Returns a linked bounded result or progress.",
+      "Assign tracked work in your scope. Brief a new chat (title, optional profileId and teamId of a team below you) or an existing chat or manager below you (chatId). Brief up to 2000 characters, stable key for retries. Returns a linked bounded result or progress.",
     inputSchema: {
       type: "object" as const,
       properties: {
+        planId: { type: "string", maxLength: 200 },
+        budgetUsd: { type: "number", minimum: 0 },
         key: { type: "string", minLength: 1, maxLength: 100 },
         brief: { type: "string", minLength: 1, maxLength: 2000 },
         title: { type: "string", minLength: 1, maxLength: 150 },
@@ -112,14 +114,21 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     if (!self) return false;
     if (name === "team_report") return !!managerAbove(state, actor.threadId);
     if (name === "team_message") return !!self.projectId;
-    if (self.kind !== "manager" || !self.node) return false;
+    if (!self.node) return false;
     if (name === "team_delegate") return true;
     const childId = String((args as { childId?: unknown })?.childId ?? "");
-    return name === "team_read_thread" && managerCanRead(state, actor.threadId, childId);
+    return (
+      name === "team_read_thread" &&
+      (managerCanRead(state, actor.threadId, childId) ||
+        context.store
+          .snapshot(["task"])
+          .task?.some((r) => r.threadId === childId && r.accountableThreadId === actor.threadId) ===
+          true)
+    );
   }
   function read(actor: ToolActor, childId: string) {
     if (!authorize(actor, "team_read_thread", { childId })) throw new Error("grant_required");
-    const state = context.store.snapshot(["thread", "turn", "item"]);
+    const state = context.store.snapshot(["thread", "turn", "item", "task"]);
     const turns =
       state.turn
         ?.filter((row) => row.threadId === childId)
@@ -174,6 +183,8 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       profileId?: string;
       teamId?: string;
       chatId?: string;
+      planId?: string;
+      budgetUsd?: number;
     };
     if (!authorize(call.actor, "team_delegate", args)) throw new Error("grant_required");
     if (!args.chatId && !args.title) throw new Error("title_or_chat_required");
@@ -183,6 +194,8 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     const messageId = args.chatId ? `brief-${id}` : `${childId}:brief`;
     const commandId = `delegate:${args.chatId ? messageId : childId}`;
     const input = {
+      ...(args.planId ? { planId: args.planId } : {}),
+      ...(args.budgetUsd !== undefined ? { budgetUsd: args.budgetUsd } : {}),
       brief: args.brief,
       ...(args.chatId
         ? { chatId: args.chatId }
@@ -211,12 +224,8 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     if (args.chatId && target.childId !== args.chatId) throw new Error("command_receipt_conflict");
     const targetId = String(target.childId);
     if (!busy(read(call.actor, targetId).status)) return read(call.actor, targetId);
-    try {
-      await context.wake(targetId);
-    } catch {
-      return { ...read(call.actor, targetId), status: "needs_attention" };
-    }
-    const deadline = Date.now() + (options.waitMs ?? 120000);
+    // The task runner dispatches the assignment; waking here would race task input creation.
+    const deadline = Date.now() + (options.waitMs ?? 0);
     for (;;) {
       const progress = read(call.actor, targetId);
       if (!busy(progress.status) || Date.now() >= deadline) return progress;

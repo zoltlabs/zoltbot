@@ -1,4 +1,6 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
+import { companyApi } from "./company-api.js";
+import { companySupervisor } from "./company-supervisor.js";
 
 export type {
   Daemon,
@@ -392,6 +394,12 @@ async function startOwnedDaemon(
     wake: runtimeContext.wake,
     definitions: setupService ? () => setupService.definitions() : undefined,
   });
+  const company = companyApi(runtimeContext);
+  const companyWatch = companySupervisor(runtimeContext, {
+    onError: (code) => logger.write("warn", code),
+  });
+  resources.push(() => companyWatch.close());
+
   const creation = creationApi({
     store,
     privacy,
@@ -584,6 +592,7 @@ async function startOwnedDaemon(
       }
       default: {
         const result =
+          (await company(request.method, params, commandId)) ??
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??
@@ -730,6 +739,7 @@ async function startOwnedDaemon(
   };
   const taint = taintObserver(store);
   observers = (events) => {
+    companyWatch.observe();
     push.observe(events);
     taint(events);
     for (const event of events)

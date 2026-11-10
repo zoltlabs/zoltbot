@@ -10,8 +10,8 @@ it("gives the chief, and only the chief, its own tools", async () => {
   const { f, tools, actor, change } = await setup();
   try {
     expect(tools.authorize(actor, "chief_overview", {})).toBe(true);
-    // The chief gets no workspace or team tools, even ones it would otherwise qualify for.
-    expect(tools.authorize(actor, "workspace_read", {})).toBe(false);
+    // Organization shaping is available; unrelated runtime tools remain excluded.
+    expect(tools.authorize(actor, "workspace_read", {})).toBe(true);
     expect(tools.authorize(actor, "team_message", {})).toBe(false);
     change({
       type: "update",
@@ -158,7 +158,8 @@ it("fits its frozen tools and instructions in the 1500 token fixed launch budget
     referenceTokenEstimate(chiefInstructions("Zolt"));
   expect(fixed).toBeLessThan(1500);
   // The server still validates every call against the full contracts.
-  expect(chiefProviderToolDefinitions.map((tool) => tool.name)).toEqual(
-    chiefToolDefinitions.map((tool) => tool.name),
-  );
+  expect(chiefProviderToolDefinitions.map((tool) => tool.name)).toEqual([
+    ...chiefToolDefinitions.map((tool) => tool.name),
+    "company_work",
+  ]);
 });

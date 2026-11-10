@@ -85,6 +85,13 @@ export function applyProjection(database: Database.Database, event: DomainEvent)
       : (event.payload as Record<string, unknown>);
   const row: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) row[aliases[key] ?? snake(key)] = value;
+  if (event.aggregateType === "task") {
+    const independent =
+      body.initiativeId &&
+      database.prepare("SELECT id FROM initiative_records WHERE id=?").get(body.initiativeId);
+    row.initiative_record_id = independent ? body.initiativeId : null;
+    row.initiative_id = independent ? null : (body.initiativeId ?? null);
+  }
   if (event.aggregateType === "agentDefinition") {
     row.body = body;
     row.source = "builtin";

@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { delegateChat } from "./delegation.js";
 import { applyEvents } from "./projectors.js";
+import { startTask } from "./tasks.js";
 import { teamHopLimit } from "./team.js";
 
 const at = "2026-10-29T12:00:00Z";
@@ -46,7 +47,7 @@ function fixture() {
 }
 const actor = { agentId: "profile", threadId: "manager", sessionId: "session", turnId: "turn" };
 const context = { commandId: "delegate", at, actor: { kind: "agent" as const, id: "profile" } };
-it("creates an attributed child brief in exactly the manager scope and prevents recursive delegation", () => {
+it("creates a tracked child brief in scope and requires an active turn for further delegation", () => {
   const initial = fixture();
   const out = delegateChat(
     initial,
@@ -55,7 +56,13 @@ it("creates an attributed child brief in exactly the manager scope and prevents 
     "child",
     context,
   );
-  const state = applyEvents(initial, out.events);
+  let state = applyEvents(initial, out.events);
+  expect(state.task?.[0]).toMatchObject({ accountableThreadId: "manager", state: "queued" });
+  state = applyEvents(
+    state,
+    startTask(state, "child:brief:task", 1, { ...context, actor: { kind: "system", id: "tasks" } })
+      .events,
+  );
   expect(state.thread?.find((row) => row.id === "child")).toMatchObject({
     kind: "side",
     node: initial.thread[0]?.node,
@@ -79,7 +86,7 @@ it("creates an attributed child brief in exactly the manager scope and prevents 
       "next",
       context,
     ),
-  ).toThrow("manager_scope_required");
+  ).toThrow("active_turn_required");
 });
 it("rejects inactive turns, unavailable profiles and excessive briefs before creating a child", () => {
   const state = fixture();

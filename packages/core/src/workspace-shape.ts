@@ -65,7 +65,9 @@ export function workspaceAuthority(
   const profile = state.agent?.find((row) => row.id === actor.agentId && !row.archived);
   if (!thread || !profile) return undefined;
   const scopes: Scope[] = [];
-  let all = profile.kind === "chief_of_staff";
+  let all =
+    state.settings?.some((row) => row.key === "chief.thread" && row.value === actor.threadId) ??
+    false;
   if (thread.kind === "manager" && thread.node) scopes.push(parse(ScopeSchema, thread.node));
   for (const grant of state.grant ?? []) {
     if (

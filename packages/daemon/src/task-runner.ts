@@ -60,6 +60,7 @@ export interface TaskRunnerOptions {
 
 /** The folder a shared task writes to: a code root, or undefined for its private app folder. */
 function folderOf(state: DomainState, task: Task): string | undefined | "choice" {
+  if (state.thread?.some((r) => r.id === task.threadId && r.kind === "manager")) return undefined;
   if (task.workspaceMode === "worktree" && !task.workspaceId) return "choice";
   if (task.workspaceId) {
     const workspace = state.workspace?.find((row) => row.id === task.workspaceId);
@@ -189,7 +190,7 @@ export function taskRunner(options: TaskRunnerOptions) {
   async function scheduleOnce() {
     await routines.tick();
     await events.tick();
-    const state = store.snapshot(["task", "project", "workspace", "session"]);
+    const state = store.snapshot(["task", "project", "workspace", "session", "thread"]);
     const tasks = (state.task ?? []).map((row) => parse(TaskSchema, row));
     const busy = new Map<string, Task>();
     for (const row of tasks) {
@@ -298,7 +299,9 @@ export function taskRunner(options: TaskRunnerOptions) {
   function finish(turn: Record<string, unknown>) {
     const threadId = String(turn.threadId);
     const state = store.snapshot(["task", "item"]);
-    const row = state.task?.find((entry) => entry.threadId === threadId);
+    const row = state.task?.find(
+      (entry) => entry.threadId === threadId && entry.state === "running",
+    );
     if (!row || row.state !== "running") return;
     const current = parse(TaskSchema, row);
     if (turn.status === "completed" && hasQueuedInput(state, threadId)) return;

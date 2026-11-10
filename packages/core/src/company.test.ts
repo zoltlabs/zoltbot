@@ -22,6 +22,7 @@ const ctx = { commandId: "test", at, actor: { kind: "human" as const, id: "owner
 const actor = { agentId: "chief", threadId: "chief-chat" };
 function fixture(): DomainState {
   return {
+    settings: [{ key: "chief.thread", value: actor.threadId }],
     project: [
       {
         id: "co",

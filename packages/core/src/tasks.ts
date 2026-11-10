@@ -23,6 +23,9 @@ const FEEDBACK = "\n\nReview feedback:\n";
 const SUMMARY =
   "When you finish, end with a short summary of what you did, what changed and anything left open. Zoltbot shows that last message to the human for review.";
 export interface TaskInput {
+  sourceMessageId?: string;
+  executionThreadId?: string;
+  existingThreadId?: string;
   initiativeId?: string;
   accountableThreadId?: string;
   parentId?: string;
@@ -102,7 +105,7 @@ export function createAssignedTask(
   if (
     context.actor.kind !== "human" &&
     !plan &&
-    !(source?.kind === "manager" && scopeContains(state, source.node, input.node))
+    !(source?.node && scopeContains(state, source.node, input.node))
   )
     throw Error("assignment_authority_required");
   return buildTask(state, input, context);
@@ -172,7 +175,22 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
     }
   }
   const lineage = scopeLineage(state, input.node);
-  const threadId = `${input.id}:thread`;
+  const threadId = input.existingThreadId ?? input.executionThreadId ?? `${input.id}:thread`;
+  const existing = input.existingThreadId
+    ? state.thread?.find(
+        (r) => r.id === input.existingThreadId && !r.archived && r.projectId === lineage.project.id,
+      )
+    : undefined;
+  if (
+    input.existingThreadId &&
+    (!existing ||
+      state.task?.some(
+        (r) =>
+          r.threadId === threadId &&
+          !["completed", "failed", "cancelled"].includes(String(r.state)),
+      ))
+  )
+    throw Error("chat_has_active_assignment");
   const task = {
     id: input.id,
     ...(input.phaseExecution ? { phaseExecution: input.phaseExecution } : {}),
@@ -201,6 +219,7 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
       : {}),
     ...(input.authorityPlanId ? { authorityPlanId: input.authorityPlanId } : {}),
     ...(input.budgetUsd !== undefined ? { budgetUsd: input.budgetUsd } : {}),
+    ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
     dependencies: input.dependencies ?? [],
     planned: input.planned ?? false,
     ...((input.browser ?? input.routineInputs?.browser)
@@ -266,24 +285,30 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
       ).events
     : [];
   const created = [...workspace, taskEvent(task, context, "created")];
-  const chat = createScopedChat(
-    applyEvents(state, created),
-    {
-      id: threadId,
-      agentId: input.profileId,
-      projectId: lineage.project.id,
-      node: input.node,
-      taskId: input.id,
-      kind: "task",
-      title,
-      titleSource: "human",
-      pinned: false,
-      archived: false,
-      createdAt: context.at,
-      lastActivityAt: context.at,
-    },
-    context,
-  );
+  const chat = existing
+    ? handle(
+        applyEvents(state, created),
+        { type: "update", kind: "thread", id: threadId, changes: { taskId: input.id } },
+        context,
+      )
+    : createScopedChat(
+        applyEvents(state, created),
+        {
+          id: threadId,
+          agentId: input.profileId,
+          projectId: lineage.project.id,
+          node: input.node,
+          taskId: input.id,
+          kind: "task",
+          title,
+          titleSource: "human",
+          pinned: false,
+          archived: false,
+          createdAt: context.at,
+          lastActivityAt: context.at,
+        },
+        context,
+      );
   return { events: numbered([...created, ...chat.events], context), result: task };
 }
 

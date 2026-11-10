@@ -1,8 +1,10 @@
 import { parse, type Scope, ScopeSchema, type Thread, ThreadSchema } from "@zoltbot/protocol";
 import { type CommandContext, handle, type Outcome } from "./commands.js";
+import { assignCompanyTask } from "./company.js";
 import { createScopedChat, scopeLineage } from "./hierarchy.js";
 import { queueAgentInput } from "./input-queue.js";
 import { applyEvents, type DomainState } from "./projectors.js";
+import { createAssignedTask } from "./tasks.js";
 
 /**
  * The chain of command inside a workspace. A manager briefs any team or chat at or below its
@@ -142,6 +144,7 @@ function send(
     to: Thread;
     kind: "task" | "result" | "message";
     expectsReply?: boolean;
+    queue?: boolean;
     replyTo?: string;
     root?: string;
     hops: number;
@@ -197,6 +200,7 @@ function send(
     context,
   );
   const written = [...prior, ...message.events, ...audit.events];
+  if (input.queue === false) return written;
   const queued = queueAgentInput(
     applyEvents(state, written),
     input.messageId,
@@ -207,6 +211,8 @@ function send(
 }
 
 export interface BriefInput {
+  planId?: string;
+  budgetUsd?: number;
   brief: string;
   /** Start a new chat with this title. Ignored when `chatId` names an existing chat. */
   title?: string;
@@ -225,8 +231,8 @@ export function briefTeam(
   context: CommandContext,
 ): Outcome {
   const raw = state.thread?.find((row) => row.id === actor.threadId && !row.archived);
-  if (!raw || raw.kind !== "manager" || raw.agentId !== actor.agentId || !raw.node)
-    throw new Error("manager_scope_required");
+  if (!raw || raw.agentId !== actor.agentId || !raw.node)
+    throw new Error("workspace_scope_required");
   const manager = activeSender(state, actor, context);
   scopeLineage(state, manager.node);
   if (!input.brief.trim() || input.brief.length > 2000) throw new Error("invalid_delegation");
@@ -237,7 +243,12 @@ export function briefTeam(
   let created: Outcome["events"] = [];
   if (input.chatId) {
     const existing = thread(state, input.chatId);
-    if (!existing || !managerCanRead(state, manager.id, existing.id))
+    if (
+      !existing ||
+      existing.id === manager.id ||
+      existing.projectId !== manager.projectId ||
+      !scopeContains(state, manager.node, existing.node)
+    )
       throw new Error("chat_outside_team");
     target = existing;
   } else {
@@ -273,9 +284,59 @@ export function briefTeam(
   const level = permissionLevel(state, target.agentId);
   if (ceiling < 0 || level < 0 || level > ceiling)
     throw new Error("delegation_permission_widening");
+  const assignmentState = applyEvents(state, created);
+  const sourceTask = state.task?.find(
+    (r) => r.threadId === manager.id && ["running", "queued", "blocked"].includes(String(r.state)),
+  );
+  const owned = (state.initiativeRecord ?? []).filter(
+    (r) => r.managerThreadId === manager.id && r.state === "active",
+  );
+  const inheritedPlanId = input.planId ?? sourceTask?.authorityPlanId;
+  const candidatePlans = (state.companyPlan ?? []).filter(
+    (r) =>
+      r.state === "applied" &&
+      r.projectId === manager.projectId &&
+      (inheritedPlanId
+        ? r.id === inheritedPlanId
+        : owned.some((i) => i.id === (r.authority as { initiativeId?: string })?.initiativeId)),
+  );
+  if (candidatePlans.length > 1 && !inheritedPlanId) throw Error("choose_authority_plan");
+  const plan = candidatePlans[0];
+  const authority = plan?.authority as
+    | { initiativeId: string; budgetUsd: number; maxTasks: number }
+    | undefined;
+  const committed = (state.task ?? []).filter((r) => r.authorityPlanId === plan?.id);
+  const remaining = authority
+    ? authority.budgetUsd - committed.reduce((sum, r) => sum + Number(r.budgetUsd ?? 0), 0)
+    : undefined;
+  const assignmentInput = {
+    sourceMessageId: ids.messageId,
+    id: `${ids.messageId}:task`,
+    title: target.title,
+    brief: `[Assignment from ${label(state, manager)}, message ${ids.messageId}. When finished or blocked, reply with team_message replyTo ${ids.messageId}.]\n${input.brief}`,
+    acceptance: "Complete the brief and submit evidence for review.",
+    profileId: target.agentId,
+    node: target.node as Scope,
+    accountableThreadId: manager.id,
+    existingThreadId: target.id,
+    ...(authority && plan
+      ? {
+          initiativeId: authority.initiativeId,
+          authorityPlanId: String(plan.id),
+          budgetUsd:
+            input.budgetUsd ??
+            Math.max(0, (remaining ?? 0) / Math.max(1, authority.maxTasks - committed.length)),
+        }
+      : {}),
+  };
+  const assignment = plan
+    ? assignCompanyTask(assignmentState, actor, assignmentInput, String(plan.id), context)
+    : createAssignedTask(assignmentState, assignmentInput, context);
+  created.push(...assignment.events);
   const events = send(
     state,
     {
+      queue: false,
       from: manager,
       to: target,
       kind: "task",
@@ -300,6 +361,7 @@ export function briefTeam(
   return {
     events: renumber(events, context),
     result: {
+      taskId: `${ids.messageId}:task`,
       childId: target.id,
       managerThreadId: manager.id,
       profileId: target.agentId,

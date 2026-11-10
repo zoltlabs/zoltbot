@@ -5,6 +5,7 @@ import type { RuntimeContext } from "./api.js";
 import { artifactToolDefinition, artifactTools, frozenArtifactBinding } from "./artifacts/tools.js";
 import { browserToolDefinition, browserTools } from "./browser/tools.js";
 import { chiefToolDefinitions, chiefToolNames, chiefTools } from "./chief/tools.js";
+import { companyToolDefinition, companyTools } from "./company-tools.js";
 import { cuaToolDefinition } from "./cua/policy.js";
 import type { CuaRuntime } from "./cua/runtime.js";
 import { eventRoutineToolDefinition, eventRoutineTools } from "./event-routine-tools.js";
@@ -25,6 +26,7 @@ import {
 } from "./workspace-tools.js";
 
 export const runtimeToolDefinitions = [
+  companyToolDefinition,
   cuaToolDefinition,
   knowledgeToolDefinition,
   ...currentTeamToolDefinitions,
@@ -61,8 +63,11 @@ export function runtimeTools(
   const artifacts = artifactTools(context);
   const team = teamTools(context, options);
   const chief = chiefTools(context);
+  const company = companyTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
     if (!active(actor)) return false;
+    if (name === "company_work") return company.authorize(actor);
+    if (chief.authorize(actor) && workspaceToolNames.has(name)) return workspace.authorize(actor);
     // The chief's tools work only in the chief's thread, and the chief gets no others.
     if (chiefToolNames.has(name) || chief.authorize(actor))
       return chiefToolNames.has(name) && chief.authorize(actor);
@@ -139,6 +144,7 @@ export function runtimeTools(
       ),
       ...workspace.tools,
       ...chief.tools,
+      ["company_work", company.call],
     ]),
     authorize,
     checkLimits(actor: ToolActor) {
@@ -269,7 +275,18 @@ export const artifactBrowserToolDefinitions = [
   compactTool(browserToolDefinition),
 ];
 /** The chief's frozen surface: compact hints, validated against the full contracts below. */
-export const chiefProviderToolDefinitions = chiefToolDefinitions.map(compactTool);
+const chiefToolHints: Record<string, string> = {
+  company_work:
+    "describe contracts; read organization; propose reviewed plans; assign within approved authority; save brief. Stable key for writes.",
+  workspace_read: "Read workspace objects and profiles before shaping.",
+  workspace_create:
+    "Create project, subproject or chat (manager optional); stable key. Approval for new projects, managers or wider access.",
+  workspace_update:
+    "Edit workspace objects; instruction/profile changes require approval. Stable key.",
+};
+export const chiefProviderToolDefinitions = [...chiefToolDefinitions, companyToolDefinition].map(
+  (tool) => compactTool({ ...tool, description: chiefToolHints[tool.name] ?? tool.description }),
+);
 export const allRuntimeToolDefinitions = [
   ...legacyTeamToolDefinitions,
   ...chiefToolDefinitions,

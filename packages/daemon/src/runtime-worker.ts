@@ -29,6 +29,7 @@ import type { ItemScope, Store } from "@zoltbot/store";
 import { outputFragments } from "./artifacts/output.js";
 import { prepareRevisionTarget, revisionTarget } from "./artifacts/revision-target.js";
 import { chiefFragments } from "./chief/digest.js";
+import { companyFragments } from "./company-context.js";
 import { bindManifestNative } from "./connections-delivery.js";
 import { withCopiedContext } from "./copied-fork-context.js";
 import { forkWorkspaceBusy } from "./fork-workspaces.js";
@@ -507,6 +508,7 @@ export class RuntimeWorker {
             ...(this.options.fragments ?? []),
             ...outputFragments(this.options.store, this.options.sessionId, candidate, body),
             ...chiefFragments(this.options.store, this.options.threadId),
+            ...companyFragments(this.options.store, this.options.threadId),
             ...(targetFragment ? [targetFragment] : []),
           ],
           firstTurn: firstNativeTurn,

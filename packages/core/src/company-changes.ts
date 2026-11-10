@@ -112,7 +112,58 @@ export function applyCompanyChanges(
     const ctx = { ...context, commandId: `${context.commandId}:change:${i}` };
     let before: unknown = null;
     const start = events.length;
-    if (change.kind === "team") {
+    if (change.kind === "assignManager") {
+      const chat = row("thread", change.id);
+      before = chat;
+      parent(change.parent);
+      const old = state.thread?.find(
+        (r) =>
+          r.kind === "manager" &&
+          !r.archived &&
+          JSON.stringify(r.node) === JSON.stringify(change.parent),
+      );
+      const targets = new Set([chat.id, old?.id]);
+      if (
+        (state.turn ?? []).some((r) => targets.has(r.threadId) && r.status === "running") ||
+        (state.task ?? []).some(
+          (r) =>
+            targets.has(r.threadId) && ["queued", "running", "blocked"].includes(String(r.state)),
+        )
+      )
+        throw Error("manager_busy: replace at a safe boundary");
+      if (chat.kind === "task") throw Error("task_cannot_be_manager");
+      if (old && old.id !== chat.id) add(companyRecord("thread", { ...old, kind: "side" }, ctx));
+      add(companyRecord("thread", { ...chat, kind: "manager", node: change.parent }, ctx));
+    } else if (change.kind === "moveTask") {
+      const task = row("task", change.id);
+      before = task;
+      if (
+        change.initiativeId &&
+        !state.initiativeRecord?.some(
+          (r) =>
+            r.id === change.initiativeId &&
+            r.projectId === projectId &&
+            !["completed", "cancelled"].includes(String(r.state)),
+        )
+      )
+        throw Error("initiative_unavailable");
+      if (change.accountableThreadId) row("thread", change.accountableThreadId);
+      if (["running", "blocked"].includes(String(task.state)))
+        throw Error(
+          "task_busy: change initiative at a safe boundary; use assignTask for deferred accountability",
+        );
+      const value: Record<string, unknown> = { ...task, updatedAt: context.at };
+      delete value.initiativeId;
+      if (change.initiativeId) value.initiativeId = change.initiativeId;
+      if (change.accountableThreadId) {
+        value.accountableThreadId = change.accountableThreadId;
+        value.assignmentHistory = [
+          ...((task.assignmentHistory as unknown[]) ?? []),
+          { threadId: change.accountableThreadId, at: context.at },
+        ];
+      }
+      add(companyRecord("task", value, ctx));
+    } else if (change.kind === "team") {
       const lineage = parent(change.parent);
       add(
         createDirection(
@@ -144,6 +195,7 @@ export function applyCompanyChanges(
             node: change.parent,
             kind: change.manager ? "manager" : "side",
             title: change.title,
+            titleSource: "human",
             pinned: false,
             archived: false,
             createdAt: context.at,
@@ -217,10 +269,25 @@ export function applyCompanyChanges(
             { type: "subproject", id: String(r.id) },
           ),
       );
+      const affected = new Set(
+        (state.thread ?? [])
+          .filter(
+            (r) => r.node && scopeContains(state, { type: "subproject", id: change.id }, r.node),
+          )
+          .map((r) => r.id),
+      );
+      if (
+        (state.turn ?? []).some((r) => affected.has(r.threadId) && r.status === "running") ||
+        (state.task ?? []).some(
+          (r) =>
+            affected.has(r.threadId) && ["queued", "running", "blocked"].includes(String(r.state)),
+        )
+      )
+        throw Error("team_busy: move at a safe boundary");
       const delta = lineage.directions.length + 1 - Number(team.depth);
       if (descendants.some((r) => Number(r.depth) + delta > 3)) throw Error("hierarchy_too_deep");
       for (const item of descendants) {
-        const value = { ...item, depth: Number(item.depth) + delta };
+        const value: Record<string, unknown> = { ...item, depth: Number(item.depth) + delta };
         if (item.id === team.id) {
           delete value.parentId;
           if (change.parent.type === "subproject") value.parentId = change.parent.id;
@@ -268,7 +335,12 @@ export function applyCompanyChanges(
     } else if (change.kind === "assignTask") {
       const task = row("task", change.id);
       before = task;
-      row("thread", change.accountableThreadId);
+      if (
+        !state.settings?.some(
+          (r) => r.key === "chief.thread" && r.value === change.accountableThreadId,
+        )
+      )
+        row("thread", change.accountableThreadId);
       const running = ["running", "blocked"].includes(String(task.state));
       add(
         companyRecord(

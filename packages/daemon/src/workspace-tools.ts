@@ -272,7 +272,10 @@ export function workspaceTools(context: RuntimeContext) {
     authorize(actor: ToolActor) {
       try {
         // Throws grant_required when the actor holds no workspace authority.
-        readWorkspace(context.store.snapshot(["thread", "agent", "grant"]), actorOf(actor));
+        readWorkspace(
+          context.store.snapshot(["thread", "agent", "grant", "settings"]),
+          actorOf(actor),
+        );
         return true;
       } catch {
         return false;

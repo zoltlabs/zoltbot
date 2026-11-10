@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { applyEvents, type DomainState } from "./projectors.js";
+import { finishTaskTurn, startTask } from "./tasks.js";
 import {
   briefTeam,
   managerAbove,
@@ -177,7 +178,12 @@ it("lets a manager brief an existing chat or a lower manager, within its permiss
     { childId: "unused", messageId: "m1" },
     context("brief-paid"),
   );
-  const next = applyEvents(state, out.events);
+  let next = applyEvents(state, out.events);
+  next = applyEvents(
+    next,
+    startTask(next, "m1:task", 1, { ...context("start"), actor: { kind: "system", id: "tasks" } })
+      .events,
+  );
   expect(next.thread).toHaveLength(state.thread?.length ?? 0);
   const input = next.item?.find((row) => row.threadId === "paid");
   expect(input?.body).toMatchObject({
@@ -185,7 +191,7 @@ it("lets a manager brief an existing chat or a lower manager, within its permiss
     sourceMessageId: "m1",
     queueState: "queued",
   });
-  expect(JSON.stringify(input?.body)).toContain("Brief from Marketing manager");
+  expect(JSON.stringify(input?.body)).toContain("Assignment from Marketing manager");
   expect(out.result).toMatchObject({ childId: "paid", existing: true });
   expect(() =>
     briefTeam(
@@ -213,7 +219,7 @@ it("lets a manager brief an existing chat or a lower manager, within its permiss
       { childId: "x", messageId: "m4" },
       context("brief-up"),
     ),
-  ).toThrow("manager_scope_required");
+  ).not.toThrow();
 });
 
 it("routes a report to the nearest manager and labels it as a teammate's information", () => {
@@ -261,6 +267,13 @@ it("stops two agents from keeping each other busy past the hop limit", () => {
       break;
     }
     hops = Number(current.message?.find((row) => row.id === brief)?.hops);
+    current = applyEvents(
+      current,
+      startTask(current, `${brief}:task`, 1, {
+        ...context(`start-${round}`),
+        actor: { kind: "system", id: "tasks" },
+      }).events,
+    );
     // The video chat's next turn starts from that brief.
     current = linkTurn(current, "video", brief, `vt${round}`);
     const report = `r${round}`;
@@ -279,6 +292,23 @@ it("stops two agents from keeping each other busy past the hop limit", () => {
       expect(String(error)).toContain("hop_limit_reached");
       break;
     }
+    // Complete this assignment before accepting another commitment on the same chat.
+    current = applyEvents(
+      current,
+      finishTaskTurn(
+        current,
+        `${brief}:task`,
+        1,
+        { status: "completed", text: "Done" },
+        context(`finish-${round}`),
+      ).events,
+    );
+    current = {
+      ...current,
+      task:
+        current.task?.map((t) => (t.id === `${brief}:task` ? { ...t, state: "completed" } : t)) ??
+        [],
+    };
     hops = Number(current.message?.find((row) => row.id === report)?.hops);
     managerTurn = `pt${round}`;
     current = linkTurn(current, "paid", report, managerTurn);

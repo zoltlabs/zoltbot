@@ -2,6 +2,7 @@ export * from "./approval-rules.js";
 export * from "./budgets.js";
 export * from "./commands.js";
 export * from "./company.js";
+export { companyRecord } from "./company-changes.js";
 export * from "./compare.js";
 export * from "./delegation.js";
 export * from "./event-routines.js";

@@ -305,9 +305,8 @@ export function queueTaskInput(
     throw new Error("task_input_actor_required");
   const task = state.task?.find((row) => row.id === taskId);
   const thread = state.thread?.find((row) => row.id === task?.threadId && !row.archived);
-  if (!task || !thread || thread.kind !== "task" || thread.taskId !== taskId)
-    throw new Error("task_thread_unavailable");
-  return queueInput(
+  if (!task || !thread || thread.taskId !== taskId) throw new Error("task_thread_unavailable");
+  const queued = queueInput(
     state,
     {
       threadId: String(thread.id),
@@ -318,6 +317,29 @@ export function queueTaskInput(
     itemId,
     context,
   );
+  if (!task.sourceMessageId) return queued;
+  const source = state.message?.find(
+    (r) => r.id === task.sourceMessageId && r.thread === thread.id,
+  );
+  if (!source || source.origin !== "agent") throw Error("assignment_source_unavailable");
+  return {
+    ...queued,
+    events: queued.events.map((event) =>
+      event.aggregateType !== "item"
+        ? event
+        : {
+            ...event,
+            payload: {
+              ...(event.payload as object),
+              body: {
+                ...(event.payload as { body: object }).body,
+                origin: "agent",
+                sourceMessageId: task.sourceMessageId,
+              },
+            },
+          },
+    ),
+  };
 }
 /** A daemon notice that starts a turn on its own, such as the main agent's wake-up. */
 export function queueSystemNotice(

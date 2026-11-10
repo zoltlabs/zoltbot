@@ -14,18 +14,24 @@ import { scopeLineage } from "./hierarchy.js";
 import type { DomainState } from "./projectors.js";
 import { taskProgress } from "./task-graph.js";
 import { createAssignedTask, type TaskInput } from "./tasks.js";
+import { scopeContains } from "./team.js";
 import { type WorkspaceActor, workspaceAuthority } from "./workspace-shape.js";
 
 export function companyAccess(state: DomainState, actor: WorkspaceActor, projectId: string) {
   const authority = workspaceAuthority(state, actor);
+  const ownsInitiative = state.initiativeRecord?.some(
+    (r) =>
+      r.projectId === projectId && r.managerThreadId === actor.threadId && r.state === "active",
+  );
   if (
-    !authority ||
-    (!authority.all &&
-      !authority.scopes.some((scope) =>
-        scope.type === "project"
-          ? scope.id === projectId
-          : state.subproject?.some((r) => r.id === scope.id && r.projectId === projectId),
-      ))
+    !ownsInitiative &&
+    (!authority ||
+      (!authority.all &&
+        !authority.scopes.some((scope) =>
+          scope.type === "project"
+            ? scope.id === projectId
+            : state.subproject?.some((r) => r.id === scope.id && r.projectId === projectId),
+        )))
   )
     throw Error("company_scope_required");
   if (!state.project?.some((r) => r.id === projectId && !r.archived))
@@ -49,7 +55,11 @@ export function saveInitiative(
   if (
     value.managerThreadId &&
     !state.thread?.some(
-      (r) => r.id === value.managerThreadId && r.projectId === value.projectId && !r.archived,
+      (r) =>
+        r.id === value.managerThreadId &&
+        (r.projectId === value.projectId ||
+          state.settings?.some((s) => s.key === "chief.thread" && s.value === r.id)) &&
+        !r.archived,
     )
   )
     throw Error("owner_unavailable");
@@ -90,11 +100,16 @@ export function saveRemit(
 
 export function proposeCompanyPlan(
   state: DomainState,
-  actor: WorkspaceActor,
+  actor: WorkspaceActor | undefined,
   input: Pick<CompanyPlan, "id" | "projectId" | "title" | "explanation" | "changes" | "authority">,
   context: CommandContext,
 ): Outcome {
-  companyAccess(state, actor, input.projectId);
+  if (context.actor.kind !== "human") {
+    if (!actor) throw Error("company_scope_required");
+    companyAccess(state, actor, input.projectId);
+  }
+  if (!state.project?.some((r) => r.id === input.projectId && !r.archived))
+    throw Error("project_unavailable");
   const previous = state.companyPlan?.find((r) => r.id === input.id);
   if (previous) throw Error("plan_id_exists: propose a new version with a new id");
   // Dry-run through the same rules used at approval. No side effects escape this outcome.
@@ -102,6 +117,52 @@ export function proposeCompanyPlan(
     ...context,
     actor: { kind: "human", id: "preview" },
   });
+  if (actor && context.actor.kind !== "human") {
+    const authority = workspaceAuthority(state, actor);
+    const covers = (node: unknown) =>
+      authority?.all ||
+      authority?.scopes.some((scope) => scopeContains(preview.state, scope, node));
+    for (const change of input.changes) {
+      const record = "value" in change ? change.value : undefined;
+      const node =
+        "parent" in change ? change.parent : record && "node" in record ? record.node : undefined;
+      const teamId = record && "teamId" in record ? record.teamId : undefined;
+      const threadId = record && "threadId" in record ? record.threadId : undefined;
+      const existing =
+        "id" in change
+          ? (preview.state.subproject?.find((r) => r.id === change.id) ??
+            preview.state.thread?.find((r) => r.id === change.id) ??
+            preview.state.task?.find((r) => r.id === change.id))
+          : undefined;
+      const targetScope =
+        node ??
+        (teamId
+          ? { type: "subproject", id: teamId }
+          : threadId
+            ? preview.state.thread?.find((r) => r.id === threadId)?.node
+            : (existing?.node ??
+              (existing?.depth
+                ? { type: "subproject", id: existing.id }
+                : { type: "project", id: input.projectId })));
+      if (!covers(targetScope)) throw Error("outside_workspace_scope");
+      // Moving a node also requires authority over its original scope.
+      if ("id" in change) {
+        const original =
+          state.thread?.find((r) => r.id === change.id) ??
+          state.task?.find((r) => r.id === change.id);
+        const team = state.subproject?.find((r) => r.id === change.id);
+        if (original && !covers(original.node)) throw Error("outside_workspace_scope");
+        if (
+          team &&
+          !authority?.all &&
+          !authority?.scopes.some((scope) =>
+            scopeContains(state, scope, { type: "subproject", id: team.id }),
+          )
+        )
+          throw Error("outside_workspace_scope");
+      }
+    }
+  }
   if (input.authority) {
     const initiative = preview.state.initiativeRecord?.find(
       (r) => r.id === input.authority?.initiativeId,
@@ -115,7 +176,7 @@ export function proposeCompanyPlan(
     state: "proposed",
     baseline: companyBaseline(state, input.projectId),
     preview: preview.preview,
-    requestedBy: actor.threadId,
+    requestedBy: actor?.threadId ?? context.actor.id,
     createdAt: context.at,
   });
   return handle(state, { type: "create", kind: "companyPlan", value }, context);
@@ -200,7 +261,14 @@ export function assignCompanyTask(
     )
       throw Error("assignment_budget_limit");
   }
-  return createAssignedTask(state, { ...input, authorityPlanId: planId }, context);
+  const initiative = state.initiativeRecord?.find((r) => r.id === input.initiativeId);
+  const accountable = input.accountableThreadId ?? initiative?.managerThreadId;
+  if (accountable) input = { ...input, accountableThreadId: String(accountable) };
+  return createAssignedTask(
+    state,
+    { ...input, ...(planId ? { authorityPlanId: planId } : {}) },
+    context,
+  );
 }
 export function companyView(state: DomainState, projectId?: string) {
   const projects = (state.project ?? []).filter(
@@ -218,7 +286,7 @@ export function companyView(state: DomainState, projectId?: string) {
     initiatives: (state.initiativeRecord ?? [])
       .filter((r) => ids.has(r.projectId))
       .map((r) => ({
-        ...r,
+        ...parse(InitiativeRecordSchema, r),
         progress: taskProgress(
           state,
           tasks.filter((t) => t.initiativeId === r.id),
@@ -250,7 +318,16 @@ export function writeProjectBrief(
     projectId,
     day,
     revision,
-    summary: summary.slice(0, 4000),
+    summary: (
+      summary ||
+      `${view.projects[0]?.name}: ${view.tasks.filter((t) => t.state === "completed").length} accepted, ${view.tasks.filter((t) => t.state === "review").length} awaiting review, ${view.tasks.filter((t) => ["failed", "blocked"].includes(String(t.state)) || t.holdReason).length} blocked or needing attention. Next commitments: ${
+        view.tasks
+          .filter((t) => !["completed", "cancelled"].includes(String(t.state)))
+          .slice(0, 5)
+          .map((t) => `${t.title} (${t.state})`)
+          .join("; ") || "none"
+      }. ${view.decisions.length} open decisions.`
+    ).slice(0, 4000),
     evidence: {
       initiatives: view.initiatives,
       tasks: view.tasks.map((t) => ({
@@ -267,4 +344,49 @@ export function writeProjectBrief(
     createdAt: context.at,
   };
   return handle(state, { type: "create", kind: "projectBrief", value }, context);
+}
+
+/** Ordinary result review can be delegated explicitly, while initiative acceptance stays human. */
+export function reviewCompanyTask(
+  state: DomainState,
+  actor: WorkspaceActor | undefined,
+  input: {
+    taskId: string;
+    revision: number;
+    decision: "accept" | "changes" | "reject";
+    feedback?: string;
+    planId?: string;
+  },
+  context: CommandContext,
+): Outcome {
+  const task = state.task?.find((r) => r.id === input.taskId);
+  if (!task) throw Error("task_unavailable");
+  if (context.actor.kind !== "human") {
+    if (!actor || task.threadId === actor.threadId) throw Error("independent_reviewer_required");
+    companyAccess(state, actor, String(task.projectId));
+    const plan = state.companyPlan?.find(
+      (r) => r.id === input.planId && r.state === "applied" && r.projectId === task.projectId,
+    );
+    const authority = plan?.authority as CompanyPlan["authority"];
+    const initiative = state.initiativeRecord?.find((r) => r.id === task.initiativeId);
+    if (
+      !authority?.reviewTasks ||
+      authority.initiativeId !== task.initiativeId ||
+      initiative?.state !== "active" ||
+      (initiative.managerThreadId !== actor.threadId && plan?.requestedBy !== actor.threadId)
+    )
+      throw Error("review_authority_required");
+  }
+  const reviewed = handle(
+    state,
+    {
+      type: "review",
+      id: input.taskId,
+      revision: input.revision,
+      decision: input.decision,
+      ...(input.feedback ? { feedback: input.feedback } : {}),
+    },
+    context,
+  );
+  return reviewed;
 }
