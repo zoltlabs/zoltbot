@@ -183,6 +183,12 @@ export const TaskStateSchema = values([
 ]);
 export type TaskState = Static<typeof TaskStateSchema>;
 export const TaskSchema = object({
+  accountableThreadId: Type.Optional(Id),
+  pendingAccountableThreadId: Type.Optional(Id),
+  assignmentHistory: Type.Optional(Type.Array(object({ threadId: Id, at: At }))),
+  dependencies: Type.Optional(Type.Array(Id)),
+  planned: Type.Optional(Type.Boolean()),
+  authorityPlanId: Type.Optional(Id),
   phaseExecution: Type.Optional(PhaseExecutionSchema),
   outputMode: Type.Optional(OutputModeSchema),
   id: Id,

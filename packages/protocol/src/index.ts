@@ -4,6 +4,7 @@ export * from "./browser.js";
 export * from "./catalog.js";
 export * from "./command-prefix.js";
 export * from "./common.js";
+export * from "./company.js";
 export * from "./compare.js";
 export * from "./connections.js";
 export * from "./coordination.js";

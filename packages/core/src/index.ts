@@ -1,6 +1,7 @@
 export * from "./approval-rules.js";
 export * from "./budgets.js";
 export * from "./commands.js";
+export * from "./company.js";
 export * from "./compare.js";
 export * from "./delegation.js";
 export * from "./event-routines.js";
@@ -23,6 +24,7 @@ export * from "./runtime-events.js";
 export * from "./runtime-streams.js";
 export * from "./session-connect.js";
 export * from "./session-controls.js";
+export * from "./task-graph.js";
 export * from "./tasks.js";
 export * from "./team.js";
 export * from "./transitions.js";

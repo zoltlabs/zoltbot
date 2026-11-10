@@ -22,6 +22,13 @@ import {
   UserInputSchema,
   values,
 } from "./common.js";
+import {
+  CompanyPlanSchema,
+  companyMethods,
+  InitiativeRecordSchema,
+  ManagerRemitSchema,
+  ProjectBriefSchema,
+} from "./company.js";
 import { CompareMemberSchema, CompareSchema, compareMethods } from "./compare.js";
 import { connectionMethods } from "./connections.js";
 import { DeliverySchema, GrantSchema, MessageSchema, UsageRecordSchema } from "./coordination.js";
@@ -78,6 +85,10 @@ import { terminalMethods } from "./terminal.js";
 import { WakeSchema, wakeMethods } from "./wakes.js";
 
 export const entitySchemas = {
+  initiativeRecord: InitiativeRecordSchema,
+  managerRemit: ManagerRemitSchema,
+  companyPlan: CompanyPlanSchema,
+  projectBrief: ProjectBriefSchema,
   wake: WakeSchema,
   compare: CompareSchema,
   compareMember: CompareMemberSchema,
@@ -155,6 +166,7 @@ const agent = crud(ProfileSchema),
   task = crud(TaskSchema);
 
 export const methodCatalog = {
+  ...companyMethods,
   ...wakeMethods,
   ...terminalMethods,
   ...inboxMethods,

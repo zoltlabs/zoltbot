@@ -14,6 +14,8 @@ import { createScopedChat, scopeLineage } from "./hierarchy.js";
 import { queueTaskInput } from "./input-queue.js";
 import { applyEvents, type DomainState } from "./projectors.js";
 import { routineOutcome } from "./routine-policy.js";
+import { taskReady, validateTaskGraph } from "./task-graph.js";
+import { scopeContains } from "./team.js";
 import { transition } from "./transitions.js";
 
 // D122: a task run is a task thread started from a bounded brief, one revision at a time.
@@ -21,6 +23,13 @@ const FEEDBACK = "\n\nReview feedback:\n";
 const SUMMARY =
   "When you finish, end with a short summary of what you did, what changed and anything left open. Zoltbot shows that last message to the human for review.";
 export interface TaskInput {
+  initiativeId?: string;
+  accountableThreadId?: string;
+  parentId?: string;
+  dependencies?: string[];
+  planned?: boolean;
+  budgetUsd?: number;
+  authorityPlanId?: string;
   outputMode?: OutputMode;
   id: string;
   title: string;
@@ -76,6 +85,26 @@ function moved(task: Task, to: Task["state"], context: CommandContext, holdReaso
 
 export function createTask(state: DomainState, input: TaskInput, context: CommandContext): Outcome {
   if (context.actor.kind !== "human") throw new Error("human_task_required");
+  return buildTask(state, input, context);
+}
+/** Called by bounded company authority or an existing manager's delegation. */
+export function createAssignedTask(
+  state: DomainState,
+  input: TaskInput,
+  context: CommandContext,
+): Outcome {
+  const source = state.thread?.find(
+    (r) => r.agentId === context.actor.id && r.id === input.accountableThreadId && !r.archived,
+  );
+  const plan = state.companyPlan?.find(
+    (r) => r.id === input.authorityPlanId && r.state === "applied",
+  );
+  if (
+    context.actor.kind !== "human" &&
+    !plan &&
+    !(source?.kind === "manager" && scopeContains(state, source.node, input.node))
+  )
+    throw Error("assignment_authority_required");
   return buildTask(state, input, context);
 }
 /** Narrow delegation: provider events are provenance, never human principals. */
@@ -159,7 +188,21 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
       : {}),
     projectId: lineage.project.id,
     node: input.node,
-    rootId: input.id,
+    rootId: input.parentId
+      ? String(state.task?.find((r) => r.id === input.parentId)?.rootId ?? input.parentId)
+      : input.id,
+    ...(input.parentId ? { parentId: input.parentId } : {}),
+    ...(input.initiativeId ? { initiativeId: input.initiativeId } : {}),
+    ...(input.accountableThreadId
+      ? {
+          accountableThreadId: input.accountableThreadId,
+          assignmentHistory: [{ threadId: input.accountableThreadId, at: context.at }],
+        }
+      : {}),
+    ...(input.authorityPlanId ? { authorityPlanId: input.authorityPlanId } : {}),
+    ...(input.budgetUsd !== undefined ? { budgetUsd: input.budgetUsd } : {}),
+    dependencies: input.dependencies ?? [],
+    planned: input.planned ?? false,
     ...((input.browser ?? input.routineInputs?.browser)
       ? { browser: input.browser ?? input.routineInputs?.browser }
       : {}),
@@ -186,6 +229,25 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
     createdAt: context.at,
     updatedAt: context.at,
   };
+  if (
+    input.initiativeId &&
+    !state.initiativeRecord?.some(
+      (r) =>
+        r.id === input.initiativeId &&
+        r.projectId === lineage.project.id &&
+        !["completed", "cancelled"].includes(String(r.state)),
+    )
+  )
+    throw Error("initiative_unavailable");
+  if (
+    input.accountableThreadId &&
+    !state.thread?.some(
+      (r) =>
+        r.id === input.accountableThreadId && r.projectId === lineage.project.id && !r.archived,
+    )
+  )
+    throw Error("accountable_chat_unavailable");
+  validateTaskGraph(state, task);
   const workspace = input.workspace
     ? handle(
         state,
@@ -259,6 +321,8 @@ export function startTask(
   context: CommandContext,
 ): Outcome {
   const task = current(state, taskId, revision);
+  const hold = taskReady(state, task);
+  if (hold) throw Error(hold);
   const next = moved(task, "running", context);
   const started = [taskEvent(next, context)];
   const queued = queueTaskInput(

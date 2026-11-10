@@ -12,6 +12,7 @@ import {
   resumeTask,
   retryTask,
   startTask,
+  taskReady,
 } from "@zoltbot/core";
 import type { InteractionDraft } from "@zoltbot/protocol";
 import {
@@ -200,6 +201,14 @@ export function taskRunner(options: TaskRunnerOptions) {
       .filter((row) => row.state === "queued")
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     for (const next of queued) {
+      const graphHold = taskReady(state, next);
+      if (graphHold) {
+        if (next.holdReason !== graphHold)
+          run(`task:graph-hold:${next.id}:${hash(graphHold)}`, system, (s, context) =>
+            holdTask(s, next.id, graphHold, context),
+          );
+        continue;
+      }
       if (next.routineOccurrenceId) {
         try {
           await events.launchCheck(next);

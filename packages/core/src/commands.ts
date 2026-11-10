@@ -13,6 +13,7 @@ import {
 } from "@zoltbot/protocol";
 import { validateInteractionAnswer } from "./interaction-answers.js";
 import { type DomainState, entityId } from "./projectors.js";
+import { requireChildrenAccepted } from "./task-graph.js";
 import { type Machine, transition } from "./transitions.js";
 
 export interface CommandContext {
@@ -236,6 +237,7 @@ function execute(state: DomainState, command: Command, context: CommandContext):
   if (command.type === "review") {
     const current = find(state, "task", command.id);
     fence(current, command.revision);
+    if (command.decision === "accept") requireChildrenAccepted(state, command.id);
     const to = { accept: "completed", changes: "queued", reject: "failed" }[command.decision];
     if (current.state !== "review") throw new Error("review_required: task is not awaiting review");
     transition("task", "review", to);
