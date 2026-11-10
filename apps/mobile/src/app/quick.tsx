@@ -279,9 +279,6 @@ export default function Quick() {
           <Txt v="cardTitle" lines={1} accessibilityRole="header">
             {chat?.title ?? "Quick chat"}
           </Txt>
-          <Txt v="meta" tone="muted" lines={1}>
-            No workspace needed
-          </Txt>
         </View>
         {chatId ? (
           <Button label="New" kind="plain" onPress={() => router.setParams({ id: "" })} />
@@ -296,8 +293,8 @@ export default function Quick() {
         <OfflineBanner />
         {connections && !ready ? (
           <Txt tone="muted">
-            Quick Chat needs a connection you pay for: Codex, Claude Code or Antigravity signed in
-            on your Mac, your own API key, or a local model. Zoltbot never pays for model usage.
+            Sign in to Codex, Claude Code or Antigravity on your Mac, add your own API key, or
+            connect a local model.
           </Txt>
         ) : null}
         {!chatId ? (

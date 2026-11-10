@@ -101,17 +101,14 @@ export default function ProjectSheet() {
             style={field}
           />
           <Txt v="meta" tone="muted">
-            Enter the full path to an existing folder on your Mac. This does not open a folder
-            picker or check the folder. The Mac checks it when work starts.
+            Enter the full path to an existing folder on your Mac. The folder is checked when work
+            starts.
           </Txt>
         </>
       ) : null}
       <Group>
         <Row title="Default profile" meta="Set the profile when starting a chat or task." last />
       </Group>
-      <Txt v="meta" tone="muted">
-        Your Mac does not support a {terms.workspace.one} default {terms.profile.one} yet.
-      </Txt>
       {id ? (
         <Button
           label={`Archive ${terms.workspace.one}`}

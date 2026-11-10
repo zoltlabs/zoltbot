@@ -97,7 +97,6 @@ export default function CreateRule({
           <h2 ref={heading} tabIndex={-1}>
             Review approval rule
           </h2>
-          <p className="dim">Check the decision, command prefix, and scope before saving.</p>
           <dl className="rules-review">
             <div>
               <dt>Decision</dt>
@@ -162,7 +161,6 @@ export default function CreateRule({
           noValidate
         >
           <h2>New approval rule</h2>
-          <p className="dim">Choose a command prefix and where the rule applies.</p>
           <div className="rules-form-grid">
             <label htmlFor={`${id}-prefix`} className="rules-wide">
               Command prefix

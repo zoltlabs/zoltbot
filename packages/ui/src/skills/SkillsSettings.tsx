@@ -64,9 +64,7 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
     try {
       await work();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Could not save. Your draft is preserved; try again.",
-      );
+      setError(e instanceof Error ? e.message : "Could not save. Try again.");
     } finally {
       setBusy(false);
     }
@@ -119,10 +117,6 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
       <p className="settings-hint">
         Reusable instructions, files and scripts. Versions used by sessions stay fixed.
       </p>
-      <p className="dim sm">
-        Native loading is checked at start. Unsupported selections block start. Import and editing
-        never run scripts.
-      </p>
       <div className="r">
         <Button onClick={() => setTab("library")} aria-pressed={tab === "library"}>
           Local library
@@ -147,11 +141,9 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
           New skill
         </Button>
       </div>
-      {error && <p role="alert">{error} Your draft is preserved.</p>}
+      {error && <p role="alert">{error}</p>}
       <output aria-live="polite">{notice}</output>
-      {!online && (
-        <p id={`${title}-offline`}>Reconnect to manage skills. Your draft is preserved.</p>
-      )}
+      {!online && <p id={`${title}-offline`}>Reconnect to manage skills.</p>}
       <form
         className="skills-import"
         onSubmit={(e) => {
@@ -207,7 +199,6 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
                   Add to library (copy)
                 </Button>
               )}
-              <p className="dim sm">The original stays where it is.</p>
             </li>
           ))}
         </ul>

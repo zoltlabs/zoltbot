@@ -151,9 +151,9 @@ export function ConnectionSignIn({
           : state === "connected"
             ? "Connected. New sessions can use this credential."
             : state === "failed"
-              ? "Sign-in failed. No partial credential was attached. Check the registration and try again."
+              ? "Sign-in failed. Check the registration and try again."
               : state === "cancelled"
-                ? "Sign-in cancelled. Your connection settings are preserved."
+                ? "Sign-in cancelled."
                 : "Confirm destinations and scopes before signing in."}
       </output>
       {pending && state === "waiting" ? (

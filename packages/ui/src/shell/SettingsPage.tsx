@@ -129,7 +129,6 @@ function GeneralSettings({
       <AccountSettings />
       <section className="zb-card settings-panel">
         <h2>Appearance</h2>
-        <p className="settings-hint">Choose how Zoltbot looks on this computer.</p>
         <fieldset className="theme-options">
           <legend>Theme</legend>
           {(["light", "dark", "system"] as const).map((value) => (
@@ -158,9 +157,6 @@ function GeneralSettings({
             value={fontScale}
             onChange={(event) => setFontScale(Number(event.target.value))}
           />
-          <span className="settings-hint">
-            Adjust text throughout the app. Saved on this computer.
-          </span>
         </label>
         <div>
           <Button onClick={() => setFontScale(defaultFontScale)}>Reset font size</Button>

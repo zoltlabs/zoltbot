@@ -19,13 +19,12 @@ function errorText(error: unknown) {
   const text = error instanceof Error ? error.message : "";
   if (text.includes("disconnect_changed"))
     return "The connection or its active sessions changed. Reopen Disconnect to review the current list. Nothing was stopped.";
-  if (text.includes("version_conflict"))
-    return "This connection changed. Reload and try again. Your draft is preserved.";
+  if (text.includes("version_conflict")) return "This connection changed. Reload and try again.";
   if (text.includes("active_sessions"))
     return "Existing sessions received this connection. Stop them before disconnecting.";
   if (text.includes("execution_confirmation"))
     return "Confirm local command execution before enabling this connection.";
-  return "The connection could not be updated. Your draft is preserved. Check its settings and try again.";
+  return "The connection could not be updated. Check its settings and try again.";
 }
 export function Connections({
   call,

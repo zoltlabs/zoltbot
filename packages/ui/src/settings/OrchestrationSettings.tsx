@@ -34,8 +34,8 @@ export function OrchestrationSettings({ connection }: { connection: ChatConnecti
     <section className="zb-card settings-panel" aria-label="Task model defaults">
       <h2>Task model defaults</h2>
       <p className="settings-hint">
-        Tasks work automatically. Optionally choose a profile for each phase; its model and effort
-        become the default. Instructions in your chat take priority.
+        Each profile supplies the default model and effort for its phase. Instructions in your chat
+        take priority.
       </p>
       <label className="settings-field">
         Apply defaults to
