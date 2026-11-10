@@ -80,7 +80,7 @@ it("keeps delegation scoped, attributed, bounded and idempotent across retries",
     expect(await delegate({ ...call, idempotencyKey: "different-native-retry" })).toEqual(first);
     expect(f.store.lastSeq()).toBe(seq);
     expect(f.store.snapshot(["thread"]).thread).toHaveLength(2);
-    expect(wakes).toBe(2);
+    expect(wakes).toBe(0); // The task runner dispatches tracked assignments.
     await expect(
       delegate({ ...call, arguments: { ...call.arguments, brief: "Changed" } }),
     ).rejects.toThrow("command_receipt_conflict");

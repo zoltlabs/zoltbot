@@ -43,7 +43,14 @@ export async function migrate(
     !database.prepare("SELECT name FROM sqlite_master WHERE name='schema_baseline'").get()
   )
     throw new Error("migration_failed: prelaunch_database_reset_required");
-  const pending = migrations.filter((m) => m.version > current);
+  const applied = exists
+    ? new Set(
+        (
+          database.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]
+        ).map((r) => r.version),
+      )
+    : new Set<number>();
+  const pending = migrations.filter((m) => !applied.has(m.version));
   if (!pending.length) return;
   let backup: string | undefined;
   if (current > 0) {

@@ -110,8 +110,10 @@ for (const provider of ["claude", "codex"] as const)
         const completed =
           daemon.store
             .snapshot(["turn"])
-            .turn?.filter((row) => row.status === "completed" && row.threadId === "thread")
-            .length ?? 0;
+            .turn?.filter(
+              (row) =>
+                row.status === "completed" && row.threadId === "thread" && row.origin !== "system",
+            ).length ?? 0;
         await call("turn.send", {
           threadId: "thread",
           mode: "queue",
@@ -155,8 +157,12 @@ for (const provider of ["claude", "codex"] as const)
             () =>
               daemon.store
                 .snapshot(["turn"])
-                .turn?.filter((row) => row.status === "completed" && row.threadId === "thread")
-                .length,
+                .turn?.filter(
+                  (row) =>
+                    row.status === "completed" &&
+                    row.threadId === "thread" &&
+                    row.origin !== "system",
+                ).length,
             { timeout: 5000 },
           )
           .toBe(completed + 1);
@@ -188,8 +194,12 @@ for (const provider of ["claude", "codex"] as const)
           () =>
             daemon.store
               .snapshot(["turn"])
-              .turn?.filter((row) => row.status === "completed" && row.threadId === "thread")
-              .length,
+              .turn?.filter(
+                (row) =>
+                  row.status === "completed" &&
+                  row.threadId === "thread" &&
+                  row.origin !== "system",
+              ).length,
           { timeout: 5000 },
         )
         .toBe(3);
@@ -208,8 +218,12 @@ for (const provider of ["claude", "codex"] as const)
           () =>
             daemon.store
               .snapshot(["turn"])
-              .turn?.filter((row) => row.status === "completed" && row.threadId === "thread")
-              .length,
+              .turn?.filter(
+                (row) =>
+                  row.status === "completed" &&
+                  row.threadId === "thread" &&
+                  row.origin !== "system",
+              ).length,
           { timeout: 7000 },
         )
         .toBe(4);
@@ -230,10 +244,30 @@ for (const provider of ["claude", "codex"] as const)
           .snapshot(["audit"])
           .audit?.some((row) => row.action === "host.team_delegate" && row.result === "succeeded"),
       ).toBe(true);
+      // The delegated result now triggers an autonomous management turn. Let that turn
+      // settle before sending the fake provider's next exact-match command.
+      await expect
+        .poll(
+          () => {
+            const state = daemon.store.snapshot(["item", "turn"]);
+            const notice = state.item?.find(
+              (r) => String(r.id).startsWith("company:signal:") && r.threadId === "thread",
+            );
+            return (
+              !!notice?.turnId &&
+              state.turn?.some((r) => r.id === notice.turnId && r.status === "completed")
+            );
+          },
+          { timeout: 7000 },
+        )
+        .toBe(true);
       const completedIn = () =>
         daemon.store
           .snapshot(["turn"])
-          .turn?.filter((row) => row.status === "completed" && row.threadId === "thread").length;
+          .turn?.filter(
+            (row) =>
+              row.status === "completed" && row.threadId === "thread" && row.origin !== "system",
+          ).length;
       await call("turn.send", {
         threadId: "thread",
         mode: "queue",

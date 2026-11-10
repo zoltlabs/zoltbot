@@ -1,5 +1,6 @@
 import type { InjectionFragment } from "@zoltbot/core";
 import type { Store } from "@zoltbot/store";
+import { chiefFragments } from "./chief/digest.js";
 export function companyFragments(
   store: Pick<Store, "snapshot">,
   threadId: string,
@@ -38,4 +39,11 @@ export function companyFragments(
       reference: "company_work",
     },
   ];
+}
+
+export function coordinationFragments(
+  store: Pick<Store, "snapshot">,
+  threadId: string,
+): InjectionFragment[] {
+  return [...chiefFragments(store, threadId), ...companyFragments(store, threadId)];
 }

@@ -15,7 +15,22 @@ import { createTask } from "./tasks.js";
 import { scopeContains } from "./team.js";
 
 /** Full canonical comparison, rather than a lossy hash. Excludes conversational activity. */
-export function companyBaseline(state: DomainState, projectId: string): string {
+export function companyBaseline(
+  state: DomainState,
+  projectId: string,
+  changes?: CompanyChange[],
+): string {
+  const taskIds = new Set<string>();
+  const initiativeIds = new Set<string>();
+  for (const change of changes ?? []) {
+    if (["assignTask", "releaseTask", "moveTask"].includes(change.kind) && "id" in change)
+      taskIds.add(change.id);
+    if (change.kind === "task") {
+      if (change.value.parentId) taskIds.add(change.value.parentId);
+      for (const id of change.value.dependencies ?? []) taskIds.add(id);
+    }
+    if (change.kind === "initiative") initiativeIds.add(change.value.id);
+  }
   const canonical = (value: unknown): unknown =>
     Array.isArray(value)
       ? value.map(canonical)
@@ -31,7 +46,14 @@ export function companyBaseline(state: DomainState, projectId: string): string {
     ["project", "subproject", "initiativeRecord", "managerRemit", "task"].map((kind) => [
       kind,
       (state[kind] ?? [])
-        .filter((r) => (kind === "project" ? r.id === projectId : r.projectId === projectId))
+        .filter(
+          (r) =>
+            (kind === "project" ? r.id === projectId : r.projectId === projectId) &&
+            (kind !== "task" ||
+              !changes ||
+              taskIds.has(String(r.id)) ||
+              initiativeIds.has(String(r.initiativeId))),
+        )
         .sort((a, b) => String(a.id).localeCompare(String(b.id))),
     ]),
   );

@@ -46,6 +46,10 @@ export function productionRuntime(
           browserRuntimeToolDefinitions,
           allRuntimeToolDefinitions,
           artifactRuntimeToolDefinitions,
+          managerArtifactToolDefinitions,
+          managerArtifactBrowserToolDefinitions,
+          managerRuntimeToolDefinitions,
+          managerBrowserToolDefinitions,
           artifactBrowserToolDefinitions,
           indirectRuntimeToolDefinitions,
           chiefProviderToolDefinitions,
@@ -121,13 +125,26 @@ export function productionRuntime(
           thread && isChief(context.store, thread.id)
             ? structuredClone(chiefProviderToolDefinitions)
             : structuredClone([
-                ...(artifact
-                  ? browser
-                    ? artifactBrowserToolDefinitions
-                    : artifactRuntimeToolDefinitions
-                  : browser
-                    ? browserRuntimeToolDefinitions
-                    : runtimeToolDefinitions),
+                ...(context.store.record("thread", thread?.id ?? "")?.kind === "manager" ||
+                context.store
+                  .snapshot(["initiativeRecord"])
+                  .initiativeRecord?.some(
+                    (r) => r.managerThreadId === thread?.id && r.state === "active",
+                  )
+                  ? artifact
+                    ? browser
+                      ? managerArtifactBrowserToolDefinitions
+                      : managerArtifactToolDefinitions
+                    : browser
+                      ? managerBrowserToolDefinitions
+                      : managerRuntimeToolDefinitions
+                  : artifact
+                    ? browser
+                      ? artifactBrowserToolDefinitions
+                      : artifactRuntimeToolDefinitions
+                    : browser
+                      ? browserRuntimeToolDefinitions
+                      : runtimeToolDefinitions),
                 ...(browser ? [] : indirectRuntimeToolDefinitions),
               ]),
         prepareArtifacts(input, cwd) {

@@ -465,3 +465,22 @@ function linkTurn(state: DomainState, threadId: string, messageId: string, turnI
   );
   return { ...state, turn, item } as DomainState;
 }
+
+it("lets an IC delegate a tracked fix in its own scope without creating a manager", () => {
+  const initial = company();
+  const outcome = briefTeam(
+    initial,
+    actor("video"),
+    { title: "Fix a caption bug", brief: "Correct the caption timing" },
+    { childId: "caption-fix", messageId: "caption-brief" },
+    context("ic-fix"),
+  );
+  const state = applyEvents(initial, outcome.events);
+  expect(state.thread?.find((r) => r.id === "video")?.kind).toBe("side");
+  expect(state.task?.find((r) => r.id === "caption-brief:task")).toMatchObject({
+    accountableThreadId: "video",
+    threadId: "caption-fix",
+    state: "queued",
+  });
+  expect(outcome.result.taskId).toBe("caption-brief:task");
+});

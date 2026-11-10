@@ -24,3 +24,21 @@ Run repository typecheck, lint, unit tests, UI/desktop builds, shipping and comp
 ## First complete milestone
 
 Outcome → approved organization/work plan → linked delegated execution → manager/Zolt updates → project brief → accepted result. The same records then support priority changes and reviewed reorganization.
+
+## Implemented surfaces
+
+- Independent `initiativeRecord`, `managerRemit`, immutable `companyPlan` and append-only `projectBrief` records, with migration 003 preserving legacy team/initiative aliases.
+- `company.read`, `company.propose`, `company.decide`, `company.assign`, `company.review` and `company.brief` RPCs. The `company_work` agent facade describes its contracts and exposes scoped reads, proposals, delegation, explicitly authorized task review and reporting. It also routes existing workspace creation/editing approvals.
+- Manager and IC delegation creates linked tasks with source-message provenance, optional parent/initiative, permission ceilings and inherited approved authority. The existing task runner owns dispatch; dependency acceptance gates execution. Parent acceptance requires children to be accepted or explicitly cancelled.
+- Approved authority reserves a bounded task count and task budgets, optionally delegates task-result review, and permits the initiative owner and proposing chief to coordinate without repeated handoff approvals. Initiative completion remains human reviewed. Budget reservations are not a guarantee of exact provider billing: provider cost reporting can lag or be unavailable.
+- Reconciliation persists task/checkpoint notices, retries queued wakes and deduplicates across restarts. Dated project snapshots revise when tracked state changes; agents can add synthesized briefs. Priority reads span workspaces. Changes notify affected owners through durable queued context updates.
+- Workspace Organization and work panel: organization/remits, independent initiative editing, task ownership/dependencies/results/history, before/after approval, project reports and change history. Task triage retains its status groups and gains initiative/owner filters.
+- Reorg plans support team creation/rename/move/archive, manager assignment/replacement, conversation moves, task initiative/accountability changes and dispatch of planned work. A stale material baseline rejects approval; the same core dry run validates preview and apply. Running task accountability transfers after execution. Structural moves of busy teams/chats wait for a safe boundary. History remains attached; reversal uses another reviewed plan. Cross-workspace moves remain excluded.
+
+## Verification record
+
+Domain and daemon tests cover direct work without managers, IC delegation, task graphs and accepted progress, independent initiative completion, bounded authority and independent task review, stale approvals, rejected cyclic/cross-workspace changes, report revisions, duplicate commands, reconciliation after restart and deferred accountability handoff.
+
+The headless company journey uses a real daemon and synthetic data. It covers organization approval by keyboard, responsibility and initiative edits, direct planned bug work, reviewed reorganization, stale approval rejection, persistent reports, both themes, accessibility scans and 320px reflow. Existing shipping and comparison journeys also run headlessly. Native Cua verification used separate synthetic app data and confirmed initiative edit → proposal → approval → changed outcome and a saved report revision. The temporary Electron window was closed afterward.
+
+Provider transport tests use deterministic CLI fakes through production adapters, host MCP and daemon RPC, including restart/resume. They establish coordination and transport behavior, not the quality of a particular CEO model. CEO provider/model selection remains configurable; comparative live-model evaluation is separate work.

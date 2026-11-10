@@ -154,7 +154,17 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       })
       .join("\n")
       .slice(-2000);
-    const result = { childId, link: `#chat/${encodeURIComponent(childId)}`, status, summary: text };
+    const task = state.task?.find(
+      (r) =>
+        r.threadId === childId && !["completed", "cancelled", "failed"].includes(String(r.state)),
+    );
+    const result = {
+      ...(task ? { taskId: task.id } : {}),
+      childId,
+      link: `#chat/${encodeURIComponent(childId)}`,
+      status,
+      summary: text,
+    };
     while (JSON.stringify(result).length > 3500)
       result.summary = result.summary.slice(Math.floor(result.summary.length / 2));
     return result;

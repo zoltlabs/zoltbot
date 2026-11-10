@@ -15,6 +15,16 @@ export async function callFixtureHost(
       }),
     );
     const tools = await client.listTools();
+    // Manager sessions expose organization shaping through the company facade.
+    // Follow the advertised surface, as a real model does, while keeping legacy fixtures useful.
+    if (
+      request.name === "workspace_write" &&
+      !tools.tools.some((tool) => tool.name === request.name) &&
+      tools.tools.some((tool) => tool.name === "company_work")
+    ) {
+      const { action, key, ...body } = request.arguments;
+      request = { name: "company_work", arguments: { action, key, request: body } };
+    }
     if (!tools.tools.some((tool) => tool.name === request.name))
       throw new Error("host_mcp_tool_missing");
     const result = await client.callTool(request);

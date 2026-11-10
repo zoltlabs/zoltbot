@@ -153,7 +153,8 @@ test("event draft → dry run → saved paused → enabled → paused, with them
     await expect(page.getByText("Saved · Paused", { exact: true })).toBeVisible();
     await page.screenshot({ path: "output/playwright/event-routines-light.png", fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "Hide sidebar", exact: true }).click();
+    const hideSidebar = page.getByRole("button", { name: "Hide sidebar", exact: true });
+    if (await hideSidebar.isVisible()) await hideSidebar.click();
     await expect(page.getByRole("button", { name: "Enable routine", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

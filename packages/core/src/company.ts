@@ -11,7 +11,9 @@ import {
 import { type CommandContext, handle, type Outcome } from "./commands.js";
 import { applyCompanyChanges, companyBaseline, companyRecord } from "./company-changes.js";
 import { scopeLineage } from "./hierarchy.js";
+import { queueSystemNotice } from "./input-queue.js";
 import type { DomainState } from "./projectors.js";
+import { applyEvents } from "./projectors.js";
 import { taskProgress } from "./task-graph.js";
 import { createAssignedTask, type TaskInput } from "./tasks.js";
 import { scopeContains } from "./team.js";
@@ -174,7 +176,7 @@ export function proposeCompanyPlan(
     ...input,
     version: 1,
     state: "proposed",
-    baseline: companyBaseline(state, input.projectId),
+    baseline: companyBaseline(state, input.projectId, input.changes),
     preview: preview.preview,
     requestedBy: actor?.threadId ?? context.actor.id,
     createdAt: context.at,
@@ -197,7 +199,7 @@ export function decideCompanyPlan(
     plan.state !== "proposed"
   )
     throw Error("stale_plan");
-  if (input.approve && companyBaseline(state, plan.projectId) !== plan.baseline)
+  if (input.approve && companyBaseline(state, plan.projectId, plan.changes) !== plan.baseline)
     throw Error("stale_plan: organization or work changed; request a fresh proposal");
   const result = input.approve
     ? applyCompanyChanges(state, plan.projectId, plan.changes, context)
@@ -221,6 +223,42 @@ export function decideCompanyPlan(
   ).events[0];
   if (!event) throw Error("plan_event_missing");
   const events = [...result.events, { ...event, payload: { ...plan, ...changes, id: plan.id } }];
+  if (input.approve) {
+    const recipients = new Set<string>();
+    for (const change of plan.changes) {
+      if (change.kind === "chat" && change.manager) recipients.add(change.id);
+      if (change.kind === "assignManager" || change.kind === "moveChat") recipients.add(change.id);
+      if (change.kind === "remit") recipients.add(change.value.threadId);
+      if (change.kind === "initiative" && change.value.managerThreadId)
+        recipients.add(change.value.managerThreadId);
+      if (change.kind === "assignTask") recipients.add(change.accountableThreadId);
+      if (["moveTeam", "renameTeam", "archiveTeam"].includes(change.kind) && "id" in change)
+        for (const thread of result.state.thread ?? [])
+          if (thread.kind === "manager" && thread.projectId === plan.projectId && !thread.archived)
+            recipients.add(String(thread.id));
+    }
+    let delivered = applyEvents(state, events),
+      index = 0;
+    for (const threadId of recipients) {
+      const id = `${plan.id}:change:${index++}`;
+      const notice = queueSystemNotice(
+        delivered,
+        {
+          threadId,
+          text: `[Approved organization change] The human applied plan ${plan.id}: ${plan.title}. Read company_work for current ownership, responsibilities, inherited scope and work. Existing conversation history is historical context; current records describe your approved responsibility. Continue within existing authority; this notice grants no extra permissions.`,
+        },
+        id,
+        {
+          ...context,
+          commandId: `${context.commandId}:notice:${index}`,
+          actor: { kind: "system", id: "company" },
+        },
+      );
+      events.push(...notice.events);
+      delivered = applyEvents(delivered, notice.events);
+    }
+  }
+
   return {
     events: events.map((e, i) => ({ ...e, eventId: `${context.commandId}:${i}` })),
     result: { id: plan.id, state: changes.state },
@@ -276,8 +314,30 @@ export function companyView(state: DomainState, projectId?: string) {
   );
   const ids = new Set(projects.map((r) => r.id));
   const tasks = (state.task ?? []).filter((r) => ids.has(r.projectId));
+  const priorities = (state.initiativeRecord ?? [])
+    .filter((r) => ids.has(r.projectId) && ["active", "review", "paused"].includes(String(r.state)))
+    .map((r) => ({
+      id: r.id,
+      projectId: r.projectId,
+      title: r.title,
+      outcome: r.outcome,
+      priority: r.priority,
+      state: r.state,
+      managerThreadId: r.managerThreadId,
+      targetDate: r.targetDate,
+      progress: taskProgress(
+        state,
+        tasks.filter((t) => t.initiativeId === r.id),
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        ["urgent", "high", "normal", "low"].indexOf(String(a.priority)) -
+        ["urgent", "high", "normal", "low"].indexOf(String(b.priority)),
+    );
   return {
     projects,
+    priorities,
     teams: (state.subproject ?? []).filter((r) => ids.has(r.projectId) && !r.archived),
     managers: (state.thread ?? []).filter(
       (r) => ids.has(r.projectId) && r.kind === "manager" && !r.archived,

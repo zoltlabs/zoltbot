@@ -42,7 +42,12 @@ export function companyApi(context: RuntimeContext) {
             return false;
           }
         });
-        return { projects: projects.map((r) => ({ id: r.id, name: r.name, goal: r.goal })) };
+        return {
+          projects: projects.map((r) => ({ id: r.id, name: r.name, goal: r.goal })),
+          priorities: companyView(state).priorities.filter((r) =>
+            projects.some((p) => p.id === r.projectId),
+          ),
+        };
       }
       if (method === "company.decide") throw Error("human_approval_required");
       if (method !== "company.assign" && method !== "company.review")
@@ -64,6 +69,15 @@ export function companyApi(context: RuntimeContext) {
         authority?.scopes.some((scope) => scopeContains(state, scope, node)) ?? false;
       return {
         ...view,
+        priorities: view.priorities.filter(
+          (r) =>
+            owns.has(String(r.id)) ||
+            visible(
+              view.initiatives.find((i) => i.id === r.id)?.teamId
+                ? { type: "subproject", id: view.initiatives.find((i) => i.id === r.id)?.teamId }
+                : { type: "project", id: r.projectId },
+            ),
+        ),
         teams: view.teams.filter((r) => visible({ type: "subproject", id: r.id })),
         managers: view.managers.filter((r) => visible(r.node)),
         remits: view.remits.filter(
@@ -159,16 +173,13 @@ export function companyApi(context: RuntimeContext) {
 }
 export function compactCompanyView(value: unknown) {
   const view = structuredClone(value) as Record<string, unknown>;
-  for (const key of ["tasks", "initiatives", "managers", "remits", "decisions", "teams"]) {
-    if (Array.isArray(view[key])) view[key] = (view[key] as unknown[]).slice(0, 40);
-  }
   if (Array.isArray(view.plans))
-    view.plans = (view.plans as CompanyPlan[])
-      .slice(-10)
-      .map(({ baseline: _baseline, preview: _preview, ...r }) => r);
+    view.plans = (view.plans as CompanyPlan[]).map(
+      ({ baseline: _baseline, preview: _preview, ...r }) => r,
+    );
   if (Array.isArray(view.briefs))
-    view.briefs = (view.briefs as Record<string, unknown>[])
-      .slice(-3)
-      .map(({ evidence: _evidence, ...r }) => r);
+    view.briefs = (view.briefs as Record<string, unknown>[]).map(
+      ({ evidence: _evidence, ...r }) => r,
+    );
   return view;
 }

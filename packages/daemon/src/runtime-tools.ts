@@ -26,11 +26,10 @@ import {
 } from "./workspace-tools.js";
 
 export const runtimeToolDefinitions = [
-  companyToolDefinition,
   cuaToolDefinition,
   knowledgeToolDefinition,
   ...currentTeamToolDefinitions,
-  ...workspaceToolDefinitions,
+  workspaceWriteDefinition,
 ];
 export function runtimeTools(
   context: RuntimeContext,
@@ -104,7 +103,6 @@ export function runtimeTools(
     }
     const artifactBinding = frozenArtifactBinding(context.store, actor.sessionId);
     if (name === "team_artifact") return artifacts.authorize(actor);
-    if (name === "workspace_write" && !artifactBinding) return false;
     if (artifactBinding && ["workspace_create", "workspace_update"].includes(name)) return false;
     if (name === "team_browser_evidence") return browser.authorize(actor);
     // Writing shares the read tool's authorization; the write policy decides the outcome.
@@ -202,14 +200,16 @@ const artifactDescriptions: Record<string, string> = {
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
-    "Managers: brief a new chat (title, teamId) or existing chat/manager (chatId) below you. Stable key.",
+    "Delegate tracked work in scope: new title/teamId or existing chatId. planId/budgetUsd optional; inherited authority applies. Stable key.",
   team_report: "Send a result, update or question to your nearest manager above. Stable key.",
   team_message:
     'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it.',
-  team_read_thread: "Managers: read status and recent output of a chat below you.",
+  team_read_thread: "Read bounded output of chats you manage or assignments you own.",
   workspace_read: "List workspace objects and ids within your authority before workspace_write.",
   workspace_write:
-    "Create or update scoped workspace objects with a stable key. Widening and instruction changes need human approval. Create uses kind/name/parent; update uses target/changes.",
+    "Scoped create/update: kind,name,parent or target,changes. Stable key. Human approval for wider authority or instructions.",
+  company_work:
+    "describe contracts; read work; propose reviewed plans; assign/review within authority; save brief. Stable key for writes.",
 };
 // Artifact sessions write knowledge with team_write_knowledge; the server still accepts `learned`.
 const artifactOmittedFields: Record<string, string[]> = { team_message: ["learned"] };
@@ -238,9 +238,18 @@ function compactTool<T extends { name: string; description: string; inputSchema:
           )
         : value;
   const inputSchema = (
-    tool.name === "chat_wake"
-      ? { type: "object", properties: { action: { type: "string" } } }
-      : compact(tool.inputSchema)
+    tool.name === "company_work"
+      ? {
+          type: "object",
+          properties: {
+            action: { type: "string" },
+            key: { type: "string" },
+            request: { type: "object" },
+          },
+        }
+      : tool.name === "chat_wake"
+        ? { type: "object", properties: { action: { type: "string" } } }
+        : compact(tool.inputSchema)
   ) as { properties?: Record<string, unknown> };
   if (tool.name === "chat_wake" && inputSchema.properties)
     inputSchema.properties.input = { type: "object" };
@@ -265,7 +274,7 @@ export const indirectRuntimeToolDefinitions = [
 ];
 export const artifactRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter(
-    (t) => !["workspace_create", "workspace_update"].includes(t.name),
+    (t) => !["workspace_create", "workspace_update", "workspace_write"].includes(t.name),
   ),
   workspaceWriteDefinition,
   artifactToolDefinition,
@@ -273,6 +282,23 @@ export const artifactRuntimeToolDefinitions = [
 export const artifactBrowserToolDefinitions = [
   ...artifactRuntimeToolDefinitions.filter((tool) => tool.name !== "native_app"),
   compactTool(browserToolDefinition),
+];
+/** Managers use the organization facade instead of a second workspace writer. */
+export const managerArtifactToolDefinitions = [
+  ...artifactRuntimeToolDefinitions.filter((t) => t.name !== "workspace_write"),
+  compactTool(companyToolDefinition),
+];
+export const managerArtifactBrowserToolDefinitions = [
+  ...artifactBrowserToolDefinitions.filter((t) => t.name !== "workspace_write"),
+  compactTool(companyToolDefinition),
+];
+export const managerRuntimeToolDefinitions = [
+  ...runtimeToolDefinitions.filter((t) => t.name !== "workspace_write"),
+  companyToolDefinition,
+];
+export const managerBrowserToolDefinitions = [
+  ...browserRuntimeToolDefinitions.filter((t) => t.name !== "workspace_write"),
+  companyToolDefinition,
 ];
 /** The chief's frozen surface: compact hints, validated against the full contracts below. */
 const chiefToolHints: Record<string, string> = {
@@ -288,13 +314,14 @@ export const chiefProviderToolDefinitions = [...chiefToolDefinitions, companyToo
   (tool) => compactTool({ ...tool, description: chiefToolHints[tool.name] ?? tool.description }),
 );
 export const allRuntimeToolDefinitions = [
+  companyToolDefinition,
   ...legacyTeamToolDefinitions,
+  ...workspaceToolDefinitions,
   ...chiefToolDefinitions,
   eventRoutineToolDefinition,
   wakeToolDefinition,
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,
-  workspaceWriteDefinition,
   artifactToolDefinition,
 ];

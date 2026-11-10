@@ -5,6 +5,7 @@ import {
   companyView,
   decideCompanyPlan,
   proposeCompanyPlan,
+  reviewCompanyTask,
   saveInitiative,
   writeProjectBrief,
 } from "./company.js";
@@ -151,4 +152,121 @@ it("records dated report revisions and preserves evidence", () => {
   expect(state.projectBrief).toHaveLength(2);
   expect(state.projectBrief?.[1]?.revision).toBe(2);
   expect(companyBaseline(state, "co")).toBe(companyBaseline(fixture(), "co"));
+});
+
+it("delegates task review only when explicitly approved and never to the executing chat", () => {
+  let state = fixture();
+  state = applyEvents(
+    state,
+    saveInitiative(state, { ...initiative, managerThreadId: actor.threadId }, ctx).events,
+  );
+  const proposed = proposeCompanyPlan(
+    state,
+    actor,
+    {
+      id: "review-plan",
+      projectId: "co",
+      title: "Delegate review",
+      explanation: "Coordinate acceptance",
+      changes: [
+        {
+          kind: "task",
+          value: { ...input, id: "work", initiativeId: "launch", planned: true },
+          why: "Deliver the fix",
+        },
+      ],
+      authority: {
+        initiativeId: "launch",
+        maxTasks: 2,
+        reviewTasks: true,
+        permissionCeiling: "read_only",
+        budgetUsd: 1,
+      },
+    },
+    ctx,
+  );
+  state = applyEvents(state, proposed.events);
+  const plan = state.companyPlan?.[0];
+  state = applyEvents(
+    state,
+    decideCompanyPlan(
+      state,
+      { id: "review-plan", version: 1, baseline: String(plan?.baseline), approve: true },
+      ctx,
+    ).events,
+  );
+  state = {
+    ...state,
+    task: state.task?.map((r) => (r.id === "work" ? { ...r, state: "review" } : r)) ?? [],
+  };
+  const agent = { ...ctx, actor: { kind: "agent" as const, id: actor.agentId } };
+  expect(() =>
+    reviewCompanyTask(state, actor, { taskId: "work", revision: 1, decision: "accept" }, agent),
+  ).toThrow("review_authority");
+  const accepted = reviewCompanyTask(
+    state,
+    actor,
+    { taskId: "work", revision: 1, decision: "accept", planId: "review-plan" },
+    agent,
+  );
+  expect(accepted.result.state).toBe("completed");
+  expect(() =>
+    reviewCompanyTask(
+      state,
+      { ...actor, threadId: "work:thread" },
+      { taskId: "work", revision: 1, decision: "accept", planId: "review-plan" },
+      agent,
+    ),
+  ).toThrow("independent_reviewer");
+});
+
+it("rejects hierarchy cycles, out-of-workspace moves and invalid later changes without mutating state", () => {
+  const state = fixture();
+  const original = JSON.stringify(state);
+  const changes = [
+    {
+      kind: "team" as const,
+      id: "eng",
+      name: "Engineering",
+      parent: { type: "project" as const, id: "co" },
+      why: "Own implementation",
+    },
+    {
+      kind: "moveTeam" as const,
+      id: "eng",
+      parent: { type: "subproject" as const, id: "eng" },
+      why: "Invalid self move",
+    },
+  ];
+  expect(() =>
+    proposeCompanyPlan(
+      state,
+      actor,
+      { id: "cycle", projectId: "co", title: "Bad move", explanation: "Test rollback", changes },
+      ctx,
+    ),
+  ).toThrow("team_cycle");
+  expect(JSON.stringify(state)).toBe(original);
+  expect(() =>
+    proposeCompanyPlan(
+      state,
+      actor,
+      {
+        id: "cross",
+        projectId: "co",
+        title: "Bad scope",
+        explanation: "Test isolation",
+        changes: [
+          {
+            kind: "team",
+            id: "other",
+            name: "Other",
+            parent: { type: "project", id: "missing" },
+            why: "Invalid destination",
+          },
+        ],
+      },
+      ctx,
+    ),
+  ).toThrow("scope_unavailable");
 });

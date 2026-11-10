@@ -8,7 +8,7 @@ import { workspaceTools } from "./workspace-tools.js";
 export const companyToolDefinition = {
   name: "company_work",
   description:
-    "Organize work: describe contracts, read state, propose plans for human review, assign within approved authority, save brief. Stable key for writes. Direct chats need no setup.",
+    "Organize work. describe returns contracts; read, propose, assign, review, brief. Stable key for writes.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -58,7 +58,7 @@ export function companyTools(context: RuntimeContext) {
         return {
           workspace:
             "shape_read lists existing objects/profiles. create request {kind:project|subproject|chat,name,parent?:{type:project|subproject,id},goal?,profileId?,manager?}; update request {target:{type:project|subproject|chat|profile,id},changes:{field:string}}. Stable key. Uses existing workspace approvals.",
-          read: "request {projectId?, section?: projects|teams|managers|remits|initiatives|tasks|plans|briefs|decisions, id?, offset?}. Bounded results; select a section/id for details.",
+          read: "request {projectId?, section?: projects|priorities|teams|managers|remits|initiatives|tasks|plans|briefs|decisions, id?, offset?}. Bounded results; select a section/id for details.",
           propose:
             "request {id,projectId,title,explanation,changes:[...],authority?}. Saves a proposal; human approves in workspace. Read current state first. Use fresh ids; reference earlier creations in later changes.",
           changes: {

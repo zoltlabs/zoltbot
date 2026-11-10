@@ -9,6 +9,8 @@ import {
   artifactRuntimeToolDefinitions,
   browserRuntimeToolDefinitions,
   indirectRuntimeToolDefinitions,
+  managerArtifactBrowserToolDefinitions,
+  managerArtifactToolDefinitions,
   runtimeToolDefinitions,
 } from "./runtime-tools.js";
 
@@ -18,6 +20,8 @@ it("keeps every direct host tool surface within eight tools and 700 description 
     browserRuntimeToolDefinitions,
     artifactRuntimeToolDefinitions,
     artifactBrowserToolDefinitions,
+    managerArtifactToolDefinitions,
+    managerArtifactBrowserToolDefinitions,
   ]) {
     expect(new Set(tools.map((tool) => tool.name)).size).toBe(tools.length);
     expect(tools.length).toBeLessThanOrEqual(8);
@@ -44,6 +48,13 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
     expect(
       referenceTokenEstimate(
         JSON.stringify([...artifactRuntimeToolDefinitions, ...indirectRuntimeToolDefinitions]),
+      ) +
+        referenceTokenEstimate(installedArtifact.guidanceText) +
+        32,
+    ).toBeLessThanOrEqual(1500);
+    expect(
+      referenceTokenEstimate(
+        JSON.stringify([...managerArtifactToolDefinitions, ...indirectRuntimeToolDefinitions]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
         32,

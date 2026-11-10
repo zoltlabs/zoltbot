@@ -8,7 +8,7 @@ it("initializes Compare in the canonical schema and reopens without reapplying i
   const root = mkdtempSync(path.join(tmpdir(), "compare-initial-"));
   const file = path.join(root, "store.db");
   try {
-    expect(bundledMigrations().map((m) => m.version)).toEqual([1, 2]);
+    expect(bundledMigrations().map((m) => m.version)).toEqual([1, 2, 3]);
     for (let attempt = 0; attempt < 2; attempt++) {
       const store = await openStore(file);
       try {
@@ -20,6 +20,7 @@ it("initializes Compare in the canonical schema and reopens without reapplying i
         expect(store.database.prepare("SELECT version FROM schema_migrations").all()).toEqual([
           { version: 1 },
           { version: 2 },
+          { version: 3 },
         ]);
         store.rebuild();
         expect(store.snapshot(["compare", "compareMember"])).toEqual({});
