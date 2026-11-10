@@ -262,7 +262,12 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
     input.accountableThreadId &&
     !state.thread?.some(
       (r) =>
-        r.id === input.accountableThreadId && r.projectId === lineage.project.id && !r.archived,
+        r.id === input.accountableThreadId &&
+        (r.projectId === lineage.project.id ||
+          state.settings?.some(
+            (setting) => setting.key === "chief.thread" && setting.value === r.id,
+          )) &&
+        !r.archived,
     )
   )
     throw Error("accountable_chat_unavailable");

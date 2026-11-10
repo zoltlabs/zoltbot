@@ -49,7 +49,19 @@ function fixture(): DomainState {
       },
       { id: "worker", archived: false, permissionProfile: "read_only" },
     ],
-    thread: [{ id: actor.threadId, agentId: actor.agentId, archived: false }],
+    thread: [
+      {
+        id: actor.threadId,
+        agentId: actor.agentId,
+        kind: "main",
+        title: "Chief",
+        titleSource: "human",
+        pinned: false,
+        archived: false,
+        createdAt: at,
+        lastActivityAt: at,
+      },
+    ],
   };
 }
 const initiative = {
@@ -269,4 +281,151 @@ it("rejects hierarchy cycles, out-of-workspace moves and invalid later changes w
       ctx,
     ),
   ).toThrow("scope_unavailable");
+});
+
+it("lets an IC subdelegate its running approved task while keeping the plan limits", () => {
+  let state = fixture();
+  state = applyEvents(
+    state,
+    saveInitiative(state, { ...initiative, managerThreadId: actor.threadId }, ctx).events,
+  );
+  state = applyEvents(
+    state,
+    proposeCompanyPlan(
+      state,
+      actor,
+      {
+        id: "ic-plan",
+        projectId: "co",
+        title: "Fix",
+        explanation: "Bounded work",
+        changes: [
+          {
+            kind: "initiative",
+            value: { ...initiative, managerThreadId: actor.threadId, version: 2 },
+            why: "Confirm ownership",
+          },
+        ],
+        authority: {
+          initiativeId: "launch",
+          maxTasks: 2,
+          permissionCeiling: "read_only",
+          budgetUsd: 1,
+        },
+      },
+      ctx,
+    ).events,
+  );
+  const plan = state.companyPlan?.[0];
+  state = applyEvents(
+    state,
+    decideCompanyPlan(
+      state,
+      { id: "ic-plan", version: 1, baseline: String(plan?.baseline), approve: true },
+      ctx,
+    ).events,
+  );
+  const agent = { ...ctx, actor: { kind: "agent" as const, id: actor.agentId } };
+  state = applyEvents(
+    state,
+    assignCompanyTask(
+      state,
+      actor,
+      { ...input, id: "parent", initiativeId: "launch", budgetUsd: 0.4 },
+      "ic-plan",
+      agent,
+    ).events,
+  );
+  state = {
+    ...state,
+    task: state.task?.map((r) => (r.id === "parent" ? { ...r, state: "running" } : r)) ?? [],
+  };
+  const ic = { agentId: "worker", threadId: "parent:thread" };
+  const child = {
+    ...input,
+    id: "child",
+    initiativeId: "launch",
+    parentId: "parent",
+    accountableThreadId: ic.threadId,
+    budgetUsd: 0.3,
+  };
+  state = applyEvents(
+    state,
+    assignCompanyTask(state, ic, child, "ic-plan", {
+      ...ctx,
+      actor: { kind: "agent", id: "worker" },
+    }).events,
+  );
+  expect(state.task?.find((r) => r.id === "child")).toMatchObject({
+    parentId: "parent",
+    authorityPlanId: "ic-plan",
+  });
+  expect(() =>
+    assignCompanyTask(state, ic, { ...child, id: "extra" }, "ic-plan", {
+      ...ctx,
+      actor: { kind: "agent", id: "worker" },
+    }),
+  ).toThrow("task_limit");
+});
+
+it("does not retain a former owner's authority just because it proposed the plan", () => {
+  let state = fixture();
+  const former = { agentId: "worker", threadId: "former" };
+  state.thread?.push({
+    ...state.thread[0],
+    id: former.threadId,
+    agentId: former.agentId,
+    kind: "manager",
+    projectId: "co",
+    node: { type: "project", id: "co" },
+  });
+  state = applyEvents(
+    state,
+    saveInitiative(state, { ...initiative, managerThreadId: actor.threadId }, ctx).events,
+  );
+  state = applyEvents(
+    state,
+    proposeCompanyPlan(
+      state,
+      former,
+      {
+        id: "former-plan",
+        projectId: "co",
+        title: "Review ownership",
+        explanation: "Keep current owner",
+        changes: [
+          {
+            kind: "initiative",
+            value: { ...initiative, managerThreadId: actor.threadId, version: 2 },
+            why: "Confirm accountability",
+          },
+        ],
+        authority: {
+          initiativeId: "launch",
+          maxTasks: 2,
+          permissionCeiling: "read_only",
+          budgetUsd: 1,
+        },
+      },
+      ctx,
+    ).events,
+  );
+  const plan = state.companyPlan?.[0];
+  state = applyEvents(
+    state,
+    decideCompanyPlan(
+      state,
+      { id: "former-plan", version: 1, baseline: String(plan?.baseline), approve: true },
+      ctx,
+    ).events,
+  );
+  expect(() =>
+    assignCompanyTask(
+      state,
+      former,
+      { ...input, initiativeId: "launch", budgetUsd: 0.1 },
+      "former-plan",
+      { ...ctx, actor: { kind: "agent", id: "worker" } },
+    ),
+  ).toThrow("initiative_owner_required");
 });

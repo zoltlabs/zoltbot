@@ -275,7 +275,16 @@ export function assignCompanyTask(
   const projectId = scopeLineage(state, input.node).project.id;
   if (context.actor.kind !== "human") {
     if (!actor) throw Error("assignment_authority_required");
-    companyAccess(state, actor, projectId);
+    const executingParent = state.task?.find(
+      (r) =>
+        r.id === input.parentId &&
+        r.threadId === actor.threadId &&
+        r.authorityPlanId === planId &&
+        r.projectId === projectId &&
+        r.state === "running" &&
+        scopeContains(state, r.node, input.node),
+    );
+    if (!executingParent) companyAccess(state, actor, projectId);
     const plan = state.companyPlan?.find(
       (r) => r.id === planId && r.state === "applied" && r.projectId === projectId,
     );
@@ -284,7 +293,10 @@ export function assignCompanyTask(
       throw Error("approved_authority_required");
     const owner = state.initiativeRecord?.find((r) => r.id === authority.initiativeId);
     if (!owner || owner.state !== "active") throw Error("initiative_not_active");
-    if (owner.managerThreadId !== actor.threadId && plan.requestedBy !== actor.threadId)
+    const proposingChief =
+      plan.requestedBy === actor.threadId &&
+      state.settings?.some((r) => r.key === "chief.thread" && r.value === actor.threadId);
+    if (!executingParent && owner.managerThreadId !== actor.threadId && !proposingChief)
       throw Error("initiative_owner_required");
     const profile = state.agent?.find((r) => r.id === input.profileId && !r.archived);
     const level = levels.indexOf(String(profile?.permissionProfile));
@@ -433,7 +445,11 @@ export function reviewCompanyTask(
       !authority?.reviewTasks ||
       authority.initiativeId !== task.initiativeId ||
       initiative?.state !== "active" ||
-      (initiative.managerThreadId !== actor.threadId && plan?.requestedBy !== actor.threadId)
+      (initiative.managerThreadId !== actor.threadId &&
+        !(
+          plan?.requestedBy === actor.threadId &&
+          state.settings?.some((r) => r.key === "chief.thread" && r.value === actor.threadId)
+        ))
     )
       throw Error("review_authority_required");
   }
