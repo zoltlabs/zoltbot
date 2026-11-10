@@ -60,12 +60,20 @@ export default function Tasks({ connection }: { connection: ChatConnection }) {
     directions = (rows.subproject ?? emptyRows).filter((row) => !row.archived),
     profiles = (rows.agent ?? emptyRows).filter((row) => !row.archived && !row.hidden);
   const [shippingOnly, setShippingOnly] = useState(false);
+  const [initiativeFilter, setInitiativeFilter] = useState("");
+  const [managerFilter, setManagerFilter] = useState("");
+  const filterIds = useId();
   const shippingId = useShell((s) => s.shippingTaskId);
   const attentionIds = new Set(
     (rows.shipping ?? []).filter((row) => attention(row as Shipping)).map((row) => row.taskId),
   );
   const groups = groupTasks(
-    (rows.task ?? emptyRows).filter((task) => !shippingOnly || attentionIds.has(task.id)),
+    (rows.task ?? emptyRows).filter(
+      (task) =>
+        (!shippingOnly || attentionIds.has(task.id)) &&
+        (!initiativeFilter || task.initiativeId === initiativeFilter) &&
+        (!managerFilter || task.accountableThreadId === managerFilter),
+    ),
     shippingOnly,
   );
   const [creating, setCreating] = useState(Boolean(designDraft));
@@ -90,6 +98,42 @@ export default function Tasks({ connection }: { connection: ChatConnection }) {
           New task
         </Button>
       </header>
+      {rows.initiativeRecord?.length || (rows.task ?? []).some((r) => r.accountableThreadId) ? (
+        <div className="r wrap">
+          <label htmlFor={`${filterIds}-initiative`}>
+            Initiative{" "}
+            <select
+              id={`${filterIds}-initiative`}
+              value={initiativeFilter}
+              onChange={(e) => setInitiativeFilter(e.target.value)}
+            >
+              <option value="">All initiatives</option>
+              {(rows.initiativeRecord ?? []).map((r) => (
+                <option key={text(r.id)} value={text(r.id)}>
+                  {text(r.title)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor={`${filterIds}-manager`}>
+            Accountable owner{" "}
+            <select
+              id={`${filterIds}-manager`}
+              value={managerFilter}
+              onChange={(e) => setManagerFilter(e.target.value)}
+            >
+              <option value="">All owners</option>
+              {(rows.thread ?? [])
+                .filter((r) => (rows.task ?? []).some((t) => t.accountableThreadId === r.id))
+                .map((r) => (
+                  <option key={text(r.id)} value={text(r.id)}>
+                    {text(r.title)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
       {attentionIds.size || shippingOnly ? (
         <label className="tasks-attention-filter">
           <input

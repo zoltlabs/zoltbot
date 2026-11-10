@@ -7,6 +7,7 @@ import Knowledge from "../knowledge/Knowledge.js";
 import { Icon } from "../shell/icons.js";
 import { useShell } from "../state.js";
 import { chatStatuses } from "./activity.js";
+import { CompanyPanel } from "./CompanyPanel.js";
 import type { CreationMode } from "./CreationForm.js";
 import { queuedThreads, recentActivity, teamBelow, teamWork } from "./manager-view.js";
 import { RecentActivity } from "./TeamSections.js";
@@ -176,6 +177,7 @@ export function WorkspaceHome({
           </ul>
         )}
       </section>
+      <CompanyPanel connection={connection} projectId={projectId} />
       {below.chats.length ? (
         <section className="ws-chats" aria-labelledby={`${ids}-chats`}>
           <h2 id={`${ids}-chats`}>

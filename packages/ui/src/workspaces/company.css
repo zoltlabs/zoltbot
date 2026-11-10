@@ -1,0 +1,58 @@
+.company-panel {
+  margin-block: var(--zb-space-4);
+  overflow-wrap: anywhere;
+}
+.company-panel > summary {
+  cursor: pointer;
+  font-weight: var(--zb-weight-semibold);
+}
+.company-item {
+  padding-block: var(--zb-space-3);
+  border-block-end: 1px solid var(--zb-border);
+}
+.company-fields {
+  display: grid;
+  gap: var(--zb-space-3);
+  margin-block: var(--zb-space-3);
+}
+.company-fields label {
+  display: grid;
+  gap: var(--zb-space-2);
+  min-inline-size: 0;
+}
+.company-fields input,
+.company-fields textarea,
+.company-fields select {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.company-panel dd {
+  margin-inline-start: var(--zb-space-3);
+  white-space: pre-wrap;
+}
+.company-task-list {
+  padding-inline-start: var(--zb-space-4);
+}
+.company-panel button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.company-panel {
+  padding: var(--zb-space-5);
+}
+.company-panel section {
+  margin-block-start: var(--zb-space-5);
+}
+.company-panel output {
+  display: block;
+  margin-block: var(--zb-space-3);
+}
+.company-item h4 {
+  margin-block: 0 var(--zb-space-2);
+}
+.company-item p {
+  margin-block: var(--zb-space-2);
+}
+.company-panel details > summary {
+  cursor: pointer;
+}
