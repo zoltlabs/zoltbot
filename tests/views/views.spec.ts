@@ -366,28 +366,35 @@ test("renders real mappings, edge alerts and chat navigation without network acc
   const darkBackground = await frame
     .locator("body")
     .evaluate((body) => getComputedStyle(body).backgroundColor);
-  const contrast = () =>
-    frame.locator("body").evaluate((body) => {
-      const style = getComputedStyle(body);
-      const luminance = (value: string) => {
-        const channels = (value.match(/[0-9.]+/g) ?? []).slice(0, 3).map((part) => {
-          const c = Number(part) / 255;
-          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-        });
-        return (
-          (channels[0] ?? 0) * 0.2126 + (channels[1] ?? 0) * 0.7152 + (channels[2] ?? 0) * 0.0722
-        );
-      };
-      const a = luminance(style.color),
-        b = luminance(style.backgroundColor);
-      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-    });
+  const contrast = (selector = "body", border = false) =>
+    frame
+      .locator(selector)
+      .first()
+      .evaluate((element, border) => {
+        const style = getComputedStyle(element);
+        const luminance = (value: string) => {
+          const channels = (value.match(/[0-9.]+/g) ?? []).slice(0, 3).map((part) => {
+            const c = Number(part) / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return (
+            (channels[0] ?? 0) * 0.2126 + (channels[1] ?? 0) * 0.7152 + (channels[2] ?? 0) * 0.0722
+          );
+        };
+        const a = luminance(border ? style.borderTopColor : style.color),
+          b = luminance(style.backgroundColor);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      }, border);
   expect(await contrast()).toBeGreaterThanOrEqual(4.5);
+  expect(await contrast("#actions textarea")).toBeGreaterThanOrEqual(4.5);
+  expect(await contrast("#actions textarea", true)).toBeGreaterThanOrEqual(3);
   await page.getByRole("button", { name: "Use light theme", exact: true }).click();
   await expect
     .poll(() => frame.locator("body").evaluate((body) => getComputedStyle(body).backgroundColor))
     .not.toBe(darkBackground);
   expect(await contrast()).toBeGreaterThanOrEqual(4.5);
+  expect(await contrast("#actions textarea")).toBeGreaterThanOrEqual(4.5);
+  expect(await contrast("#actions textarea", true)).toBeGreaterThanOrEqual(3);
   await page.screenshot({ path: "output/playwright/views/command-map-light.png" });
   await page.setViewportSize({ width: 320, height: 900 });
   await frame
