@@ -8,6 +8,7 @@ import type { Store } from "@zoltbot/store";
 import type { RuntimeContext } from "../api-types.js";
 import { safeFile } from "../artifacts/intake.js";
 import type { PublicWriteCheck } from "../private-input.js";
+import { callView, type ViewActions } from "./actions.js";
 import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
 
@@ -21,6 +22,7 @@ export class ViewRegistry {
     readonly publish: (events: DomainEvent[]) => void,
     readonly checkPublic: (value: unknown) => Promise<PublicWriteCheck> = async () => () => {},
   ) {}
+  actions?: ViewActions;
   reload(): Promise<ViewRecord[]> {
     const next = this.pending.catch(() => []).then(() => this.load());
     this.pending = next;
@@ -134,6 +136,11 @@ export class ViewRegistry {
   }
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
     if (method === "view.reload") return this.reload();
+    if (method === "view.call") {
+      if (!commandId) throw Error("command_id_required");
+      if (!this.actions) throw Error("unavailable");
+      return callView(this, this.actions, params, commandId);
+    }
     if (method === "view.setGrants") {
       if (!commandId) throw Error("command_id_required");
       return setViewGrants(this, params, commandId);
@@ -184,12 +191,18 @@ export class ViewRegistry {
   }
 }
 
-export function createViewRegistry(context: RuntimeContext, dataDir: string) {
-  return new ViewRegistry(
+export function createViewRegistry(
+  context: RuntimeContext,
+  dataDir: string,
+  actions?: ViewActions,
+) {
+  const registry = new ViewRegistry(
     context.store,
     fileURLToPath(new URL("../../../views/", import.meta.url)),
     path.join(dataDir, "views"),
     context.publish,
     (value) => context.privacy.prepareData(value),
   );
+  if (actions) registry.actions = actions;
+  return registry;
 }

@@ -205,8 +205,9 @@ export class InteractionEngine {
     answer: InteractionAnswer,
     commandId: string,
     actor: ActorRef,
+    check?: (state: DomainState) => void,
   ) {
-    const results = await this.batch([{ id, version, answer }], commandId, actor);
+    const results = await this.batch([{ id, version, answer }], commandId, actor, check);
     const result = results[0];
     if (!result || result.id !== id) throw new Error("command_receipt_conflict");
     return result;
@@ -234,8 +235,13 @@ export class InteractionEngine {
       } else if (current && typeof current === "object") pending.push(...Object.values(current));
     }
   }
-  batch(input: readonly AnswerInput[], commandId: string, actor: ActorRef): Promise<Interaction[]> {
-    const work = this.performBatch(input, commandId, actor);
+  batch(
+    input: readonly AnswerInput[],
+    commandId: string,
+    actor: ActorRef,
+    check?: (state: DomainState) => void,
+  ): Promise<Interaction[]> {
+    const work = this.performBatch(input, commandId, actor, check);
     this.answerWork.add(work);
     void work.then(
       () => this.answerWork.delete(work),
@@ -247,7 +253,9 @@ export class InteractionEngine {
     input: readonly AnswerInput[],
     commandId: string,
     actor: ActorRef,
+    check?: (state: DomainState) => void,
   ): Promise<Interaction[]> {
+    if (!check && input.some((item) => item.answer.via)) throw Error("view_context_required");
     const replay = this.replay(commandId);
     if (replay) return replay;
     const host = this.options.host;
@@ -325,6 +333,7 @@ export class InteractionEngine {
           checks.push(await host.preparePublicAnswer(request, answer));
       }
       const output = this.commit(commandId, (state) => {
+        check?.(state);
         for (const check of checks) check(state);
         for (const [index, request] of requests.entries()) {
           const answer = original[index]?.answer;

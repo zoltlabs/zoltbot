@@ -28,6 +28,15 @@ export const ViewRecordSchema = object({
 });
 export type ViewRecord = Static<typeof ViewRecordSchema>;
 export const viewMethods = {
+  "view.call": {
+    params: object({
+      id: Id,
+      method: values(["chats.send", "chats.interrupt", "requests.answer"]),
+      params: Type.Unknown(),
+      confirmed: Type.Optional(Type.Literal(true)),
+    }),
+    result: Type.Unknown(),
+  },
   "view.setGrants": {
     params: object({
       id: Id,

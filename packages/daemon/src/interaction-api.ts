@@ -13,6 +13,7 @@ export function interactionApi(host: {
     method: string,
     params: Record<string, unknown>,
     commandId?: string,
+    check?: (state: DomainState) => void,
   ): Promise<unknown> => {
     if (
       ![
@@ -24,6 +25,12 @@ export function interactionApi(host: {
       ].includes(method)
     )
       return undefined;
+    if (!check && (method === "interaction.answer" || method === "interaction.batchAnswer")) {
+      const answers =
+        method === "interaction.answer" ? [params] : (params.items as Record<string, unknown>[]);
+      if (answers.some((item) => (item.answer as InteractionAnswer)?.via))
+        throw Error("view_context_required");
+    }
     const actor = { kind: "human" as const, id: "local-owner" };
     if (method !== "interaction.list") {
       if (!commandId) throw new Error("command_id_required");
@@ -48,12 +55,14 @@ export function interactionApi(host: {
           params.answer as InteractionAnswer,
           commandId,
           actor,
+          check,
         );
       return {
         results: await engine.batch(
           params.items as { id: string; version: number; answer: InteractionAnswer }[],
           commandId,
           actor,
+          check,
         ),
       };
     }

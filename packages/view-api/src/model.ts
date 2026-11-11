@@ -64,7 +64,9 @@ export function mapRequests({ entities: state }: ViewSnapshot): Request[] {
           ...(item.options
             ? { options: item.options.map(({ id, label }) => ({ id, label })) }
             : {}),
-          freeText: item.allowOther === true || !item.options?.length,
+          freeText: item.allowOther !== false,
+          ...(item.multi !== undefined ? { multi: item.multi } : {}),
+          ...(item.schema !== undefined ? { schema: item.schema } : {}),
         }));
       const context = request.context;
       return {

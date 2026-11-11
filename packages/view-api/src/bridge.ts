@@ -84,7 +84,12 @@ export const callSchemas = {
     requestId: Id,
     version: Type.Integer({ minimum: 1 }),
     choiceId: OptionalText,
-    answers: Type.Optional(Type.Record(Id, Type.Union([Type.String(), Type.Array(Type.String())]))),
+    answers: Type.Optional(
+      Type.Record(
+        Id,
+        Type.Union([Type.String(), Type.Array(Type.String()), object({ value: Type.Unknown() })]),
+      ),
+    ),
     feedback: OptionalText,
   }),
   "app.open": Type.Union([

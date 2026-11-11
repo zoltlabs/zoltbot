@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
-import { ViewBridge, ViewCallError } from "./bridge.js";
+import { useAnswerConfirmation } from "./AnswerConfirmation.js";
+import { viewActions } from "./actions.js";
+import { ViewBridge } from "./bridge.js";
 import { GrantDialog } from "./GrantDialog.js";
 import { viewKey } from "./keys.js";
 import { viewTheme } from "./theme.js";
@@ -16,6 +18,7 @@ export default function ViewPage({ id, connection }: { id: string; connection: C
   return <ViewFrame key={`${id}:${record.bundleHash}`} record={record} connection={connection} />;
 }
 function ViewFrame({ record, connection }: { record: ViewRecord; connection: ChatConnection }) {
+  const confirmation = useAnswerConfirmation();
   const heading = useRef<HTMLHeadingElement>(null);
   const frame = useRef<HTMLIFrameElement>(null),
     bridge = useRef<ViewBridge | undefined>(undefined);
@@ -116,28 +119,25 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
       }),
       failed: () => setError("This view did not start"),
       key: viewKey,
-      async call(method, params) {
-        if (method !== "app.open")
-          throw new ViewCallError("unavailable", "This call is not available yet.");
-        const target = params as { chatId?: string; page?: string },
-          shell = useShell.getState();
-        if (target.chatId) {
-          if (
-            !currentConnection.current.snapshot.entities.thread?.some(
-              (row) => row.id === target.chatId,
-            )
-          )
-            throw new ViewCallError("not_found", "Chat not found.");
-          shell.openThread(target.chatId);
-        } else
-          shell.navigate(
-            target.page === "needs-you"
-              ? "Inbox"
-              : target.page === "settings"
-                ? "Settings"
-                : "Overview",
-          );
-      },
+      call: viewActions({
+        record: () => current.current,
+        snapshot: () => currentConnection.current.snapshot,
+        call: (method, params, commandId) =>
+          currentConnection.current.call(method, params, commandId),
+        confirm: confirmation.confirm,
+        open(target) {
+          const shell = useShell.getState();
+          if (target.chatId) shell.openThread(target.chatId);
+          else
+            shell.navigate(
+              target.page === "needs-you"
+                ? "Inbox"
+                : target.page === "settings"
+                  ? "Settings"
+                  : "Overview",
+            );
+        },
+      }),
     });
     bridge.current = host;
     channel.port1.onmessage = (event) => host.receive(event.data);
@@ -148,6 +148,7 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
   }
   return (
     <section className="view-page" aria-label={record.name}>
+      {confirmation.dialog}
       <GrantDialog
         record={record}
         connection={connection}

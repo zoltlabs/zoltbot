@@ -475,7 +475,7 @@ async function startOwnedDaemon(
   });
   resources.push(() => artifactSync.close());
   const artifacts = artifactsApi(runtimeContext);
-  views = createViewRegistry(runtimeContext, options.dataDir);
+  views = createViewRegistry(runtimeContext, options.dataDir, { runtime, interaction });
   await views.reload();
   const native = nativeApi({ snapshot: () => store.snapshot(), seq: () => store.lastSeq() });
   const dispatch = (command: Command, commandId: string) => {

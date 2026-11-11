@@ -34,7 +34,12 @@ export function runtimeApi(options: {
   onError?(code: string): void;
 }) {
   let controls: ReturnType<typeof sessionCommands> | undefined;
-  return (method: string, params: Record<string, unknown>, commandId?: string): unknown => {
+  return (
+    method: string,
+    params: Record<string, unknown>,
+    commandId?: string,
+    check?: (state: DomainState) => void,
+  ): unknown => {
     if (method === "turn.cancelQueued") {
       if (!commandId) throw new Error("command_id_required");
       const threadId = String(params.threadId),
@@ -127,6 +132,7 @@ export function runtimeApi(options: {
       const receipt = options.store.dispatch(commandId, (state) => {
         produced = true;
         validate?.(state);
+        check?.(state);
         if (artifactTarget) revisionTarget(options.store, threadId, artifactTarget);
         return queueHumanInput(
           state,

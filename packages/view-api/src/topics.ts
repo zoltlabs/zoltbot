@@ -60,6 +60,8 @@ export const RequestSchema = object({
         label: Type.String(),
         options: Type.Optional(Type.Array(object({ id: Id, label: Type.String() }))),
         freeText: Type.Boolean(),
+        multi: Type.Optional(Type.Boolean()),
+        schema: Type.Optional(Type.Unknown()),
       }),
     ),
   ),

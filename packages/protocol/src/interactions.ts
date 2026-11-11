@@ -71,6 +71,7 @@ export const ResolutionSchema = object({
   feedback: OptionalText,
   by: ActorSchema,
   device: OptionalText,
+  via: Type.Optional(object({ kind: Type.Literal("view"), id: Id })),
   at: At,
   automatic: Type.Optional(Type.Boolean()),
 });

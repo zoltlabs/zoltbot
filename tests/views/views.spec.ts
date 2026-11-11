@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, test, type WebSocketRoute } from "@playwright/test";
 import { viewProtocol } from "../../apps/desktop/src/view-protocol.js";
 import { loadView, viewRecord } from "../../packages/daemon/src/views/loader.js";
+import type { ZoltClient } from "../../packages/view-api/src/client.js";
 import fixture from "../../packages/view-api/src/fixtures/snapshot.json" with { type: "json" };
 
 let origin = "",
@@ -186,6 +187,7 @@ test("renders real mappings, edge alerts and chat navigation without network acc
           }),
         );
       }
+      if (message.method === "view.call") actionCalls.push(message.params);
       const result =
         message.method === "snapshot.get"
           ? { seq, entities: snapshot.entities, counters: {} }
@@ -199,6 +201,7 @@ test("renders real mappings, edge alerts and chat navigation without network acc
       socket.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
     });
   });
+  const actionCalls: Record<string, unknown>[] = [];
   const external: string[] = [];
   page.on("request", (request) => {
     if (!request.url().startsWith(origin) && !request.url().startsWith("data:"))
@@ -245,6 +248,35 @@ test("renders real mappings, edge alerts and chat navigation without network acc
   await expect(frame.locator("#error")).toHaveText("");
   await page.getByRole("button", { name: "Reload", exact: true }).click();
   await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Settings", exact: true }).last().click();
+  await page.getByRole("button", { name: "Edit permissions" }).click();
+  const edit = page.getByRole("dialog", { name: "Permissions for Command map" });
+  await edit.getByRole("checkbox").nth(2).check();
+  await edit.getByRole("button", { name: "Save permissions" }).click();
+  await page.getByRole("button", { name: "Open view", exact: true }).click();
+  await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
+  const answer = async () =>
+    frame.locator("body").evaluate(() => {
+      const client = (window as unknown as { zolt: ZoltClient }).zolt;
+      void client.requests
+        .answer({ requestId: "request", version: 2, choiceId: "allow_session" })
+        .catch(() => {});
+    });
+  await answer();
+  const confirmation = page.getByRole("dialog", { name: "Run tests?" });
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation.getByText("pnpm test", { exact: true })).toBeVisible();
+  expect(actionCalls).toEqual([]);
+  await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(actionCalls).toEqual([]);
+  await answer();
+  await confirmation.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect.poll(() => actionCalls.length).toBe(1);
+  expect(actionCalls[0]).toMatchObject({
+    id: "command-map",
+    method: "requests.answer",
+    confirmed: true,
+  });
   const darkBackground = await frame
     .locator("body")
     .evaluate((body) => getComputedStyle(body).backgroundColor);

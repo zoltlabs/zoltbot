@@ -43,6 +43,8 @@ export async function setViewGrants(
     before = registry.store.lastSeq();
   const result = registry.store.dispatch(commandId, (state) => {
     guard(state);
+    const current = state.view?.find((row) => row.id === id);
+    if (!current || current.bundleHash !== old.bundleHash) throw Error("view_changed");
     registry.store.database.prepare("DELETE FROM view_grants WHERE view_id=?").run(id);
     for (const permission of permissions)
       registry.store.database
@@ -53,7 +55,7 @@ export async function setViewGrants(
         "INSERT INTO view_reviews VALUES(?,?) ON CONFLICT(view_id) DO UPDATE SET requested=excluded.requested",
       )
       .run(id, JSON.stringify(requested));
-    const record = { ...old, granted: permissions, reviewed: requested };
+    const record = { ...current, granted: permissions, reviewed: requested };
     return {
       events: [
         parseEvent({

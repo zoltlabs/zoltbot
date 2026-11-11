@@ -215,6 +215,7 @@ Add these to `packages/protocol/src/` in a new `views.ts`, and to the Mac-only l
 |---|---|
 | `view.reload {}` | Loads the folders again. |
 | `view.setEnabled {id, enabled}` | Shows or hides a view in the sidebar. |
+| `view.call {id, method, params, confirmed?: true}` | Host-only wrapper for view action calls. Rechecks database grants at execution; `confirmed` comes from the host dialog, never from the frame. |
 | `view.setGrants {id, permissions, confirmed: true}` | Records the owner's grant. Writes an audit entry. |
 | `view.customize {id}` | Copies a built-in to the user folder. |
 | `view.resolveUpdate {id, choice: "keep" \| "replace" \| "copy", confirmed?: true}` | Answers a built-in update. |
@@ -429,7 +430,7 @@ interface Request {
   /** Ways to answer. A view shows these; it does not invent its own. */
   choices: { id: string; label: string; widens: boolean }[];
   /** Present for questions and forms. */
-  questions?: { id: string; label: string; options?: { id: string; label: string }[]; freeText: boolean }[];
+  questions?: { id: string; label: string; options?: { id: string; label: string }[]; freeText: boolean; multi?: boolean; schema?: unknown }[];
 }
 
 interface Workspace {
@@ -473,10 +474,12 @@ zolt.chats.interrupt(input: { chatIds: string[] }):
 zolt.requests.answer(input: {
   requestId: string; version: number;
   choiceId?: string;                                     // approvals, plans, gates
-  answers?: Record<string, string | string[]>;           // questions and forms
+  answers?: Record<string, string | string[] | { value: unknown }>;           // questions and forms
   feedback?: string;
 }): Promise<void>
 ```
+
+Question strings select a matching option id or supply an Other answer; arrays select multiple option ids. Forms use `{value}` with the existing flat form schema, exposed as `questions[].schema`; `multi` follows the existing interaction item. Other text is allowed unless `allowOther` is explicitly false, matching the existing answer validator. Secret questions remain in the host chat and cannot be answered through a view. These shapes follow the existing interaction handler rather than inventing a second form format.
 
 Limits: `chatIds` holds 1 to 50 ids, `text` at most 8,000 characters.
 

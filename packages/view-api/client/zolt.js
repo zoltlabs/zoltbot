@@ -72,10 +72,13 @@
     await ready;
     const id = ++nextId;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(Object.assign(new Error("The host did not answer."), { code: "unavailable" }));
-      }, 30000);
+      const timer =
+        method === "requests.answer"
+          ? undefined
+          : setTimeout(() => {
+              pending.delete(id);
+              reject(Object.assign(new Error("The host did not answer."), { code: "unavailable" }));
+            }, 30000);
       pending.set(id, { resolve, reject, timer });
       send({ t: "call", id, method, params });
     });

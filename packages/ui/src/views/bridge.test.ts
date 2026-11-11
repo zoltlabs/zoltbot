@@ -185,3 +185,48 @@ it("does not mistake a hidden or suspended host for a crashed frame", () => {
   f.time(75000);
   expect(f.failed).toHaveBeenCalledOnce();
 });
+it.each([
+  ["chats.send", { chatIds: ["chat"], text: "Hello" }],
+  ["chats.interrupt", { chatIds: ["chat"] }],
+  ["requests.answer", { requestId: "request", version: 1 }],
+  ["app.open", { page: "overview" }],
+  ["storage.get", {}],
+  ["storage.set", { value: {} }],
+])("rejects %s without its grant before calling the host", async (method, params) => {
+  const f = fixture();
+  f.host.receive({ t: "hello", api: 1 });
+  f.ready.granted = [];
+  f.host.receive({ t: "call", id: 9, method, params });
+  await vi.waitFor(() =>
+    expect(f.messages).toContainEqual(
+      expect.objectContaining({
+        t: "result",
+        id: 9,
+        ok: false,
+        error: expect.objectContaining({ code: "not_granted" }),
+      }),
+    ),
+  );
+  expect(f.call).not.toHaveBeenCalled();
+});
+it("never exposes grant mutation to the frame", async () => {
+  const f = fixture();
+  f.host.receive({ t: "hello", api: 1 });
+  f.host.receive({
+    t: "call",
+    id: 10,
+    method: "view.setGrants",
+    params: { id: "example", permissions: ["read", "act", "approve"], confirmed: true },
+  });
+  await vi.waitFor(() =>
+    expect(f.messages).toContainEqual(
+      expect.objectContaining({
+        t: "result",
+        id: 10,
+        ok: false,
+        error: expect.objectContaining({ code: "invalid" }),
+      }),
+    ),
+  );
+  expect(f.call).not.toHaveBeenCalled();
+});

@@ -293,7 +293,8 @@ export function handle(state: DomainState, command: Command, context: CommandCon
   const outcome = execute(state, command, context);
   const securityAction =
     command.type === "answer"
-      ? state.interaction?.find((i) => i.id === command.id)?.type === "approval"
+      ? state.interaction?.find((i) => i.id === command.id)?.type === "approval" ||
+        !!command.answer.via
       : (command.type === "create" || command.type === "update") &&
         ["agent", "grant", "rule"].includes(command.kind) &&
         command.confirmed === true;
@@ -307,7 +308,10 @@ export function handle(state: DomainState, command: Command, context: CommandCon
           : `${"kind" in command ? command.kind : "task"}.${command.type}`,
       target: "id" in command ? command.id : entityId(command.kind, command.value),
       result: "allowed",
-      detail: { confirmed: context.actor.kind === "human" },
+      detail: {
+        confirmed: context.actor.kind === "human",
+        ...(command.type === "answer" && command.answer.via ? { via: command.answer.via } : {}),
+      },
       at: context.at,
     };
     outcome.events.push(event("audit", record, context, "created", outcome.events.length));
