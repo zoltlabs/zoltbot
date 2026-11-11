@@ -127,7 +127,7 @@ Each adaptation was recorded in `docs/views.md` alongside its implementation:
 
 ## Remaining manual checks
 
-No Electron app, visible browser window, native folder picker or Finder was launched. No desktop keyboard or mouse input was sent. Do not treat the following as passed:
+During the original implementation run, no Electron app, visible browser window, native folder picker or Finder was launched, and no desktop keyboard or mouse input was sent. The follow-up run below received authorization for Electron but could not complete native interaction. Do not treat the following as passed:
 
 1. Actual Electron `zoltbot-view:` loading, CSP/request-filter behavior, renderer process separation and visual rendering.
 2. Sidebar/palette placement, keyboard exit and grant/widening dialogs in the running native app. The built UI versions were exercised headlessly.
@@ -139,3 +139,23 @@ No Electron app, visible browser window, native folder picker or Finder was laun
 `verifyMainFrame` was compared with the starting commit and is byte-for-byte unchanged. Added first-party source was checked for personal home-folder paths. `gitleaks git . --log-opts='dedc2a0..HEAD' --redact` scanned 20 implementation commits and found no leaks.
 
 The 24 skipped tests are the existing Docker and live E2B suites. Nonfatal diagnostics remain: prototype CSS/style warnings, the UI bundle-size advisory, and the existing artifact-kit CommonJS `import.meta` build warning. No checks were weakened to suppress them.
+
+
+## Follow-up test run
+
+The owner requested another test run after the implementation report and explicitly authorized a local Electron test using synthetic data and input confined to its test window.
+
+All required checks passed again on the implementation source at `ba34a31`:
+
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm test`: 379 files passed, 2 skipped; 2,474 tests passed, 24 skipped, in 392.26 seconds.
+- `pnpm build:ui`
+- `pnpm build:desktop`
+- `pnpm exec playwright test --config tests/views/playwright.config.ts`: six workflows passed in 16.9 seconds against the fresh UI build.
+
+The same existing lint/build warnings and Docker/live E2B skips remain. No production source changes were needed.
+
+Cua Driver launched a separate Electron instance in the background with a temporary app data directory. A screenshot showed the native shell on its setup page. The first synthetic daemon setup failed because it combined conflicting host options; after correcting that test harness and its initial session-state setup, the daemon started successfully. An authenticated loopback snapshot verified all six mapped chat states and an empty grant list for the command map. This fixture has no runtime host and cannot launch real provider processes.
+
+Cua's subsequent targeted window read reported `screen_locked`, an empty accessibility tree, and refused accessibility, pointer and keyboard routes. No native input was attempted around that refusal. The native map, grant/widening dialogs, scheme isolation and app actions therefore remain unverified. The owner was asked to unlock the Mac. The test Electron instance was closed, the synthetic daemon stopped cleanly, and the Cua session ended. Temporary fixture data remains outside tracked source for a later continuation.
