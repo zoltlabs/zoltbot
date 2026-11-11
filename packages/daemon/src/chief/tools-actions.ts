@@ -8,6 +8,7 @@ import {
   queueAgentInput,
   queueHumanInput,
 } from "@zoltbot/core";
+import type { ToolInvocation } from "@zoltbot/hostmcp";
 import type { Interaction, InteractionAnswer } from "@zoltbot/protocol";
 import type { RuntimeContext } from "../api.js";
 import { chiefKeys, chiefName, chiefThreadId, settingCommand } from "./identity.js";
@@ -17,9 +18,162 @@ import {
   type ChiefAction,
   type ChiefRelayedAnswer,
   describe,
+  hash,
   liveThread,
   text,
 } from "./tools-model.js";
+
+/** Returns an applied CompanyPlan id when the chief already has approved authority over `chatId`. */
+export function authorizedChiefMessagePlan(
+  state: DomainState,
+  actorThreadId: string,
+  chatId: string,
+): string | undefined {
+  const target = liveThread(state, chatId);
+  if (!target) return undefined;
+  const node = target.node as { type?: string; id?: string } | undefined;
+  const projectId =
+    text(target.projectId) ||
+    (node?.type === "project"
+      ? text(node.id)
+      : node?.type === "subproject"
+        ? text(state.subproject?.find((s) => s.id === node.id)?.projectId)
+        : "");
+  if (!projectId) return undefined;
+  const appliedPlans = (state.companyPlan ?? []).filter(
+    (plan) =>
+      plan.state === "applied" &&
+      plan.projectId === projectId &&
+      plan.requestedBy === actorThreadId,
+  );
+  if (!appliedPlans.length) return undefined;
+  const isCoordinatedTarget =
+    target.kind === "manager" ||
+    (state.managerRemit ?? []).some((r) => r.projectId === projectId && r.threadId === chatId) ||
+    (state.initiativeRecord ?? []).some(
+      (r) =>
+        r.projectId === projectId &&
+        r.managerThreadId === chatId &&
+        !["completed", "cancelled"].includes(text(r.state)),
+    ) ||
+    (state.task ?? []).some(
+      (r) =>
+        r.projectId === projectId &&
+        !["completed", "cancelled"].includes(text(r.state)) &&
+        (r.accountableThreadId === chatId || r.threadId === chatId),
+    );
+  if (!isCoordinatedTarget) return undefined;
+  return text(appliedPlans.at(-1)?.id) || undefined;
+}
+
+/** Delivers an ordinary handoff or follow-up directly under an already-approved CompanyPlan. */
+export async function sendAuthorizedChiefMessage(
+  context: RuntimeContext,
+  call: ToolInvocation,
+  args: { key: string; chatId: string; text: string },
+  authorityPlanId: string,
+) {
+  const base = hash([call.actor.threadId, "chief_message_chat", args.key]);
+  const messageId = `chief-msg-${base.slice(0, 24)}`;
+  const commandId = `chief-direct:${base}`;
+  const check = await context.privacy.prepareData(args);
+  const before = context.store.lastSeq();
+  let produced = false;
+  const receipt = context.store.dispatch<{ chatId: string; text: string; authorityPlanId: string }>(
+    commandId,
+    (state) => {
+      check(state);
+      const target = liveThread(state, args.chatId);
+      if (!target) throw new Error("chat_unavailable");
+      const currentPlan = authorizedChiefMessagePlan(state, call.actor.threadId, args.chatId);
+      if (!currentPlan) throw new Error("approval_required");
+      produced = true;
+      const at = new Date().toISOString();
+      const actor = { kind: "agent" as const, id: call.actor.agentId };
+      const body = `[Message from ${chiefName(state)}, under approved plan ${currentPlan}]\n${args.text}`;
+      const message = handle(
+        state,
+        {
+          type: "create",
+          kind: "message",
+          value: {
+            id: messageId,
+            thread: target.id,
+            fromThread: call.actor.threadId,
+            from: actor,
+            to: [{ kind: "agent", id: target.agentId }],
+            kind: "message",
+            expectsReply: false,
+            priority: "normal",
+            delivery: "next_turn",
+            root: messageId,
+            hops: 1,
+            ttlHops: 6,
+            origin: "agent",
+            body: [{ type: "text", text: body }],
+            createdAt: at,
+          },
+        },
+        { commandId: `${commandId}:message`, at, actor },
+      );
+      let next = applyEvents(state, message.events);
+      const audit = handle(
+        next,
+        {
+          type: "create",
+          kind: "audit",
+          value: {
+            id: `${messageId}:audit`,
+            actor,
+            action: "chief.message_chat",
+            target: target.id,
+            result: "allowed",
+            detail: {
+              authorityPlanId: currentPlan,
+              chiefThreadId: call.actor.threadId,
+              messageId,
+            },
+            at,
+          },
+        },
+        { commandId: `${commandId}:audit`, at, actor },
+      );
+      next = applyEvents(next, audit.events);
+      const queued = queueAgentInput(next, messageId, `${messageId}:input`, {
+        commandId: `${commandId}:queue`,
+        at,
+        actor,
+      });
+      const events = [...message.events, ...audit.events, ...queued.events].map((e, i) => ({
+        ...e,
+        eventId: `${commandId}:${i}`,
+      }));
+      return {
+        events,
+        result: { chatId: args.chatId, text: args.text, authorityPlanId: currentPlan },
+      };
+    },
+  );
+  if (receipt.result.chatId !== args.chatId || receipt.result.text !== args.text)
+    throw new Error("command_receipt_conflict");
+  if (produced) context.publish(context.store.eventsSince(before));
+  try {
+    await context.wake(args.chatId);
+    return {
+      status: "sent",
+      chatId: args.chatId,
+      authorityPlanId: receipt.result.authorityPlanId || authorityPlanId,
+      delivered: "queued",
+    };
+  } catch {
+    return {
+      status: "sent",
+      chatId: args.chatId,
+      authorityPlanId: receipt.result.authorityPlanId || authorityPlanId,
+      delivered: "queued_not_woken",
+    };
+  }
+}
 /** Applies or declines a chief approval and tells the chief through its input queue. */
 export async function respondChiefApproval(
   context: RuntimeContext,

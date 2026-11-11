@@ -518,6 +518,14 @@ export function reviewCompanyTask(
 ): Outcome {
   const task = state.task?.find((r) => r.id === input.taskId);
   if (!task) throw Error("task_unavailable");
+  if (task.state !== "review")
+    throw Error(
+      `task_not_in_review: task ${input.taskId} is in state ${String(task.state)} (submit result first)`,
+    );
+  if (task.revision !== input.revision)
+    throw Error(
+      `stale_task_revision: task ${input.taskId} is at revision ${String(task.revision)}`,
+    );
   if (context.actor.kind !== "human") {
     if (
       !actor ||
@@ -526,13 +534,18 @@ export function reviewCompanyTask(
     )
       throw Error("independent_reviewer_required");
     companyAccess(state, actor, String(task.projectId));
+    if (!input.planId)
+      throw Error("review_authority_required: pass planId of an applied plan with reviewTasks");
     const plan = state.companyPlan?.find(
       (r) => r.id === input.planId && r.state === "applied" && r.projectId === task.projectId,
     );
     const authority = plan?.authority as CompanyPlan["authority"];
     const initiative = state.initiativeRecord?.find((r) => r.id === task.initiativeId);
+    if (!authority?.reviewTasks)
+      throw Error(
+        "review_authority_required: plan does not grant reviewTasks (human review required)",
+      );
     if (
-      !authority?.reviewTasks ||
       authority.initiativeId !== task.initiativeId ||
       initiative?.state !== "active" ||
       (initiative.managerThreadId !== actor.threadId &&

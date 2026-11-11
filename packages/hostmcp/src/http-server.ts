@@ -131,7 +131,7 @@ export async function startHostMcp(options: Options) {
           name: call.params.name,
           arguments: call.params.arguments ?? {},
         },
-        (args) => validate?.(args).valid === true,
+        (args) => (validate ? validate(args) : true),
       );
       return { ...result };
     });

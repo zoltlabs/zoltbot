@@ -37,6 +37,57 @@ export const companyToolDefinition = {
     additionalProperties: false,
   },
 };
+
+const sectionAliases: Record<string, string> = {
+  project: "projects",
+  priority: "priorities",
+  team: "teams",
+  manager: "managers",
+  remit: "remits",
+  initiative: "initiatives",
+  task: "tasks",
+  result: "results",
+  plan: "plans",
+  brief: "briefs",
+  decision: "decisions",
+};
+const validSections = new Set([
+  "projects",
+  "priorities",
+  "teams",
+  "managers",
+  "remits",
+  "initiatives",
+  "tasks",
+  "results",
+  "plans",
+  "briefs",
+  "decisions",
+]);
+
+function compactTaskReceipt(value: Record<string, unknown>) {
+  const keys = [
+    "id",
+    "projectId",
+    "initiativeId",
+    "title",
+    "state",
+    "revision",
+    "planned",
+    "threadId",
+    "accountableThreadId",
+    "executorThreadId",
+    "authorityPlanId",
+    "holdReason",
+    "reviewState",
+    "budgetUsd",
+    "replacedByTaskId",
+    "excludedKnowledgeIds",
+    "updatedAt",
+  ] as const;
+  return Object.fromEntries(keys.filter((k) => value[k] !== undefined).map((k) => [k, value[k]]));
+}
+
 export function companyTools(context: RuntimeContext) {
   const api = companyApi(context);
   const workspace = workspaceTools(context);
@@ -67,11 +118,25 @@ export function companyTools(context: RuntimeContext) {
       };
       if (args.action === "describe")
         return {
-          workspace:
-            "shape_read lists existing objects/profiles. create request {kind:project|subproject|chat,name,parent?:{type:project|subproject,id},goal?,profileId?,manager?}; update request {target:{type:project|subproject|chat|profile,id},changes:{field:string}}. Stable key. Uses existing workspace approvals.",
-          read: "request {projectId?, section?: projects|priorities|teams|managers|remits|initiatives|tasks|plans|briefs|decisions, id?, offset?}. Bounded results; select a section/id for details.",
+          read: "request {projectId?, section?: projects|priorities|teams|managers|remits|initiatives|tasks|results|plans|briefs|decisions, id?, offset?, limit?}. Bounded results; queued/blocked tasks include launchReadiness.",
           propose:
-            "request {id,projectId,title,explanation,changes:[...],authority?}. Saves a proposal; human approves in workspace. Read current state first. Use fresh ids; reference earlier creations in later changes.",
+            "request {id,projectId,title,explanation,changes:[...],authority?}. Saves proposal; human approves once in workspace.",
+          assign:
+            "request {value:<task>,planId?}. Stable key. Creates a new task (or dispatches matching planned task). Direct human work needs no manager or initiative; agent delegation requires applied authority.",
+          dispatch:
+            "request {taskId,planId?,brief?,acceptance?,profileId?,accountableThreadId?,budgetUsd?}. Stable key. Dispatches an existing planned task, preserving identity, dependencies and acceptance.",
+          submit:
+            "request {taskId,status:done|partial|blocked|failed,summary,files?:[string],planId?}. Stable key. Records a taskResult for direct manager/IC execution and moves done work to review.",
+          cancel:
+            "request {taskId,reason?,planId?,replacementTaskId?}. Stable key. Cancels non-completed task, interrupts active turn, and releases plan task/budget reservation.",
+          recover:
+            "request {taskId,planId?,excludeOptionalKnowledgeIds?:[id],brief?}. Stable key. Recovers held/blocked/failed task; required/constraint/initiative knowledge cannot be excluded.",
+          review:
+            "request {taskId,revision,decision:accept|changes|reject,feedback?,planId}. Stable key. Requires reviewTasks authority and an independent reviewer (never self-review).",
+          brief:
+            "request {projectId,summary?}. Stable key. Saves dated evidence-backed brief (deduplicating identical same-day retries) and returns a compact receipt.",
+          shape:
+            "shape_read lists workspace objects/profiles; create {kind:project|subproject|chat,name,parent?,goal?,profileId?,manager?}; update {target:{type,id},changes:{field:string}}.",
           changes: {
             team: "{kind:'team',id,name,parent:{type:'project'|'subproject',id},why}",
             chat: "{kind:'chat',id,title,parent,profileId,manager:boolean,why}",
@@ -84,13 +149,7 @@ export function companyTools(context: RuntimeContext) {
               "{kind:'assignManager',id:chatId,parent,why} | {kind:'moveTask',id,initiativeId?,accountableThreadId?,why} | {kind:'renameTeam',id,name,why} | {kind:'moveTeam'|'moveChat',id,parent,why} | {kind:'archiveTeam',id,why} | {kind:'assignTask',id,accountableThreadId,why} | {kind:'releaseTask',id,why}",
           },
           authority:
-            "{initiativeId,maxTasks:1..100,reviewTasks?:boolean,permissionCeiling:read_only|workspace_write|workspace_write_net|full_access,budgetUsd}. Applied authority permits initiative owner and proposing chief to assign tasks within these bounds. Budget is a reservation; provider cost reporting may lag.",
-          assign:
-            "request {value:<task value above>,planId}. Stable key. Optional managers/initiatives for human-created direct work. Agent assignments require applied initiative authority.",
-          review:
-            "request {taskId,revision,decision:accept|changes|reject,feedback?,planId}. Requires explicit reviewTasks authority; never review your own execution. Initiative completion stays human-reviewed.",
-          brief:
-            "request {projectId,summary?}; saves dated evidence and summary. Initiative/remit versions start at 1; edits increment. Dates are ISO timestamps. No cross-workspace moves. Busy chats move only at safe boundaries; running task accountability transfers after execution. Completed initiatives require accepted or explicitly cancelled tasks.",
+            "{initiativeId,maxTasks:1..100,reviewTasks?:boolean,permissionCeiling:read_only|workspace_write|workspace_write_net|full_access,budgetUsd}. Budget is a task reservation separate from provider billing.",
         };
       if (["shape_read", "create", "update"].includes(args.action)) {
         const tool = workspace.tools.get(
@@ -108,48 +167,143 @@ export function companyTools(context: RuntimeContext) {
             .update(JSON.stringify([call.actor.threadId, args.action, args.key]))
             .digest("hex")}`
         : undefined;
-      const { section, id, offset, ...request } = args.request ?? {};
-      const result = await api(
-        `company.${args.action}`,
-        args.action === "read" ? request : (args.request ?? {}),
-        commandId,
-        call.actor,
-      );
-      if (result === undefined) throw Error("unknown_company_action");
       if (args.action === "read") {
-        let view = compactCompanyView(result);
-        if (typeof section === "string") view = { [section]: view[section] ?? [] };
-        for (const [key, value] of Object.entries(view))
-          if (Array.isArray(value))
-            view[key] = value
-              .filter((r) => !id || r.id === id)
-              .slice(typeof offset === "number" ? offset : 0);
+        const {
+          section: rawSection,
+          id,
+          offset,
+          limit,
+          ...readReq
+        } = (args.request ?? {}) as Record<string, unknown>;
+        const section =
+          typeof rawSection === "string" ? (sectionAliases[rawSection] ?? rawSection) : undefined;
+        if (section && !validSections.has(section))
+          throw Error(
+            "invalid_section: choose projects, priorities, teams, managers, remits, initiatives, tasks, results, plans, briefs, or decisions",
+          );
+        if (!readReq.projectId) {
+          const state = context.store.snapshot();
+          const actorThread = state.thread?.find((t) => t.id === call.actor.threadId);
+          if (actorThread?.projectId) readReq.projectId = String(actorThread.projectId);
+          else if ((section && section !== "projects" && section !== "priorities") || id) {
+            const top = (await api("company.read", {}, undefined, call.actor)) as {
+              projects?: { id: string }[];
+            };
+            const accessible = new Set((top.projects ?? []).map((p) => String(p.id)));
+            if (typeof id === "string") {
+              for (const table of [
+                state.initiativeRecord,
+                state.task,
+                state.companyPlan,
+                state.projectBrief,
+                state.subproject,
+                state.managerRemit,
+                state.thread,
+              ]) {
+                const match = table?.find(
+                  (r) => r.id === id && accessible.has(String(r.projectId ?? "")),
+                );
+                if (match?.projectId) {
+                  readReq.projectId = String(match.projectId);
+                  break;
+                }
+              }
+            }
+            if (!readReq.projectId) {
+              if (accessible.size === 1) readReq.projectId = [...accessible][0];
+              else if (accessible.size > 1)
+                throw Error(
+                  "project_id_required: pass request.projectId (call read without section to list projects)",
+                );
+            }
+          }
+        }
+        const rawResult = await api("company.read", readReq, undefined, call.actor);
+        if (rawResult === undefined) throw Error("unknown_company_action");
+        let view = compactCompanyView(rawResult);
+        if (section) view = { [section]: view[section] ?? [] };
+        for (const [k, v] of Object.entries(view))
+          if (Array.isArray(v) && typeof id === "string")
+            view[k] = v.filter((r) => (r as { id?: unknown }).id === id);
         const counts = Object.fromEntries(
           Object.entries(view)
             .filter(([, v]) => Array.isArray(v))
             .map(([k, v]) => [k, (v as unknown[]).length]),
         );
-        while (JSON.stringify(view).length > 3400) {
+        const startOffset =
+          typeof offset === "number" && Number.isFinite(offset) && offset > 0
+            ? Math.floor(offset)
+            : 0;
+        const pageLimit =
+          typeof limit === "number" && Number.isFinite(limit) && limit > 0
+            ? Math.min(50, Math.floor(limit))
+            : undefined;
+        for (const [k, v] of Object.entries(view))
+          if (Array.isArray(v))
+            view[k] =
+              pageLimit !== undefined
+                ? v.slice(startOffset, startOffset + pageLimit)
+                : v.slice(startOffset);
+        while (JSON.stringify(view).length > 3300) {
           const largest = Object.entries(view)
             .filter(([, v]) => Array.isArray(v) && v.length > 0)
             .sort((a, b) => JSON.stringify(b[1]).length - JSON.stringify(a[1]).length)[0];
           if (!largest) break;
-          const value = largest[1] as unknown[];
+          const value = largest[1] as Record<string, unknown>[];
           if (value.length === 1) {
+            const single = value[0] as Record<string, unknown>;
+            if (Array.isArray(single.changes) && single.changes.length > 3) {
+              view[largest[0]] = [
+                {
+                  ...single,
+                  changeCount: single.changes.length,
+                  changes: single.changes.slice(0, 3),
+                },
+              ];
+              if (JSON.stringify(view).length <= 3300) break;
+            }
             view[largest[0]] = JSON.parse(
               JSON.stringify(value, (_k, v) =>
-                typeof v === "string" && v.length > 160 ? `${v.slice(0, 160)}…` : v,
+                typeof v === "string" && v.length > 140 ? `${v.slice(0, 140)}…` : v,
               ),
             );
-            if (JSON.stringify(view).length > 3400) view[largest[0]] = [];
-          } else view[largest[0]] = value.slice(0, Math.ceil(value.length / 2));
+            if (JSON.stringify(view).length > 3300)
+              view[largest[0]] = [{ id: single.id, state: single.state, truncated: true }];
+            break;
+          }
+          view[largest[0]] = value.slice(0, Math.ceil(value.length / 2));
         }
+        const hasMore = Object.entries(view).some(
+          ([k, v]) => Array.isArray(v) && startOffset + v.length < (counts[k] ?? 0),
+        );
         return {
+          ...(readReq.projectId ? { projectId: readReq.projectId } : {}),
           ...view,
           counts,
-          hint: "Select request section/id and offset for omitted records. Full records are available in the workspace.",
+          ...(startOffset > 0 ? { offset: startOffset } : {}),
+          ...(hasMore ? { hasMore: true } : {}),
+          hint: "Select request section/id, offset and limit for omitted records.",
         };
       }
+      const normalizedRequest = { ...(args.request ?? {}) };
+      if (
+        args.action === "recover" &&
+        normalizedRequest.excludeKnowledgeIds !== undefined &&
+        normalizedRequest.excludeOptionalKnowledgeIds === undefined
+      ) {
+        normalizedRequest.excludeOptionalKnowledgeIds = normalizedRequest.excludeKnowledgeIds;
+        delete normalizedRequest.excludeKnowledgeIds;
+      }
+      if (
+        args.action === "cancel" &&
+        normalizedRequest.replacedByTaskId !== undefined &&
+        normalizedRequest.replacementTaskId === undefined
+      ) {
+        normalizedRequest.replacementTaskId = normalizedRequest.replacedByTaskId;
+        delete normalizedRequest.replacedByTaskId;
+      }
+      const result = await api(`company.${args.action}`, normalizedRequest, commandId, call.actor);
+      if (result === undefined) throw Error("unknown_company_action");
       if (args.action === "propose") {
         const plan = result as { id: string; version: number };
         return {
@@ -159,6 +313,59 @@ export function companyTools(context: RuntimeContext) {
           review:
             "Open the workspace Organization and work panel to inspect and approve. No changes have been applied.",
         };
+      }
+      if (args.action === "brief") {
+        const brief = result as {
+          id: string;
+          projectId: string;
+          day: string;
+          revision: number;
+          summary: string;
+          deduplicated?: boolean;
+          evidence?: {
+            initiatives?: unknown[];
+            tasks?: unknown[];
+            results?: unknown[];
+            decisions?: unknown[];
+          };
+          createdAt: string;
+        };
+        return {
+          id: brief.id,
+          projectId: brief.projectId,
+          day: brief.day,
+          revision: brief.revision,
+          ...(brief.deduplicated ? { deduplicated: true } : {}),
+          summary: brief.summary.length > 600 ? `${brief.summary.slice(0, 600)}…` : brief.summary,
+          evidenceCounts: {
+            initiatives: brief.evidence?.initiatives?.length ?? 0,
+            tasks: brief.evidence?.tasks?.length ?? 0,
+            results: brief.evidence?.results?.length ?? 0,
+            decisions: brief.evidence?.decisions?.length ?? 0,
+          },
+          createdAt: brief.createdAt,
+        };
+      }
+      if (args.action === "submit") {
+        const submitted = result as {
+          task?: Record<string, unknown>;
+          taskResult?: Record<string, unknown>;
+        };
+        return {
+          task: submitted.task ? compactTaskReceipt(submitted.task) : undefined,
+          taskResult: submitted.taskResult
+            ? {
+                id: submitted.taskResult.id,
+                taskId: submitted.taskResult.taskId,
+                revision: submitted.taskResult.revision,
+                status: submitted.taskResult.status,
+                auto: submitted.taskResult.auto,
+              }
+            : undefined,
+        };
+      }
+      if (["assign", "dispatch", "cancel", "recover", "review"].includes(args.action)) {
+        return compactTaskReceipt(result as Record<string, unknown>);
       }
       return result;
     },

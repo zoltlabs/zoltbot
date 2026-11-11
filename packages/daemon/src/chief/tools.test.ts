@@ -295,3 +295,92 @@ it("distinguishes queued input, held tasks, awaiting review, and accepted work i
     f.close();
   }
 });
+
+it("returns matching workspace metadata on scoped chief_overview and delivers authorized handoffs without redundant approvals", async () => {
+  const { f, call, actor, context, queued, wakes } = await setup();
+  const { companyApi } = await import("../company-api.js");
+  const api = companyApi(context);
+  try {
+    const scopedBefore = await call("chief_overview", { workspaceId: "coach" });
+    expect(scopedBefore.workspaces).toEqual([{ id: "coach", name: "Coach V2", teams: [] }]);
+
+    const plan = (await api(
+      "company.propose",
+      {
+        id: "org-plan",
+        projectId: "coach",
+        title: "Create engineering manager",
+        explanation: "Delegate within approved scope",
+        changes: [
+          {
+            kind: "team",
+            id: "eng",
+            name: "Engineering",
+            parent: { type: "project", id: "coach" },
+            why: "Own fixes",
+          },
+          {
+            kind: "chat",
+            id: "eng-lead",
+            title: "Engineering Lead",
+            parent: { type: "subproject", id: "eng" },
+            profileId: "profile",
+            manager: true,
+            why: "Coordinate work",
+          },
+        ],
+      },
+      "propose-org",
+      actor,
+    )) as { id: string; version: number; baseline: string };
+
+    await api(
+      "company.decide",
+      { id: plan.id, version: plan.version, baseline: plan.baseline, approve: true },
+      "approve-org",
+    );
+
+    // Team-scoped chief_overview also returns the parent workspace with its teams.
+    const teamScoped = await call("chief_overview", { workspaceId: "eng" });
+    expect(teamScoped.workspaces).toEqual([
+      { id: "coach", name: "Coach V2", teams: [{ id: "eng", name: "Engineering" }] },
+    ]);
+
+    // Handoff to the approved manager delivers directly without creating a pending interaction!
+    const sent = await call("chief_message_chat", {
+      key: "handoff-1",
+      chatId: "eng-lead",
+      text: "Dispatch the planned onboarding fix and report verification.",
+    });
+    expect(sent).toMatchObject({
+      status: "sent",
+      chatId: "eng-lead",
+      authorityPlanId: "org-plan",
+    });
+    expect(f.store.snapshot(["interaction"]).interaction ?? []).toHaveLength(0);
+    expect(wakes).toContain("eng-lead");
+    const agentMessages = () => queued("eng-lead").filter((m) => m.origin === "agent");
+    expect(agentMessages()).toHaveLength(1);
+    expect(agentMessages()[0]?.text).toContain("under approved plan org-plan");
+
+    // Retrying with the same key is idempotent.
+    const retry = await call("chief_message_chat", {
+      key: "handoff-1",
+      chatId: "eng-lead",
+      text: "Dispatch the planned onboarding fix and report verification.",
+    });
+    expect(retry).toMatchObject({ status: "sent", authorityPlanId: "org-plan" });
+    expect(agentMessages()).toHaveLength(1);
+
+    // Messaging an unrelated non-manager chat without a company task still requires human approval!
+    const unrelated = await call("chief_message_chat", {
+      key: "nudge-worker",
+      chatId: "worker",
+      text: "Unapproved side message",
+    });
+    expect(unrelated).toMatchObject({ status: "pending" });
+    expect(f.store.snapshot(["interaction"]).interaction ?? []).toHaveLength(1);
+  } finally {
+    f.close();
+  }
+});

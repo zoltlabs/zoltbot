@@ -69,7 +69,7 @@ export const chiefToolDefinitions = [
   {
     name: "chief_message_chat",
     description:
-      "Ask the user to approve sending a message to a chat; it wakes the chat. Stable key.",
+      "Send a message to a chat and wake it (delivers directly within an applied CompanyPlan; asks approval otherwise). Stable key.",
     inputSchema: {
       type: "object" as const,
       properties: { key, chatId, text: { type: "string", minLength: 1, maxLength: 4000 } },

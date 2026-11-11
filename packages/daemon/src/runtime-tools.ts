@@ -145,15 +145,23 @@ export function runtimeTools(
       ["company_work", company.call],
     ]),
     authorize,
-    checkLimits(actor: ToolActor) {
+    checkLimits(actor: ToolActor, name?: string) {
+      const readOnly =
+        name === "chief_overview" ||
+        name === "chief_read_chat" ||
+        name === "chief_note" ||
+        name === "chief_triage" ||
+        name === "team_read_thread" ||
+        name === "workspace_read" ||
+        name === "team_knowledge_read";
       const now = Date.now(),
-        key = actor.sessionId;
+        key = `${actor.sessionId}:${readOnly ? "r" : "w"}`;
       const previous = limits.get(key);
       const value = !previous || now - previous.at >= 60000 ? { at: now, count: 0 } : previous;
       limits.set(key, value);
       if (limits.size > 1000)
         for (const [id, row] of limits) if (now - row.at > 60000) limits.delete(id);
-      return ++value.count <= 12;
+      return ++value.count <= (readOnly ? 60 : 36);
     },
     async audit(record: ToolAudit) {
       const check = await context.privacy.prepareData(record);

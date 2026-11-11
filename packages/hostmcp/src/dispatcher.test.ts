@@ -234,3 +234,49 @@ it("withholds an awaited result if its session or grant was revoked while the ha
     expect(JSON.stringify(result)).not.toContain("protected-result");
   }
 });
+
+it("surfaces safe schema and snake_case domain errors while hiding arbitrary or path-bearing failures", async () => {
+  const tokens = new SessionTokens();
+  const token = tokens.issue(identity);
+  let thrown = new Error("planned_task_exists: use dispatch to start task vip-fix");
+  const dispatcher = new ToolDispatcher(tokens, {
+    tools: new Map([
+      [
+        request.name,
+        async () => {
+          throw thrown;
+        },
+      ],
+    ]),
+    authorize: () => true,
+    checkLimits: () => true,
+    audit: async () => {},
+  });
+  const schemaInvalid = await dispatcher.call(`Bearer ${token}`, request, () => ({
+    valid: false,
+    errorMessage: "data must have required property 'why'",
+  }));
+  expect(JSON.parse(schemaInvalid.content[0]?.text ?? "{}")).toEqual({
+    error: "invalid_tool_arguments",
+    detail: "data must have required property 'why'",
+  });
+
+  const domainInvalid = await dispatcher.call(`Bearer ${token}`, request);
+  expect(JSON.parse(domainInvalid.content[0]?.text ?? "{}")).toEqual({
+    error: "planned_task_exists",
+    detail: "use dispatch to start task vip-fix",
+  });
+
+  thrown = new Error("Invalid payload: /revision: Expected required property");
+  const typeboxInvalid = await dispatcher.call(`Bearer ${token}`, request);
+  expect(JSON.parse(typeboxInvalid.content[0]?.text ?? "{}")).toEqual({
+    error: "invalid_tool_arguments",
+    detail: "/revision: Expected required property",
+  });
+
+  thrown = new Error("internal_leak: /var/folders/secret/file.ts");
+  const pathBearing = await dispatcher.call(`Bearer ${token}`, request);
+  expect(JSON.parse(pathBearing.content[0]?.text ?? "{}")).toEqual({
+    error: "tool_failed",
+  });
+});

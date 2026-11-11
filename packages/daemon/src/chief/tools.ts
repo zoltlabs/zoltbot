@@ -31,6 +31,12 @@ import {
 } from "./queue.js";
 import { timerTools } from "./timers.js";
 import {
+  authorizedChiefMessagePlan,
+  respondChiefApproval,
+  respondChiefIdea,
+  sendAuthorizedChiefMessage,
+} from "./tools-actions.js";
+import {
   bounded,
   type ChiefAction,
   type ChiefRelayedAnswer,
@@ -43,8 +49,7 @@ import {
   titleOf,
   verbs,
 } from "./tools-model.js";
-
-export { respondChiefApproval, respondChiefIdea } from "./tools-actions.js";
+export { respondChiefApproval, respondChiefIdea };
 export { chiefToolDefinitions, chiefToolNames } from "./tools-definitions.js";
 export { type ChiefAction, type ChiefRelayedAnswer, relayedAnswer } from "./tools-model.js";
 
@@ -126,6 +131,15 @@ export function chiefTools(context: RuntimeContext) {
           .map(({ projectId: _projectId, ...chat }) => chat);
         const workspaces = (state.project ?? [])
           .filter((row) => !row.archived)
+          .filter(
+            (row) =>
+              !args.workspaceId ||
+              row.id === args.workspaceId ||
+              (state.subproject ?? []).some(
+                (team) =>
+                  team.id === args.workspaceId && team.projectId === row.id && !team.archived,
+              ),
+          )
           .map((row) => ({
             id: text(row.id),
             name: text(row.name),
@@ -133,10 +147,7 @@ export function chiefTools(context: RuntimeContext) {
               .filter((team) => team.projectId === row.id && !team.archived)
               .map((team) => ({ id: text(team.id), name: text(team.name) })),
           }));
-        return bounded(
-          { workspaces: args.workspaceId ? [] : workspaces, chats, total: chats.length },
-          "chats",
-        );
+        return bounded({ workspaces, chats, total: chats.length }, "chats");
       },
     ],
     [
@@ -235,7 +246,11 @@ export function chiefTools(context: RuntimeContext) {
       "chief_message_chat",
       async (call) => {
         const args = call.arguments as { key: string; chatId: string; text: string };
-        if (!liveThread(snapshot(), args.chatId)) return refusal("chat_not_found");
+        const state = snapshot();
+        if (!liveThread(state, args.chatId)) return refusal("chat_not_found");
+        const authorityPlanId = authorizedChiefMessagePlan(state, call.actor.threadId, args.chatId);
+        if (authorityPlanId)
+          return sendAuthorizedChiefMessage(context, call, args, authorityPlanId);
         const messageId = `chief-msg-${hash([call.actor.threadId, args.key]).slice(0, 24)}`;
         return propose(
           call,
