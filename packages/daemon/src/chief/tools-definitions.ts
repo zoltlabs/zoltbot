@@ -5,12 +5,24 @@ export const chiefToolDefinitions = [
   {
     name: "chief_overview",
     description:
-      "List workspaces, teams and chats with status (needs_you, working, failed, done, idle) and your notes. Filter by workspaceId, status or a title query.",
+      "List workspaces, teams and chats with status (needs_you, working, queued, held, awaiting_review, failed, done, idle) and your notes. Filter by workspaceId, status or a title query.",
     inputSchema: {
       type: "object" as const,
       properties: {
         workspaceId: { type: "string", maxLength: 256 },
-        status: { type: "string", enum: ["needs_you", "working", "failed", "done", "idle"] },
+        status: {
+          type: "string",
+          enum: [
+            "needs_you",
+            "working",
+            "queued",
+            "held",
+            "awaiting_review",
+            "failed",
+            "done",
+            "idle",
+          ],
+        },
         query: { type: "string", maxLength: 100 },
       },
       additionalProperties: false,

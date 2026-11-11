@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
+  applyEvents,
   briefTeam,
   type DomainState,
   managerAbove,
@@ -8,6 +9,7 @@ import {
   messageTeam,
   type Outcome,
   reportUp,
+  submitCompanyTask,
   type TeamMessageInput,
   workspaceChats,
 } from "@zoltbot/core";
@@ -47,6 +49,8 @@ export const teamToolDefinitions = [
       properties: {
         key: { type: "string", minLength: 1, maxLength: 100 },
         text: { type: "string", minLength: 1, maxLength: 2000 },
+        taskId: { type: "string", minLength: 1, maxLength: 256 },
+        files: { type: "array", maxItems: 50, items: { type: "string", maxLength: 500 } },
         // Entries are validated by the knowledge write policy, so the hint stays small (I9).
         learned: { type: "array", maxItems: 5, items: { type: "object" } },
       },
@@ -57,7 +61,7 @@ export const teamToolDefinitions = [
   {
     name: "team_message",
     description:
-      'Message a chat in your workspace. question: true wakes it for a reply; otherwise it reads the update next turn. to: chat id or exact title, else your nearest manager; "chief" reaches the user\'s main agent, and idea: true marks an idea worth doing outside your brief. replyTo answers a message you got. Stable key.',
+      'Message a chat in your workspace. question: true wakes it for a reply; otherwise it reads the update next turn. to: chat id or exact title, else your nearest manager; "chief" reaches the user\'s main agent, and idea: true marks an idea worth doing outside your brief. Optional taskId records direct task completion. replyTo answers a message you got. Stable key.',
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -67,6 +71,8 @@ export const teamToolDefinitions = [
         question: { type: "boolean" },
         idea: { type: "boolean" },
         replyTo: { type: "string", minLength: 1, maxLength: 256 },
+        taskId: { type: "string", minLength: 1, maxLength: 256 },
+        files: { type: "array", maxItems: 50, items: { type: "string", maxLength: 500 } },
         learned: { type: "array", maxItems: 5, items: { type: "object" } },
       },
       required: ["key", "text"],
@@ -129,23 +135,47 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
   }
   function read(actor: ToolActor, childId: string) {
     if (!authorize(actor, "team_read_thread", { childId })) throw new Error("grant_required");
-    const state = context.store.snapshot(["thread", "turn", "item", "task"]);
+    const state = context.store.snapshot(["thread", "turn", "item", "task", "taskResult"]);
     const turns =
       state.turn
         ?.filter((row) => row.threadId === childId)
         .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt))) ?? [];
-    const queued = state.item?.some(
+    const queuedInputCount = (state.item ?? []).filter(
       (row) =>
         row.threadId === childId &&
         row.kind === "user" &&
         (row.body as { queueState?: unknown })?.queueState === "queued",
+    ).length;
+    const tasksForChild = (state.task ?? []).filter(
+      (r) => r.threadId === childId && r.state !== "cancelled",
     );
+    const task =
+      tasksForChild.find((r) => !["completed", "failed"].includes(String(r.state))) ??
+      tasksForChild.at(-1);
+    const taskState = task ? String(task.state) : undefined;
+    const holdReason = task?.holdReason ? String(task.holdReason) : undefined;
+    const rawReviewState = task?.reviewState ? String(task.reviewState) : undefined;
+    const reviewState = rawReviewState === "accept" ? "accepted" : rawReviewState;
+    const hasSubmittedResult = task
+      ? (state.taskResult ?? []).some((r) => r.taskId === task.id)
+      : undefined;
+    const isHeld =
+      taskState === "blocked" ||
+      (taskState === "queued" && (task?.planned === true || Boolean(holdReason)));
     const status =
       turns[0]?.status === "running"
         ? "running"
-        : queued || !turns[0]
-          ? "queued"
-          : String(turns[0].status);
+        : isHeld
+          ? "held"
+          : taskState === "review"
+            ? "awaiting_review"
+            : queuedInputCount > 0 || (!turns[0] && taskState === "queued") || (!turns[0] && !task)
+              ? "queued"
+              : taskState === "completed" && reviewState === "accepted"
+                ? "accepted"
+                : taskState === "failed" || turns[0]?.status === "failed"
+                  ? "failed"
+                  : String(turns[0]?.status ?? "idle");
     const text = (state.item ?? [])
       .filter((row) => row.threadId === childId && row.kind === "message")
       .sort((a, b) => Number(a.seq) - Number(b.seq))
@@ -155,12 +185,12 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       })
       .join("\n")
       .slice(-2000);
-    const task = state.task?.find(
-      (r) =>
-        r.threadId === childId && !["completed", "cancelled", "failed"].includes(String(r.state)),
-    );
     const result = {
-      ...(task ? { taskId: task.id } : {}),
+      ...(task ? { taskId: task.id, taskState } : {}),
+      ...(holdReason ? { holdReason } : {}),
+      ...(queuedInputCount > 0 ? { queuedInputCount } : {}),
+      ...(hasSubmittedResult !== undefined ? { hasSubmittedResult } : {}),
+      ...(reviewState ? { reviewState } : {}),
       childId,
       link: `#chat/${encodeURIComponent(childId)}`,
       status,
@@ -248,9 +278,58 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
+  async function maybeSubmitTask(
+    actor: ToolActor,
+    key: string,
+    taskId: string | undefined,
+    summary: string,
+    files?: string[],
+  ) {
+    if (!taskId) return undefined;
+    const row = context.store.record("task", taskId);
+    if (!row || !["queued", "running"].includes(String(row.state))) return undefined;
+    const submitCmdId = `team-submit:${hash(JSON.stringify([actor.threadId, key, taskId]))}`;
+    if (context.store.receipt(submitCmdId)) return { submittedTaskId: taskId };
+    const submitted = await dispatch(submitCmdId, { taskId, summary, files }, (state) => {
+      const out = submitCompanyTask(
+        state,
+        actor,
+        { taskId, status: "done", summary, ...(files?.length ? { files } : {}) },
+        {
+          commandId: submitCmdId,
+          at: new Date().toISOString(),
+          actor: { kind: "agent", id: actor.agentId },
+        },
+      );
+      return {
+        events: out.events,
+        result: {
+          submittedTaskId: taskId,
+          taskState: (
+            applyEvents(state, out.events).task?.find((t) => t.id === taskId) as
+              | { state?: string }
+              | undefined
+          )?.state,
+        },
+      };
+    });
+    return submitted;
+  }
   async function report(call: ToolInvocation) {
-    const args = call.arguments as { key: string; text: string };
+    const args = call.arguments as {
+      key: string;
+      text: string;
+      taskId?: string;
+      files?: string[];
+    };
     if (!authorize(call.actor, "team_report", args)) throw new Error("no_manager_above");
+    const submitted = await maybeSubmitTask(
+      call.actor,
+      args.key,
+      args.taskId,
+      args.text,
+      args.files,
+    );
     const messageId = `report-${hash(JSON.stringify([call.actor.threadId, args.key]))}`;
     const commandId = `report:${messageId}`;
     const result = await dispatch(commandId, { text: args.text }, (state) =>
@@ -264,9 +343,9 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     const managerThreadId = String(result.managerThreadId);
     try {
       await context.wake(managerThreadId);
-      return { delivered: "queued", managerThreadId };
+      return { delivered: "queued", managerThreadId, ...(submitted ?? {}) };
     } catch {
-      return { delivered: "queued_not_woken", managerThreadId };
+      return { delivered: "queued_not_woken", managerThreadId, ...(submitted ?? {}) };
     }
   }
   async function message(call: ToolInvocation) {
@@ -274,6 +353,8 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       key: string;
       question?: boolean;
       idea?: boolean;
+      taskId?: string;
+      files?: string[];
     };
     if (!authorize(call.actor, "team_message", args)) throw new Error("grant_required");
     // Injected text must not be able to wake another chat with a request.
@@ -282,13 +363,19 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
         error: "question_not_allowed",
         why: "This chat read content Zoltbot cannot vouch for. Send an update instead.",
       };
+    const submitted =
+      !args.question && !args.idea
+        ? await maybeSubmitTask(call.actor, args.key, args.taskId, args.text, args.files)
+        : undefined;
     // Zolt sits above every workspace; it keeps what leads send and decides what reaches the user.
-    if (args.to?.trim().toLowerCase() === "chief" && !args.replyTo)
-      return sendToChief(context, call.actor, {
+    if (args.to?.trim().toLowerCase() === "chief" && !args.replyTo) {
+      const sent = await sendToChief(context, call.actor, {
         key: args.key,
         text: args.text,
         kind: args.idea ? "idea" : args.question ? "question" : "update",
       });
+      return submitted ? { ...(sent as Record<string, unknown>), ...submitted } : sent;
+    }
     let to: string | undefined;
     if (args.to && !args.replyTo) {
       const state = context.store.snapshot(["thread", "agent", "project", "subproject"]);
@@ -334,12 +421,12 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     if (result.text !== args.text || (to && result.to !== to))
       throw new Error("command_receipt_conflict");
     const target = String(result.to);
-    if (!result.wake) return { messageId, to: target, delivered: "queued" };
+    if (!result.wake) return { messageId, to: target, delivered: "queued", ...(submitted ?? {}) };
     try {
       await context.wake(target);
-      return { messageId, to: target, delivered: "queued" };
+      return { messageId, to: target, delivered: "queued", ...(submitted ?? {}) };
     } catch {
-      return { messageId, to: target, delivered: "queued_not_woken" };
+      return { messageId, to: target, delivered: "queued_not_woken", ...(submitted ?? {}) };
     }
   }
   return {

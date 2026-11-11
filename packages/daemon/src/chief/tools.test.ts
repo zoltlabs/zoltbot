@@ -163,3 +163,135 @@ it("fits its frozen tools and instructions in the 1500 token fixed launch budget
     "company_work",
   ]);
 });
+
+it("distinguishes queued input, held tasks, awaiting review, and accepted work instead of reporting held chats as working", async () => {
+  const { f, call, put, change } = await setup();
+  const { createTask, finishTaskTurn, handle, holdTask, startTask } = await import("@zoltbot/core");
+  let seq = 0;
+  const ctx = () => ({
+    commandId: `status-check:${++seq}`,
+    at: new Date().toISOString(),
+    actor: { kind: "human" as const, id: "local-owner" },
+  });
+  try {
+    // End the initial worker turn so it is no longer running.
+    put("turn", "worker-turn", { status: "completed", endedAt: at });
+
+    // Create a delegated task bound to `worker` with a queued user brief AND a context_budget_hold.
+    f.store.dispatch("create-held-task", (state) =>
+      createTask(
+        state,
+        {
+          id: "task-held",
+          title: "Fix VIP SLA",
+          brief: "Fix SLA routing",
+          node: { type: "project", id: "coach" },
+          profileId: "profile",
+          existingThreadId: "worker",
+        },
+        ctx(),
+      ),
+    );
+    change({
+      type: "create",
+      kind: "item",
+      value: {
+        id: "queued-brief",
+        threadId: "worker",
+        kind: "user",
+        seq: 50,
+        body: {
+          queueVersion: 1,
+          input: [{ type: "text", text: "Fix SLA routing" }],
+          mode: "queue",
+          queueState: "queued",
+        },
+        createdAt: at,
+        updatedAt: at,
+      },
+    });
+    f.store.dispatch("hold-task", (state) =>
+      holdTask(
+        state,
+        "task-held",
+        "context_budget_hold: Optional knowledge (opt) exceeds remaining budget (100 tokens).",
+        ctx(),
+      ),
+    );
+
+    const heldOverview = (await call("chief_overview", {})) as {
+      chats: Record<string, unknown>[];
+    };
+    expect(heldOverview.chats).toEqual([
+      expect.objectContaining({
+        id: "worker",
+        status: "held",
+        executionState: "held",
+        queuedInputCount: 1,
+        taskId: "task-held",
+        taskState: "queued",
+        holdReason:
+          "context_budget_hold: Optional knowledge (opt) exceeds remaining budget (100 tokens).",
+        hasSubmittedResult: false,
+      }),
+    ]);
+    const [heldDigest] = chiefFragments(f.store, "thread");
+    expect(heldDigest?.text).toContain("Held or blocked (1):");
+    expect(heldDigest?.text).not.toContain("Running (1):");
+
+    // Clear the hold while queued input remains -> queued_input, still not "working".
+    put("task", "task-held", { holdReason: undefined });
+    const queuedOverview = (await call("chief_overview", {})) as {
+      chats: Record<string, unknown>[];
+    };
+    expect(queuedOverview.chats[0]).toMatchObject({
+      id: "worker",
+      status: "queued",
+      executionState: "queued_input",
+      queuedInputCount: 1,
+    });
+
+    // Start task, deliver queued input, and finish task -> awaiting_review (not accepted yet).
+    f.store.dispatch("start-task", (state) => startTask(state, "task-held", 1, ctx()));
+    for (const item of f.store.snapshot(["item"]).item ?? []) {
+      if (item.threadId === "worker" && item.kind === "user") {
+        put("item", String(item.id), {
+          body: { ...(item.body as Record<string, unknown>), queueState: "sent" },
+        });
+      }
+    }
+    f.store.dispatch("finish-task", (state) =>
+      finishTaskTurn(state, "task-held", 1, { status: "completed", text: "Fixed SLA" }, ctx()),
+    );
+    const reviewOverview = (await call("chief_overview", {})) as {
+      chats: Record<string, unknown>[];
+    };
+    expect(reviewOverview.chats[0]).toMatchObject({
+      id: "worker",
+      status: "awaiting_review",
+      executionState: "awaiting_review",
+      taskState: "review",
+      hasSubmittedResult: true,
+    });
+    const [reviewDigest] = chiefFragments(f.store, "thread");
+    expect(reviewDigest?.text).toContain("Submitted, awaiting review (not accepted) (1):");
+
+    // Human or authorized independent review accepts -> executionState becomes accepted.
+    f.store.dispatch("accept-task", (state) =>
+      handle(state, { type: "review", id: "task-held", revision: 1, decision: "accept" }, ctx()),
+    );
+    const acceptedOverview = (await call("chief_overview", {})) as {
+      chats: Record<string, unknown>[];
+    };
+    expect(acceptedOverview.chats[0]).toMatchObject({
+      id: "worker",
+      status: "done",
+      executionState: "accepted",
+      taskState: "completed",
+      reviewState: "accepted",
+      hasSubmittedResult: true,
+    });
+  } finally {
+    f.close();
+  }
+});

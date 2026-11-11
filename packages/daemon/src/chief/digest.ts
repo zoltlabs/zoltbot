@@ -7,7 +7,15 @@ import { timerLines } from "./timers.js";
 
 // The chief's view of every chat, built from records with no model call (file 13 section 3.2).
 
-export type ChiefChatStatus = "needs_you" | "working" | "failed" | "done" | "idle";
+export type ChiefChatStatus =
+  | "needs_you"
+  | "working"
+  | "queued"
+  | "held"
+  | "awaiting_review"
+  | "failed"
+  | "done"
+  | "idle";
 export interface ChiefChat {
   id: string;
   title: string;
@@ -15,6 +23,23 @@ export interface ChiefChat {
   place: string;
   projectId?: string;
   status: ChiefChatStatus;
+  executionState:
+    | "needs_you"
+    | "working"
+    | "queued_input"
+    | "held"
+    | "blocked"
+    | "awaiting_review"
+    | "accepted"
+    | "failed"
+    | "done"
+    | "idle";
+  queuedInputCount?: number;
+  taskId?: string;
+  taskState?: string;
+  holdReason?: string;
+  hasSubmittedResult?: boolean;
+  reviewState?: string;
   /** What is waiting on the person, for `needs_you`. */
   waiting?: string;
   lastActivityAt: string;
@@ -65,14 +90,14 @@ export function chiefChats(state: ChiefState, now = new Date()): ChiefChat[] {
     const previous = latest.get(id);
     if (!previous || text(row.startedAt) > text(previous.startedAt)) latest.set(id, row);
   }
-  const queued = new Set(
-    (state.item ?? [])
-      .filter(
-        (row) =>
-          row.kind === "user" && (row.body as { queueState?: unknown })?.queueState === "queued",
-      )
-      .map((row) => text(row.threadId)),
-  );
+  const queuedCounts = new Map<string, number>();
+  for (const row of state.item ?? []) {
+    if (row.kind === "user" && (row.body as { queueState?: unknown })?.queueState === "queued") {
+      const id = text(row.threadId);
+      queuedCounts.set(id, (queuedCounts.get(id) ?? 0) + 1);
+    }
+  }
+  const resultTaskIds = new Set((state.taskResult ?? []).map((row) => text(row.taskId)));
   const isRecent = (at: unknown) => {
     const age = now.getTime() - new Date(text(at)).getTime();
     return age >= 0 && age < recentMs;
@@ -83,22 +108,66 @@ export function chiefChats(state: ChiefState, now = new Date()): ChiefChat[] {
     if (thread.archived || id === self) continue;
     const turn = latest.get(id),
       where = place(state, thread),
-      note = notes[id]?.text;
-    const status: ChiefChatStatus = waiting.has(id)
-      ? "needs_you"
-      : running.has(id) || queued.has(id)
-        ? "working"
-        : turn?.status === "failed" && isRecent(turn.endedAt)
-          ? "failed"
-          : turn?.status === "completed" && isRecent(turn.endedAt)
-            ? "done"
-            : "idle";
+      note = notes[id]?.text,
+      queuedInputCount = queuedCounts.get(id) ?? 0;
+    const matchingTasks = (state.task ?? []).filter(
+      (row) =>
+        row.state !== "cancelled" &&
+        (row.threadId === id || (typeof thread.taskId === "string" && row.id === thread.taskId)),
+    );
+    const linkedTask =
+      matchingTasks.find((row) => !["completed", "failed"].includes(text(row.state))) ??
+      matchingTasks.at(-1);
+    const taskState = linkedTask ? text(linkedTask.state) : undefined;
+    const holdReason = linkedTask?.holdReason ? text(linkedTask.holdReason) : undefined;
+    const rawReviewState = linkedTask?.reviewState ? text(linkedTask.reviewState) : undefined;
+    const reviewState = rawReviewState === "accept" ? "accepted" : rawReviewState;
+    const hasSubmittedResult = linkedTask ? resultTaskIds.has(text(linkedTask.id)) : undefined;
+    const isTaskHeld =
+      taskState === "blocked" ||
+      (taskState === "queued" && (linkedTask?.planned === true || Boolean(holdReason)));
+    let status: ChiefChatStatus;
+    let executionState: ChiefChat["executionState"];
+    if (waiting.has(id)) {
+      status = "needs_you";
+      executionState = "needs_you";
+    } else if (running.has(id)) {
+      status = "working";
+      executionState = "working";
+    } else if (isTaskHeld) {
+      status = "held";
+      executionState = taskState === "blocked" ? "blocked" : "held";
+    } else if (taskState === "review") {
+      status = "awaiting_review";
+      executionState = "awaiting_review";
+    } else if (queuedInputCount > 0) {
+      status = "queued";
+      executionState = "queued_input";
+    } else if (taskState === "failed" || (turn?.status === "failed" && isRecent(turn.endedAt))) {
+      status = "failed";
+      executionState = "failed";
+    } else if (taskState === "completed" && reviewState === "accepted") {
+      status = isRecent(linkedTask?.updatedAt) || isRecent(turn?.endedAt) ? "done" : "idle";
+      executionState = "accepted";
+    } else if (turn?.status === "completed" && isRecent(turn.endedAt)) {
+      status = "done";
+      executionState = "done";
+    } else {
+      status = "idle";
+      executionState = "idle";
+    }
     chats.push({
       id,
       title: text(thread.title) || "Chat",
       place: where.label,
       ...(where.projectId ? { projectId: where.projectId } : {}),
       status,
+      executionState,
+      ...(queuedInputCount > 0 ? { queuedInputCount } : {}),
+      ...(linkedTask && taskState ? { taskId: text(linkedTask.id), taskState } : {}),
+      ...(holdReason ? { holdReason } : {}),
+      ...(hasSubmittedResult !== undefined ? { hasSubmittedResult } : {}),
+      ...(reviewState ? { reviewState } : {}),
       ...(waiting.has(id) ? { waiting: waiting.get(id) as string } : {}),
       lastActivityAt: text(thread.lastActivityAt),
       ...(note ? { note } : {}),
@@ -109,6 +178,9 @@ export function chiefChats(state: ChiefState, now = new Date()): ChiefChat[] {
 
 const sections: [ChiefChatStatus, string, number][] = [
   ["working", "Running", 12],
+  ["queued", "Queued input (not yet running)", 8],
+  ["held", "Held or blocked", 8],
+  ["awaiting_review", "Submitted, awaiting review (not accepted)", 8],
   ["failed", "Failed in the last 24 h", 6],
   ["done", "Finished in the last 24 h", 8],
 ];
@@ -174,6 +246,10 @@ export function chiefDigest(state: ChiefState, now = new Date(), extra: string[]
   const line = (chat: ChiefChat) =>
     `- ${chat.place ? `[${chat.place}] ` : ""}"${chat.title}" (${chat.id})${
       chat.waiting ? ` ${chat.waiting}` : ""
+    }${chat.holdReason ? ` [hold: ${chat.holdReason}]` : ""}${
+      chat.taskId && chat.status !== "working"
+        ? ` [task ${chat.taskId}: ${chat.executionState}]`
+        : ""
     }${chat.note ? ` | your note: ${chat.note}` : ""}`;
   const lines = [`Status at ${now.toISOString().slice(0, 16)}Z.`];
   if (notes.summary) lines.push(`Your summary: ${notes.summary.text}`);
@@ -225,6 +301,8 @@ export function chiefFragments(
     "interaction",
     "project",
     "subproject",
+    "task",
+    "taskResult",
   ]);
   if (chiefThreadId(state) !== threadId) return [];
   return [

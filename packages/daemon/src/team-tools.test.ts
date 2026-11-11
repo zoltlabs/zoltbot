@@ -353,3 +353,114 @@ it("messages a chat by title, lists chats for an unknown name, and keeps tainted
     f.close();
   }
 });
+
+it("records direct task execution via team_message taskId and exposes held/review states in team_read_thread", async () => {
+  const { f, change, tools } = await company();
+  const { createTask, holdTask } = await import("@zoltbot/core");
+  let seq = 0;
+  const ctx = () => ({
+    commandId: `direct:${++seq}`,
+    at,
+    actor: { kind: "human" as const, id: "local-owner" },
+  });
+  try {
+    change({ type: "create", kind: "settings", value: { key: "chief.thread", value: "chief-th" } });
+    change({
+      type: "create",
+      kind: "thread",
+      value: {
+        id: "chief-th",
+        agentId: "profile",
+        kind: "main",
+        title: "Chief",
+        titleSource: "human",
+        pinned: false,
+        archived: false,
+        createdAt: at,
+        lastActivityAt: at,
+      },
+    });
+    f.store.dispatch("create-direct-task", (state) => {
+      const created = createTask(
+        state,
+        {
+          id: "task-direct",
+          title: "Fix copy typo",
+          brief: "Fix header typo",
+          node: { type: "subproject", id: "mkt" },
+          profileId: "profile",
+          planned: true,
+          accountableThreadId: "thread",
+        },
+        ctx(),
+      );
+      return created;
+    });
+    f.store.dispatch("create-child-held", (state) =>
+      createTask(
+        state,
+        {
+          id: "task-child-held",
+          title: "Cut video",
+          brief: "Cut 15s clip",
+          node: { type: "subproject", id: "paid" },
+          profileId: "profile",
+          existingThreadId: "video",
+        },
+        ctx(),
+      ),
+    );
+    f.store.dispatch("hold-child", (state) =>
+      holdTask(state, "task-child-held", "Initiative paused", ctx()),
+    );
+
+    const readTool = tools.tools.get("team_read_thread");
+    const sendTool = tools.tools.get("team_message");
+    if (!readTool || !sendTool) throw new Error("missing_tools");
+
+    const heldView = await readTool({
+      actor: manager,
+      arguments: { childId: "video" },
+      idempotencyKey: "r1",
+    });
+    expect(heldView).toMatchObject({
+      childId: "video",
+      taskId: "task-child-held",
+      taskState: "queued",
+      status: "held",
+      holdReason: "Initiative paused",
+    });
+
+    // Manager fixes `task-direct` directly and reports to chief with taskId + files.
+    const sent = await sendTool({
+      actor: manager,
+      arguments: {
+        key: "done-direct",
+        to: "chief",
+        text: "Fixed header typo and verified node --test.",
+        taskId: "task-direct",
+        files: ["src/header.ts"],
+      },
+      idempotencyKey: "m1",
+    });
+    expect(sent).toMatchObject({
+      submittedTaskId: "task-direct",
+      taskState: "review",
+    });
+    expect(f.store.record("task", "task-direct")).toMatchObject({
+      state: "review",
+      planned: false,
+      executorThreadId: "thread",
+    });
+    const results = f.store.snapshot(["taskResult"]).taskResult ?? [];
+    expect(results).toEqual([
+      expect.objectContaining({
+        taskId: "task-direct",
+        auto: false,
+        files: ["src/header.ts"],
+      }),
+    ]);
+  } finally {
+    f.close();
+  }
+});
