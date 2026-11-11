@@ -214,9 +214,9 @@ Add these to `packages/protocol/src/` in a new `views.ts`, and to the Mac-only l
 | `view.setEnabled {id, enabled}` | Shows or hides a view in the sidebar. |
 | `view.setGrants {id, permissions, confirmed: true}` | Records the owner's grant. Writes an audit entry. |
 | `view.customize {id}` | Copies a built-in to the user folder. |
-| `view.resolveUpdate {id, choice: "keep" \| "replace" \| "copy"}` | Answers a built-in update. |
+| `view.resolveUpdate {id, choice: "keep" \| "replace" \| "copy", confirmed?: true}` | Answers a built-in update. |
 | `view.import {path, confirmed: true}` | Copies a folder the owner picked into the user folder. |
-| `view.remove {id, confirmed: true}` | Moves a user view to `<data folder>/views/.removed/<id>-<timestamp>/`. |
+| `view.remove {id, confirmed: true}` | Permanently deletes a user view after host confirmation and records the confirmation in the audit log. |
 | `view.state.get {id}` / `view.state.set {id, value}` | Reads and writes the saved state file. |
 
 Add asset routes next to the artifact ones in `packages/daemon/src/api-assets.ts`: `GET /view-manifest/<bundleHash>` and `GET /view-file/<bundleHash>/<fileHash>`, with the same bearer token and origin checks.
@@ -242,7 +242,7 @@ At start, for each user view with `basedOn`, the daemon compares `basedOn.bundle
 | Choice | Result |
 |---|---|
 | Keep mine | Nothing changes. `basedOn` moves to the new built-in so the prompt does not repeat. |
-| Use the new version | The user folder moves to `.removed/`. The built-in loads. |
+| Use the new version | After host confirmation, the user folder is deleted immediately and the confirmation is audited. The built-in loads. |
 | Keep both | The user folder is renamed `<id>-custom` (manifest `id` updated). The built-in loads under the original id. |
 
 Zoltbot does not merge files. A person who wants the new built-in features in their version asks an agent to bring them over; "Keep both" gives the agent both folders to compare.
@@ -259,9 +259,9 @@ A user view without `basedOn` (written from scratch or imported) is never prompt
 
 The daemon watches `<data folder>/views/` (one recursive `fs.watch`, changes collected for 300 ms) and reloads. The host replaces the frame when the bundle hash changes. A reload button on the view's header does the same on demand. Built-in folders are not watched.
 
-### Removing and restoring
+### Removing
 
-Remove never deletes. It moves the folder to `.removed/`. The settings page lists removed views for 30 days with a Restore action, then the daemon deletes them at start.
+Remove permanently deletes the user view immediately after explicit confirmation in the host, outside the frame. The confirmation states that the customized files will be lost and is recorded in the audit log (I13). There is no removed-view folder, retention timer or Restore action. Removing an override reveals the built-in view. Saved state survives removal. The "Use the new version" update choice has the same confirmation and audit requirement; `view.resolveUpdate` requires `confirmed: true` for `replace`.
 
 ## Rendering and isolation
 
@@ -530,7 +530,7 @@ Architecture invariant I13 says an action that widens a permission needs explici
 * Grants are stored per view id in the database (new migration, table `view_grants(view_id, permission, granted_at)`).
 * If a later version of the manifest asks for a permission the owner has not granted, the host asks again for that permission only.
 * Editing a user view's files does not clear its grants. The owner controls that folder, and asking again after every edit would make editing unusable. The settings page shows when the files last changed.
-* `view.import` always starts with no grants, even when a removed view had the same id.
+* `view.import` always starts with no grants, even when a previously deleted view had the same id.
 * The settings page lists every view with its grants and a switch for each.
 
 ## Host services
@@ -695,7 +695,7 @@ Done when: every call fails with `not_granted` without its grant (tested per cal
 
 1. `view.customize`, `basedOn`, the built-in update prompt and `view.resolveUpdate`.
 2. The folder watcher and reload in place.
-3. `view.import`, `view.remove`, restore.
+3. `view.import` and confirmed, audited immediate deletion with `view.remove`.
 4. Mock mode, `pnpm view:dev`, and a public guide (`docs/building-views.md`) with a minimal example view.
 5. The "Building Zoltbot views" skill and the `team_view` tool.
 
