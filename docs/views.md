@@ -97,7 +97,7 @@ command-map/
 
 A view follows the artifact rules in `packages/artifact-validation`, with these limits:
 
-* Allowed types: `.html`, `.css`, `.js`, `.mjs`, `.json`, `.svg`, `.md`, `.txt`, PNG, JPEG, WebP, plus `.woff2` (new) and `.wasm` (new, see "Open questions").
+* Allowed types: `.html`, `.css`, `.js`, `.mjs`, `.json`, `.svg`, `.md`, `.txt`, PNG, JPEG, WebP, plus `.woff2` (new). WebAssembly files are not allowed in version 1.
 * At most 500 files, 25 MB per file, 100 MB in total.
 * Paths are relative, use `/`, contain no `..`, and differ by more than letter case.
 * No symlinks. The loader rejects a folder that contains one.
@@ -285,7 +285,7 @@ Write `apps/desktop/src/view-protocol.ts` following `artifact-protocol.ts`:
 ```
 Content-Security-Policy:
   default-src 'none';
-  script-src <bundle origin> 'unsafe-inline' 'wasm-unsafe-eval';
+  script-src <bundle origin> 'unsafe-inline';
   style-src <bundle origin> 'unsafe-inline';
   img-src <bundle origin> data: blob:;
   font-src <bundle origin>;
@@ -299,7 +299,7 @@ Cache-Control: no-store
 Referrer-Policy: no-referrer
 ```
 
-Differences from artifacts: views may start workers and use WebAssembly, because games need both. `connect-src` allows only the view's own files, so `fetch("levels.json")` works and no other address does.
+Differences from artifacts: views may start workers, because games need them. WebAssembly stays blocked in version 1. `connect-src` allows only the view's own files, so `fetch("levels.json")` works and no other address does.
 
 ### Frame
 
@@ -486,14 +486,15 @@ Write this as pure functions in `packages/view-api/src/model.ts`, taking the ren
 | `Chat.status` | `threadMailbox` in `packages/protocol/src/inbox.ts`; `undefined` becomes `"idle"` |
 | `Chat.problem` | the session's `RuntimeStatus` (`packages/protocol/src/entities.ts`) |
 | `Chat.lastTurn` | newest `turn` for the thread |
-| `Chat.activity` | newest running `tool.started` title or `plan` step, else absent |
+| `Chat.activity` | newest running `tool.started` title or `plan` step, else absent. The host derives it in version 1. |
 | `Chat.profile`, `provider` | `agent` and `agentDefinition` entities |
 | `Chat.worktree` | `workspace` entity for the thread |
 | `Chat.usage` | `usage` records summed by thread |
 | `Request` | `interaction` entities with `state: "pending"` |
 | `Request.choices[].widens` | true for `allow_session`, `allow_accept_edits`, `allow_rule`, `reject_rule` |
 | `Workspace` | `project` entities |
-| `Usage.today` | `usage` records since local midnight; `budget` from the budget settings |
+| `Usage.today` | `usage` records since local midnight |
+| `Usage.budget` | the owner-level budget stored by `budget.set`, when one is set; otherwise absent |
 | `Check` | `checks[]` in the shipping snapshot (`packages/protocol/src/shipping.ts`) |
 | `chats.send` | `turn.send {threadId, input, mode: "queue"}` per chat |
 | `chats.interrupt` | `turn.interrupt {threadId, turnId}` for the running turn; `skipped` when none runs |
@@ -581,7 +582,7 @@ Mock mode makes a view usable in an ordinary browser, with no app:
 * `ready.mock` is `true`, so a view can show a "Sample data" label.
 * The simulation and sample data live in `packages/view-api/mock/` and are copied next to a view by `pnpm view:dev <folder>`, which also serves the folder on loopback for editing.
 
-The command map prototype's simulation is the starting point for the mock.
+The simulation in the command map prototype (`docs/prototypes/command-map.html`) is the starting point for the mock.
 
 ## In the shell
 
@@ -677,7 +678,7 @@ Each phase ends with something usable. Run `pnpm typecheck`, `pnpm lint`, `pnpm 
 3. `apps/desktop/src/view-protocol.ts` and the scheme registration, request filter and navigation rules. Tests in the style of the artifact protocol tests: headers, hash mismatch, path outside the bundle, cross-view request blocked.
 4. `packages/ui/src/views/`: `ViewPage`, the frame, the host side of the bridge (handshake, `sub`, `data`, theme, visibility, limits), route, sidebar group, command palette entry.
 5. `_host/v1/zolt.js` with the handshake, `subscribe`, theme tokens and shortcut forwarding.
-6. `packages/views/command-map/`: the prototype ported to the View API, read-only. Clicking a unit opens its chat.
+6. `packages/views/command-map/`: the prototype (`docs/prototypes/command-map.html`) ported to the View API, read-only, with three.js vendored into the folder. Clicking a unit opens its chat.
 
 Done when: with real chats running, the map shows them in the right states, an off-screen chat that needs you raises an edge alert, the frame makes no network request, and removing the built-in folder's `read` grant unloads the view.
 
@@ -704,11 +705,15 @@ Done when: a person can press Customize, ask an agent to change the map's colors
 
 Visual design, motion, sound and accessibility review of the built-in map. Not a dependency of phases 1 to 3.
 
-## Open questions
+## Decisions on open points
 
-1. **WebAssembly.** The plan allows `.wasm` and `'wasm-unsafe-eval'` so games can use physics or rendering libraries. It widens what a view can run, though not what it can reach. Leave it out of version 1 if no built-in view needs it.
-2. **Chat text.** Version 1 gives a view no message text. A replay view or a "what is it saying" bubble needs it. Add a `history` topic behind a fourth permission when a view needs it.
-3. **File paths.** `Workspace.roots` hides paths. A fog-of-war view needs the files an agent touched. That belongs with the `history` permission.
-4. **Budget source.** `Usage.budget` assumes one owner-level limit. Confirm which budget setting the resource bar should show (`budget.set` exists; `limits.*` is not served).
-5. **`Chat.activity`.** Decide whether the host derives it from tool events or the daemon publishes it, so the phone can show the same line.
-6. **Where the prototype lives.** The command map prototype is a single HTML file outside this repository. Phase 1 step 6 ports it; decide whether to commit the original for reference.
+These were open while planning. Each has a decision for version 1.
+
+| Point | Decision | Why |
+|---|---|---|
+| WebAssembly in views | Not allowed. No `.wasm` files and no `wasm-unsafe-eval`. | The command map does not need it. Allowing it later is an additive change; removing it later would break views. |
+| Chat text in the View API | Not included. | A view that can read every message is a much larger grant than one that sees statuses. Add a `history` topic behind a fourth permission when a view needs it (replay, speech bubbles). |
+| File paths | Not included. `Workspace.roots` carries labels only. | Same reason. Fog of war needs touched files; it comes with the `history` permission. |
+| Budget in the resource bar | Show the owner-level budget from `budget.set` when one is set. With none, show spend with no limit. Do not serve `limits.*` for this. | Uses what the daemon already stores. Check the stored shape in `packages/core/src/budgets.ts` before mapping it, and update the `Usage` type here if it differs. |
+| Where `Chat.activity` is computed | In the host, in `packages/view-api/src/model.ts`. | No daemon change in phase 1. Move it into the daemon when clients outside the app or the phone need the same line. |
+| The prototype | Committed at `docs/prototypes/command-map.html`. | It is the reference for the built-in map's behaviour. It uses sample data and loads three.js from a CDN; the built-in view vendors three.js instead. |
