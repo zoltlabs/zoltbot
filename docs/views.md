@@ -314,7 +314,7 @@ Differences from artifacts: views may start workers, because games need them. We
 * No `allow-same-origin`: the frame has no cookies, no `localStorage`, and cannot read the host. A view saves state through `storage`.
 * No `allow-popups`, `allow-forms`, `allow-top-navigation` or `allow-downloads`.
 * Extend the `webRequest.onBeforeRequest` and `will-frame-navigate` rules in `main.ts`: a view frame may load only its own bundle, a view URL may not load as a main frame, and a view may not navigate to another view or to an artifact.
-* Add `zoltbot-view:` to `frame-src` in `packages/ui/index.html`.
+* Add `zoltbot-view:` to `frame-src` and `img-src` in `packages/ui/index.html`; sidebar and settings icons load from the same checked bundle.
 * The preload API stays closed to frames (`verifyMainFrame`). Do not change that.
 
 ### Misbehaving views
@@ -683,6 +683,8 @@ Each phase ends with something usable. Run `pnpm typecheck`, `pnpm lint`, `pnpm 
 6. `packages/views/command-map/`: the prototype (`docs/prototypes/command-map.html`) ported to the View API, read-only, with three.js vendored into the folder. Clicking a unit opens its chat.
 
 Done when: with real chats running, the map shows them in the right states, an off-screen chat that needs you raises an edge alert, the frame makes no network request, and removing the built-in folder's `read` grant unloads the view.
+
+`app.open` is introduced with the read-only host in phase 1 so clicking a map unit can open its chat; phase 2 adds the action handlers.
 
 ### Phase 2: actions and grants
 

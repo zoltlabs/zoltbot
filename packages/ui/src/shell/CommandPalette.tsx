@@ -37,6 +37,14 @@ export function CommandPalette({ entities }: { entities: Record<string, Row[] | 
     const projects = (entities.project ?? emptyRows).filter((row) => !row.archived),
       directions = (entities.subproject ?? emptyRows).filter((row) => !row.archived);
     const pages: Result[] = [
+      ...(entities.view ?? emptyRows)
+        .filter((row) => row.enabled)
+        .map((row) => ({
+          key: `page:view:${row.id}`,
+          icon: "Projects",
+          label: String(row.name),
+          run: () => useShell.getState().openView(String(row.id)),
+        })),
       { key: "page:quick", icon: "Sessions", label: "Quick chat", run: () => openQuickChat() },
       ...[...routes, "Settings", "Doctor", "Rules"].map((name) => ({
         key: `page:${name}`,

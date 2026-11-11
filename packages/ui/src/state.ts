@@ -25,7 +25,8 @@ export type Route =
   | "Artifact"
   | "QuickChat"
   | "Chief"
-  | "Compare";
+  | "Compare"
+  | "View";
 export type Theme = "light" | "dark" | "system";
 function storedTheme(): Theme {
   try {
@@ -48,6 +49,8 @@ function storedFontScale(): number {
   return defaultFontScale;
 }
 export const useShell = create<{
+  viewId: string | undefined;
+  openView(id: string): void;
   compareId: string | undefined;
   openCompare(id: string): void;
   /** The open Quick Chat; undefined is a fresh composer that creates nothing until sent. */
@@ -84,6 +87,11 @@ export const useShell = create<{
   toggleSidebar: () => void;
   setWidth: (width: number) => void;
 }>((set, get) => ({
+  viewId: undefined,
+  openView: (id) => {
+    location.hash = `view/${encodeURIComponent(id)}`;
+    set({ route: "View", viewId: id, palette: false });
+  },
   compareId: undefined,
   openCompare: (id) => {
     location.hash = `compare/${encodeURIComponent(id)}`;

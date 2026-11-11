@@ -37,7 +37,7 @@ const ownedRoots = new Set([
 const policies = {
   core: ["protocol"],
   store: ["core", "protocol"],
-  ui: ["protocol"],
+  ui: ["protocol", "view-api"],
   "adapters/sdk": ["protocol"],
   "adapters/claude": ["adapters/sdk", "protocol"],
   "adapters/codex": ["adapters/sdk", "protocol"],

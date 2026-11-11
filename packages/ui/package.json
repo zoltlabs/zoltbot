@@ -31,6 +31,7 @@
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "uqr": "0.1.2",
-    "zustand": "5.0.10"
+    "zustand": "5.0.10",
+    "@zoltbot/view-api": "workspace:*"
   }
 }

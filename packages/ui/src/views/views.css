@@ -1,0 +1,39 @@
+.view-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: var(--zb-space-3);
+}
+.view-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+}
+.view-header h1 {
+  margin-inline-end: auto;
+  font-size: var(--zb-text-2xl);
+  line-height: var(--zb-leading-2xl);
+}
+.view-page iframe {
+  border: 0;
+  width: 100%;
+  flex: 1;
+  min-height: var(--zb-panel-width);
+}
+.view-page iframe:focus-visible {
+  outline: var(--zb-space-0-5) solid var(--zb-text);
+  outline-offset: var(--zb-space-0-5);
+}
+.view-nav h2 {
+  font-size: var(--zb-text-md);
+  line-height: var(--zb-leading-md);
+  font-weight: var(--zb-weight-semibold);
+  padding: var(--zb-space-2);
+}
+.view-icon {
+  width: var(--zb-icon-md);
+  height: var(--zb-icon-md);
+  object-fit: contain;
+}

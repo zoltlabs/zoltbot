@@ -14,6 +14,7 @@ import { completeOnboarding, needsOnboarding } from "../setup/onboarding-state.j
 import { UpdateNotice } from "../setup/UpdateNotice.js";
 import { navRoutes, routeLabels, routes, useShell } from "../state.js";
 import { useConnection } from "../use-connection.js";
+import { ViewsNav } from "../views/ViewsNav.js";
 import { chatStatuses, mostRecentProject, rowStatuses } from "../workspaces/activity.js";
 import { markSeen, useSeen } from "../workspaces/seen.js";
 import { emptyRows } from "../workspaces/view.js";
@@ -25,6 +26,7 @@ import { Overview } from "./Overview.js";
 import { SettingsPage } from "./SettingsPage.js";
 import { Sidebar, useSidebarDrawer } from "./Sidebar.js";
 
+const ViewPage = lazy(() => import("../views/ViewPage.js"));
 const CompareView = lazy(() => import("../compare/CompareView.js"));
 const ArtifactPage = lazy(() => import("../artifacts/ArtifactPage.js"));
 const Gallery = lazy(() => import("../components/Gallery.js"));
@@ -62,6 +64,7 @@ export function App() {
     scope = useShell((s) => s.scope),
     openScope = useShell((s) => s.openScope),
     openQuickChat = useShell((s) => s.openQuickChat);
+  const viewId = useShell((s) => s.viewId);
   const artifactId = useShell((s) => s.artifactId);
   const compareId = useShell((s) => s.compareId);
   const route = useShell((s) => s.route),
@@ -103,6 +106,10 @@ export function App() {
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey) {
+        if (event.key === ",") {
+          event.preventDefault();
+          navigate("Settings");
+        }
         if (event.key === "k") {
           event.preventDefault();
           setPalette(true);
@@ -132,6 +139,11 @@ export function App() {
           const id = decodeURIComponent(raw.slice(6, -9));
           if (id) useShell.getState().openShipping(id);
         } catch {}
+        return;
+      }
+      if (raw.startsWith("view/")) {
+        const id = raw.slice(5);
+        if (/^[a-z0-9-]{2,40}$/.test(id)) useShell.getState().openView(id);
         return;
       }
       if (raw.startsWith("artifact/")) {
@@ -392,6 +404,7 @@ export function App() {
                 .map(navigationRow)}
             </details>
           </nav>
+          <ViewsNav views={entities.view ?? emptyRows} />
           {expandedSidebar ? <QuickHistory connection={connection} /> : null}
           <div className="project-tree-wrap grow sidebar-label">
             {/* Sits beside the summary rather than inside it, so it never toggles the section. */}
@@ -514,6 +527,10 @@ export function App() {
                 openThread={openThread}
                 openRequest={openRequest}
               />
+            ) : route === "View" ? (
+              <Suspense fallback={<p>Loading view…</p>}>
+                <ViewPage id={viewId ?? ""} connection={connection} />
+              </Suspense>
             ) : route === "Artifact" ? (
               <Suspense fallback={<p>Loading artifact…</p>}>
                 <ArtifactPage key={artifactId} connection={connection} id={artifactId ?? ""} />
