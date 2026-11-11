@@ -45,15 +45,14 @@ test("organization ownership, initiative edits, approved reorg, reports and dire
   const rpc = (method: string, params: unknown, commandId?: string) =>
     new Promise<unknown>((resolve, reject) => {
       const id = ++n;
-      socket.addEventListener(
-        "message",
-        (event) => {
-          const response = JSON.parse(String(event.data));
-          if (response.error) reject(Error(response.error.message));
-          else resolve(response.result);
-        },
-        { once: true },
-      );
+      const onMessage = (event: MessageEvent) => {
+        const response = JSON.parse(String(event.data));
+        if (response.id !== id) return;
+        socket.removeEventListener("message", onMessage);
+        if (response.error) reject(Error(response.error.message));
+        else resolve(response.result);
+      };
+      socket.addEventListener("message", onMessage);
       socket.send(
         JSON.stringify({ jsonrpc: "2.0", id, method, params, ...(commandId ? { commandId } : {}) }),
       );
@@ -171,6 +170,23 @@ test("organization ownership, initiative edits, approved reorg, reports and dire
     );
     await expect(page.getByRole("button", { name: "Fix signup error", exact: true })).toBeVisible();
     await expect.poll(() => daemon.store.record("task", "bug")?.holdReason).toContain("Planned");
+    await rpc(
+      "company.dispatch",
+      { taskId: "bug", brief: "Fix synthetic validation now" },
+      "dispatch-bug",
+    );
+    await expect.poll(() => daemon.store.record("task", "bug")?.planned).toBe(false);
+    await rpc(
+      "company.submit",
+      {
+        taskId: "bug",
+        status: "done",
+        summary: "Validation check updated and verified locally.",
+        files: ["src/signup.ts"],
+      },
+      "submit-bug",
+    );
+    await expect.poll(() => daemon.store.record("task", "bug")?.state).toBe("review");
     await page.getByRole("button", { name: "Organization", exact: true }).click();
     await page.getByText("Propose an organization change", { exact: true }).click();
     await page.getByLabel("New name", { exact: true }).fill("Product engineering");

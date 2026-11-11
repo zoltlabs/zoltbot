@@ -411,8 +411,14 @@ export function recoverCompanyTask(
   if (!row) throw Error("task_unavailable");
   const task = parse(TaskSchema, row);
   const projectId = String(task.projectId ?? "");
-  if (task.state !== "queued")
-    throw Error(`task_not_queued: task ${task.id} is already ${task.state}`);
+  if (!["queued", "blocked", "failed"].includes(task.state))
+    throw Error(`task_not_recoverable: task ${task.id} is already ${task.state}`);
+  if (
+    task.state === "blocked" &&
+    context.actor.kind !== "human" &&
+    (state.interaction ?? []).some((i) => i.threadId === task.threadId && i.state === "pending")
+  )
+    throw Error("pending_human_interaction: wait for pending human approval before recovering");
   if (context.actor.kind !== "human") {
     if (!actor) throw Error("assignment_authority_required");
     if (task.initiativeId) {
@@ -454,8 +460,11 @@ export function recoverCompanyTask(
   if (!brief || brief.length > (task.phaseExecution ? 16000 : 4000)) throw Error("invalid_task");
   const mergedExclusions = [...new Set([...(task.excludedKnowledgeIds ?? []), ...requestedIds])];
   const { holdReason: _previous, ...rest } = task;
+  const nextRevision = task.state === "queued" ? task.revision : task.revision + 1;
   const candidate: Record<string, unknown> = {
     ...rest,
+    state: "queued",
+    revision: nextRevision,
     planned: false,
     brief,
     ...(mergedExclusions.length ? { excludedKnowledgeIds: mergedExclusions } : {}),

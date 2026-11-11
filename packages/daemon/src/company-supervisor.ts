@@ -32,18 +32,22 @@ export function companySupervisor(
       const at = now();
       for (const rawTask of state.task ?? []) {
         let task = rawTask;
-        // An execution's result is the safe boundary for transferring accountability.
-        if (
-          task.pendingAccountableThreadId &&
-          !["running", "blocked"].includes(String(task.state))
-        ) {
+        // Once no turn is actively running on the task thread, accountability transfers safely.
+        const hasRunningTurn = (state.turn ?? []).some(
+          (r) => r.threadId === task.threadId && r.status === "running",
+        );
+        if (task.pendingAccountableThreadId && task.state !== "running" && !hasRunningTurn) {
           const targetOwner = String(task.pendingAccountableThreadId);
           const id = `company:handoff:${task.id}:${targetOwner}:${task.updatedAt}`;
           dispatch(id, (s) => {
             const current = s.task?.find((r) => r.id === task.id);
+            const stillRunningTurn = (s.turn ?? []).some(
+              (r) => r.threadId === current?.threadId && r.status === "running",
+            );
             if (
               !current?.pendingAccountableThreadId ||
-              ["running", "blocked"].includes(String(current.state))
+              current.state === "running" ||
+              stillRunningTurn
             )
               return { events: [], result: {} };
             const { pendingAccountableThreadId, ...rest } = current;
