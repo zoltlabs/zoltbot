@@ -83,3 +83,18 @@ it("rechecks request versions and grants after host confirmation", async () => {
   ).rejects.toMatchObject({ code: "stale" });
   expect(f.call).not.toHaveBeenCalled();
 });
+it("scopes storage calls to the host's view id and unwraps the internal result", async () => {
+  const f = fixture();
+  f.call.mockResolvedValue({ value: { groups: ["chat"] } } as unknown as { ok: boolean });
+  expect(await f.run("storage.get", {})).toEqual({ groups: ["chat"] });
+  expect(f.call).toHaveBeenCalledWith("view.state.get", { id: "example" }, expect.any(String));
+  await f.run("storage.set", { value: { layout: {} } });
+  expect(f.call).toHaveBeenLastCalledWith(
+    "view.state.set",
+    { id: "example", value: { layout: {} } },
+    expect.any(String),
+  );
+  f.record.granted = [];
+  await expect(f.run("storage.get", {})).rejects.toMatchObject({ code: "not_granted" });
+  await expect(f.run("storage.set", { value: {} })).rejects.toMatchObject({ code: "not_granted" });
+});

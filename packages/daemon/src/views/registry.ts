@@ -11,6 +11,7 @@ import type { PublicWriteCheck } from "../private-input.js";
 import { callView, type ViewActions } from "./actions.js";
 import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
+import { viewStateApi } from "./state.js";
 
 export class ViewRegistry {
   private bundles = new Map<string, ViewBundle>();
@@ -136,6 +137,8 @@ export class ViewRegistry {
   }
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
     if (method === "view.reload") return this.reload();
+    if (method === "view.state.get" || method === "view.state.set")
+      return viewStateApi(this, method, params);
     if (method === "view.call") {
       if (!commandId) throw Error("command_id_required");
       if (!this.actions) throw Error("unavailable");

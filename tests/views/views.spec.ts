@@ -277,6 +277,16 @@ test("renders real mappings, edge alerts and chat navigation without network acc
     method: "requests.answer",
     confirmed: true,
   });
+  await frame.getByRole("button", { name: "Next alert", exact: true }).focus();
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Search and commands" });
+  await expect(palette).toBeVisible();
+  await palette.getByRole("button", { name: /Command map: Go to the latest alert/ }).click();
+  await expect(frame.locator("#live")).toContainText("needs you");
+  await frame.getByRole("button", { name: "Next alert", exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#workspace-sidebar button").first()).toBeFocused();
   const darkBackground = await frame
     .locator("body")
     .evaluate((body) => getComputedStyle(body).backgroundColor);

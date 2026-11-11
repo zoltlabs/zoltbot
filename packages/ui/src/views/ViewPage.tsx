@@ -76,6 +76,23 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
     if (!granted) bridge.current?.close();
   }, [record.granted, granted]);
   useEffect(() => {
+    const shortcut = (event: Event) => {
+      const detail = (event as CustomEvent<{ viewId: string; shortcutId: string }>).detail;
+      const view = current.current;
+      if (
+        detail?.viewId === view.id &&
+        view.enabled &&
+        view.granted.includes("read") &&
+        view.shortcuts?.some((row) => row.id === detail.shortcutId)
+      ) {
+        bridge.current?.event("shortcut", detail.shortcutId);
+        frame.current?.focus();
+      }
+    };
+    window.addEventListener("view-shortcut", shortcut);
+    return () => window.removeEventListener("view-shortcut", shortcut);
+  }, []);
+  useEffect(() => {
     const timer = setInterval(() => bridge.current?.tick(), 100);
     const visibility = () => bridge.current?.visibility(!document.hidden);
     const theme = new MutationObserver(() => bridge.current?.event("theme", viewTheme()));

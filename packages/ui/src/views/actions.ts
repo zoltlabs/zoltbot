@@ -29,6 +29,26 @@ export function viewActions(host: ViewActionHost) {
       host.open(input);
       return;
     }
+    if (method === "storage.get" || method === "storage.set") {
+      try {
+        const result = await host.call(
+          method === "storage.get" ? "view.state.get" : "view.state.set",
+          { id: host.record().id, ...(method === "storage.set" ? { value: input.value } : {}) },
+          crypto.randomUUID(),
+        );
+        return method === "storage.get" ? (result as { value: unknown }).value : undefined;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "State is unavailable.";
+        throw new ViewCallError(
+          message.includes("not_granted")
+            ? "not_granted"
+            : /too_large|invalid|private/.test(message)
+              ? "invalid"
+              : "unavailable",
+          message,
+        );
+      }
+    }
     let confirmed = false;
     if (method === "requests.answer") {
       const current = () => {

@@ -28,6 +28,11 @@ export const ViewRecordSchema = object({
 });
 export type ViewRecord = Static<typeof ViewRecordSchema>;
 export const viewMethods = {
+  "view.state.get": { params: object({ id: Id }), result: object({ value: Type.Unknown() }) },
+  "view.state.set": {
+    params: object({ id: Id, value: Type.Unknown() }),
+    result: object({ ok: Type.Literal(true) }),
+  },
   "view.call": {
     params: object({
       id: Id,

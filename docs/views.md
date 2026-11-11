@@ -557,6 +557,8 @@ The client library writes the tokens onto the view's root element as CSS custom 
 
 ### Saved state
 
+The internal `view.state.get` result is `{value}` and `view.state.set` returns `{ok:true}`, following the daemon dispatcher’s object-result convention; the client library still returns the bare saved value or void.
+
 `storage.get` and `storage.set` read and write `<data folder>/view-state/<id>.json` through the daemon. One JSON value per view. It survives reloads, edits and app updates. "Keep both" copies it to the renamed view.
 
 ### Sound

@@ -1,4 +1,4 @@
-import { terms } from "@zoltbot/protocol";
+import { parse, terms, ViewRecordSchema } from "@zoltbot/protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type Row, text } from "../chat/types.js";
 import { Kbd, ListRow } from "../components/primitives.js";
@@ -18,7 +18,8 @@ export function CommandPalette({ entities }: { entities: Record<string, Row[] | 
     openScope = useShell((s) => s.openScope),
     openThread = useShell((s) => s.openThread),
     openQuickChat = useShell((s) => s.openQuickChat),
-    setTheme = useShell((s) => s.setTheme);
+    setTheme = useShell((s) => s.setTheme),
+    activeView = useShell((s) => (s.route === "View" ? s.viewId : undefined));
   const dialog = useRef<HTMLDialogElement>(null),
     input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -36,7 +37,25 @@ export function CommandPalette({ entities }: { entities: Record<string, Row[] | 
     const hit = (value: string) => value.toLowerCase().includes(needle);
     const projects = (entities.project ?? emptyRows).filter((row) => !row.archived),
       directions = (entities.subproject ?? emptyRows).filter((row) => !row.archived);
+    const active = entities.view?.find((row) => row.id === activeView);
+    const view = active ? parse(ViewRecordSchema, active) : undefined;
     const pages: Result[] = [
+      ...(view?.enabled && view.granted.includes("read")
+        ? (view.shortcuts ?? []).map((shortcut) => ({
+            key: `shortcut:${view.id}:${shortcut.id}`,
+            icon: "Projects",
+            label: `${view.name}: ${shortcut.label}`,
+            detail: shortcut.keys,
+            run: () => {
+              setOpen(false);
+              window.dispatchEvent(
+                new CustomEvent("view-shortcut", {
+                  detail: { viewId: view.id, shortcutId: shortcut.id },
+                }),
+              );
+            },
+          }))
+        : []),
       ...(entities.view ?? emptyRows)
         .filter((row) => row.enabled)
         .map((row) => ({
@@ -135,7 +154,17 @@ export function CommandPalette({ entities }: { entities: Record<string, Row[] | 
       // Route names still match, so "inbox" finds Needs you.
       ...pages.filter((page) => hit(page.label) || hit(page.key.replace(/^\w+:/, ""))),
     ];
-  }, [query, entities, navigate, openScope, openThread, openQuickChat, setTheme, setOpen]);
+  }, [
+    query,
+    entities,
+    activeView,
+    navigate,
+    openScope,
+    openThread,
+    openQuickChat,
+    setTheme,
+    setOpen,
+  ]);
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: Escape already closes the dialog; this adds backdrop clicks.
     <dialog
