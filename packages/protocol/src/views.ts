@@ -28,6 +28,15 @@ export const ViewRecordSchema = object({
 });
 export type ViewRecord = Static<typeof ViewRecordSchema>;
 export const viewMethods = {
+  "view.customize": { params: object({ id: Id }), result: ViewRecordSchema },
+  "view.resolveUpdate": {
+    params: object({
+      id: Id,
+      choice: values(["keep", "replace", "copy"]),
+      confirmed: Type.Optional(Type.Literal(true)),
+    }),
+    result: ViewRecordSchema,
+  },
   "view.state.get": { params: object({ id: Id }), result: object({ value: Type.Unknown() }) },
   "view.state.set": {
     params: object({ id: Id, value: Type.Unknown() }),

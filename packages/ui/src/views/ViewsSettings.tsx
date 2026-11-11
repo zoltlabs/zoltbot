@@ -5,6 +5,7 @@ import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { GrantDialog } from "./GrantDialog.js";
 import { ViewIcon } from "./ViewIcon.js";
+import { ViewUpdate } from "./ViewUpdate.js";
 import "./views.css";
 export default function ViewsSettings({ connection }: { connection: ChatConnection }) {
   const [edit, setEdit] = useState(""),
@@ -51,7 +52,16 @@ export default function ViewsSettings({ connection }: { connection: ChatConnecti
             Enabled
           </label>
           <p>Permissions: {view.granted.length ? view.granted.join(", ") : "None"}</p>
+          <ViewUpdate record={view} connection={connection} />
           <div className="view-header">
+            {view.source === "builtin" ? (
+              <Button
+                disabled={!view.bundleHash || !!view.error}
+                onClick={() => call("view.customize", { id: view.id })}
+              >
+                Customize
+              </Button>
+            ) : null}
             <Button onClick={() => setEdit(view.id)} disabled={!view.bundleHash}>
               Edit permissions
             </Button>

@@ -162,6 +162,7 @@ export function viewRecord(
   builtin: ViewBundle | undefined,
   granted: Permission[],
   enabled = true,
+  basedOnBuiltin = builtin,
 ): ViewRecord {
   const manifest = bundle.manifest,
     user = bundle !== builtin;
@@ -182,8 +183,15 @@ export function viewRecord(
     ...(manifest.icon ? { icon: manifest.icon } : {}),
     ...(manifest.shortcuts ? { shortcuts: manifest.shortcuts } : {}),
     ...(manifest.basedOn ? { basedOn: manifest.basedOn } : {}),
-    ...(manifest.basedOn && builtin && manifest.basedOn.bundleHash !== builtin.bundleHash
-      ? { builtinUpdate: { version: builtin.manifest.version, bundleHash: builtin.bundleHash } }
+    ...(manifest.basedOn &&
+    basedOnBuiltin &&
+    manifest.basedOn.bundleHash !== basedOnBuiltin.bundleHash
+      ? {
+          builtinUpdate: {
+            version: basedOnBuiltin.manifest.version,
+            bundleHash: basedOnBuiltin.bundleHash,
+          },
+        }
       : {}),
     changedAt: bundle.changedAt,
   };

@@ -1,6 +1,6 @@
 # Views: custom interfaces for Zoltbot
 
-Status: implementation in progress. Phase 1 passed its automated checks and headless verification. Phase 2 is underway; phase 3 remains planned. This document is the specification to implement from.
+Status: implementation in progress. Phase 1 passed its automated checks and headless verification. Phase 2 passed its automated checks and headless verification. Phase 3 is underway. This document is the specification to implement from.
 
 A view is a small web page that Zoltbot shows inside the desktop app and feeds with live data about your chats. People can change a built-in view, write their own, or ask an agent to write one. Their changes are files on disk outside the app, so installing a new version of Zoltbot keeps them.
 
@@ -248,6 +248,8 @@ At start, for each user view with `basedOn`, the daemon compares `basedOn.bundle
 | Keep mine | Nothing changes. `basedOn` moves to the new built-in so the prompt does not repeat. |
 | Use the new version | After host confirmation, the user folder is deleted immediately and the confirmation is audited. The built-in loads. |
 | Keep both | The user folder is renamed `<id>-custom` (manifest `id` updated). The built-in loads under the original id. |
+
+Keep both uses an available id ending in `-custom` (truncating the original id to fit 40 characters), adding a numeric suffix when that id, a retired record, or its saved state already exists. The original saved state stays and a copy belongs to the renamed view; the new id starts without grants. A renamed fork keeps tracking `basedOn.id`, so later built-in updates still reach it.
 
 Zoltbot does not merge files. A person who wants the new built-in features in their version asks an agent to bring them over; "Keep both" gives the agent both folders to compare.
 

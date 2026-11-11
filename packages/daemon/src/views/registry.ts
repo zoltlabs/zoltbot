@@ -10,12 +10,14 @@ import { safeFile } from "../artifacts/intake.js";
 import type { PublicWriteCheck } from "../private-input.js";
 import { callView, type ViewActions } from "./actions.js";
 import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
+import { viewLifecycle } from "./lifecycle.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
 import { viewStateApi } from "./state.js";
 
 export class ViewRegistry {
   private bundles = new Map<string, ViewBundle>();
-  private pending: Promise<ViewRecord[]> = Promise.resolve([]);
+  private pending: Promise<unknown> = Promise.resolve();
+  private builtins = new Map<string, ViewBundle>();
   constructor(
     readonly store: Store,
     readonly builtin: string,
@@ -24,14 +26,22 @@ export class ViewRegistry {
     readonly checkPublic: (value: unknown) => Promise<PublicWriteCheck> = async () => () => {},
   ) {}
   actions?: ViewActions;
-  reload(): Promise<ViewRecord[]> {
-    const next = this.pending.catch(() => []).then(() => this.load());
+  run<T>(work: () => Promise<T>): Promise<T> {
+    const next = this.pending.catch(() => {}).then(work);
     this.pending = next;
     return next;
   }
-  private async load() {
+  reload(): Promise<ViewRecord[]> {
+    return this.run(() => this.refresh());
+  }
+  builtinBundle(id: string) {
+    return this.builtins.get(id);
+  }
+  /** Call within run(), so filesystem mutations and reloads stay in one sequence. */
+  async refresh() {
     const loaded = await loadViews(this.builtin, this.user),
       records: ViewRecord[] = [];
+    this.builtins = loaded.builtins;
     for (const [id, bundle] of loaded.bundles) {
       const before = this.store.record("view", id);
       const next = viewRecord(
@@ -41,6 +51,7 @@ export class ViewRegistry {
           bundle.manifest.permissions.includes(permission),
         ),
         before?.enabled !== false,
+        loaded.builtins.get(bundle.manifest.basedOn?.id ?? id),
       );
       next.reviewed = reviewedGrants(this.store, id);
       const error = loaded.errors.find((entry) => entry.id === id && entry.source === "user");
@@ -137,6 +148,10 @@ export class ViewRegistry {
   }
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
     if (method === "view.reload") return this.reload();
+    if (method === "view.customize" || method === "view.resolveUpdate") {
+      if (!commandId) throw Error("command_id_required");
+      return this.run(() => viewLifecycle(this, method, params, commandId));
+    }
     if (method === "view.state.get" || method === "view.state.set")
       return viewStateApi(this, method, params);
     if (method === "view.call") {

@@ -10,6 +10,7 @@ import { ViewBridge } from "./bridge.js";
 import { GrantDialog } from "./GrantDialog.js";
 import { viewKey } from "./keys.js";
 import { viewTheme } from "./theme.js";
+import { ViewUpdate } from "./ViewUpdate.js";
 import "./views.css";
 export default function ViewPage({ id, connection }: { id: string; connection: ChatConnection }) {
   const raw = connection.snapshot.entities.view?.find((row) => row.id === id);
@@ -192,6 +193,7 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
         </Button>
         <Button onClick={() => useShell.getState().navigate("ViewsSettings")}>Settings</Button>
       </header>
+      <ViewUpdate record={record} connection={connection} />
       {record.error ? (
         <p role="alert">
           {record.error.message}

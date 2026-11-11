@@ -400,9 +400,16 @@ test("renders real mappings, edge alerts and chat navigation without network acc
   await frame
     .locator("html")
     .evaluate((root) => (root as HTMLElement).style.setProperty("--zb-font-scale", "2"));
-  expect(
-    await frame.locator(".panel").evaluate((panel) => panel.scrollWidth <= panel.clientWidth),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      frame.locator(".panel").evaluate((panel) => ({
+        fits: panel.scrollWidth <= panel.clientWidth,
+        width: panel.clientWidth,
+        contentWidth: panel.scrollWidth,
+        viewport: window.innerWidth,
+      })),
+    )
+    .toMatchObject({ fits: true });
   await page.screenshot({ path: "output/playwright/views/command-map-narrow.png" });
   await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -427,4 +434,112 @@ test("renders real mappings, edge alerts and chat navigation without network acc
       "This view needs permission to read your chats. Open Settings to manage its permissions.",
     ),
   ).toBeVisible();
+});
+test("customizes a builtin and offers all update choices with host confirmation for replacement", async ({
+  page,
+}) => {
+  record.source = "builtin";
+  record.granted = ["read"];
+  delete record.basedOn;
+  delete record.builtinUpdate;
+  const calls: { method: string; params: Record<string, unknown> }[] = [];
+  function changed() {
+    for (const socket of sockets)
+      socket.send(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          method: "event",
+          params: {
+            seq: ++seq,
+            eventId: `lifecycle-${seq}`,
+            aggregateType: "view",
+            aggregateId: record.id,
+            type: "view.updated",
+            occurredAt: new Date().toISOString(),
+            payload: record,
+          },
+        }),
+      );
+  }
+  function offer() {
+    record.builtinUpdate = { version: "2.0.0", bundleHash: "a".repeat(64) };
+    changed();
+  }
+  await page.routeWebSocket("**/*", (socket) => {
+    sockets.add(socket);
+    socket.onClose(() => sockets.delete(socket));
+    socket.onMessage((bytes) => {
+      const message = JSON.parse(bytes.toString());
+      if (["view.customize", "view.resolveUpdate"].includes(message.method)) {
+        calls.push(message);
+        if (message.method === "view.customize") {
+          record.source = "user";
+          record.overridesBuiltin = true;
+          record.basedOn = {
+            id: record.id,
+            version: record.version,
+            bundleHash: record.bundleHash,
+          };
+        } else {
+          if (message.params.choice === "replace") {
+            record.source = "builtin";
+            delete record.basedOn;
+          }
+          delete record.builtinUpdate;
+        }
+        changed();
+      }
+      const result =
+        message.method === "snapshot.get"
+          ? { seq, entities: snapshot.entities, counters: {} }
+          : message.method === "events.subscribe"
+            ? { seq, resync: false, events: [] }
+            : message.method.endsWith(".list") || message.method.endsWith(".history")
+              ? { items: [] }
+              : message.method === "view.reload"
+                ? [record]
+                : record;
+      socket.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+    });
+  });
+  await page.addInitScript(
+    ({ origin }) => {
+      if (window.top !== window) return;
+      window.zoltDesktop = {
+        connection: async () => ({
+          url: origin.replace("http:", "ws:"),
+          token: "synthetic-owner-token",
+        }),
+        onConnectionChanged: () => () => {},
+      };
+    },
+    { origin },
+  );
+  await page.goto(`${origin}/#viewssettings`);
+  await page.getByRole("button", { name: "Customize", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(1);
+  expect(calls[0]).toMatchObject({ method: "view.customize", params: { id: "command-map" } });
+  await expect(page.getByText(/^Custom · Version/)).toBeVisible();
+  offer();
+  await page.getByRole("button", { name: "Use the new version", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Use the new version of Command map?" });
+  await expect(
+    dialog.getByText("Your customized files will be permanently deleted."),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.screenshot({ path: "output/playwright/views/update-confirmation.png" });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(calls).toHaveLength(1);
+  await page.getByRole("button", { name: "Keep mine", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls[1]?.params).toEqual({ id: "command-map", choice: "keep" });
+  offer();
+  await page.getByRole("button", { name: "Keep both", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(3);
+  expect(calls[2]?.params).toEqual({ id: "command-map", choice: "copy" });
+  offer();
+  await page.getByRole("button", { name: "Use the new version", exact: true }).click();
+  await dialog.getByRole("button", { name: "Use the new version", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(4);
+  expect(calls[3]?.params).toEqual({ id: "command-map", choice: "replace", confirmed: true });
 });
