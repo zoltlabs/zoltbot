@@ -237,6 +237,9 @@
         input.type = question.multi ? "checkbox" : "radio";
         input.name = question.id;
         input.value = option.id;
+        input.onchange = () => {
+          if (input.checked && !question.multi && other) other.value = "";
+        };
         options.push(input);
       }
       let other;
@@ -244,10 +247,15 @@
         const label = node("label", options.length ? "Other" : "Response", group);
         other = node("textarea", undefined, label);
         other.maxLength = 8000;
+        other.oninput = () => {
+          if (!question.multi && other.value.trim())
+            for (const option of options) option.checked = false;
+        };
       }
       return () => {
         const selected = options.filter((option) => option.checked).map((option) => option.value);
-        if (other?.value.trim()) return { options: selected, other: other.value };
+        if (other?.value.trim())
+          return { options: question.multi ? selected : [], other: other.value };
         return question.multi ? selected : (selected[0] ?? "");
       };
     }
@@ -277,6 +285,7 @@
           return;
         }
         const form = node("form", undefined, section);
+        form.setAttribute("aria-label", `Answer: ${request.title}`);
         const fields = request.questions.map((question) => [
           question.id,
           this.question(form, question, request.type),

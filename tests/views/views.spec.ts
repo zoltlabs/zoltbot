@@ -20,6 +20,24 @@ test.beforeAll(async () => {
   record.reviewed = [...record.requested];
   snapshot = structuredClone(fixture) as { entities: Record<string, Record<string, unknown>[]> };
   snapshot.entities.view = [record];
+  snapshot.entities.interaction?.push({
+    id: "question",
+    threadId: "needs",
+    type: "question",
+    state: "pending",
+    version: 1,
+    title: "Choose verification",
+    urgency: "blocking",
+    createdAt: new Date().toISOString(),
+    items: [
+      {
+        id: "verification",
+        prompt: "Verification",
+        options: [{ id: "tests", label: "Run tests" }],
+        allowOther: true,
+      },
+    ],
+  });
   const now = new Date().toISOString();
   for (const thread of snapshot.entities.thread ?? []) thread.lastActivityAt = now;
   const first = snapshot.entities.thread?.[0];
@@ -253,7 +271,7 @@ test("renders real mappings, edge alerts and chat navigation without network acc
   await frame.getByRole("checkbox", { name: "Needs input — Needs you", exact: true }).check();
   await expect(
     frame.locator("#actions").getByRole("button", { name: "Open chat", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(2);
   await page.getByRole("button", { name: "Reload", exact: true }).click();
   await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Settings", exact: true }).last().click();
@@ -291,9 +309,27 @@ test("renders real mappings, edge alerts and chat navigation without network acc
     .getByRole("textbox", { name: "Preset 1", exact: true })
     .fill("Check the working tree");
   await frame.getByRole("button", { name: "Save group 1", exact: true }).click();
-  await frame.getByRole("button", { name: "Send preset 1", exact: true }).click();
+  const questionForm = frame.getByRole("form", {
+    name: "Answer: Choose verification",
+    exact: true,
+  });
+  await questionForm.getByRole("radio", { name: "Run tests", exact: true }).check();
+  await questionForm.getByRole("textbox", { name: "Other", exact: true }).fill("Inspect the diff");
+  await expect(
+    questionForm.getByRole("radio", { name: "Run tests", exact: true }),
+  ).not.toBeChecked();
+  await questionForm.getByRole("button", { name: "Send answer", exact: true }).click();
   await expect.poll(() => actionCalls.length).toBe(2);
   expect(actionCalls[1]).toMatchObject({
+    method: "requests.answer",
+    params: {
+      requestId: "question",
+      answers: { verification: { options: [], other: "Inspect the diff" } },
+    },
+  });
+  await frame.getByRole("button", { name: "Send preset 1", exact: true }).click();
+  await expect.poll(() => actionCalls.length).toBe(3);
+  expect(actionCalls[2]).toMatchObject({
     method: "chats.send",
     params: { chatIds: ["needs"], text: "Check the working tree" },
   });
