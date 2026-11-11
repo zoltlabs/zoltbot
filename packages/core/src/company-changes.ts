@@ -11,8 +11,11 @@ import { type CommandContext, handle, type Outcome } from "./commands.js";
 import { saveInitiative, saveRemit } from "./company.js";
 import { createDirection, createScopedChat, scopeLineage } from "./hierarchy.js";
 import { applyEvents, type DomainState } from "./projectors.js";
+import { taskReady } from "./task-graph.js";
 import { createTask } from "./tasks.js";
 import { scopeContains } from "./team.js";
+
+const permissionLevels = ["read_only", "workspace_write", "workspace_write_net", "full_access"];
 
 /** Full canonical comparison, rather than a lossy hash. Excludes conversational activity. */
 export function companyBaseline(
@@ -110,6 +113,13 @@ export function applyCompanyChanges(
   projectId: string,
   changes: CompanyChange[],
   context: CommandContext,
+  planAuthority?: {
+    planId: string;
+    initiativeId: string;
+    maxTasks: number;
+    permissionCeiling: string;
+    budgetUsd: number;
+  },
 ) {
   if (context.actor.kind !== "human") throw Error("human_approval_required");
   let state = initial;
@@ -240,7 +250,38 @@ export function applyCompanyChanges(
       );
     } else if (change.kind === "task") {
       parent(change.value.node);
-      add(createTask(state, change.value, ctx));
+      const initiative = change.value.initiativeId
+        ? state.initiativeRecord?.find((r) => r.id === change.value.initiativeId)
+        : undefined;
+      const accountable = change.value.accountableThreadId ?? initiative?.managerThreadId;
+      const covered =
+        planAuthority && change.value.initiativeId === planAuthority.initiativeId
+          ? planAuthority
+          : undefined;
+      if (covered) {
+        const profile = state.agent?.find((r) => r.id === change.value.profileId && !r.archived);
+        const level = permissionLevels.indexOf(String(profile?.permissionProfile));
+        if (level < 0 || level > permissionLevels.indexOf(covered.permissionCeiling))
+          throw Error("assignment_permission_ceiling");
+        const committed = (state.task ?? []).filter(
+          (r) => r.authorityPlanId === covered.planId && r.state !== "cancelled",
+        );
+        if (committed.length >= covered.maxTasks) throw Error("assignment_task_limit");
+        const spent = committed.reduce((sum, r) => sum + Number(r.budgetUsd ?? 0), 0);
+        if (spent + Number(change.value.budgetUsd ?? 0) > covered.budgetUsd + 1e-9)
+          throw Error("assignment_budget_limit");
+      }
+      add(
+        createTask(
+          state,
+          {
+            ...change.value,
+            ...(accountable ? { accountableThreadId: String(accountable) } : {}),
+            ...(covered ? { authorityPlanId: covered.planId } : {}),
+          },
+          ctx,
+        ),
+      );
     } else if (change.kind === "renameTeam") {
       before = row("subproject", change.id);
       if (!change.name.trim() || change.name.length > 150) throw Error("invalid_scope_name");
@@ -389,7 +430,10 @@ export function applyCompanyChanges(
       const task = row("task", change.id);
       before = task;
       if (task.state !== "queued") throw Error("task_not_queued");
-      add(companyRecord("task", { ...task, planned: false, updatedAt: context.at }, ctx));
+      const { holdReason: _previous, ...rest } = task;
+      const candidate = { ...rest, planned: false, updatedAt: context.at };
+      const holdReason = taskReady(state, candidate);
+      add(companyRecord("task", { ...candidate, ...(holdReason ? { holdReason } : {}) }, ctx));
     }
     preview.push({
       change,

@@ -10,6 +10,13 @@ import {
 } from "@zoltbot/protocol";
 import { type CommandContext, handle, type Outcome } from "./commands.js";
 import { applyCompanyChanges, companyBaseline, companyRecord } from "./company-changes.js";
+import {
+  activePlanCommitments,
+  cancelCompanyTask,
+  dispatchCompanyTask,
+  recoverCompanyTask,
+  submitCompanyTask,
+} from "./company-tasks.js";
 import { scopeLineage } from "./hierarchy.js";
 import { queueSystemNotice } from "./input-queue.js";
 import type { DomainState } from "./projectors.js";
@@ -19,14 +26,31 @@ import { createAssignedTask, type TaskInput } from "./tasks.js";
 import { scopeContains } from "./team.js";
 import { type WorkspaceActor, workspaceAuthority } from "./workspace-shape.js";
 
+export {
+  activePlanCommitments,
+  cancelCompanyTask,
+  dispatchCompanyTask,
+  recoverCompanyTask,
+  submitCompanyTask,
+};
+
 export function companyAccess(state: DomainState, actor: WorkspaceActor, projectId: string) {
   const authority = workspaceAuthority(state, actor);
   const ownsInitiative = state.initiativeRecord?.some(
     (r) =>
-      r.projectId === projectId && r.managerThreadId === actor.threadId && r.state === "active",
+      r.projectId === projectId &&
+      r.managerThreadId === actor.threadId &&
+      !["completed", "cancelled"].includes(String(r.state)),
+  );
+  const ownsTask = state.task?.some(
+    (r) =>
+      r.projectId === projectId &&
+      (r.accountableThreadId === actor.threadId || r.threadId === actor.threadId) &&
+      !["completed", "cancelled"].includes(String(r.state)),
   );
   if (
     !ownsInitiative &&
+    !ownsTask &&
     (!authority ||
       (!authority.all &&
         !authority.scopes.some((scope) =>
@@ -115,10 +139,16 @@ export function proposeCompanyPlan(
   const previous = state.companyPlan?.find((r) => r.id === input.id);
   if (previous) throw Error("plan_id_exists: propose a new version with a new id");
   // Dry-run through the same rules used at approval. No side effects escape this outcome.
-  const preview = applyCompanyChanges(state, input.projectId, input.changes, {
-    ...context,
-    actor: { kind: "human", id: "preview" },
-  });
+  const preview = applyCompanyChanges(
+    state,
+    input.projectId,
+    input.changes,
+    {
+      ...context,
+      actor: { kind: "human", id: "preview" },
+    },
+    input.authority ? { planId: input.id, ...input.authority } : undefined,
+  );
   if (actor && context.actor.kind !== "human") {
     const authority = workspaceAuthority(state, actor);
     const covers = (node: unknown) =>
@@ -202,7 +232,13 @@ export function decideCompanyPlan(
   if (input.approve && companyBaseline(state, plan.projectId, plan.changes) !== plan.baseline)
     throw Error("stale_plan: organization or work changed; request a fresh proposal");
   const result = input.approve
-    ? applyCompanyChanges(state, plan.projectId, plan.changes, context)
+    ? applyCompanyChanges(
+        state,
+        plan.projectId,
+        plan.changes,
+        context,
+        plan.authority ? { planId: plan.id, ...plan.authority } : undefined,
+      )
     : { state, events: [] };
   const { id: _id, ...changes } = {
     ...plan,
@@ -273,6 +309,34 @@ export function assignCompanyTask(
   context: CommandContext,
 ): Outcome {
   const projectId = scopeLineage(state, input.node).project.id;
+  const existingTask = state.task?.find((r) => r.id === input.id);
+  if (existingTask) {
+    if (
+      existingTask.state === "queued" &&
+      existingTask.planned &&
+      existingTask.projectId === projectId &&
+      (!input.initiativeId || existingTask.initiativeId === input.initiativeId) &&
+      input.planned !== true
+    ) {
+      return dispatchCompanyTask(
+        state,
+        actor,
+        {
+          taskId: input.id,
+          ...(planId ? { planId } : {}),
+          brief: input.brief,
+          ...(input.acceptance ? { acceptance: input.acceptance } : {}),
+          profileId: input.profileId,
+          ...(input.accountableThreadId ? { accountableThreadId: input.accountableThreadId } : {}),
+          ...(input.budgetUsd !== undefined ? { budgetUsd: input.budgetUsd } : {}),
+        },
+        context,
+      );
+    }
+    throw Error(
+      `already_exists: task ${input.id} already exists in state ${String(existingTask.state)}${existingTask.planned ? ' (planned: use action "dispatch" to start it)' : ""}`,
+    );
+  }
   if (context.actor.kind !== "human") {
     if (!actor) throw Error("assignment_authority_required");
     const executingParent = state.task?.find(
@@ -292,6 +356,7 @@ export function assignCompanyTask(
     if (!plan || !authority || input.initiativeId !== authority.initiativeId)
       throw Error("approved_authority_required");
     const owner = state.initiativeRecord?.find((r) => r.id === authority.initiativeId);
+    if (owner?.state === "paused") throw Error("initiative_paused: initiative work is frozen");
     if (!owner || owner.state !== "active") throw Error("initiative_not_active");
     const proposingChief =
       plan.requestedBy === actor.threadId &&
@@ -302,14 +367,18 @@ export function assignCompanyTask(
     const level = levels.indexOf(String(profile?.permissionProfile));
     if (level < 0 || level > levels.indexOf(authority.permissionCeiling))
       throw Error("assignment_permission_ceiling");
-    const committed = (state.task ?? []).filter((r) => r.authorityPlanId === planId);
-    if (committed.length >= authority.maxTasks) throw Error("assignment_task_limit");
+    const committed = activePlanCommitments(state, planId);
+    const plannedIds = committed.filter((r) => r.planned && r.state === "queued").map((r) => r.id);
+    const plannedHint = plannedIds.length
+      ? `: planned task(s) ${plannedIds.join(", ")} already hold reservations; use dispatch to start one or cancel to release`
+      : "";
+    if (committed.length >= authority.maxTasks) throw Error(`assignment_task_limit${plannedHint}`);
     if (
       input.budgetUsd === undefined ||
       committed.reduce((sum, r) => sum + Number(r.budgetUsd ?? 0), 0) + input.budgetUsd >
-        authority.budgetUsd
+        authority.budgetUsd + 1e-9
     )
-      throw Error("assignment_budget_limit");
+      throw Error(`assignment_budget_limit${plannedHint}`);
   }
   const initiative = state.initiativeRecord?.find((r) => r.id === input.initiativeId);
   const accountable = input.accountableThreadId ?? initiative?.managerThreadId;
@@ -365,6 +434,7 @@ export function companyView(state: DomainState, projectId?: string) {
         ),
       })),
     tasks,
+    results: (state.taskResult ?? []).filter((r) => tasks.some((t) => t.id === r.taskId)),
     plans: (state.companyPlan ?? []).filter((r) => ids.has(r.projectId)),
     briefs: (state.projectBrief ?? []).filter((r) => ids.has(r.projectId)),
     decisions: (state.interaction ?? []).filter(
@@ -379,27 +449,41 @@ export function writeProjectBrief(
   projectId: string,
   summary: string,
   context: CommandContext,
+  options: { auto?: boolean } = {},
 ): Outcome {
   const view = companyView(state, projectId);
   if (!view.projects.length) throw Error("project_unavailable");
   const day = context.at.slice(0, 10);
-  const revision =
-    (state.projectBrief ?? []).filter((r) => r.projectId === projectId && r.day === day).length + 1;
+  const dayBriefs = (state.projectBrief ?? []).filter(
+    (r) => r.projectId === projectId && r.day === day,
+  );
+  const resolvedSummary = (
+    summary.trim() ||
+    `${view.projects[0]?.name}: ${view.tasks.filter((t) => t.state === "completed").length} accepted, ${view.tasks.filter((t) => t.state === "review").length} awaiting review, ${view.tasks.filter((t) => ["failed", "blocked"].includes(String(t.state)) || t.holdReason).length} blocked or needing attention. Next commitments: ${
+      view.tasks
+        .filter((t) => !["completed", "cancelled"].includes(String(t.state)))
+        .slice(0, 5)
+        .map((t) => `${t.title} (${t.state})`)
+        .join("; ") || "none"
+    }. ${view.decisions.length} open decisions.`
+  ).slice(0, 4000);
+  const latest = dayBriefs.slice().sort((a, b) => Number(b.revision) - Number(a.revision))[0] as
+    | ProjectBrief
+    | undefined;
+  if (
+    latest &&
+    latest.summary === resolvedSummary &&
+    Boolean(latest.auto) === Boolean(options.auto)
+  )
+    return { events: [], result: { ...latest, deduplicated: true } };
+  const revision = dayBriefs.length + 1;
   const value: ProjectBrief = {
     id: `${projectId}:${day}:${revision}`,
     projectId,
     day,
     revision,
-    summary: (
-      summary ||
-      `${view.projects[0]?.name}: ${view.tasks.filter((t) => t.state === "completed").length} accepted, ${view.tasks.filter((t) => t.state === "review").length} awaiting review, ${view.tasks.filter((t) => ["failed", "blocked"].includes(String(t.state)) || t.holdReason).length} blocked or needing attention. Next commitments: ${
-        view.tasks
-          .filter((t) => !["completed", "cancelled"].includes(String(t.state)))
-          .slice(0, 5)
-          .map((t) => `${t.title} (${t.state})`)
-          .join("; ") || "none"
-      }. ${view.decisions.length} open decisions.`
-    ).slice(0, 4000),
+    summary: resolvedSummary,
+    ...(options.auto ? { auto: true } : {}),
     evidence: {
       initiatives: view.initiatives,
       tasks: view.tasks.map((t) => ({
@@ -407,6 +491,7 @@ export function writeProjectBrief(
         title: t.title,
         state: t.state,
         threadId: t.threadId,
+        executorThreadId: t.executorThreadId,
         holdReason: t.holdReason,
         acceptance: t.acceptance,
       })),
@@ -434,7 +519,12 @@ export function reviewCompanyTask(
   const task = state.task?.find((r) => r.id === input.taskId);
   if (!task) throw Error("task_unavailable");
   if (context.actor.kind !== "human") {
-    if (!actor || task.threadId === actor.threadId) throw Error("independent_reviewer_required");
+    if (
+      !actor ||
+      task.threadId === actor.threadId ||
+      (task.executorThreadId && task.executorThreadId === actor.threadId)
+    )
+      throw Error("independent_reviewer_required");
     companyAccess(state, actor, String(task.projectId));
     const plan = state.companyPlan?.find(
       (r) => r.id === input.planId && r.state === "applied" && r.projectId === task.projectId,

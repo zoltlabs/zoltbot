@@ -2,11 +2,14 @@ import { expect, it } from "vitest";
 import { handle } from "./commands.js";
 import {
   assignCompanyTask,
+  cancelCompanyTask,
   companyView,
   decideCompanyPlan,
+  dispatchCompanyTask,
   proposeCompanyPlan,
   reviewCompanyTask,
   saveInitiative,
+  submitCompanyTask,
   writeProjectBrief,
 } from "./company.js";
 import { companyBaseline } from "./company-changes.js";
@@ -428,4 +431,237 @@ it("does not retain a former owner's authority just because it proposed the plan
       { ...ctx, actor: { kind: "agent", id: "worker" } },
     ),
   ).toThrow("initiative_owner_required");
+});
+
+it("counts plan-created tasks in reservations, dispatches in place, and frees budget on cancel", () => {
+  let state = fixture();
+  state = applyEvents(
+    state,
+    saveInitiative(state, { ...initiative, managerThreadId: actor.threadId }, ctx).events,
+  );
+  const proposed = proposeCompanyPlan(
+    state,
+    actor,
+    {
+      id: "plan-vip",
+      projectId: "co",
+      title: "VIP fix",
+      explanation: "Reserve budget and stage planned task",
+      changes: [
+        {
+          kind: "task",
+          value: {
+            ...input,
+            id: "vip-fix",
+            initiativeId: "launch",
+            planned: true,
+            budgetUsd: 0.3,
+            acceptance: "Regression test passes",
+          },
+          why: "Track VIP fix commitment",
+        },
+      ],
+      authority: {
+        initiativeId: "launch",
+        maxTasks: 2,
+        permissionCeiling: "read_only",
+        budgetUsd: 0.4,
+      },
+    },
+    ctx,
+  );
+  state = applyEvents(state, proposed.events);
+  const plan = state.companyPlan?.[0];
+  state = applyEvents(
+    state,
+    decideCompanyPlan(
+      state,
+      { id: "plan-vip", version: 1, baseline: String(plan?.baseline), approve: true },
+      ctx,
+    ).events,
+  );
+  expect(state.task?.find((r) => r.id === "vip-fix")).toMatchObject({
+    planned: true,
+    authorityPlanId: "plan-vip",
+    budgetUsd: 0.3,
+  });
+  expect(taskReady(state, state.task?.[0] ?? {})).toBe("Planned work: awaiting dispatch");
+
+  const agentCtx = { ...ctx, actor: { kind: "agent" as const, id: actor.agentId } };
+  // Duplicate $0.30 task exceeds $0.40 envelope because plan-created $0.30 task is counted.
+  expect(() =>
+    assignCompanyTask(
+      state,
+      actor,
+      { ...input, id: "vip-duplicate", initiativeId: "launch", budgetUsd: 0.3 },
+      "plan-vip",
+      agentCtx,
+    ),
+  ).toThrow("budget_limit");
+
+  // Dispatching the existing planned task preserves its id, acceptance, and $0.30 reservation.
+  state = applyEvents(
+    state,
+    dispatchCompanyTask(
+      state,
+      actor,
+      { taskId: "vip-fix", brief: "Fix low+vip routing and run tests" },
+      agentCtx,
+    ).events,
+  );
+  const dispatched = state.task?.find((r) => r.id === "vip-fix");
+  expect(dispatched).toMatchObject({
+    id: "vip-fix",
+    planned: false,
+    acceptance: "Regression test passes",
+    brief: "Fix low+vip routing and run tests",
+  });
+  expect(taskReady(state, dispatched ?? {})).toBeUndefined();
+
+  // Cancelling the task releases its slot and $0.30 reservation so replacement work fits.
+  state = applyEvents(
+    state,
+    cancelCompanyTask(
+      state,
+      actor,
+      { taskId: "vip-fix", reason: "Superseded by narrower fix" },
+      agentCtx,
+    ).events,
+  );
+  expect(state.task?.find((r) => r.id === "vip-fix")?.state).toBe("cancelled");
+  state = applyEvents(
+    state,
+    assignCompanyTask(
+      state,
+      actor,
+      { ...input, id: "vip-replacement", initiativeId: "launch", budgetUsd: 0.3 },
+      "plan-vip",
+      agentCtx,
+    ).events,
+  );
+  expect(state.task?.find((r) => r.id === "vip-replacement")?.state).toBe("queued");
+});
+
+it("holds tasks under paused initiatives and failed dependencies, and blocks self-review on direct submit", () => {
+  let state = fixture();
+  state = applyEvents(
+    state,
+    saveInitiative(state, { ...initiative, managerThreadId: actor.threadId, state: "paused" }, ctx)
+      .events,
+  );
+  state = applyEvents(
+    state,
+    assignCompanyTask(
+      state,
+      undefined,
+      { ...input, id: "frozen", initiativeId: "launch" },
+      undefined,
+      ctx,
+    ).events,
+  );
+  expect(taskReady(state, state.task?.find((r) => r.id === "frozen") ?? {})).toBe(
+    "Initiative paused",
+  );
+
+  state = applyEvents(
+    state,
+    saveInitiative(
+      state,
+      { ...initiative, managerThreadId: actor.threadId, state: "active", version: 2 },
+      ctx,
+    ).events,
+  );
+  state = applyEvents(
+    state,
+    assignCompanyTask(
+      state,
+      undefined,
+      { ...input, id: "downstream", dependencies: ["frozen"], initiativeId: "launch" },
+      undefined,
+      ctx,
+    ).events,
+  );
+  state = {
+    ...state,
+    task: state.task?.map((r) => (r.id === "frozen" ? { ...r, state: "failed" } : r)) ?? [],
+  };
+  expect(taskReady(state, state.task?.find((r) => r.id === "downstream") ?? {})).toBe(
+    "Blocked by failed dependency: frozen",
+  );
+
+  // Direct execution against a queued commitment records executorThreadId and refuses self-review.
+  const planOut = proposeCompanyPlan(
+    state,
+    actor,
+    {
+      id: "direct-plan",
+      projectId: "co",
+      title: "Direct execution",
+      explanation: "Allow manager execution with independent review",
+      changes: [
+        {
+          kind: "task",
+          value: {
+            ...input,
+            id: "small-fix",
+            initiativeId: "launch",
+            planned: true,
+            budgetUsd: 0.1,
+          },
+          why: "Small helper fix",
+        },
+      ],
+      authority: {
+        initiativeId: "launch",
+        maxTasks: 2,
+        reviewTasks: true,
+        permissionCeiling: "read_only",
+        budgetUsd: 0.5,
+      },
+    },
+    ctx,
+  );
+  state = applyEvents(state, planOut.events);
+  const directPlan = state.companyPlan?.find((r) => r.id === "direct-plan");
+  state = applyEvents(
+    state,
+    decideCompanyPlan(
+      state,
+      { id: "direct-plan", version: 1, baseline: String(directPlan?.baseline), approve: true },
+      ctx,
+    ).events,
+  );
+  const agentCtx = { ...ctx, actor: { kind: "agent" as const, id: actor.agentId } };
+  state = applyEvents(
+    state,
+    submitCompanyTask(
+      state,
+      actor,
+      {
+        taskId: "small-fix",
+        status: "done",
+        summary: "Added isVip helper and ran unit tests",
+        files: ["src/router.js", "test/router.test.js"],
+      },
+      agentCtx,
+    ).events,
+  );
+  expect(state.task?.find((r) => r.id === "small-fix")).toMatchObject({
+    state: "review",
+    planned: false,
+    executorThreadId: actor.threadId,
+  });
+  expect(state.taskResult?.find((r) => r.taskId === "small-fix")).toMatchObject({
+    status: "done",
+    auto: false,
+    files: ["src/router.js", "test/router.test.js"],
+  });
+  expect(() =>
+    reviewCompanyTask(
+      state,
+      actor,
+      { taskId: "small-fix", revision: 1, decision: "accept", planId: "direct-plan" },
+      agentCtx,
+    ),
+  ).toThrow("independent_reviewer");
 });

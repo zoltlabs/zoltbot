@@ -117,6 +117,7 @@ export const ProjectBriefSchema = object({
   revision: Type.Integer({ minimum: 1 }),
   summary: Text,
   evidence: Json,
+  auto: Type.Optional(Type.Boolean()),
   createdAt: At,
 });
 export type ProjectBrief = Static<typeof ProjectBriefSchema>;
@@ -154,6 +155,46 @@ export const companyMethods = {
   },
   "company.assign": {
     params: object({ value: taskInput, planId: Type.Optional(Id) }),
+    result: Json,
+  },
+  "company.dispatch": {
+    params: object({
+      taskId: Id,
+      planId: Type.Optional(Id),
+      brief: Type.Optional(Text),
+      acceptance: Type.Optional(Text),
+      profileId: Type.Optional(Id),
+      accountableThreadId: Type.Optional(Id),
+      budgetUsd: Type.Optional(Type.Number({ minimum: 0 })),
+    }),
+    result: Json,
+  },
+  "company.cancel": {
+    params: object({
+      taskId: Id,
+      reason: Type.Optional(Text),
+      planId: Type.Optional(Id),
+      replacementTaskId: Type.Optional(Id),
+    }),
+    result: Json,
+  },
+  "company.submit": {
+    params: object({
+      taskId: Id,
+      status: values(["done", "partial", "blocked", "failed"]),
+      summary: Type.String({ minLength: 1, maxLength: 2000 }),
+      files: Type.Optional(Type.Array(Text, { maxItems: 200 })),
+      planId: Type.Optional(Id),
+    }),
+    result: Json,
+  },
+  "company.recover": {
+    params: object({
+      taskId: Id,
+      planId: Type.Optional(Id),
+      excludeOptionalKnowledgeIds: Type.Optional(Type.Array(Id, { maxItems: 100 })),
+      brief: Type.Optional(Text),
+    }),
     result: Json,
   },
   "company.brief": {

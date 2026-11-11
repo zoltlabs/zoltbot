@@ -20,11 +20,12 @@ export const teamToolDefinitions = [
   {
     name: "team_delegate",
     description:
-      "Assign tracked work in your scope. Brief a new chat (title, optional profileId and teamId of a team below you) or an existing chat or manager below you (chatId). Brief up to 2000 characters, stable key for retries. Returns a linked bounded result or progress.",
+      "Assign tracked work in your scope. Pass taskId to dispatch an existing planned task, or brief a new chat (title, optional profileId and teamId) or an existing chat (chatId). Brief up to 2000 characters, stable key for retries. Returns a linked bounded result or progress.",
     inputSchema: {
       type: "object" as const,
       properties: {
         planId: { type: "string", maxLength: 200 },
+        taskId: { type: "string", maxLength: 256 },
         budgetUsd: { type: "number", minimum: 0 },
         key: { type: "string", minLength: 1, maxLength: 100 },
         brief: { type: "string", minLength: 1, maxLength: 2000 },
@@ -189,6 +190,7 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     const args = call.arguments as {
       key: string;
       brief: string;
+      taskId?: string;
       title?: string;
       profileId?: string;
       teamId?: string;
@@ -197,23 +199,26 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       budgetUsd?: number;
     };
     if (!authorize(call.actor, "team_delegate", args)) throw new Error("grant_required");
-    if (!args.chatId && !args.title) throw new Error("title_or_chat_required");
+    if (!args.taskId && !args.chatId && !args.title) throw new Error("title_or_chat_required");
     const id = hash(JSON.stringify([call.actor.threadId, args.key]));
     // Keep the original child id scheme so retries of earlier delegations still resolve.
     const childId = `child-${id}`;
-    const messageId = args.chatId ? `brief-${id}` : `${childId}:brief`;
-    const commandId = `delegate:${args.chatId ? messageId : childId}`;
+    const messageId = args.chatId || args.taskId ? `brief-${id}` : `${childId}:brief`;
+    const commandId = `delegate:${args.chatId || args.taskId ? messageId : childId}`;
     const input = {
       ...(args.planId ? { planId: args.planId } : {}),
+      ...(args.taskId ? { taskId: args.taskId } : {}),
       ...(args.budgetUsd !== undefined ? { budgetUsd: args.budgetUsd } : {}),
       brief: args.brief,
-      ...(args.chatId
-        ? { chatId: args.chatId }
-        : {
-            title: args.title as string,
-            profileId: args.profileId ?? call.actor.agentId,
-            ...(args.teamId ? { teamId: args.teamId } : {}),
-          }),
+      ...(args.taskId
+        ? { ...(args.profileId ? { profileId: args.profileId } : {}) }
+        : args.chatId
+          ? { chatId: args.chatId }
+          : {
+              title: args.title as string,
+              profileId: args.profileId ?? call.actor.agentId,
+              ...(args.teamId ? { teamId: args.teamId } : {}),
+            }),
     };
     const result = await dispatch(commandId, input, (state) =>
       briefTeam(
@@ -232,6 +237,7 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
     if (target.managerThreadId !== call.actor.threadId || target.brief !== args.brief)
       throw new Error("command_receipt_conflict");
     if (args.chatId && target.childId !== args.chatId) throw new Error("command_receipt_conflict");
+    if (args.taskId && target.taskId !== args.taskId) throw new Error("command_receipt_conflict");
     const targetId = String(target.childId);
     if (!busy(read(call.actor, targetId).status)) return read(call.actor, targetId);
     // The task runner dispatches the assignment; waking here would race task input creation.

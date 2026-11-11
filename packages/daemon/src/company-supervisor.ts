@@ -30,13 +30,15 @@ export function companySupervisor(
       const state = context.store.snapshot();
       const chief = String(state.settings?.find((r) => r.key === "chief.thread")?.value ?? "");
       const at = now();
-      for (const task of state.task ?? []) {
+      for (const rawTask of state.task ?? []) {
+        let task = rawTask;
         // An execution's result is the safe boundary for transferring accountability.
         if (
           task.pendingAccountableThreadId &&
           !["running", "blocked"].includes(String(task.state))
         ) {
-          const id = `company:handoff:${task.id}:${task.pendingAccountableThreadId}:${task.updatedAt}`;
+          const targetOwner = String(task.pendingAccountableThreadId);
+          const id = `company:handoff:${task.id}:${targetOwner}:${task.updatedAt}`;
           dispatch(id, (s) => {
             const current = s.task?.find((r) => r.id === task.id);
             if (
@@ -59,13 +61,44 @@ export function companySupervisor(
               { commandId: id, at, actor: system },
             );
           });
+          task = context.store.record("task", String(task.id)) ?? task;
+          if (
+            targetOwner &&
+            targetOwner !== task.threadId &&
+            state.thread?.some((r) => r.id === targetOwner && !r.archived) &&
+            !["blocked", "review", "failed", "completed"].includes(String(task.state))
+          ) {
+            const handoffNoticeId = `company:signal:handoff:${task.id}:${task.revision}:${targetOwner}`;
+            if (!context.store.receipt(handoffNoticeId))
+              dispatch(handoffNoticeId, (s) =>
+                queueSystemNotice(
+                  s,
+                  {
+                    threadId: targetOwner,
+                    text: `[Work supervision] Accountability for task ${task.id} "${task.title}" (${String(task.state)}) transferred to you. Read company_work for task state, evidence and dependencies.`,
+                  },
+                  `${handoffNoticeId}:input`,
+                  { commandId: handoffNoticeId, at, actor: system },
+                ),
+              );
+          }
         }
         const checkpoint = state.initiativeRecord?.find((r) => r.id === task.initiativeId);
         const missed =
           checkpoint?.targetDate &&
           String(checkpoint.targetDate) < at &&
           !["completed", "cancelled"].includes(String(task.state));
-        if (!["blocked", "review", "failed", "completed"].includes(String(task.state)) && !missed)
+        const holdReason = String(task.holdReason ?? "");
+        const actionableHold =
+          task.state === "queued" &&
+          (holdReason.startsWith("context_budget_hold") ||
+            holdReason.startsWith("Blocked by ") ||
+            holdReason.startsWith("Session inputs"));
+        if (
+          !["blocked", "review", "failed", "completed"].includes(String(task.state)) &&
+          !missed &&
+          !actionableHold
+        )
           continue;
         const destination = String(
           task.accountableThreadId ?? checkpoint?.managerThreadId ?? chief,
@@ -76,15 +109,19 @@ export function companySupervisor(
           !state.thread?.some((r) => r.id === destination && !r.archived)
         )
           continue;
-        const signal = missed ? `checkpoint:${String(checkpoint?.targetDate)}` : String(task.state);
-        const id = `company:signal:${task.id}:${task.revision}:${signal}`;
+        const signal = actionableHold
+          ? `hold:${createHash("sha256").update(holdReason).digest("hex").slice(0, 12)}`
+          : missed
+            ? `checkpoint:${String(checkpoint?.targetDate)}`
+            : String(task.state);
+        const id = `company:signal:${task.id}:${task.revision}:${destination}:${signal}`;
         if (!context.store.receipt(id))
           dispatch(id, (s) =>
             queueSystemNotice(
               s,
               {
                 threadId: destination,
-                text: `[Work supervision] Task ${task.id} "${task.title}": ${signal}. Read company_work for evidence and dependencies. Follow up within approved authority; bring scope, budget or permission changes to the human. A submitted result still needs acceptance.`,
+                text: `[Work supervision] Task ${task.id} "${task.title}": ${actionableHold ? holdReason : signal}. Read company_work for evidence and dependencies. Follow up within approved authority; bring scope, budget or permission changes to the human. A submitted result still needs acceptance.`,
               },
               `${id}:input`,
               { commandId: id, at, actor: system },
@@ -159,7 +196,13 @@ export function companySupervisor(
         ).length;
         const summary = `${project.name}: ${accepted} accepted, ${review} awaiting review, ${blocked} blocked or needing attention. ${view.decisions.length} open decisions. See linked tasks and initiative outcomes for next commitments.`;
         dispatch(id, (s) =>
-          writeProjectBrief(s, String(project.id), summary, { commandId: id, at, actor: system }),
+          writeProjectBrief(
+            s,
+            String(project.id),
+            summary,
+            { commandId: id, at, actor: system },
+            { auto: true },
+          ),
         );
       }
     } finally {

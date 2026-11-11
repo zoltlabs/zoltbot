@@ -1,6 +1,6 @@
 import { parse, type Scope, ScopeSchema, type Thread, ThreadSchema } from "@zoltbot/protocol";
 import { type CommandContext, handle, type Outcome } from "./commands.js";
-import { assignCompanyTask } from "./company.js";
+import { activePlanCommitments, assignCompanyTask, dispatchCompanyTask } from "./company.js";
 import { createScopedChat, scopeLineage } from "./hierarchy.js";
 import { queueAgentInput } from "./input-queue.js";
 import { applyEvents, type DomainState } from "./projectors.js";
@@ -213,6 +213,7 @@ function send(
 export interface BriefInput {
   planId?: string;
   budgetUsd?: number;
+  taskId?: string;
   brief: string;
   /** Start a new chat with this title. Ignored when `chatId` names an existing chat. */
   title?: string;
@@ -239,6 +240,82 @@ export function briefTeam(
   const hops = turnHops(state, manager.id, actor.turnId) + 1;
   if (hops > teamHopLimit) throw new Error("hop_limit_reached");
   const ceiling = permissionLevel(state, manager.agentId, actor.sessionId);
+  const matchedPlanned = input.taskId
+    ? state.task?.find((r) => r.id === input.taskId)
+    : input.chatId
+      ? state.task?.find(
+          (r) => r.threadId === input.chatId && r.state === "queued" && r.planned === true,
+        )
+      : undefined;
+  if (input.taskId && !matchedPlanned) throw new Error("task_unavailable");
+  if (matchedPlanned) {
+    const targetThreadId = String(matchedPlanned.threadId ?? "");
+    const existing = thread(state, targetThreadId);
+    if (
+      !existing ||
+      existing.id === manager.id ||
+      existing.projectId !== manager.projectId ||
+      !scopeContains(state, manager.node, existing.node)
+    )
+      throw new Error("chat_outside_team");
+    const nextProfileId = input.profileId ?? existing.agentId;
+    const level = permissionLevel(state, nextProfileId);
+    if (ceiling < 0 || level < 0 || level > ceiling)
+      throw new Error("delegation_permission_widening");
+    const framedBrief = `[Assignment from ${label(state, manager)}, message ${ids.messageId}. When finished or blocked, reply with team_message replyTo ${ids.messageId}.]\n${input.brief}`;
+    const dispatched = dispatchCompanyTask(
+      state,
+      actor,
+      {
+        taskId: String(matchedPlanned.id),
+        ...(input.planId ? { planId: input.planId } : {}),
+        brief: framedBrief,
+        profileId: nextProfileId,
+        accountableThreadId: manager.id,
+        ...(input.budgetUsd !== undefined ? { budgetUsd: input.budgetUsd } : {}),
+      },
+      context,
+    );
+    const events = send(
+      state,
+      {
+        queue: false,
+        from: manager,
+        to: existing,
+        kind: "task",
+        hops,
+        messageId: ids.messageId,
+        text: `[Brief from ${label(state, manager)}, message ${ids.messageId}. When you finish or get blocked, tell them with team_message replyTo ${ids.messageId}.]\n${input.brief}`,
+        audit: {
+          id: `${ids.messageId}:audit`,
+          action: "manager.delegate",
+          target: existing.id,
+          detail: {
+            managerThreadId: manager.id,
+            sessionId: actor.sessionId,
+            turnId: actor.turnId,
+            existing: true,
+            dispatchedTaskId: matchedPlanned.id,
+          },
+        },
+      },
+      dispatched.events,
+      context,
+    );
+    return {
+      events: renumber(events, context),
+      result: {
+        taskId: String(matchedPlanned.id),
+        childId: existing.id,
+        managerThreadId: manager.id,
+        profileId: nextProfileId,
+        title: existing.title,
+        brief: input.brief,
+        existing: true,
+        dispatched: true,
+      },
+    };
+  }
   let target: Thread;
   let created: Outcome["events"] = [];
   if (input.chatId) {
@@ -291,7 +368,7 @@ export function briefTeam(
   const owned = (state.initiativeRecord ?? []).filter(
     (r) => r.managerThreadId === manager.id && r.state === "active",
   );
-  const inheritedPlanId = input.planId ?? sourceTask?.authorityPlanId;
+  const inheritedPlanId = input.planId ?? (sourceTask?.authorityPlanId as string | undefined);
   const candidatePlans = (state.companyPlan ?? []).filter(
     (r) =>
       r.state === "applied" &&
@@ -300,12 +377,37 @@ export function briefTeam(
         ? r.id === inheritedPlanId
         : owned.some((i) => i.id === (r.authority as { initiativeId?: string })?.initiativeId)),
   );
-  if (candidatePlans.length > 1 && !inheritedPlanId) throw Error("choose_authority_plan");
-  const plan = candidatePlans[0];
+  const distinctInitiatives = new Set(
+    candidatePlans
+      .map((r) => (r.authority as { initiativeId?: string } | undefined)?.initiativeId)
+      .filter(Boolean),
+  );
+  if (distinctInitiatives.size > 1 && !inheritedPlanId) throw Error("choose_authority_plan");
+  const plan = candidatePlans
+    .slice()
+    .sort((a, b) =>
+      String(b.approvedAt ?? b.createdAt).localeCompare(String(a.approvedAt ?? a.createdAt)),
+    )[0];
   const authority = plan?.authority as
     | { initiativeId: string; budgetUsd: number; maxTasks: number }
     | undefined;
-  const committed = (state.task ?? []).filter((r) => r.authorityPlanId === plan?.id);
+  if (authority && !input.chatId && input.title) {
+    const norm = input.title.trim().toLowerCase();
+    const duplicatePlanned = (state.task ?? []).find(
+      (r) =>
+        r.initiativeId === authority.initiativeId &&
+        r.state === "queued" &&
+        r.planned === true &&
+        String(r.title ?? "")
+          .trim()
+          .toLowerCase() === norm,
+    );
+    if (duplicatePlanned)
+      throw Error(
+        `planned_task_exists: task ${String(duplicatePlanned.id)} is already planned for "${String(duplicatePlanned.title)}"; pass taskId "${String(duplicatePlanned.id)}" to team_delegate or use company_work action "dispatch"`,
+      );
+  }
+  const committed = activePlanCommitments(state, plan ? String(plan.id) : undefined);
   const remaining = authority
     ? authority.budgetUsd - committed.reduce((sum, r) => sum + Number(r.budgetUsd ?? 0), 0)
     : undefined;
@@ -319,6 +421,7 @@ export function briefTeam(
     node: target.node as Scope,
     accountableThreadId: manager.id,
     existingThreadId: target.id,
+    ...(sourceTask && manager.kind !== "manager" ? { parentId: String(sourceTask.id) } : {}),
     ...(authority && plan
       ? {
           initiativeId: authority.initiativeId,

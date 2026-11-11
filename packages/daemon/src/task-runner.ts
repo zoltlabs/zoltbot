@@ -190,7 +190,14 @@ export function taskRunner(options: TaskRunnerOptions) {
   async function scheduleOnce() {
     await routines.tick();
     await events.tick();
-    const state = store.snapshot(["task", "project", "workspace", "session", "thread"]);
+    const state = store.snapshot([
+      "task",
+      "project",
+      "workspace",
+      "session",
+      "thread",
+      "initiativeRecord",
+    ]);
     const tasks = (state.task ?? []).map((row) => parse(TaskSchema, row));
     const busy = new Map<string, Task>();
     for (const row of tasks) {
@@ -333,6 +340,7 @@ export function taskRunner(options: TaskRunnerOptions) {
       const tasks = events.some(
         (event) =>
           event.aggregateType === "task" ||
+          event.aggregateType === "initiativeRecord" ||
           event.aggregateType === "knowledge" ||
           event.aggregateType === "routine" ||
           event.aggregateType === "interaction",

@@ -8,7 +8,7 @@ import { workspaceTools } from "./workspace-tools.js";
 export const companyToolDefinition = {
   name: "company_work",
   description:
-    "Organize work. describe returns contracts; read, propose, assign, review, brief. Stable key for writes.",
+    "Organize work. describe returns contracts; read, propose, assign, dispatch, cancel, submit, recover, review, brief. Stable key for writes.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -19,6 +19,10 @@ export const companyToolDefinition = {
           "read",
           "propose",
           "assign",
+          "dispatch",
+          "cancel",
+          "submit",
+          "recover",
           "brief",
           "shape_read",
           "create",
@@ -41,7 +45,14 @@ export function companyTools(context: RuntimeContext) {
     return (
       !!workspaceAuthority(state, actor) ||
       state.initiativeRecord?.some(
-        (r) => r.managerThreadId === actor.threadId && r.state === "active",
+        (r) =>
+          r.managerThreadId === actor.threadId &&
+          !["completed", "cancelled"].includes(String(r.state)),
+      ) === true ||
+      state.task?.some(
+        (r) =>
+          (r.accountableThreadId === actor.threadId || r.threadId === actor.threadId) &&
+          !["completed", "cancelled"].includes(String(r.state)),
       ) === true
     );
   };
@@ -81,7 +92,7 @@ export function companyTools(context: RuntimeContext) {
           brief:
             "request {projectId,summary?}; saves dated evidence and summary. Initiative/remit versions start at 1; edits increment. Dates are ISO timestamps. No cross-workspace moves. Busy chats move only at safe boundaries; running task accountability transfers after execution. Completed initiatives require accepted or explicitly cancelled tasks.",
         };
-      if (["shape_read", "create", "update", "review"].includes(args.action)) {
+      if (["shape_read", "create", "update"].includes(args.action)) {
         const tool = workspace.tools.get(
           args.action === "shape_read" ? "workspace_read" : `workspace_${args.action}`,
         );

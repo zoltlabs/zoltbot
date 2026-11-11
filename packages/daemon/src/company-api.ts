@@ -1,13 +1,17 @@
 import { createHash } from "node:crypto";
 import {
   assignCompanyTask,
+  cancelCompanyTask,
   companyAccess,
   companyView,
   decideCompanyPlan,
+  dispatchCompanyTask,
   type Outcome,
   proposeCompanyPlan,
+  recoverCompanyTask,
   reviewCompanyTask,
   scopeContains,
+  submitCompanyTask,
   type TaskInput,
   type WorkspaceActor,
   workspaceAuthority,
@@ -15,6 +19,15 @@ import {
 } from "@zoltbot/core";
 import { type CompanyPlan, companyMethods, parse } from "@zoltbot/protocol";
 import type { RuntimeContext } from "./api.js";
+
+const taskScopedMethods = new Set([
+  "company.assign",
+  "company.review",
+  "company.dispatch",
+  "company.cancel",
+  "company.submit",
+  "company.recover",
+]);
 
 export function companyApi(context: RuntimeContext) {
   return async (
@@ -50,8 +63,7 @@ export function companyApi(context: RuntimeContext) {
         };
       }
       if (method === "company.decide") throw Error("human_approval_required");
-      if (method !== "company.assign" && method !== "company.review")
-        companyAccess(state, actor, projectId);
+      if (!taskScopedMethods.has(method)) companyAccess(state, actor, projectId);
     }
     if (method === "company.read") {
       const view = companyView(state, params.projectId as string | undefined);
@@ -94,7 +106,23 @@ export function companyApi(context: RuntimeContext) {
                 : { type: "project", id: r.projectId },
             ),
         ),
-        tasks: view.tasks.filter((r) => owns.has(String(r.initiativeId)) || visible(r.node)),
+        tasks: view.tasks.filter(
+          (r) =>
+            owns.has(String(r.initiativeId)) ||
+            visible(r.node) ||
+            r.accountableThreadId === actor.threadId ||
+            r.threadId === actor.threadId,
+        ),
+        results: view.results.filter((r) =>
+          view.tasks.some(
+            (t) =>
+              t.id === r.taskId &&
+              (owns.has(String(t.initiativeId)) ||
+                visible(t.node) ||
+                t.accountableThreadId === actor.threadId ||
+                t.threadId === actor.threadId),
+          ),
+        ),
         plans: view.plans.filter(
           (r) =>
             r.requestedBy === actor.threadId ||
@@ -157,6 +185,34 @@ export function companyApi(context: RuntimeContext) {
           params.planId as string | undefined,
           ctx,
         );
+      else if (method === "company.dispatch")
+        outcome = dispatchCompanyTask(
+          current,
+          actor,
+          params as Parameters<typeof dispatchCompanyTask>[2],
+          ctx,
+        );
+      else if (method === "company.cancel")
+        outcome = cancelCompanyTask(
+          current,
+          actor,
+          params as Parameters<typeof cancelCompanyTask>[2],
+          ctx,
+        );
+      else if (method === "company.submit")
+        outcome = submitCompanyTask(
+          current,
+          actor,
+          params as Parameters<typeof submitCompanyTask>[2],
+          ctx,
+        );
+      else if (method === "company.recover")
+        outcome = recoverCompanyTask(
+          current,
+          actor,
+          params as Parameters<typeof recoverCompanyTask>[2],
+          ctx,
+        );
       else
         outcome = writeProjectBrief(
           current,
@@ -167,6 +223,19 @@ export function companyApi(context: RuntimeContext) {
       return { ...outcome, result: { ...outcome.result, requestDigest: digest } };
     });
     context.publish(context.store.eventsSince(before));
+    if (method === "company.cancel") {
+      const cancelledTask = context.store.record("task", String(params.taskId));
+      const threadId = cancelledTask?.threadId ? String(cancelledTask.threadId) : undefined;
+      const runningTurn = threadId
+        ? (context.store.snapshot(["turn"]).turn ?? []).find(
+            (row) => row.threadId === threadId && row.status === "running",
+          )
+        : undefined;
+      if (threadId && runningTurn && context.interrupt)
+        await context
+          .interrupt(threadId, String(runningTurn.id), `${commandId}:interrupt`)
+          .catch(() => {});
+    }
     const { requestDigest: _digest, ...value } = result.result as Record<string, unknown>;
     return value;
   };

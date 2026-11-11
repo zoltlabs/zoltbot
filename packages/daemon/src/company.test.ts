@@ -292,6 +292,7 @@ it("defers running accountability handoff and reconciles each notice once after 
     const notices = () =>
       f.f.store.snapshot(["item"]).item?.filter((r) => String(r.id).startsWith("company:signal:"));
     expect(notices()).toHaveLength(1);
+    expect(notices()?.[0]?.threadId).toBe("thread");
     watcher.close();
     watcher = companySupervisor(f.context, { now: () => at });
     await watcher.tick();
