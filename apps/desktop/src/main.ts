@@ -23,13 +23,15 @@ import WebSocket from "ws";
 import { artifactKitAsset } from "../../../packages/artifact-kit/src/index.js";
 import { keychainProcess } from "../../../packages/daemon/src/keychain-process.js";
 import { KeychainSecrets } from "../../../packages/daemon/src/secrets.js";
-import { artifactProtocol, artifactScheme } from "./artifact-protocol.js";
+import { artifactProtocol } from "./artifact-protocol.js";
 import { cloudAccount } from "./cloud-account.js";
 import { createDictationController, type DictationStartOptions } from "./dictation.js";
 import { folderPicker } from "./folder-picker.js";
+import { frameRequestAllowed } from "./frame-isolation.js";
 import { hostedOrigins } from "./hosted-origins.js";
 import { answerNotification } from "./notification-answer.js";
 import { desktopNotifications } from "./notifications.js";
+import { desktopViewProtocol } from "./view-protocol.js";
 
 const startupAt = performance.now();
 // A packaged app carries its files flat in the app folder (scripts/package-desktop.mjs);
@@ -87,7 +89,7 @@ if (
 )
   throw new Error("UI must be served from loopback");
 protocol.registerSchemesAsPrivileged(
-  ["zoltbot", "zoltbot-artifact"].map((scheme) => ({
+  ["zoltbot", "zoltbot-artifact", "zoltbot-view"].map((scheme) => ({
     scheme,
     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
   })),
@@ -146,6 +148,7 @@ const artifactServer = artifactProtocol({
     return new Uint8Array(await response.arrayBuffer());
   },
 });
+const viewServer = desktopViewProtocol(uiOrigin, root, connection);
 function showWindow(hash = "") {
   if (!window || window.isDestroyed()) {
     window = new BrowserWindow({
@@ -173,14 +176,14 @@ function showWindow(hash = "") {
       if (!url.startsWith(`${uiOrigin}/`)) event.preventDefault();
     });
     window.webContents.on("will-frame-navigate", (event) => {
-      if (!event.isMainFrame) {
-        if (!event.url.startsWith(`${artifactScheme}//`)) event.preventDefault();
-        else if (
-          event.initiator?.url.startsWith(`${artifactScheme}//`) &&
-          new URL(event.initiator.url).host !== new URL(event.url).host
+      if (
+        !frameRequestAllowed(
+          event.initiator?.url,
+          event.url,
+          event.isMainFrame ? "mainFrame" : "subFrame",
         )
-          event.preventDefault();
-      }
+      )
+        event.preventDefault();
     });
     window.webContents.on("render-process-gone", () => {
       dictation.cancel();
@@ -511,6 +514,11 @@ ipcMain.handle("zolt:browser-evidence", async (event, id: unknown) => {
   if (bytes.byteLength > 8 * 1024 * 1024) throw new Error("evidence_too_large");
   return bytes;
 });
+ipcMain.handle("zolt:view-prepare", (event, hash: unknown) => {
+  verifyMainFrame(event);
+  if (typeof hash !== "string") throw Error("invalid_view_hash");
+  return viewServer.prepare(hash);
+});
 ipcMain.handle("zolt:artifact-prepare", async (event, hash: unknown) => {
   verifyMainFrame(event);
   if (typeof hash !== "string") throw Error("invalid_artifact_hash");
@@ -605,15 +613,14 @@ async function main() {
   session.defaultSession.protocol.handle("zoltbot-artifact", (request) =>
     artifactServer.handle(request),
   );
+  session.defaultSession.protocol.handle("zoltbot-view", (request) => viewServer.handle(request));
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-    const source = details.frame?.url ?? details.referrer;
-    const artifact = source?.startsWith(`${artifactScheme}//`);
-    const target = details.url.startsWith(`${artifactScheme}//`);
     callback({
-      cancel:
-        (details.resourceType === "mainFrame" && target) ||
-        (details.resourceType === "subFrame" && !target) ||
-        Boolean(artifact && (!target || new URL(details.url).host !== new URL(source).host)),
+      cancel: !frameRequestAllowed(
+        details.frame?.url ?? details.referrer,
+        details.url,
+        details.resourceType,
+      ),
     });
   });
   if (uiOrigin === "zoltbot://desktop") serveUi(file("dist/ui", "ui"));

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("zoltDesktop", {
     uploadArtifact: (input: { hash: string; title: string; orgId: string; confirm: true }) =>
       ipcRenderer.invoke("zolt:account-upload-artifact", input),
   },
+  prepareView: (hash: string) => ipcRenderer.invoke("zolt:view-prepare", hash),
   prepareArtifact: (hash: string) => ipcRenderer.invoke("zolt:artifact-prepare", hash),
   browserEvidence: (id: string) => ipcRenderer.invoke("zolt:browser-evidence", id),
   pickFolders: () => ipcRenderer.invoke("zolt:pick-folders"),

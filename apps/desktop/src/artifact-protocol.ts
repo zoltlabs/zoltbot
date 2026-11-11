@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { type ArtifactManifest, ArtifactManifestSchema, parse } from "@zoltbot/protocol";
-
 import { artifactMarkdownHtml } from "../../../packages/ui/src/artifacts/markdown-html.js";
+import { validBundlePath as validPath } from "./bundle-path.js";
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 export const artifactScheme = "zoltbot-artifact:";
@@ -23,16 +23,6 @@ export function artifactCsp(origin: string, manifestHash: string, scripts: boole
     "worker-src 'none'",
     `frame-ancestors ${origin}`,
   ].join("; ");
-}
-function validPath(value: string) {
-  return (
-    value.length > 0 &&
-    value.length <= 512 &&
-    !/[\\:#?%]/.test(value) &&
-    !Array.from(value).some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127) &&
-    !value.startsWith("/") &&
-    value.split("/").every((p) => p && p !== "." && p !== "..")
-  );
 }
 const escapeText = (value: string) =>
   value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");

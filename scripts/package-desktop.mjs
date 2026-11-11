@@ -67,6 +67,7 @@ for (const resource of [
   "packages/adapters/pi/src/extension.ts",
   "packages/artifact-kit/v1",
   "packages/views",
+  "packages/view-api/client",
 ])
   cpSync(path.join(root, resource), path.join(stage, resource), { recursive: true });
 
