@@ -49,11 +49,24 @@ export const ViewManifestSchema = Type.Object({
   basedOn: Type.Optional(BasedOnSchema),
 });
 export type ViewManifest = Static<typeof ViewManifestSchema>;
-/** Unknown manifest fields are retained for forward compatibility. */
+/** Ignore unknown fields while keeping their original file bytes in the bundle hash. */
 export function parseViewManifest(value: unknown, folder: string): ViewManifest {
   const manifest = parse(ViewManifestSchema, value);
   if (manifest.id !== folder) throw Error("view_id_must_match_folder");
   const ids = manifest.shortcuts?.map((shortcut) => shortcut.id) ?? [];
   if (new Set(ids).size !== ids.length) throw Error("view_duplicate_shortcut");
-  return manifest;
+  const result = Object.fromEntries(
+    Object.keys(ViewManifestSchema.properties)
+      .filter((key) => Object.hasOwn(manifest, key))
+      .map((key) => [key, (manifest as Record<string, unknown>)[key]]),
+  ) as ViewManifest;
+  if (manifest.basedOn)
+    result.basedOn = {
+      id: manifest.basedOn.id,
+      version: manifest.basedOn.version,
+      bundleHash: manifest.basedOn.bundleHash,
+    };
+  if (manifest.shortcuts)
+    result.shortcuts = manifest.shortcuts.map(({ id, keys, label }) => ({ id, keys, label }));
+  return result;
 }

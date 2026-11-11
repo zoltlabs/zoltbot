@@ -34,7 +34,7 @@ export class ViewCallError extends Error {
 export class ViewBridge {
   private closed = false;
   private connected = false;
-  private readonly started: number;
+  private started: number;
   private pongAt = 0;
   private pingAt = 0;
   private ping = 0;
@@ -150,6 +150,11 @@ export class ViewBridge {
     if (this.connected) this.post({ t: "event", name, value });
   }
   visibility(visible: boolean) {
+    if (visible && !this.visible) {
+      this.started = this.now();
+      this.pongAt = this.now();
+      this.pingAt = 0;
+    }
     this.visible = visible;
     this.event("visibility", visible);
     if (visible) {
@@ -158,7 +163,7 @@ export class ViewBridge {
     }
   }
   tick() {
-    if (this.closed) return;
+    if (this.closed || !this.visible) return;
     const now = this.now();
     if (
       (!this.connected && now - this.started >= 10000) ||

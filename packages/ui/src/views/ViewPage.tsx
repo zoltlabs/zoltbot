@@ -176,6 +176,7 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
         </div>
       ) : url ? (
         <iframe
+          key={attempt}
           ref={frame}
           title={record.name}
           src={url}

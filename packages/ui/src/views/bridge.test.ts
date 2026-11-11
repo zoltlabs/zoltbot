@@ -172,3 +172,16 @@ it("never exposes unrestricted daemon calls and checks permissions before dispat
   );
   expect(f.call).not.toHaveBeenCalled();
 });
+
+it("does not mistake a hidden or suspended host for a crashed frame", () => {
+  const f = fixture();
+  f.host.receive({ t: "hello", api: 1 });
+  f.host.visibility(false);
+  f.time(60000);
+  expect(f.failed).not.toHaveBeenCalled();
+  f.host.visibility(true);
+  expect(f.host.isConnected).toBe(true);
+  expect(f.failed).not.toHaveBeenCalled();
+  f.time(75000);
+  expect(f.failed).toHaveBeenCalledOnce();
+});

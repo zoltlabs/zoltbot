@@ -37,7 +37,7 @@ export function viewProtocol(options: {
     async prepare(hash: string) {
       if (!/^[a-f0-9]{64}$/.test(hash)) throw Error("view_hash_invalid");
       const bytes = await options.asset("manifest", hash);
-      if (bytes.length > 1024 * 1024) throw Error("view_manifest_too_large");
+      if (bytes.length > 2 * 25 * 1024 * 1024 + 1024 * 1024) throw Error("view_manifest_too_large");
       const raw = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
       if (
         typeof raw.manifestBytes !== "string" ||
@@ -151,15 +151,16 @@ export function desktopViewProtocol(
         url = new URL(info.url.replace(/^ws:/, "http:"));
       if (url.hostname !== "127.0.0.1") throw Error("invalid_daemon_address");
       url.pathname = `/view-${kind}/${hash}${fileHash ? `/${fileHash}` : ""}`;
+      const limit = kind === "manifest" ? 2 * 25 * 1024 * 1024 + 1024 * 1024 : 25 * 1024 * 1024;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${info.token}` },
         signal: AbortSignal.timeout(10000),
         redirect: "error",
       });
-      if (!response.ok || Number(response.headers.get("content-length")) > 25 * 1024 * 1024)
+      if (!response.ok || Number(response.headers.get("content-length")) > limit)
         throw Error("view_unavailable");
       const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.length > 25 * 1024 * 1024) throw Error("view_too_large");
+      if (bytes.length > limit) throw Error("view_too_large");
       return bytes;
     },
   });

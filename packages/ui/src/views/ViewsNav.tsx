@@ -16,16 +16,13 @@ export function ViewsNav({ views }: { views: Row[] }) {
       {enabled.map((view) => (
         <ListRow
           key={String(view.id)}
-          icon="Projects"
-          label={
-            <>
-              <ViewIcon
-                hash={String(view.bundleHash)}
-                path={typeof view.icon === "string" ? view.icon : undefined}
-              />{" "}
-              {String(view.name)}
-            </>
+          leading={
+            <ViewIcon
+              hash={String(view.bundleHash)}
+              path={typeof view.icon === "string" ? view.icon : undefined}
+            />
           }
+          label={String(view.name)}
           current={route === "View" && id === view.id}
           onClick={() => open(String(view.id))}
         />

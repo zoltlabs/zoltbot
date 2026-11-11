@@ -69,6 +69,7 @@ export class ViewRegistry {
     for (let index = 0; index < records.length; index++) {
       const record = records[index];
       if (!record) continue;
+      if (JSON.stringify(record) === JSON.stringify(this.store.record("view", record.id))) continue;
       try {
         if (possibleSecret("", JSON.stringify(record))) throw Error("view_private_metadata");
         guards.push(await this.checkPublic(record));
@@ -161,7 +162,9 @@ export class ViewRegistry {
       };
     const file = bundle.files.find((entry) => entry.hash === fileHash);
     if (!file) throw Error("view_file_not_found");
-    const bytes = await safeFile(bundle.directory, file.path);
+    const bytes = await safeFile(bundle.directory, file.path, {
+      allowRootOwned: bundle.allowRootOwned,
+    });
     if (bytes.length !== file.bytes || viewHash(bytes) !== file.hash)
       throw Error("view_file_changed");
     return { bytes, mime: file.mime };

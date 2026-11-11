@@ -1,0 +1,14 @@
+{
+  "manifest": 1,
+  "id": "command-map",
+  "name": "Command map",
+  "description": "Your chats as units on a map. Alerts point at the ones that need you.",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "index.html",
+  "slots": ["page"],
+  "permissions": ["read", "act", "approve"],
+  "shortcuts": [{ "id": "next-alert", "keys": "Space", "label": "Go to the latest alert" }],
+  "author": "Zolt Labs",
+  "license": "Apache-2.0"
+}

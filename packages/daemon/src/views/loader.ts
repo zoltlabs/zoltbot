@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readdir } from "node:fs/promises";
+import { lstat, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { artifactLimits, artifactPath, verifiedType } from "@zoltbot/artifact-validation";
 import type { ViewRecord } from "@zoltbot/protocol";
@@ -20,6 +20,7 @@ export interface ViewFile {
 }
 export interface ViewBundle {
   directory: string;
+  allowRootOwned: boolean;
   manifest: ViewManifest;
   manifestBytes: string;
   files: ViewFile[];
@@ -60,10 +61,11 @@ export function viewBundleHash(manifestBytes: string, files: ViewFile[]) {
   );
 }
 /** Reuse artifact file reads, including no-follow opens and ancestor identity checks. */
-export async function loadView(directory: string): Promise<ViewBundle> {
+export async function loadView(directory: string, allowRootOwned = false): Promise<ViewBundle> {
   await checkedAncestors(directory);
-  const manifestBytes = (await safeFile(directory, "view.json")).toString("utf8");
-  if (Buffer.byteLength(manifestBytes) > 256 * 1024) throw Error("view_manifest_too_large");
+  const manifestBytes = (await safeFile(directory, "view.json", { allowRootOwned })).toString(
+    "utf8",
+  );
   const manifest = parseViewManifest(JSON.parse(manifestBytes), path.basename(directory));
   const files: ViewFile[] = [],
     seen = new Set<string>();
@@ -82,7 +84,7 @@ export async function loadView(directory: string): Promise<ViewBundle> {
       if (!entry.isFile()) throw Error("view_file_denied");
       if (files.length >= artifactLimits.files) throw Error("view_file_limit");
       if (!extensions.has(path.extname(name).toLowerCase())) throw Error("view_type_denied");
-      const bytes = await safeFile(directory, name);
+      const bytes = await safeFile(directory, name, { allowRootOwned });
       total += bytes.length;
       if (total > artifactLimits.version) throw Error("view_total_limit");
       const mime = verifiedType(name, bytes);
@@ -97,10 +99,11 @@ export async function loadView(directory: string): Promise<ViewBundle> {
     throw Error("view_icon_missing");
   // Fail a mixed read if an editor changed a file while the bundle was being checked.
   for (const file of files)
-    if (viewHash(await safeFile(directory, file.path)) !== file.hash)
+    if (viewHash(await safeFile(directory, file.path, { allowRootOwned })) !== file.hash)
       throw Error("view_file_changed");
   return {
     directory,
+    allowRootOwned,
     manifest,
     manifestBytes,
     files,
@@ -127,17 +130,20 @@ export async function loadViews(builtin: string, user: string) {
       return undefined;
     });
     if (!info) continue;
+    let root = directory;
     try {
-      await checkedAncestors(directory);
+      if (info.isSymbolicLink()) throw Error("view_directory_denied");
+      if (source === "builtin") root = await realpath(directory);
+      await checkedAncestors(root);
     } catch {
       errors.push({ id: "views", source, code: "view_directory_denied", path: "views" });
       continue;
     }
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
+    for (const entry of await readdir(root, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       try {
         if (!entry.isDirectory() || entry.isSymbolicLink()) throw Error("view_symlink_denied");
-        target.set(entry.name, await loadView(path.join(directory, entry.name)));
+        target.set(entry.name, await loadView(path.join(root, entry.name), source === "builtin"));
       } catch (error) {
         errors.push({
           id: entry.name,

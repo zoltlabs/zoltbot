@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Command map</title><link rel="stylesheet" href="map.css"></head>
+<body>
+<div class="app">
+<header class="resources"><output id="resources">Loading chats…</output><span id="sample" hidden>Sample data</span><button id="pause" type="button" aria-pressed="false">Pause updates</button><button id="alert" type="button">Next alert</button></header>
+<main class="stage">
+<section class="map" aria-label="Chat map"><canvas id="map" aria-hidden="true"></canvas><div id="regions" class="overlay"></div><div id="units" class="overlay"></div><div id="alerts" class="overlay"></div><div id="box" hidden></div>
+<div class="camera"><button type="button" id="zoom-in" aria-label="Zoom in">+</button><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" data-pan="-10,0" aria-label="Pan left">←</button><button type="button" data-pan="10,0" aria-label="Pan right">→</button><button type="button" data-pan="0,-10" aria-label="Pan up">↑</button><button type="button" data-pan="0,10" aria-label="Pan down">↓</button></div>
+<canvas id="mini" aria-hidden="true"></canvas></section>
+<aside class="panel" aria-label="Chats"><h2>Chats</h2><p id="empty" hidden>No active chats. Open a chat in Zoltbot to begin.</p><ul id="chats"></ul><div id="actions"></div></aside>
+</main><p id="error" role="alert"></p><p id="live" role="status" class="sr-only"></p>
+</div>
+<script src="_host/v1/zolt.js"></script><script src="vendor/three-0.128.0.min.js"></script><script src="layout.js"></script><script src="scene.js"></script><script src="map.js"></script>
+</body></html>

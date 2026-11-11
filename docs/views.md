@@ -1,6 +1,6 @@
 # Views: custom interfaces for Zoltbot
 
-Status: plan, not built. This document is the specification to implement from.
+Status: implementation in progress. Phase 1 is under verification; phases 2 and 3 remain planned. This document is the specification to implement from.
 
 A view is a small web page that Zoltbot shows inside the desktop app and feeds with live data about your chats. People can change a built-in view, write their own, or ask an agent to write one. Their changes are files on disk outside the app, so installing a new version of Zoltbot keeps them.
 
@@ -100,7 +100,7 @@ A view follows the artifact rules in `packages/artifact-validation`, with these 
 * Allowed types: `.html`, `.css`, `.js`, `.mjs`, `.json`, `.svg`, `.md`, `.txt`, PNG, JPEG, WebP, plus `.woff2` (new). WebAssembly files are not allowed in version 1.
 * At most 500 files, 25 MB per file, 100 MB in total.
 * Paths are relative, use `/`, contain no `..`, and differ by more than letter case.
-* No symlinks. The loader rejects a folder that contains one.
+* No symlinks. The loader rejects a folder that contains one. Built-in files may be owned by root after app installation; user files must be owned by the current user. Artifact reads retain their existing owner restriction. The built-in parent path is canonicalized so an installation symlink outside the bundle does not hide the shipped views.
 * The path prefix `_host/` is reserved. The host serves the client library there.
 
 ### Manifest

@@ -53,6 +53,17 @@ describe("view loader", () => {
     checkedViewPath("Icon.svg", seen);
     expect(() => checkedViewPath("icon.svg", seen)).toThrow("collision");
   });
+  it("ignores future metadata including nested fields without reducing the file limit", async () => {
+    const view = await fixture(path.join(await root(), "example"), {
+      future: "x".repeat(300000),
+      shortcuts: [{ id: "next", keys: "Space", label: "Next", future: true }],
+      basedOn: { id: "example", version: "1.0.0", bundleHash: "a".repeat(64), future: true },
+    });
+    const bundle = await loadView(view);
+    expect(bundle.manifest).not.toHaveProperty("future");
+    expect(bundle.manifest.shortcuts?.[0]).not.toHaveProperty("future");
+    expect(bundle.manifest.basedOn).not.toHaveProperty("future");
+  });
   it("hashes a valid bundle deterministically and detects changes", async () => {
     const dir = await fixture(path.join(await root(), "example"));
     const first = await loadView(dir),

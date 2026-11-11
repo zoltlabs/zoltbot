@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, expect, it } from "vitest";
 import {
   artifactLimits,
+  artifactOwnerAllowed,
   artifactPath,
   blobBytes,
   importFiles,
@@ -109,4 +110,11 @@ it("bounds file counts and verifies text encodings, SVG roots, JSON and MIME sig
     "sk-aaaaaaaaaaaaaaaaaaaa",
   ])
     expect(possibleSecret("x.txt", text)).toBe(true);
+});
+
+it("permits root-owned shipped assets only when the caller explicitly requests it", () => {
+  expect(artifactOwnerAllowed(process.getuid?.() ?? -1)).toBe(true);
+  expect(artifactOwnerAllowed(0)).toBe(process.getuid?.() === 0);
+  expect(artifactOwnerAllowed(0, true)).toBe(true);
+  expect(artifactOwnerAllowed(987654, true)).toBe(false);
 });

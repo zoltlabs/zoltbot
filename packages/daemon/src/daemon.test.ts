@@ -109,7 +109,9 @@ describe("authenticated daemon API", () => {
     ).rejects.toThrow("synthetic_startup_failure");
     expect(existsSync(path.join(dataDir, "daemon.json"))).toBe(false);
     const replacement = await start(dataDir);
-    expect(replacement.store.snapshot()).toEqual({});
+    expect(replacement.store.snapshot()).toEqual({
+      view: [expect.objectContaining({ id: "command-map", granted: [] })],
+    });
   });
   it("routes usage reads and confirmed budget changes through authenticated sockets", async () => {
     const d = await start();
@@ -277,7 +279,10 @@ describe("authenticated daemon API", () => {
     const d = await start();
     const client = await connect(d);
     expect(statSync(path.join(d.dataDir, "daemon.json")).mode & 0o777).toBe(0o600);
-    expect(await client.call("snapshot.get", {})).toMatchObject({ seq: 0, entities: {} });
+    expect(await client.call("snapshot.get", {})).toMatchObject({
+      seq: 1,
+      entities: { view: [expect.objectContaining({ id: "command-map", granted: [] })] },
+    });
     expect(d.interactions).toBeUndefined();
     expect(await client.call("interaction.list", {})).toEqual({ items: [] });
     expect(d.interactions).toBeUndefined();
@@ -296,22 +301,23 @@ describe("authenticated daemon API", () => {
   });
   it("streams committed events, replays missed events, and resyncs an impossible sequence", async () => {
     const d = await start();
+    const baseline = d.store.lastSeq();
     const first = await connect(d);
-    await first.call("events.subscribe", { fromSeq: 0 });
+    await first.call("events.subscribe", { fromSeq: baseline });
     await first.call("settings.set", { key: "theme", value: "dark" }, "theme-1");
     await delay(10);
     expect(first.events).toHaveLength(1);
     const second = await connect(d);
-    expect(await second.call("events.subscribe", { fromSeq: 0 })).toMatchObject({
+    expect(await second.call("events.subscribe", { fromSeq: baseline })).toMatchObject({
       resync: false,
       events: [{ type: "settings.created" }],
     });
     expect(await second.call("events.subscribe", { fromSeq: 9999 })).toMatchObject({
       resync: true,
-      seq: 1,
+      seq: baseline + 1,
     });
     await first.call("settings.set", { key: "theme", value: "dark" }, "theme-1");
-    expect(d.store.lastSeq()).toBe(1);
+    expect(d.store.lastSeq()).toBe(baseline + 1);
   });
   it("rejects malformed payloads and never persists registered secrets", async () => {
     const redactor = new Redactor(["seeded-secret"]);

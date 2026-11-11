@@ -86,6 +86,7 @@ it("runs as a separate process, survives client loss, and preserves committed st
   const dir = mkdtempSync(path.resolve(".cache/tests/daemon-process-"));
   roots.push(dir);
   const first = await boot(dir);
+  const baseline = (await rpc(first, "snapshot.get", {})) as { seq: number };
   await rpc(first, "settings.set", { key: "theme", value: "dark" }, "persistent-setting");
   const ended = new Promise((resolve) => first.child.once("exit", resolve));
   first.child.kill("SIGKILL");
@@ -93,5 +94,5 @@ it("runs as a separate process, survives client loss, and preserves committed st
   const second = await boot(dir);
   expect(second.token).not.toBe(first.token);
   expect(await rpc(second, "settings.get", {})).toEqual([{ key: "theme", value: "dark" }]);
-  expect(await rpc(second, "snapshot.get", {})).toMatchObject({ seq: 1 });
+  expect(await rpc(second, "snapshot.get", {})).toMatchObject({ seq: baseline.seq + 1 });
 });

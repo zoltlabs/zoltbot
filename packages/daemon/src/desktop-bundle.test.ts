@@ -50,7 +50,10 @@ it("boots the normal prebuilt daemon without a source loader and resolves ACP sc
         socket?.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
       });
     await request(1, "hello", { protocolVersion: 1, token: info.token });
-    expect(await request(2, "snapshot.get", {})).toMatchObject({ seq: 0, entities: {} });
+    expect(await request(2, "snapshot.get", {})).toMatchObject({
+      seq: 1,
+      entities: { view: [expect.objectContaining({ id: "command-map", granted: [] })] },
+    });
     socket.terminate();
     socket = undefined;
     child.kill("SIGTERM");

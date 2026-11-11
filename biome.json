@@ -15,6 +15,7 @@
       "!pnpm-lock.yaml",
       "!fixtures",
       "!packages/artifact-kit/v1/chart-4.5.1.umd.js",
+      "!packages/views/command-map/vendor/three-0.128.0.min.js",
       "!packages/protocol/schema",
       "!packages/view-api/schema",
       "!output",

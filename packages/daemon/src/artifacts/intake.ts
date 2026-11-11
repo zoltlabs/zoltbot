@@ -35,7 +35,14 @@ export async function checkedAncestors(target: string) {
   if ((await realpath(absolute)) !== absolute) throw Error("artifact_directory_denied");
   return JSON.stringify(identities);
 }
-export async function safeFile(root: string, relative: string) {
+export function artifactOwnerAllowed(uid: number, allowRootOwned = false) {
+  return uid === process.getuid?.() || (allowRootOwned && uid === 0);
+}
+export async function safeFile(
+  root: string,
+  relative: string,
+  options: { allowRootOwned?: boolean } = {},
+) {
   artifactPath(relative);
   const target = path.join(root, relative);
   const parent = path.dirname(target);
@@ -46,7 +53,7 @@ export async function safeFile(root: string, relative: string) {
     if (
       !stat.isFile() ||
       stat.nlink !== 1 ||
-      stat.uid !== process.getuid?.() ||
+      !artifactOwnerAllowed(stat.uid, options.allowRootOwned) ||
       stat.size > artifactLimits.file
     )
       throw Error("artifact_file_denied");
@@ -63,6 +70,7 @@ export async function safeFile(root: string, relative: string) {
       after.size !== stat.size ||
       after.mtimeMs !== stat.mtimeMs ||
       after.nlink !== 1 ||
+      after.uid !== stat.uid ||
       (await checkedAncestors(parent)) !== ancestors
     )
       throw Error("artifact_file_changed");
