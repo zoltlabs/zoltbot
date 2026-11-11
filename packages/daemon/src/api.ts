@@ -1,6 +1,6 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { companyApi } from "./company-api.js";
-import { companySupervisor } from "./company-supervisor.js";
+import { startCompanySupervisor } from "./company-supervisor.js";
 
 export type {
   Daemon,
@@ -395,7 +395,7 @@ async function startOwnedDaemon(
     definitions: setupService ? () => setupService.definitions() : undefined,
   });
   const company = companyApi(runtimeContext);
-  const companyWatch = companySupervisor(runtimeContext, {
+  const companyWatch = await startCompanySupervisor(runtimeContext, {
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => companyWatch.close());

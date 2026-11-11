@@ -231,3 +231,18 @@ export function companySupervisor(
     },
   };
 }
+
+/** Complete restart reconciliation before the daemon accepts client snapshots. */
+export async function startCompanySupervisor(
+  context: RuntimeContext,
+  options: Parameters<typeof companySupervisor>[1] = {},
+) {
+  const supervisor = companySupervisor(context, options);
+  try {
+    await supervisor.tick();
+    return supervisor;
+  } catch (error) {
+    supervisor.close();
+    throw error;
+  }
+}
