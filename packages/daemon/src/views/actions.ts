@@ -89,9 +89,11 @@ export async function callView(
                 ? { options: [value] }
                 : typeof value === "string"
                   ? { other: value }
-                  : (() => {
-                      throw Error("invalid");
-                    })();
+                  : value && typeof value === "object" && !("value" in value)
+                    ? (value as { options?: string[]; other?: string })
+                    : (() => {
+                        throw Error("invalid");
+                      })();
       }
     }
     await actions.interaction(

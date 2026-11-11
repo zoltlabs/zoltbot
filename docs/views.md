@@ -431,6 +431,7 @@ interface Request {
   choices: { id: string; label: string; widens: boolean }[];
   /** Present for questions and forms. */
   questions?: { id: string; label: string; options?: { id: string; label: string }[]; freeText: boolean; multi?: boolean; schema?: unknown }[];
+  answerInChat?: boolean;                           // at least one question uses private input
 }
 
 interface Workspace {
@@ -474,12 +475,12 @@ zolt.chats.interrupt(input: { chatIds: string[] }):
 zolt.requests.answer(input: {
   requestId: string; version: number;
   choiceId?: string;                                     // approvals, plans, gates
-  answers?: Record<string, string | string[] | { value: unknown }>;           // questions and forms
+  answers?: Record<string, string | string[] | {options?: string[]; other?: string} | { value: unknown }>;           // questions and forms
   feedback?: string;
 }): Promise<void>
 ```
 
-Question strings select a matching option id or supply an Other answer; arrays select multiple option ids. Forms use `{value}` with the existing flat form schema, exposed as `questions[].schema`; `multi` follows the existing interaction item. Other text is allowed unless `allowOther` is explicitly false, matching the existing answer validator. Secret questions remain in the host chat and cannot be answered through a view. These shapes follow the existing interaction handler rather than inventing a second form format.
+Question strings select a matching option id or supply an Other answer; arrays select multiple option ids. `{options, other}` allows the existing multiple-choice question format to combine selected options with Other text. Forms use `{value}` with the existing flat form schema, exposed as `questions[].schema`; `multi` follows the existing interaction item. Other text is allowed unless `allowOther` is explicitly false, matching the existing answer validator. `answerInChat` marks requests containing private input. Secret questions remain in the host chat and cannot be answered through a view. These shapes follow the existing interaction handler rather than inventing a second form format.
 
 Limits: `chatIds` holds 1 to 50 ids, `text` at most 8,000 characters.
 

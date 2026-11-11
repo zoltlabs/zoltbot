@@ -53,6 +53,7 @@ export const RequestSchema = object({
     object({ markdown: OptionalText, tool: OptionalText, command: OptionalText }),
   ),
   choices: Type.Array(object({ id: Id, label: Type.String(), widens: Type.Boolean() })),
+  answerInChat: Type.Optional(Type.Boolean()),
   questions: Type.Optional(
     Type.Array(
       object({

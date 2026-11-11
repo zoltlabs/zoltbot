@@ -55,3 +55,31 @@ it("packs workspaces, shares bases, filters settled and old chats, and retains a
   expect(layout.regions.find((region) => region.id === "project")).toMatchObject({ x: 20, z: 30 });
   expect(layout.regions.some((region) => region.id === "other")).toBe(true);
 });
+it("loads bounded saved layout, groups and editable presets without accepting malformed state", () => {
+  const window = {} as {
+    commandMapSaved(input: unknown): {
+      regions: Record<string, { x: number; z: number }>;
+      groups: Record<string, string[]>;
+      presets: string[];
+    };
+  };
+  vm.runInNewContext(
+    readFileSync(new URL("../../views/command-map/panels.js", import.meta.url), "utf8"),
+    { window },
+  );
+  expect(window.commandMapSaved(null)).toEqual({
+    regions: {},
+    groups: {},
+    presets: ["Rebase on main", "Run the tests"],
+  });
+  const saved = window.commandMapSaved({
+    regions: { valid: { x: -10, z: 200 }, invalid: { x: Infinity, z: 0 } },
+    groups: { 1: ["chat", "chat", 2] },
+    presets: ["Check the working tree", "Run unit tests"],
+  });
+  expect(saved).toEqual({
+    regions: { valid: { x: -10, z: 200 } },
+    groups: { 1: ["chat"] },
+    presets: ["Check the working tree", "Run unit tests"],
+  });
+});

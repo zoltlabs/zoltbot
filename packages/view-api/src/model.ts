@@ -87,6 +87,7 @@ export function mapRequests({ entities: state }: ViewSnapshot): Request[] {
             }
           : {}),
         choices: [...choices.values()],
+        ...(request.items.some((item) => item.secret) ? { answerInChat: true } : {}),
         ...(request.type === "question" || request.type === "form" ? { questions } : {}),
       };
     });

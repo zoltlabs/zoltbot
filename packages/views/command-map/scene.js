@@ -1,7 +1,8 @@
 (() => {
   const T = window.THREE;
   window.CommandMapScene = class {
-    constructor(open, select) {
+    constructor(open, select, moveRegion) {
+      this.moveRegion = moveRegion;
       this.open = open;
       this.select = select;
       this.selected = new Set();
@@ -77,7 +78,39 @@
         label.type = "button";
         label.className = "region";
         label.textContent = region.name;
-        label.onclick = () => this.center(region.x + region.w / 2, region.z + region.d / 2);
+        let start,
+          moved = false;
+        label.onpointerdown = (event) => {
+          if (event.button !== 0) return;
+          label.setPointerCapture(event.pointerId);
+          start = {
+            point: this.ground(event.clientX, event.clientY),
+            x: event.clientX,
+            y: event.clientY,
+          };
+          moved = false;
+        };
+        label.onpointermove = (event) => {
+          if (!start) return;
+          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4) moved = true;
+        };
+        label.onpointerup = (event) => {
+          const end = this.ground(event.clientX, event.clientY);
+          if (moved && start?.point && end)
+            this.moveRegion?.(
+              region.id,
+              region.x + end.x - start.point.x,
+              region.z + end.z - start.point.z,
+            );
+          start = undefined;
+        };
+        label.onpointercancel = () => {
+          start = undefined;
+          moved = false;
+        };
+        label.onclick = () => {
+          if (!moved) this.center(region.x + region.w / 2, region.z + region.d / 2);
+        };
         regions.append(label);
         region.label = label;
       }
@@ -188,17 +221,21 @@
       canvas.width = 160;
       canvas.height = 110;
       const regions = this.layout?.regions ?? [];
+      this.minimum = {
+        x: Math.min(0, ...regions.map((region) => region.x - 10)),
+        z: Math.min(0, ...regions.map((region) => region.z - 10)),
+      };
       this.bounds = {
-        x: Math.max(40, ...regions.map((region) => region.x + region.w + 10)),
-        z: Math.max(40, ...regions.map((region) => region.z + region.d + 10)),
+        x: Math.max(40, ...regions.map((region) => region.x + region.w + 10)) - this.minimum.x,
+        z: Math.max(40, ...regions.map((region) => region.z + region.d + 10)) - this.minimum.z,
       };
       context.fillStyle = this.color("--zb-bg-page");
       context.fillRect(0, 0, 160, 110);
       context.strokeStyle = this.color("--zb-text-secondary");
       for (const region of regions)
         context.strokeRect(
-          (region.x / this.bounds.x) * 160,
-          (region.z / this.bounds.z) * 110,
+          ((region.x - this.minimum.x) / this.bounds.x) * 160,
+          ((region.z - this.minimum.z) / this.bounds.z) * 110,
           (region.w / this.bounds.x) * 160,
           (region.d / this.bounds.z) * 110,
         );
@@ -207,8 +244,8 @@
           unit.chat.status === "needs_you" ? "--zb-attention" : "--zb-text",
         );
         context.fillRect(
-          (unit.x / this.bounds.x) * 160 - 2,
-          (unit.z / this.bounds.z) * 110 - 2,
+          ((unit.x - this.minimum.x) / this.bounds.x) * 160 - 2,
+          ((unit.z - this.minimum.z) / this.bounds.z) * 110 - 2,
           4,
           4,
         );
@@ -225,14 +262,26 @@
         ray.setFromCamera(new T.Vector2(x, y), this.camera);
         const point = ray.ray.intersectPlane(plane, new T.Vector3());
         if (point) {
-          const mx = (point.x / this.bounds.x) * 160,
-            mz = (point.z / this.bounds.z) * 110;
+          const mx = ((point.x - this.minimum.x) / this.bounds.x) * 160,
+            mz = ((point.z - this.minimum.z) / this.bounds.z) * 110;
           if (index) context.lineTo(mx, mz);
           else context.moveTo(mx, mz);
         }
       });
       context.closePath();
       context.stroke();
+    }
+    ground(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect(),
+        ray = new T.Raycaster();
+      ray.setFromCamera(
+        new T.Vector2(
+          ((clientX - rect.left) / rect.width) * 2 - 1,
+          1 - ((clientY - rect.top) / rect.height) * 2,
+        ),
+        this.camera,
+      );
+      return ray.ray.intersectPlane(new T.Plane(new T.Vector3(0, 1, 0), 0), new T.Vector3());
     }
     listen() {
       let start;
@@ -306,8 +355,8 @@
       const mini = document.querySelector("#mini");
       mini.onpointerdown = (event) => {
         this.center(
-          (event.offsetX / mini.clientWidth) * this.bounds.x,
-          (event.offsetY / mini.clientHeight) * this.bounds.z,
+          this.minimum.x + (event.offsetX / mini.clientWidth) * this.bounds.x,
+          this.minimum.z + (event.offsetY / mini.clientHeight) * this.bounds.z,
         );
       };
     }

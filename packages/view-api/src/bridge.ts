@@ -87,7 +87,12 @@ export const callSchemas = {
     answers: Type.Optional(
       Type.Record(
         Id,
-        Type.Union([Type.String(), Type.Array(Type.String()), object({ value: Type.Unknown() })]),
+        Type.Union([
+          Type.String(),
+          Type.Array(Type.String()),
+          object({ value: Type.Unknown() }),
+          object({ options: Type.Optional(Type.Array(Type.String())), other: OptionalText }),
+        ]),
       ),
     ),
     feedback: OptionalText,

@@ -330,3 +330,36 @@ it("rechecks grants inside the real interaction engine after asynchronous privac
     await f.close();
   }
 });
+it("preserves selected options together with Other text for multi-choice questions", async () => {
+  const f = await setup("question");
+  try {
+    const request = f.store.record("interaction", "request");
+    if (!request) throw Error("fixture");
+    const items = structuredClone(request.items) as Interaction["items"];
+    if (items[0]) items[0].multi = true;
+    f.store.dispatch("multi", () => ({
+      events: [
+        parseEvent({
+          eventId: "multi",
+          aggregateType: "interaction",
+          aggregateId: "request",
+          type: "interaction.updated",
+          occurredAt: at,
+          payload: { ...request, items },
+        }),
+      ],
+      result: {},
+    }));
+    await f.grant(["read", "approve"]);
+    await f.call("requests.answer", {
+      requestId: "request",
+      version: 1,
+      answers: { q: { options: ["yes"], other: "Also check the output" } },
+    });
+    expect(f.store.record("interaction", "request")?.resolution).toMatchObject({
+      answers: { q: { options: ["yes"], other: "Also check the output" } },
+    });
+  } finally {
+    await f.close();
+  }
+});

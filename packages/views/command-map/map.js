@@ -2,6 +2,7 @@
   const $ = (selector) => document.querySelector(selector),
     topics = { chats: [], requests: [], workspaces: [], checks: [], usage: null };
   let scene,
+    panel,
     paused = false,
     selected = new Set(),
     layout;
@@ -21,6 +22,7 @@
     selected = new Set(ids);
     scene?.setSelection(ids);
     renderList();
+    panel?.render();
   }
   function nextAlert() {
     const list = topics.chats
@@ -86,16 +88,17 @@
         if (element.dataset.focusId === focusId) element.focus({ preventScroll: true });
   }
   function render() {
-    layout = window.commandMapLayout(topics.chats, topics.workspaces);
+    layout = window.commandMapLayout(topics.chats, topics.workspaces, panel?.saved.regions);
     scene?.setData(layout);
     scene?.setSelection([...selected]);
     renderList();
+    panel?.render();
     const usage = topics.usage,
       failures = topics.checks.filter(
         (check) => check.required && check.state === "failing",
       ).length;
     $("#resources").textContent = usage
-      ? `${usage.today.costKnown ? "Spending" : "Estimated spending"}: $${usage.today.costUsd.toFixed(2)}${usage.budget ? ` of $${usage.budget.limitUsd.toFixed(2)} per day` : ""} · ${usage.activeChats} active chats · ${topics.requests.length} requests · ${failures} failing required checks`
+      ? `${usage.today.costKnown ? "Spending" : "Estimated spending"}: $${usage.today.costUsd.toFixed(2)}${usage.budget ? ` of $${usage.budget.limitUsd.toFixed(2)} per day` : ""} · ${usage.activeChats} active chat${usage.activeChats === 1 ? "" : "s"} · ${topics.requests.length} request${topics.requests.length === 1 ? "" : "s"} · ${failures} failing required check${failures === 1 ? "" : "s"}`
       : "Loading usage…";
     $("#alert").disabled = !topics.chats.some((chat) => chat.status === "needs_you");
   }
@@ -127,13 +130,34 @@
     }
   });
   window.zolt.ready
-    .then((facts) => {
+    .then(async (facts) => {
       $("#sample").hidden = !facts.mock;
       try {
-        scene = new window.CommandMapScene(open, select);
+        scene = new window.CommandMapScene(open, select, (id, x, z) => panel?.move(id, x, z));
       } catch {
         $("#error").textContent = "The map could not use WebGL. Your chats are listed below.";
       }
+      let saved;
+      try {
+        saved = await window.zolt.storage.get();
+      } catch (error) {
+        showError(error);
+      }
+      panel = new window.CommandMapPanel(
+        {
+          topics,
+          selected: () => selected,
+          select,
+          error: showError,
+          layout: render,
+          regions: () => layout?.regions ?? [],
+        },
+        saved,
+      );
+      window.zolt.on("grants", () => {
+        panel.signature = "";
+        panel.render();
+      });
       window.zolt.subscribe(
         ["chats", "requests", "workspaces", "usage", "checks"],
         (topic, value) => {
@@ -148,5 +172,8 @@
       });
     })
     .catch(showError);
-  window.addEventListener("pagehide", () => scene?.dispose());
+  window.addEventListener("pagehide", () => {
+    scene?.dispose();
+    panel?.dispose();
+  });
 })();

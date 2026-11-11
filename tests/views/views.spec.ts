@@ -4,7 +4,6 @@ import path from "node:path";
 import { expect, test, type WebSocketRoute } from "@playwright/test";
 import { viewProtocol } from "../../apps/desktop/src/view-protocol.js";
 import { loadView, viewRecord } from "../../packages/daemon/src/views/loader.js";
-import type { ZoltClient } from "../../packages/view-api/src/client.js";
 import fixture from "../../packages/view-api/src/fixtures/snapshot.json" with { type: "json" };
 
 let origin = "",
@@ -188,20 +187,24 @@ test("renders real mappings, edge alerts and chat navigation without network acc
         );
       }
       if (message.method === "view.call") actionCalls.push(message.params);
+      if (message.method === "view.state.set") savedState = message.params.value;
       const result =
-        message.method === "snapshot.get"
-          ? { seq, entities: snapshot.entities, counters: {} }
-          : message.method === "events.subscribe"
-            ? { seq, resync: false, events: [] }
-            : message.method === "view.reload"
-              ? [record]
-              : message.method.endsWith(".list") || message.method.endsWith(".history")
-                ? { items: [] }
-                : { ok: true };
+        message.method === "view.state.get"
+          ? { value: savedState }
+          : message.method === "snapshot.get"
+            ? { seq, entities: snapshot.entities, counters: {} }
+            : message.method === "events.subscribe"
+              ? { seq, resync: false, events: [] }
+              : message.method === "view.reload"
+                ? [record]
+                : message.method.endsWith(".list") || message.method.endsWith(".history")
+                  ? { items: [] }
+                  : { ok: true };
       socket.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
     });
   });
   const actionCalls: Record<string, unknown>[] = [];
+  let savedState: unknown = null;
   const external: string[] = [];
   page.on("request", (request) => {
     if (!request.url().startsWith(origin) && !request.url().startsWith("data:"))
@@ -246,22 +249,27 @@ test("renders real mappings, edge alerts and chat navigation without network acc
   expect(external).toEqual([]);
   expect(await frame.locator("body").evaluate(() => typeof window.zoltDesktop)).toBe("undefined");
   await expect(frame.locator("#error")).toHaveText("");
+  await expect(frame.getByRole("heading", { name: "Orders", exact: true })).toHaveCount(0);
+  await frame.getByRole("checkbox", { name: "Needs input — Needs you", exact: true }).check();
+  await expect(
+    frame.locator("#actions").getByRole("button", { name: "Open chat", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Reload", exact: true }).click();
   await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Settings", exact: true }).last().click();
   await page.getByRole("button", { name: "Edit permissions" }).click();
   const edit = page.getByRole("dialog", { name: "Permissions for Command map" });
+  await edit.getByRole("checkbox").nth(1).check();
   await edit.getByRole("checkbox").nth(2).check();
   await edit.getByRole("button", { name: "Save permissions" }).click();
   await page.getByRole("button", { name: "Open view", exact: true }).click();
   await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
+  await frame.getByRole("checkbox", { name: "Needs input — Needs you", exact: true }).check();
   const answer = async () =>
-    frame.locator("body").evaluate(() => {
-      const client = (window as unknown as { zolt: ZoltClient }).zolt;
-      void client.requests
-        .answer({ requestId: "request", version: 2, choiceId: "allow_session" })
-        .catch(() => {});
-    });
+    frame
+      .locator("#actions")
+      .getByRole("button", { name: "Allow for this session", exact: true })
+      .click();
   await answer();
   const confirmation = page.getByRole("dialog", { name: "Run tests?" });
   await expect(confirmation).toBeVisible();
@@ -277,6 +285,38 @@ test("renders real mappings, edge alerts and chat navigation without network acc
     method: "requests.answer",
     confirmed: true,
   });
+  await frame.getByRole("checkbox", { name: "Needs input — Needs you", exact: true }).check();
+  await expect(frame.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+  await frame
+    .getByRole("textbox", { name: "Preset 1", exact: true })
+    .fill("Check the working tree");
+  await frame.getByRole("button", { name: "Save group 1", exact: true }).click();
+  await frame.getByRole("button", { name: "Send preset 1", exact: true }).click();
+  await expect.poll(() => actionCalls.length).toBe(2);
+  expect(actionCalls[1]).toMatchObject({
+    method: "chats.send",
+    params: { chatIds: ["needs"], text: "Check the working tree" },
+  });
+  await frame.getByText("Region positions", { exact: true }).click();
+  const position = frame.getByRole("form", { name: "Position for space08", exact: true });
+  await position.getByLabel("Horizontal position", { exact: true }).fill("200");
+  await position.getByLabel("Vertical position", { exact: true }).fill("120");
+  await position.getByRole("button", { name: "Move region", exact: true }).click();
+  await expect
+    .poll(() => savedState)
+    .toMatchObject({
+      groups: { 1: ["needs"] },
+      presets: ["Check the working tree", "Run the tests"],
+      regions: { space08: { x: 200, z: 120 } },
+    });
+  await page.getByRole("button", { name: "Reload", exact: true }).click();
+  await expect(frame.getByRole("textbox", { name: "Preset 1", exact: true })).toHaveValue(
+    "Check the working tree",
+  );
+  await frame.getByRole("button", { name: "Select group 1", exact: true }).click();
+  await expect(
+    frame.getByRole("checkbox", { name: "Needs input — Needs you", exact: true }),
+  ).toBeChecked();
   await frame.getByRole("button", { name: "Next alert", exact: true }).focus();
   await page.keyboard.press("Control+k");
   const palette = page.getByRole("dialog", { name: "Search and commands" });

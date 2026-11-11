@@ -182,3 +182,46 @@ li button {
     bottom: auto;
   }
 }
+#actions section {
+  margin-block: var(--zb-space-4);
+}
+#actions label {
+  display: grid;
+  gap: var(--zb-space-1);
+  margin-block: var(--zb-space-2);
+}
+#actions input,
+#actions textarea,
+#actions select {
+  color: var(--zb-text);
+  background: var(--zb-bg-raised);
+  border: 1px solid var(--zb-border-control);
+  border-radius: var(--zb-radius-sm);
+  padding: var(--zb-space-2);
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+}
+#actions textarea {
+  width: 100%;
+  resize: vertical;
+}
+#actions fieldset {
+  min-width: 0;
+  margin-block: var(--zb-space-3);
+  border: 1px solid var(--zb-border-control);
+}
+#actions pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#actions button {
+  margin: var(--zb-space-1);
+}
+#actions :is(textarea, select, summary):focus-visible {
+  outline: var(--zb-space-0-5) solid var(--zb-text);
+  outline-offset: var(--zb-space-0-5);
+}
+.region {
+  touch-action: none;
+}
