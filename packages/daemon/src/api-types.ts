@@ -15,6 +15,7 @@ export interface SetupContext {
   applyImport(receipt: unknown): Promise<void>;
 }
 export interface RuntimeContext {
+  views?: import("./views/registry.js").ViewRegistry;
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;

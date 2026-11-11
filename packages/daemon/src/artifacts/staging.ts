@@ -3,7 +3,10 @@ import path from "node:path";
 import type { ArtifactBinding } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { artifactLimits, artifactPath, checkedAncestors, safeFile } from "./intake.js";
-export async function* stagedFiles(binding: ArtifactBinding, directory: string) {
+export async function* stagedFiles(
+  binding: Pick<ArtifactBinding, "stagingRoot">,
+  directory: string,
+) {
   const cwd = path.dirname(path.dirname(path.dirname(binding.stagingRoot)));
   const root = path.resolve(cwd, directory);
   if (root !== binding.stagingRoot && !root.startsWith(`${binding.stagingRoot}${path.sep}`))

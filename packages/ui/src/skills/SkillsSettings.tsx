@@ -209,7 +209,13 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
               <Button onClick={() => void action(() => open(skill.id))}>
                 {skill.name} · v{skill.current_revision}
               </Button>
-              <span className="dim">{skill.source ? "Imported copy" : "Created here"}</span>
+              <span className="dim">
+                {skill.source?.startsWith("builtin:")
+                  ? "Built-in"
+                  : skill.source
+                    ? "Imported copy"
+                    : "Created here"}
+              </span>
             </li>
           ))}
         </ul>
@@ -223,7 +229,9 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
             {update ? "Update" : "Add"} {preview.bundle.name}
           </h3>
           <p>{preview.bundle.description}</p>
-          <p className="dim">Source: {preview.source}</p>
+          <p className="dim">
+            Source: {preview.source.startsWith("builtin:") ? "Built-in" : preview.source}
+          </p>
           <h4>Files</h4>
           <ul>
             {preview.bundle.files.map((f) => (

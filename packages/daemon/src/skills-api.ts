@@ -5,7 +5,9 @@ import { scopeLineage } from "@zoltbot/core";
 import { compareSessions, type DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import {
+  builtinSkill,
   detectSkills,
+  installBuiltinSkills,
   parseSkill,
   readSkillFolder,
   type SkillBundle,
@@ -56,13 +58,15 @@ export function skillsApi(options: {
   onChanged?(): void;
 }) {
   const library = new SkillsLibrary(options.store.database);
+  installBuiltinSkills(library);
+  const readSource = (source: string) => builtinSkill(source) ?? readSkillFolder(source);
   const previews = new Map<string, { bundle: SkillBundle; folder: string; expires: number }>();
   const string = (p: Record<string, unknown>, key: string) => {
     if (typeof p[key] !== "string") throw new Error("invalid_skill_params");
     return p[key] as string;
   };
   const preview = (folder: string) => {
-    const bundle = readSkillFolder(folder),
+    const bundle = readSource(folder),
       previewId = randomUUID();
     for (const [id, value] of previews) if (value.expires < Date.now()) previews.delete(id);
     if (previews.size >= 20) throw new Error("skill_preview_limit");
@@ -73,7 +77,7 @@ export function skillsApi(options: {
     const value = previews.get(string(p, "previewId"));
     if (!value || value.expires < Date.now() || value.bundle.hash !== p.hash)
       throw new Error("skill_preview_expired: choose folder again");
-    if (readSkillFolder(value.folder).hash !== value.bundle.hash)
+    if (readSource(value.folder).hash !== value.bundle.hash)
       throw new Error("skill_source_changed: review again");
     return value;
   }

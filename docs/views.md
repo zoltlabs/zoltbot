@@ -637,6 +637,12 @@ Most people will ask an agent: "make my map look like a factory".
 * **Consent:** `save` on a view the agent did not create in this chat raises a request to the owner first, showing which files change. Saving never changes grants.
 * **Result:** the watcher reloads the view, and the agent's reply links to it (`#view/<id>`).
 
+The first built-in skill registers in the existing skill library with source `builtin:building-zoltbot-views`. It is available for the existing owner-confirmed assignment flow; registration does not enable it for any agent. Owner edits, same-name user skills and removal survive restart. Packaged builds carry the canonical skill folder as a source-relative resource.
+
+`team_view` uses the current host-tool authorization and frozen launch manifest. Browser sessions, forks and read-only profiles cannot save. `read` pages checked source without passing large unchanged libraries through agent context. Existing saves require `baseHash` and overlay only staged changed/new files onto that checked bundle; this adapts the original full-folder wording to the existing bounded source-reading and staging model. The host copies unchanged assets itself, validates the complete result, freezes its bytes and checks the base again before applying. The tool does not delete files from an existing bundle.
+
+Protected `view.origin.<id>` settings record which chat created a view. Import, removal, Customize and replacement clear that origin; Keep both transfers it to the renamed view. Protected `view.proposal.<uuid>` settings retain actor, hashes and changed paths for durable approval, with proposed bytes in an app-owned hidden staging folder. The existing settings API blocks all `view.*` keys from ordinary clients. Host approval uses the existing interaction engine and can finish after the proposing turn ends. These records add no columns or changes to existing tables.
+
 ## Slots: changing more than one page
 
 The owner wants to start with full-page views and later let people change other parts of the app, such as the sidebar. The manifest's `slots` field is how that grows without a new format.

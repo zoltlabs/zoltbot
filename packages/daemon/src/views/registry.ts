@@ -265,5 +265,6 @@ export function createViewRegistry(
     (value) => context.privacy.prepareData(value),
   );
   if (actions) registry.actions = actions;
+  context.views = registry;
   return registry;
 }

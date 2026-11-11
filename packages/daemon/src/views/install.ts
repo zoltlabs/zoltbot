@@ -4,6 +4,7 @@ import { importFailure } from "./errors.js";
 import { copyView, deleteUserView, exists } from "./files.js";
 import { audit } from "./lifecycle.js";
 import { loadView, viewHash } from "./loader.js";
+import { viewOriginEvent } from "./origin.js";
 import type { ViewRegistry } from "./registry.js";
 
 export async function installView(
@@ -52,6 +53,7 @@ export async function installView(
     }
     return {
       events: [
+        viewOriginEvent(commandId, id, null),
         audit(commandId, method, id, {
           confirmed: true,
           ...(source ? { bundleHash: source.bundleHash } : {}),

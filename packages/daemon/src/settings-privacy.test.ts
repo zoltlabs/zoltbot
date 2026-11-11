@@ -59,7 +59,12 @@ it("restores protected values before masking settings after restart and protects
       value: "value [redacted]",
     });
     const before = daemon.store.lastSeq();
-    for (const key of ["runtime.private.forged", "runtime.privateRef.forged"]) {
+    for (const key of [
+      "runtime.private.forged",
+      "runtime.privateRef.forged",
+      "view.origin.forged",
+      "view.proposal.forged",
+    ]) {
       await expect(
         client.call("settings.set", { key, value: true }, `reserved:${key}`),
       ).rejects.toThrow("setting_reserved");

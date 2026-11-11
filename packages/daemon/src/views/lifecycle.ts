@@ -2,6 +2,7 @@ import path from "node:path";
 import { parse, parseEvent, type ViewRecord, ViewRecordSchema } from "@zoltbot/protocol";
 import { copyView, deleteUserView, exists, renameUserView, updateViewManifest } from "./files.js";
 import { loadView, viewHash } from "./loader.js";
+import { viewOrigin, viewOriginEvent } from "./origin.js";
 import type { ViewRegistry } from "./registry.js";
 import { readViewState, stateDirectory, writeViewState } from "./state.js";
 
@@ -100,10 +101,20 @@ export async function viewLifecycle(
   const result = registry.store.dispatch(commandId, (state) => {
     guard(state);
     return {
-      events:
-        params.choice === "replace"
+      events: [
+        ...(method === "view.customize" || params.choice === "replace"
+          ? [viewOriginEvent(commandId, id, null)]
+          : []),
+        ...(params.choice === "copy"
+          ? [
+              viewOriginEvent(commandId, targetId, viewOrigin(registry.store, id) ?? null),
+              viewOriginEvent(commandId, id, null),
+            ]
+          : []),
+        ...(params.choice === "replace"
           ? []
-          : [audit(commandId, method, id, { choice: params.choice ?? null, targetId })],
+          : [audit(commandId, method, id, { choice: params.choice ?? null, targetId })]),
+      ],
       result: { digest, record: parse(ViewRecordSchema, record) },
     };
   });

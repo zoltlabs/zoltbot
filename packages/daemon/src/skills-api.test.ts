@@ -46,7 +46,9 @@ it("reviews exact folder bytes, fences writes and replays durable receipts", asy
     await expect(
       api("skill.remove", { id: added.id, confirmed: false }, "remove-no"),
     ).rejects.toThrow("confirmation");
-    expect(await api("skill.list", {})).toMatchObject({ skills: [{ id: added.id }] });
+    expect(await api("skill.list", {})).toMatchObject({
+      skills: expect.arrayContaining([expect.objectContaining({ id: added.id })]),
+    });
     await api("skill.remove", { id: added.id, confirmed: true }, "remove-1");
     expect(await api("skill.get", { id: added.id })).toMatchObject({ revision: { revision: 1 } });
   } finally {
@@ -165,7 +167,9 @@ it("previews draft access, publishes once atomically and fences private writes a
     expect(f.store.lastSeq()).toBe(before);
     expect(published).toBe(2);
     expect(changed).toBe(2);
-    expect(await api("skill.list", {})).toMatchObject({ skills: [{ id: entry.id }] });
+    expect(await api("skill.list", {})).toMatchObject({
+      skills: expect.arrayContaining([expect.objectContaining({ id: entry.id })]),
+    });
     expect(
       f.store.database.prepare("SELECT id FROM skill_library WHERE name='rolled-back'").get(),
     ).toBeUndefined();

@@ -68,6 +68,7 @@ for (const resource of [
   "packages/artifact-kit/v1",
   "packages/views",
   "packages/view-api/client",
+  "packages/skills/builtin",
 ])
   cpSync(path.join(root, resource), path.join(stage, resource), { recursive: true });
 

@@ -21,19 +21,28 @@ export async function readArtifactSource(
   const check = await context.privacy.prepareData({ path, text });
   if (possibleSecret(path, text)) return { versionId, held: true };
   check(context.store.snapshot());
-  // Bind pagination to exact file bytes, not merely a numeric offset from another file.
-  const prefix = `${file.hash}:`;
+  try {
+    return sourceTextPage(text, `${file.hash}:`, cursor, { versionId, path, editable: true });
+  } catch {
+    throw Error("artifact_cursor_invalid");
+  }
+}
+/** Cursor-bound UTF-8 text pages shared by checked artifact and view source reads. */
+export function sourceTextPage<T extends Record<string, unknown>>(
+  text: string,
+  prefix: string,
+  cursor: string | undefined,
+  metadata: T,
+) {
   if (cursor && (!cursor.startsWith(prefix) || !/^(0|[1-9]\d*)$/.test(cursor.slice(prefix.length))))
-    throw Error("artifact_cursor_invalid");
+    throw Error("source_cursor_invalid");
   const offset = cursor ? Number(cursor.slice(prefix.length)) : 0;
-  if (!Number.isSafeInteger(offset) || offset > text.length) throw Error("artifact_cursor_invalid");
+  if (!Number.isSafeInteger(offset) || offset > text.length) throw Error("source_cursor_invalid");
   if (offset > 0 && /[\uDC00-\uDFFF]/.test(text[offset] ?? ""))
-    throw Error("artifact_cursor_invalid");
+    throw Error("source_cursor_invalid");
   let end = Math.min(text.length, offset + 2800);
   const page = () => ({
-    versionId,
-    path,
-    editable: true,
+    ...metadata,
     text: text.slice(offset, end),
     cursor: end < text.length ? `${prefix}${end}` : null,
   });

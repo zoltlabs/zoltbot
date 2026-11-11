@@ -17,6 +17,7 @@ import {
   teamToolNames,
   teamTools,
 } from "./team-tools.js";
+import { viewToolDefinition, viewToolHint, viewTools } from "./views/tools.js";
 import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 import {
   workspaceToolDefinitions,
@@ -60,6 +61,7 @@ export function runtimeTools(
   const knowledgeWrite = knowledgeWrites(context);
   const browser = browserTools(context);
   const artifacts = artifactTools(context);
+  const views = viewTools(context);
   const team = teamTools(context, options);
   const chief = chiefTools(context);
   const company = companyTools(context);
@@ -103,6 +105,7 @@ export function runtimeTools(
     }
     const artifactBinding = frozenArtifactBinding(context.store, actor.sessionId);
     if (name === "team_artifact") return artifacts.authorize(actor);
+    if (name === "team_view") return views.authorize(actor, args);
     if (artifactBinding && ["workspace_create", "workspace_update"].includes(name)) return false;
     if (name === "team_browser_evidence") return browser.authorize(actor);
     // Writing shares the read tool's authorization; the write policy decides the outcome.
@@ -121,6 +124,7 @@ export function runtimeTools(
       ["chat_wake", chatWake],
       ["routine_draft", eventRoutine.call],
       ["team_artifact", artifacts.call],
+      ["team_view", views.call],
       ["team_browser_evidence", browser.register],
       ["team_get_knowledge", knowledge.read],
       ["team_write_knowledge", knowledgeWrite.call],
@@ -366,6 +370,7 @@ export const indirectRuntimeToolDefinitions = [
   compactTool(knowledgeWriteToolDefinition),
   compactTool(eventRoutineToolDefinition),
   compactTool(wakeToolDefinition),
+  viewToolHint,
 ];
 export const artifactRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter(
@@ -409,6 +414,7 @@ export const chiefProviderToolDefinitions = [...chiefToolDefinitions, companyToo
   (tool) => compactTool({ ...tool, description: chiefToolHints[tool.name] ?? tool.description }),
 );
 export const allRuntimeToolDefinitions = [
+  viewToolDefinition,
   companyToolDefinition,
   ...legacyTeamToolDefinitions,
   ...workspaceToolDefinitions,

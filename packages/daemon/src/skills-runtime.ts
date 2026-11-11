@@ -4,6 +4,7 @@ import type { Profile, Thread } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { LaunchManifest, SkillContribution } from "../../connections/src/launch-manifest.js";
 import {
+  installBuiltinSkills,
   materializeSkills,
   type SkillLayout,
   type SkillSnapshot,
@@ -12,6 +13,7 @@ import {
 import { reservedSkillNames } from "./skills-api.js";
 export function skillsRuntime(store: Store, runtimeRoot: string) {
   const library = new SkillsLibrary(store.database);
+  installBuiltinSkills(library);
   function available() {
     return !!store.database
       .prepare("SELECT name FROM sqlite_master WHERE name='skill_library'")

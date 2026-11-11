@@ -45,6 +45,7 @@ import { deviceBook } from "./devices.js";
 import { entityEditsApi } from "./entity-edits.js";
 import { forkApi } from "./fork-api.js";
 import { shippingService } from "./github/service.js";
+import { respondHostApproval } from "./host-approvals.js";
 import { inboxApi } from "./inbox-api.js";
 import { interactionApi } from "./interaction-api.js";
 import type { InteractionEngine } from "./interaction-engine.js";
@@ -199,25 +200,7 @@ async function startOwnedDaemon(
           // D119 approvals are answered by the host, never by a native session.
           respond: (request: Interaction, answer: InteractionAnswer) =>
             request.nativeRef === HOST_WORKSPACE_REF
-              ? (request.context?.toolInput as { cuaSession?: string } | undefined)?.cuaSession
-                ? import("./cua/approval.js").then((tools) =>
-                    tools.respondCuaApproval(runtimeContext, request, answer),
-                  )
-                : (request.context?.toolInput as { worktreeExecution?: boolean } | undefined)
-                      ?.worktreeExecution
-                  ? Promise.resolve()
-                  : (request.context?.toolInput as { chiefAction?: unknown } | undefined)
-                        ?.chiefAction
-                    ? import("./chief/tools.js").then((tools) =>
-                        tools.respondChiefApproval(runtimeContext, request, answer),
-                      )
-                    : (request.context?.toolInput as { chiefIdea?: unknown } | undefined)?.chiefIdea
-                      ? import("./chief/tools.js").then((tools) =>
-                          tools.respondChiefIdea(runtimeContext, request, answer),
-                        )
-                      : import("./workspace-tools.js").then((tools) =>
-                          tools.respondWorkspaceApproval(runtimeContext, request, answer),
-                        )
+              ? respondHostApproval(runtimeContext, request, answer)
               : base.respond(request, answer),
         };
         interactions = new InteractionEngine({

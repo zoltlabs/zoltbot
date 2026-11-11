@@ -9,6 +9,7 @@ import { relayUrlPattern } from "./relay-link.js";
 /** Rows only the daemon writes: forks, routine handoffs, private runtime state and the like. */
 function reserved(key: string) {
   return (
+    key.startsWith("view.") ||
     key.startsWith("fork.") ||
     key.startsWith("routine.handoff.") ||
     key.startsWith("routine.event.health.") ||
