@@ -143,7 +143,7 @@ A view follows the artifact rules in `packages/artifact-validation`, with these 
 | `author`, `license` | no | Free text, up to 80 characters each. |
 | `basedOn` | no | Written by Customize. See "Customizing a built-in view". |
 
-The loader ignores unknown fields, so a newer manifest still loads in an older app. A manifest whose `api` is higher than the app supports does not load; the settings page says which version of Zoltbot it needs.
+The loader ignores unknown fields, so a newer manifest still loads in an older app. A manifest whose `api` is higher than the app supports does not load; the settings page names the required View API version and asks the owner to update Zoltbot. The existing code has no mapping from a future View API to an app release, so it does not guess one.
 
 Define the manifest with TypeBox next to the other schemas and generate its JSON Schema the same way `packages/protocol/schema/` is generated.
 
@@ -202,6 +202,7 @@ interface ViewRecord {
   builtinUpdate?: { version: string; bundleHash: string }; // set when the built-in moved on
   error?: { code: string; message: string; path?: string };  // set when the folder did not load
   enabled: boolean;
+  removed?: boolean; // retained projection row after an explicit removal; hidden from installed views
   shortcuts?: { id: string; keys: string; label: string }[]; // for the palette
   changedAt?: string; // newest file modification time, for settings
 }
@@ -267,7 +268,7 @@ The daemon watches `<data folder>/views/` (one recursive `fs.watch`, changes col
 
 ### Removing
 
-Remove permanently deletes the user view immediately after explicit confirmation in the host, outside the frame. The confirmation states that the customized files will be lost and is recorded in the audit log (I13). There is no removed-view folder, retention timer or Restore action. Removing an override reveals the built-in view. Saved state survives removal. The "Use the new version" update choice has the same confirmation and audit requirement; `view.resolveUpdate` requires `confirmed: true` for `replace`.
+Remove permanently deletes the user view immediately after explicit confirmation in the host, outside the frame. The confirmation states that the customized files will be lost and is recorded in the audit log (I13). There is no removed-view folder, retention timer or Restore action. The existing event projector retains entity rows, so an explicitly removed standalone view keeps a `removed` tombstone and is hidden from installed views; a missing folder still appears as a load error. Removing an override reveals the built-in view. Saved state survives removal. The "Use the new version" update choice has the same confirmation and audit requirement; `view.resolveUpdate` requires `confirmed: true` for `replace`.
 
 ## Rendering and isolation
 
@@ -673,7 +674,7 @@ Rules that hold for every slot: the same bridge, the same permissions, and the a
 | An agent edits a view to grant itself more. | Grants are in the database and change only through `view.setGrants`, which is Mac-only and confirmed by the owner. |
 | A view freezes or crashes. | Site isolation puts it in its own process. The host detects silence and offers Reload. |
 | A malformed folder. | The loader applies the artifact file rules, rejects symlinks and oversized files, and falls back to the built-in. |
-| A downloaded view. | `view.import` starts with no grants and shows the manifest's permissions before first use. |
+| A downloaded view. | `view.import` starts with no grants (including when reusing a removed id), strips imported `basedOn` metadata, and shows the manifest's permissions before first use. |
 | Secrets in view state. | A view never receives secrets. Invariant I7 holds: the View API carries none. |
 
 Checks against the architecture invariants: I1 (the daemon and agents do not depend on any view), I5 (a view answers the durable Interaction record, it does not replace it), I7, I13 and I14 as noted above.

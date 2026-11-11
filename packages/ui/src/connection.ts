@@ -64,6 +64,8 @@ export interface DesktopBridge {
     copyArtifactLink(id: string): Promise<{ url: string }>;
   };
   platform?: string;
+  pickViewFolder?(): Promise<string | null>;
+  showViewFolder?(input: { id: string; source: "builtin" | "user" }): Promise<void>;
   prepareView?(hash: string): Promise<{ url: string }>;
   prepareArtifact?(hash: string): Promise<{ url: string }>;
   browserEvidence?(id: string): Promise<Uint8Array>;

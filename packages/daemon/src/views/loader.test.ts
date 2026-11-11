@@ -132,7 +132,7 @@ describe("view loader", () => {
     await fixture(view, { id: "other" });
     await expect(loadView(view)).rejects.toThrow("must_match");
     await fixture(view, { api: 2 });
-    await expect(loadView(view)).rejects.toThrow("Invalid payload");
+    await expect(loadView(view)).rejects.toThrow("view_api_unsupported:2");
   });
   it("rejects binary text, malformed JSON, image spoofing and bad fonts", async () => {
     for (const [name, bytes] of [
@@ -229,4 +229,31 @@ describe("view loader", () => {
       store.close();
     }
   });
+});
+it("reports the relative asset that failed validation", async () => {
+  const dir = await root(),
+    user = path.join(dir, "user");
+  const folder = await fixture(path.join(user, "example"));
+  await writeFile(path.join(folder, "broken.js"), Buffer.from([0xff]));
+  const loaded = await loadViews(path.join(dir, "builtin"), user);
+  expect(loaded.errors).toContainEqual(
+    expect.objectContaining({ id: "example", source: "user", path: "example/broken.js" }),
+  );
+});
+it("reports the required View API version without guessing a future app release", async () => {
+  const dir = await root(),
+    builtin = path.join(dir, "builtin"),
+    user = path.join(dir, "user");
+  await fixture(path.join(user, "future"), { api: 2 });
+  const store = await openStore(path.join(dir, "store.db"));
+  try {
+    const registry = new ViewRegistry(store, builtin, user, () => {});
+    await registry.reload();
+    expect(store.record("view", "future")?.error).toMatchObject({
+      message: "This view needs View API 2. Update Zoltbot to use it.",
+      path: "future/view.json",
+    });
+  } finally {
+    store.close();
+  }
 });

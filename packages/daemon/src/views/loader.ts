@@ -61,12 +61,35 @@ export function viewBundleHash(manifestBytes: string, files: ViewFile[]) {
   );
 }
 /** Reuse artifact file reads, including no-follow opens and ancestor identity checks. */
+class ViewLoadFailure extends Error {
+  constructor(
+    error: unknown,
+    readonly path: string,
+  ) {
+    super(error instanceof Error ? error.message : "view_invalid");
+  }
+}
 export async function loadView(directory: string, allowRootOwned = false): Promise<ViewBundle> {
+  try {
+    return await loadCheckedView(directory, allowRootOwned);
+  } catch (error) {
+    if (error instanceof ViewLoadFailure) throw error;
+    throw new ViewLoadFailure(error, "view.json");
+  }
+}
+async function loadCheckedView(directory: string, allowRootOwned: boolean): Promise<ViewBundle> {
   await checkedAncestors(directory);
   const manifestBytes = (await safeFile(directory, "view.json", { allowRootOwned })).toString(
     "utf8",
   );
-  const manifest = parseViewManifest(JSON.parse(manifestBytes), path.basename(directory));
+  const rawManifest = JSON.parse(manifestBytes);
+  if (
+    typeof rawManifest?.api === "number" &&
+    Number.isSafeInteger(rawManifest.api) &&
+    rawManifest.api > 1
+  )
+    throw new ViewLoadFailure(Error(`view_api_unsupported:${rawManifest.api}`), "view.json");
+  const manifest = parseViewManifest(rawManifest, path.basename(directory));
   const files: ViewFile[] = [],
     seen = new Set<string>();
   let total = 0,
@@ -75,32 +98,44 @@ export async function loadView(directory: string, allowRootOwned = false): Promi
   async function visit(relative: string) {
     for (const entry of await readdir(path.join(directory, relative), { withFileTypes: true })) {
       if (++visited > artifactLimits.files * 2) throw Error("view_walk_limit");
-      const name = checkedViewPath(relative ? `${relative}/${entry.name}` : entry.name, seen);
-      if (entry.isSymbolicLink()) throw Error("view_symlink_denied");
-      if (entry.isDirectory()) {
-        await visit(name);
-        continue;
+      const relativePath = relative ? `${relative}/${entry.name}` : entry.name;
+      try {
+        const name = checkedViewPath(relativePath, seen);
+        if (entry.isSymbolicLink()) throw Error("view_symlink_denied");
+        if (entry.isDirectory()) {
+          await visit(name);
+          continue;
+        }
+        if (!entry.isFile()) throw Error("view_file_denied");
+        if (files.length >= artifactLimits.files) throw Error("view_file_limit");
+        if (!extensions.has(path.extname(name).toLowerCase())) throw Error("view_type_denied");
+        const bytes = await safeFile(directory, name, { allowRootOwned });
+        total += bytes.length;
+        if (total > artifactLimits.version) throw Error("view_total_limit");
+        const mime = verifiedType(name, bytes);
+        files.push({ path: name, bytes: bytes.length, hash: viewHash(bytes), mime });
+        changed = Math.max(changed, (await lstat(path.join(directory, name))).mtimeMs);
+      } catch (error) {
+        if (error instanceof ViewLoadFailure) throw error;
+        throw new ViewLoadFailure(error, relativePath);
       }
-      if (!entry.isFile()) throw Error("view_file_denied");
-      if (files.length >= artifactLimits.files) throw Error("view_file_limit");
-      if (!extensions.has(path.extname(name).toLowerCase())) throw Error("view_type_denied");
-      const bytes = await safeFile(directory, name, { allowRootOwned });
-      total += bytes.length;
-      if (total > artifactLimits.version) throw Error("view_total_limit");
-      const mime = verifiedType(name, bytes);
-      files.push({ path: name, bytes: bytes.length, hash: viewHash(bytes), mime });
-      changed = Math.max(changed, (await lstat(path.join(directory, name))).mtimeMs);
     }
   }
   await visit("");
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  if (!files.some((file) => file.path === manifest.entry)) throw Error("view_entry_missing");
+  if (!files.some((file) => file.path === manifest.entry))
+    throw new ViewLoadFailure(Error("view_entry_missing"), manifest.entry);
   if (manifest.icon && !files.some((file) => file.path === manifest.icon))
-    throw Error("view_icon_missing");
+    throw new ViewLoadFailure(Error("view_icon_missing"), manifest.icon);
   // Fail a mixed read if an editor changed a file while the bundle was being checked.
-  for (const file of files)
-    if (viewHash(await safeFile(directory, file.path, { allowRootOwned })) !== file.hash)
-      throw Error("view_file_changed");
+  for (const file of files) {
+    try {
+      if (viewHash(await safeFile(directory, file.path, { allowRootOwned })) !== file.hash)
+        throw Error("view_file_changed");
+    } catch (error) {
+      throw new ViewLoadFailure(error, file.path);
+    }
+  }
   return {
     directory,
     allowRootOwned,
@@ -154,7 +189,7 @@ export async function loadViews(builtin: string, user: string) {
           id: entry.name,
           source,
           code: error instanceof Error ? error.message : "view_invalid",
-          path: `${entry.name}/view.json`,
+          path: `${entry.name}/${error instanceof ViewLoadFailure ? error.path : "view.json"}`,
         });
       }
     }

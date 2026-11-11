@@ -4,15 +4,16 @@ import type { ChatConnection } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { GrantDialog } from "./GrantDialog.js";
+import { ImportView, ViewFiles } from "./InstallControls.js";
 import { ViewIcon } from "./ViewIcon.js";
 import { ViewUpdate } from "./ViewUpdate.js";
 import "./views.css";
 export default function ViewsSettings({ connection }: { connection: ChatConnection }) {
   const [edit, setEdit] = useState(""),
     [error, setError] = useState("");
-  const views = (connection.snapshot.entities.view ?? []).map((row) =>
-    parse(ViewRecordSchema, row),
-  );
+  const views = (connection.snapshot.entities.view ?? [])
+    .map((row) => parse(ViewRecordSchema, row))
+    .filter((view) => !view.removed);
   function call(method: string, params: object) {
     void connection
       .call(method, params, crypto.randomUUID())
@@ -21,7 +22,12 @@ export default function ViewsSettings({ connection }: { connection: ChatConnecti
   return (
     <section className="page-stack" aria-label="Views settings">
       <div>
-        <Button onClick={() => call("view.reload", {})}>Reload views</Button>
+        <div className="view-header">
+          <ImportView connection={connection} />
+          <Button data-views-reload onClick={() => call("view.reload", {})}>
+            Reload views
+          </Button>
+        </div>
       </div>
       {error ? <p role="alert">{error}</p> : null}
       {!views.length ? <p>No views are installed.</p> : null}
@@ -62,6 +68,7 @@ export default function ViewsSettings({ connection }: { connection: ChatConnecti
                 Customize
               </Button>
             ) : null}
+            <ViewFiles record={view} connection={connection} />
             <Button onClick={() => setEdit(view.id)} disabled={!view.bundleHash}>
               Edit permissions
             </Button>

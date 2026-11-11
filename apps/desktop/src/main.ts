@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -31,6 +31,7 @@ import { frameRequestAllowed } from "./frame-isolation.js";
 import { hostedOrigins } from "./hosted-origins.js";
 import { answerNotification } from "./notification-answer.js";
 import { desktopNotifications } from "./notifications.js";
+import { viewFolderPath } from "./view-folders.js";
 import { desktopViewProtocol } from "./view-protocol.js";
 
 const startupAt = performance.now();
@@ -513,6 +514,22 @@ ipcMain.handle("zolt:browser-evidence", async (event, id: unknown) => {
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > 8 * 1024 * 1024) throw new Error("evidence_too_large");
   return bytes;
+});
+ipcMain.handle("zolt:view-pick-folder", async (event) => {
+  verifyMainFrame(event);
+  if (!window || window.isDestroyed()) throw Error("window_unavailable");
+  const result = await dialog.showOpenDialog(window, {
+    title: "Import a view",
+    buttonLabel: "Import view",
+    properties: ["openDirectory"],
+  });
+  return result.canceled ? null : (result.filePaths[0] ?? null);
+});
+ipcMain.handle("zolt:view-show-folder", (event, input: unknown) => {
+  verifyMainFrame(event);
+  const folder = viewFolderPath(root, dataDir, input);
+  lstatSync(folder);
+  shell.showItemInFolder(folder);
 });
 ipcMain.handle("zolt:view-prepare", (event, hash: unknown) => {
   verifyMainFrame(event);

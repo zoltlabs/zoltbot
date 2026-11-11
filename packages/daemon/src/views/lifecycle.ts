@@ -17,6 +17,13 @@ export async function viewLifecycle(
     if (replay.result.digest !== digest) throw Error("command_receipt_conflict");
     return replay.result.record;
   }
+  const incomplete = registry.store.receipt<{ digest: string }>(`${commandId}:confirmed`);
+  if (incomplete)
+    throw Error(
+      incomplete.result.digest === digest
+        ? "view_operation_incomplete"
+        : "command_receipt_conflict",
+    );
   const id = String(params.id);
   const old = registry.store.record("view", id);
   if (!old) throw Error("view_not_found");

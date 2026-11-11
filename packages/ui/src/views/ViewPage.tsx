@@ -15,6 +15,7 @@ import "./views.css";
 export default function ViewPage({ id, connection }: { id: string; connection: ChatConnection }) {
   const raw = connection.snapshot.entities.view?.find((row) => row.id === id);
   const record = raw ? parse(ViewRecordSchema, raw) : undefined;
+  if (record?.removed) return <p>This view was removed. Open Settings to import it again.</p>;
   if (!record) return <p>View not found. Open Settings to reload your views.</p>;
   return <ViewFrame key={`${id}:${record.bundleHash}`} record={record} connection={connection} />;
 }

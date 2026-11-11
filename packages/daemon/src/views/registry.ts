@@ -10,8 +10,10 @@ import { safeFile } from "../artifacts/intake.js";
 import type { Cleanup } from "../daemon-resources.js";
 import type { PublicWriteCheck } from "../private-input.js";
 import { callView, type ViewActions } from "./actions.js";
+import { viewLoadMessage } from "./errors.js";
 import { userRoot } from "./files.js";
 import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
+import { installView } from "./install.js";
 import { viewLifecycle } from "./lifecycle.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
 import { viewStateApi } from "./state.js";
@@ -77,12 +79,17 @@ export class ViewRegistry {
         viewGrants(this.store, id).filter((permission) =>
           bundle.manifest.permissions.includes(permission),
         ),
-        before?.enabled !== false,
+        before?.removed === true || before?.enabled !== false,
         loaded.builtins.get(bundle.manifest.basedOn?.id ?? id),
       );
       next.reviewed = reviewedGrants(this.store, id);
       const error = loaded.errors.find((entry) => entry.id === id && entry.source === "user");
-      if (error) next.error = { code: "view_invalid", message: error.code, path: error.path };
+      if (error)
+        next.error = {
+          code: "view_invalid_user",
+          message: viewLoadMessage(error.code),
+          path: error.path,
+        };
       records.push(next);
     }
     for (const error of loaded.errors) {
@@ -101,11 +108,15 @@ export class ViewRegistry {
         granted: [],
         overridesBuiltin: false,
         enabled: false,
-        error: { code: "view_invalid", message: error.code, path: error.path },
+        error: { code: "view_invalid", message: viewLoadMessage(error.code), path: error.path },
       });
     }
     for (const old of this.store.snapshot(["view"]).view ?? [])
       if (!records.some((record) => record.id === old.id)) {
+        if (old.removed === true) {
+          records.push(parse(ViewRecordSchema, old));
+          continue;
+        }
         records.push({
           ...parse(ViewRecordSchema, old),
           enabled: false,
@@ -176,6 +187,10 @@ export class ViewRegistry {
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
     if (this.closed) throw Error("view_registry_closed");
     if (method === "view.reload") return this.reload();
+    if (method === "view.import" || method === "view.remove") {
+      if (!commandId) throw Error("command_id_required");
+      return this.run(() => installView(this, method, params, commandId));
+    }
     if (method === "view.customize" || method === "view.resolveUpdate") {
       if (!commandId) throw Error("command_id_required");
       return this.run(() => viewLifecycle(this, method, params, commandId));

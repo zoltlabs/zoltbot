@@ -18,6 +18,7 @@ export const ViewRecordSchema = object({
   reviewed: Type.Optional(Type.Array(ViewPermissionSchema)),
   overridesBuiltin: Type.Boolean(),
   enabled: Type.Boolean(),
+  removed: Type.Optional(Type.Boolean()),
   basedOn: Type.Optional(object({ id: Id, version: Type.String(), bundleHash: Type.String() })),
   builtinUpdate: Type.Optional(object({ version: Type.String(), bundleHash: Type.String() })),
   error: Type.Optional(object({ code: Id, message: Type.String(), path: OptionalText })),
@@ -28,6 +29,14 @@ export const ViewRecordSchema = object({
 });
 export type ViewRecord = Static<typeof ViewRecordSchema>;
 export const viewMethods = {
+  "view.import": {
+    params: object({ path: Type.String({ minLength: 1 }), confirmed: Type.Literal(true) }),
+    result: ViewRecordSchema,
+  },
+  "view.remove": {
+    params: object({ id: Id, confirmed: Type.Literal(true) }),
+    result: ViewRecordSchema,
+  },
   "view.customize": { params: object({ id: Id }), result: ViewRecordSchema },
   "view.resolveUpdate": {
     params: object({

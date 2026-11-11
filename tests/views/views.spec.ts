@@ -443,7 +443,7 @@ test("customizes a builtin and offers all update choices with host confirmation 
   delete record.basedOn;
   delete record.builtinUpdate;
   const calls: { method: string; params: Record<string, unknown> }[] = [];
-  function changed() {
+  function changed(next = record) {
     for (const socket of sockets)
       socket.send(
         JSON.stringify({
@@ -453,10 +453,10 @@ test("customizes a builtin and offers all update choices with host confirmation 
             seq: ++seq,
             eventId: `lifecycle-${seq}`,
             aggregateType: "view",
-            aggregateId: record.id,
+            aggregateId: next.id,
             type: "view.updated",
             occurredAt: new Date().toISOString(),
-            payload: record,
+            payload: next,
           },
         }),
       );
@@ -470,7 +470,11 @@ test("customizes a builtin and offers all update choices with host confirmation 
     socket.onClose(() => sockets.delete(socket));
     socket.onMessage((bytes) => {
       const message = JSON.parse(bytes.toString());
-      if (["view.customize", "view.resolveUpdate"].includes(message.method)) {
+      if (
+        ["view.customize", "view.resolveUpdate", "view.import", "view.remove"].includes(
+          message.method,
+        )
+      ) {
         calls.push(message);
         if (message.method === "view.customize") {
           record.source = "user";
@@ -480,6 +484,23 @@ test("customizes a builtin and offers all update choices with host confirmation 
             version: record.version,
             bundleHash: record.bundleHash,
           };
+        } else if (message.method === "view.import") {
+          const imported: typeof record = {
+            ...record,
+            id: "imported",
+            name: "Imported view",
+            source: "user",
+            requested: ["read"],
+            granted: [],
+            reviewed: [],
+          };
+          delete imported.basedOn;
+          snapshot.entities.view?.push(imported);
+          changed(imported);
+        } else if (message.method === "view.remove") {
+          record.source = "builtin";
+          record.overridesBuiltin = false;
+          delete record.basedOn;
         } else {
           if (message.params.choice === "replace") {
             record.source = "builtin";
@@ -511,6 +532,10 @@ test("customizes a builtin and offers all update choices with host confirmation 
           token: "synthetic-owner-token",
         }),
         onConnectionChanged: () => () => {},
+        pickViewFolder: async () => "/picked/imported",
+        showViewFolder: async (input) => {
+          (window as unknown as { shownView: unknown }).shownView = input;
+        },
       };
     },
     { origin },
@@ -542,4 +567,30 @@ test("customizes a builtin and offers all update choices with host confirmation 
   await dialog.getByRole("button", { name: "Use the new version", exact: true }).click();
   await expect.poll(() => calls.length).toBe(4);
   expect(calls[3]?.params).toEqual({ id: "command-map", choice: "replace", confirmed: true });
+  await page.getByRole("button", { name: "Customize", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(5);
+  await page.getByRole("button", { name: "Show in Finder", exact: true }).click();
+  expect(
+    await page.evaluate(() => (window as unknown as { shownView: unknown }).shownView),
+  ).toEqual({ id: "command-map", source: "user" });
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  const remove = page.getByRole("dialog", { name: "Remove Command map?" });
+  await expect(remove.getByText("These view files will be permanently deleted.")).toBeVisible();
+  await remove.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(calls).toHaveLength(5);
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await remove.getByRole("button", { name: "Remove view", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(6);
+  expect(calls[5]?.params).toEqual({ id: "command-map", confirmed: true });
+  await expect(page.getByRole("button", { name: "Remove", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Import view", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(7);
+  expect(calls[6]?.params).toEqual({ path: "/picked/imported", confirmed: true });
+  const imported = page
+    .locator(".settings-panel")
+    .filter({ has: page.getByRole("heading", { name: "Imported view", exact: true }) });
+  await expect(imported.getByText("Permissions: None", { exact: true })).toBeVisible();
+  await imported.getByRole("button", { name: "Open view", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Permissions for Imported view" })).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
 });
