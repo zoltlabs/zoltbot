@@ -70,6 +70,23 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
         referenceTokenEstimate(artifact.guidanceText) +
         referenceTokenEstimate(browserGuidance(browser)),
     ).toBeLessThanOrEqual(1500);
+    const workspaceInstructions = [
+      "Workspace: HarborDesk\nGoal: Build and verify the HarborDesk support triage workspace.\nInstructions: Run node --test before reporting completion. Preserve existing routes and exports.\nConstraints: Do not modify unrelated billing fixtures or add external dependencies.",
+      "Team: Support Triage\nGoal: Own VIP routing, SLA timers, and regression coverage.",
+    ].join("\n\n");
+    const icFixed =
+      referenceTokenEstimate(
+        [
+          "Staff engineer executing scoped repository tasks.",
+          "Inspect the codebase, write minimal fixes, and run tests.",
+          installedArtifact.guidanceText,
+          workspaceInstructions,
+        ].join("\n\n"),
+      ) +
+      referenceTokenEstimate(
+        JSON.stringify([...artifactRuntimeToolDefinitions, ...indirectRuntimeToolDefinitions]),
+      );
+    expect(icFixed).toBeLessThanOrEqual(1300);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

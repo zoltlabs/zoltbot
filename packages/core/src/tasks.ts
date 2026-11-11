@@ -201,9 +201,9 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
       ? {
           routineOccurrenceId: input.routineOccurrenceId,
           permissionCeiling: input.permissionCeiling,
-          routineInputs: input.routineInputs,
         }
       : {}),
+    ...(input.routineInputs ? { routineInputs: input.routineInputs } : {}),
     projectId: lineage.project.id,
     node: input.node,
     rootId: input.parentId

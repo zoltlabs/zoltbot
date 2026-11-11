@@ -419,3 +419,65 @@ it("keeps Compare read-only on native resume even when the frozen profile allowe
     f.clean();
   }
 });
+
+it("throws injection_fixed_budget_exceeded before composeLaunchManifest can misreport context_budget_hold", async () => {
+  const f = fixture();
+  const { composeLaunchManifest } = await import("../../connections/src/launch-manifest.js");
+  try {
+    const hostWithExtensions = new NativeRuntimeHost({
+      adapters: new Map([
+        [
+          f.definition.adapter,
+          () =>
+            ({
+              id: f.definition.adapter,
+              manifest: () => ({
+                supportsConnections: true,
+                supportsNativeSkills: false,
+                supportsLocalBrowserCli: false,
+              }),
+              async open() {
+                throw new Error("should_not_open");
+              },
+            }) as unknown as AgentAdapter,
+        ],
+      ]),
+      workspace: async () => ({ cwd: f.root, instructions: "Workspace instructions" }),
+      estimate: (text) => Math.ceil(text.length / 4),
+      toolTokens: 950,
+      extensions: {
+        select: () => [],
+        compose: (identity, contributions) =>
+          composeLaunchManifest(
+            {
+              executionId: "exec-1",
+              threadId: identity.threadId,
+              profileId: identity.profileId,
+              cwd: identity.cwd,
+              configurationHash: "cfg",
+            },
+            contributions,
+            { limit: 1500, fixed: identity.fixed },
+          ),
+        resolve: async () => [],
+      },
+      bind: async () => ({
+        url: "http://127.0.0.1:1/mcp",
+        token: "token",
+        setTurn() {},
+        async close() {},
+      }),
+    });
+    await expect(
+      hostWithExtensions.prepare(
+        {
+          ...f,
+          profile: { ...f.profile, instructions: "x".repeat(2600) },
+        },
+        f.redactor,
+      ),
+    ).rejects.toThrow("injection_fixed_budget_exceeded");
+  } finally {
+    f.clean();
+  }
+});

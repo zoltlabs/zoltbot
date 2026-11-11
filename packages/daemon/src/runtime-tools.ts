@@ -194,13 +194,19 @@ export const browserRuntimeToolDefinitions = [
 ];
 
 const artifactDescriptions: Record<string, string> = {
+  native_app:
+    "Native macOS apps (browsers use Playwright): status, connect, describe(tool), call(tool,args), end.",
+  team_artifact:
+    "Save, read or list versioned offline artifacts (save|read|list). Reuse key; stage in frozen staging or inline <=48KB.",
+  team_browser_evidence:
+    "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
-    "Delegate tracked work in scope: new title/teamId or existing chatId. planId/budgetUsd optional; inherited authority applies. Stable key.",
+    "Delegate tracked work in scope: taskId dispatches planned work, or pass title/teamId or chatId with brief. Stable key.",
   team_report: "Send a result, update or question to your nearest manager above. Stable key.",
   team_message:
     'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it.',
@@ -209,10 +215,103 @@ const artifactDescriptions: Record<string, string> = {
   workspace_write:
     "Scoped create/update: kind,name,parent or target,changes. Stable key. Human approval for wider authority or instructions.",
   company_work:
-    "describe contracts; read work; propose reviewed plans; assign/review within authority; save brief. Stable key for writes.",
+    "describe contracts; read work; propose reviewed plans; assign/dispatch/submit/cancel/recover/review; save brief. Stable key.",
 };
 // Artifact sessions write knowledge with team_write_knowledge; the server still accepts `learned`.
 const artifactOmittedFields: Record<string, string[]> = { team_message: ["learned"] };
+const compactSchemas: Record<string, Record<string, unknown>> = {
+  company_work: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      key: { type: "string" },
+      request: { type: "object" },
+    },
+    required: ["action"],
+  },
+  chat_wake: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      input: { type: "object" },
+    },
+  },
+  native_app: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      tool: { type: "string" },
+      args: { type: "object" },
+    },
+    required: ["action"],
+  },
+  team_artifact: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      key: { type: "string" },
+      title: { type: "string" },
+      kind: { type: "string" },
+      template: { type: "string" },
+      kit: { type: "string" },
+      source: { type: "object" },
+      entry: { type: "string" },
+      screens: { type: "array" },
+      note: { type: "string" },
+      id: { type: "string" },
+      versionId: { type: "string" },
+      path: { type: "string" },
+      cursor: { type: "string" },
+      limit: { type: "integer" },
+    },
+    required: ["action"],
+  },
+  team_write_knowledge: {
+    type: "object",
+    properties: {
+      op: { type: "string" },
+      id: { type: "string" },
+      expectedRevision: { type: "integer" },
+      scope: { type: "string" },
+      kind: { type: "string" },
+      title: { type: "string" },
+      body: { type: "string" },
+      tags: { type: "array" },
+      key: { type: "string" },
+      evidence: { type: "array" },
+      reason: { type: "string" },
+    },
+    required: ["op", "evidence", "reason"],
+  },
+  workspace_write: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      key: { type: "string" },
+      kind: { type: "string" },
+      name: { type: "string" },
+      parent: { type: "object" },
+      goal: { type: "string" },
+      profileId: { type: "string" },
+      manager: { type: "boolean" },
+      target: { type: "object" },
+      changes: { type: "object" },
+    },
+    required: ["action", "key"],
+  },
+  routine_draft: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      key: { type: "string" },
+      id: { type: "string" },
+      revision: { type: "integer" },
+      input: { type: "object" },
+      humanMessageId: { type: "string" },
+      occurrenceId: { type: "string" },
+    },
+  },
+};
 // The provider sees compact hints; the server validates the unchanged full contracts below.
 function compactTool<T extends { name: string; description: string; inputSchema: object }>(
   tool: T,
@@ -237,22 +336,10 @@ function compactTool<T extends { name: string; description: string; inputSchema:
               .map(([key, item]) => [key, compact(item)]),
           )
         : value;
-  const inputSchema = (
-    tool.name === "company_work"
-      ? {
-          type: "object",
-          properties: {
-            action: { type: "string" },
-            key: { type: "string" },
-            request: { type: "object" },
-          },
-        }
-      : tool.name === "chat_wake"
-        ? { type: "object", properties: { action: { type: "string" } } }
-        : compact(tool.inputSchema)
-  ) as { properties?: Record<string, unknown> };
-  if (tool.name === "chat_wake" && inputSchema.properties)
-    inputSchema.properties.input = { type: "object" };
+  const preset = compactSchemas[tool.name];
+  const inputSchema = (preset ? structuredClone(preset) : compact(tool.inputSchema)) as {
+    properties?: Record<string, unknown>;
+  };
   for (const field of artifactOmittedFields[tool.name] ?? [])
     delete inputSchema.properties?.[field];
   return {

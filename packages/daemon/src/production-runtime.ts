@@ -129,7 +129,16 @@ export function productionRuntime(
                 context.store
                   .snapshot(["initiativeRecord"])
                   .initiativeRecord?.some(
-                    (r) => r.managerThreadId === thread?.id && r.state === "active",
+                    (r) =>
+                      r.managerThreadId === thread?.id &&
+                      !["completed", "cancelled"].includes(String(r.state)),
+                  ) ||
+                context.store
+                  .snapshot(["task"])
+                  .task?.some(
+                    (r) =>
+                      r.accountableThreadId === thread?.id &&
+                      !["completed", "cancelled"].includes(String(r.state)),
                   )
                   ? artifact
                     ? browser
@@ -198,7 +207,10 @@ export function productionRuntime(
         async contributions(input, remainingTokens) {
           const selected = skills.select(input);
           const reserve = selected.reduce((total, skill) => total + skill.wrapperTokens, 0);
-          if (reserve > remainingTokens) throw new Error("context_budget_hold");
+          if (reserve > remainingTokens)
+            throw new Error(
+              `context_budget_hold: Selected skills (${selected.map((skill) => skill.id).join(", ")}) require ${reserve} tokens; ${remainingTokens} remaining.`,
+            );
           const selectedTask = input.thread.taskId
             ? context.store.record("task", input.thread.taskId)
             : undefined;

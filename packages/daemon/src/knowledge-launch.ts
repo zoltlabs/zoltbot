@@ -53,7 +53,14 @@ export function knowledgeLaunch(store: Store, input: LaunchInput, remainingToken
       : "";
     return { packId: existing.id, text, tokens: existing.tokenEstimate, pack: existing };
   }
-  const state = store.snapshot(["project", "subproject", "knowledge", "task", "settings"]);
+  const state = store.snapshot([
+    "project",
+    "subproject",
+    "knowledge",
+    "task",
+    "initiativeRecord",
+    "settings",
+  ]);
   const scope = parse(ScopeSchema, { type: "task", id: input.thread.taskId });
   const task = state.task?.find((row) => row.id === input.thread.taskId);
   if (!task || task.projectId !== input.thread.projectId)
@@ -62,25 +69,46 @@ export function knowledgeLaunch(store: Store, input: LaunchInput, remainingToken
     (row) => row.key === `knowledge.exclusions.${String(task.id)}`,
   )?.value as { ids?: string[] } | undefined;
   const selected = (task.routineInputs as { knowledge?: string[] } | undefined)?.knowledge;
-  const excludedIds = [
+  const explicitExclusions = new Set([
     ...(exclusion?.ids ?? []),
+    ...((task.excludedKnowledgeIds as string[] | undefined) ?? []).filter(Boolean),
+  ]);
+  const eligible = eligibleKnowledge(state, scope);
+  const eligibleIds = new Set(eligible.map((row) => row.id));
+  const excludedIds = [
+    ...explicitExclusions,
     ...(Array.isArray(selected)
-      ? eligibleKnowledge(state, scope)
-          .filter((row) => !selected.includes(row.id))
-          .map((row) => row.id)
+      ? eligible.filter((row) => !selected.includes(row.id)).map((row) => row.id)
       : []),
   ];
   const project = state.project?.find((p) => p.id === task.projectId);
+  const initiative = task.initiativeId
+    ? state.initiativeRecord?.find((r) => r.id === task.initiativeId)
+    : undefined;
+  const initiativeKnowledgeIds = ((initiative?.knowledgeIds as string[] | undefined) ?? []).filter(
+    (id) =>
+      eligibleIds.has(id) && state.knowledge?.some((k) => k.id === id && k.status === "active"),
+  );
   const context = state.knowledge?.find(
     (k) => k.id === project?.artifactDesignContextId && k.status === "active",
   );
   const contextScope = context?.scope as { type?: string; id?: string } | undefined;
-  const requiredIds =
+  const designRequiredIds =
     ["page", "design"].includes(String(task.outputMode)) &&
     contextScope?.type === "project" &&
     contextScope.id === task.projectId
       ? [String(context?.id)]
       : [];
+  const selectedOptionalIds = Array.isArray(selected)
+    ? selected.filter(
+        (id) =>
+          eligibleIds.has(id) &&
+          !explicitExclusions.has(id) &&
+          state.knowledge?.some((k) => k.id === id && k.status === "active"),
+      )
+    : [];
+  const protectedRequiredIds = [...new Set([...designRequiredIds, ...initiativeKnowledgeIds])];
+  const requiredIds = [...new Set([...protectedRequiredIds, ...selectedOptionalIds])];
   return assemble(store, state, {
     scope,
     projectId: String(task.projectId),
@@ -88,6 +116,7 @@ export function knowledgeLaunch(store: Store, input: LaunchInput, remainingToken
     remainingTokens,
     excludedIds,
     requiredIds,
+    protectedRequiredIds,
     taskId: String(task.id),
     revision: Number(task.revision),
   });
@@ -126,6 +155,7 @@ function assemble(
     remainingTokens: number;
     excludedIds: string[];
     requiredIds: string[];
+    protectedRequiredIds?: string[];
     revision: number;
     taskId?: string;
     threadId?: string;
@@ -165,10 +195,23 @@ function assemble(
     },
     knowledgeMatches(store, state, scope, query),
   );
-  if (candidate.held)
+  if (candidate.held) {
+    const protectedSet = new Set(input.protectedRequiredIds ?? []);
+    const allOverflow = [...new Set([...candidate.pinnedOverflow, ...candidate.requiredOverflow])];
+    const protectedOverflow = allOverflow.filter((id) => {
+      if (candidate.pinnedOverflow.includes(id) || protectedSet.has(id)) return true;
+      const item = state.knowledge?.find((k) => k.id === id);
+      return item?.pinned === true || item?.kind === "constraint";
+    });
+    const optionalOverflow = allOverflow.filter((id) => !protectedOverflow.includes(id));
+    if (protectedOverflow.length)
+      throw new Error(
+        `context_budget_hold: Required knowledge (${protectedOverflow.slice(0, 5).join(", ")}) exceeds remaining budget (${remainingTokens} tokens). Ask the human before editing or excluding required knowledge, or cancel.`,
+      );
     throw new Error(
-      "context_budget_hold: Required knowledge does not fit. Edit knowledge, exclude for this execution, or cancel.",
+      `context_budget_hold: Optional knowledge (${optionalOverflow.slice(0, 5).join(", ")}) exceeds remaining budget (${remainingTokens} tokens). Recover with excludeOptionalKnowledgeIds or cancel.`,
     );
+  }
   return {
     packId: candidate.pack.id,
     text: candidate.text,

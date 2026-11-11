@@ -160,16 +160,14 @@ export function taskRunner(options: TaskRunnerOptions) {
     try {
       await options.wake(started.threadId);
     } catch (error) {
-      // Only a bare error code reaches the task, never a message that could hold a path.
-      const code = (error instanceof Error ? error.message : "").split(":")[0] ?? "";
+      // Only a bare error code or sanitized budget breakdown reaches the task, never a path.
+      const raw = error instanceof Error ? error.message : "";
+      const code = raw.split(":")[0] ?? "";
       const reason = /^[a-z][a-z0-9_]{0,63}$/.test(code) ? code : "runtime_open_failed";
       // A shutdown during open leaves the task running, so the next boot parks and resumes it.
       if (closed || reason === "runtime_closed") return;
       if (store.record("task", started.id)?.state === "queued") {
-        const hold =
-          reason === "context_budget_hold"
-            ? "context_budget_hold: Edit knowledge, exclude for this execution, or cancel."
-            : `Session inputs unavailable: ${reason}`;
+        const hold = formatPreflightHold(reason, raw);
         run(`task:launch-held:${started.id}:${Date.now()}`, system, (state, context) =>
           holdTask(state, started.id, hold, context),
         );
@@ -255,12 +253,9 @@ export function taskRunner(options: TaskRunnerOptions) {
         try {
           await options.preflight(next.threadId);
         } catch (error) {
-          const code = (error instanceof Error ? error.message : "").split(":")[0];
-          const hold =
-            code === "context_budget_hold"
-              ? "context_budget_hold: Edit knowledge, exclude for this execution, or cancel."
-              : (browserHoldReasons[code ?? ""] ??
-                "Session inputs could not be prepared. Check profile connections and try again.");
+          const raw = error instanceof Error ? error.message : "";
+          const code = raw.split(":")[0] ?? "";
+          const hold = formatPreflightHold(code, raw, true);
           if (next.holdReason !== hold)
             run(`task:preflight:${next.id}:${hash(hold)}:${Date.now()}`, system, (s, context) =>
               holdTask(s, next.id, hold, context),
@@ -538,6 +533,20 @@ export function taskRunner(options: TaskRunnerOptions) {
       clearInterval(routineTimer);
     },
   };
+}
+function formatPreflightHold(code: string, raw: string, preflight = false) {
+  if (code === "context_budget_hold") {
+    if (/^context_budget_hold: [A-Za-z0-9_., ();:-]{1,220}$/.test(raw)) return raw;
+    return "context_budget_hold: Edit knowledge, exclude for this execution, or cancel.";
+  }
+  if (code === "injection_fixed_budget_exceeded")
+    return "injection_fixed_budget_exceeded: Profile, workspace, and tool instructions exceed the 1500-token fixed budget.";
+  if (preflight)
+    return (
+      browserHoldReasons[code] ??
+      "Session inputs could not be prepared. Check profile connections and try again."
+    );
+  return `Session inputs unavailable: ${code}`;
 }
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 16);

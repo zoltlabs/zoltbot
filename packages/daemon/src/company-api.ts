@@ -17,8 +17,9 @@ import {
   workspaceAuthority,
   writeProjectBrief,
 } from "@zoltbot/core";
-import { type CompanyPlan, companyMethods, parse } from "@zoltbot/protocol";
+import { type CompanyPlan, companyMethods, parse, TaskSchema } from "@zoltbot/protocol";
 import type { RuntimeContext } from "./api.js";
+import { taskLaunchReadiness } from "./launch-readiness.js";
 
 const taskScopedMethods = new Set([
   "company.assign",
@@ -66,7 +67,18 @@ export function companyApi(context: RuntimeContext) {
       if (!taskScopedMethods.has(method)) companyAccess(state, actor, projectId);
     }
     if (method === "company.read") {
-      const view = companyView(state, params.projectId as string | undefined);
+      const rawView = companyView(state, params.projectId as string | undefined);
+      const view = {
+        ...rawView,
+        tasks: rawView.tasks.map((row) =>
+          row.state === "queued" || row.state === "blocked"
+            ? {
+                ...row,
+                launchReadiness: taskLaunchReadiness(context.store, state, parse(TaskSchema, row)),
+              }
+            : row,
+        ),
+      };
       if (!actor) return view;
       const authority = workspaceAuthority(state, actor);
       if (

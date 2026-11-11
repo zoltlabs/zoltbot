@@ -251,6 +251,7 @@ export class NativeRuntimeHost implements RuntimeHost {
     let fixedInjectedTokens =
       estimated +
       (baseTools ? this.options.estimate(JSON.stringify(baseTools)) : this.options.toolTokens);
+    if (fixedInjectedTokens > 1500) throw new Error("injection_fixed_budget_exceeded");
     const availableConnections = legacyResume
       ? []
       : (saved?.launchManifest?.connections ??
@@ -291,6 +292,17 @@ export class NativeRuntimeHost implements RuntimeHost {
             this.options.estimate(JSON.stringify(baseTools))
           : (this.options.browserToolTokens ?? 0)
         : 0);
+    if (fixedInjectedTokens + browserTokens > 1500)
+      throw new Error("injection_fixed_budget_exceeded");
+    const skillTokens = (contributions?.skills ?? []).reduce((n, s) => n + s.wrapperTokens, 0);
+    if (
+      !saved?.launchManifest &&
+      !legacyResume &&
+      fixedInjectedTokens + browserTokens + connectionTokens + skillTokens > 1500
+    )
+      throw new Error(
+        `context_budget_hold: Fixed context (${fixedInjectedTokens + browserTokens}), connections (${connectionTokens}), and skills (${skillTokens}) exceed 1500 tokens.`,
+      );
     const selectedHostTools = hostTools(!!browser);
     const launchManifest =
       saved?.launchManifest ??
