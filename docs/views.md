@@ -576,7 +576,7 @@ The host sends a `visibility` event when the view's page is shown or hidden. A h
 </script>
 ```
 
-It does the handshake, turns calls into promises, applies theme tokens, forwards app shortcuts, and exposes `zolt.granted`.
+It does the handshake, turns calls into promises, applies theme tokens, forwards app shortcuts, and exposes `zolt.granted`. `zolt.on(name, callback)` listens for `theme`, `grants`, `shortcut` and `visibility` events and returns an unsubscribe function.
 
 Mock mode makes a view usable in an ordinary browser, with no app:
 
