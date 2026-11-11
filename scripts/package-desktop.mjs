@@ -26,6 +26,8 @@ import { bundleRuntime } from "./bundle-runtime.mjs";
 // ZOLTBOT_RELAY_URL optionally names the phone relay (official builds: wss://relay.zoltbot.ai).
 
 if (process.platform !== "darwin") throw new Error("package_requires_macos");
+if (Number(process.versions.node.split(".")[0]) !== 24)
+  throw new Error("Desktop packaging requires Node 24 so the bundled runtime matches the app.");
 const root = process.cwd();
 const unsigned = process.argv.includes("--unsigned");
 const arch = process.argv.includes("--arm64") ? Arch.arm64 : Arch.universal;
