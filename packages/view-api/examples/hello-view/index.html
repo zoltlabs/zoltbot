@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chat list</title>
+<style>
+body { background: var(--zb-bg-page); color: var(--zb-text); font-family: var(--zb-font-sans); font-size: calc(var(--zb-text-md) * var(--zb-font-scale, 1)); line-height: var(--zb-leading-md); margin: var(--zb-space-4); }
+button { color: var(--zb-text); background: var(--zb-bg-raised); border: 1px solid var(--zb-border-control); border-radius: var(--zb-radius-sm); padding: var(--zb-space-2); font: inherit; }
+button:focus-visible { outline: var(--zb-space-0-5) solid var(--zb-text); outline-offset: var(--zb-space-0-5); }
+li { margin-block: var(--zb-space-3); overflow-wrap: anywhere; }
+</style></head>
+<body><main><h1>Chats</h1><p id="sample" hidden>Sample data</p><p id="empty">Loading chats…</p><ul id="chats"></ul><p id="error" role="alert"></p></main>
+<script src="/_host/v1/zolt.js"></script>
+<script>
+const error = (value) => { document.querySelector("#error").textContent = value.message; };
+zolt.ready.then(({ mock }) => {
+  document.querySelector("#sample").hidden = !mock;
+  zolt.subscribe(["chats"], (_topic, chats) => {
+    const list = document.querySelector("#chats"); list.replaceChildren();
+    document.querySelector("#empty").textContent = chats.length ? "" : "No chats yet.";
+    for (const chat of chats) {
+      const item = document.createElement("li"), button = document.createElement("button");
+      button.type = "button"; button.textContent = `Open ${chat.title}`;
+      button.onclick = () => zolt.app.open({ chatId: chat.id }).catch(error);
+      item.append(button, document.createTextNode(` · ${chat.status.replaceAll("_", " ")}`)); list.append(item);
+    }
+  });
+}).catch(error);
+</script></body></html>

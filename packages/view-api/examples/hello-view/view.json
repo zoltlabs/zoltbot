@@ -1,0 +1,11 @@
+{
+  "manifest": 1,
+  "id": "hello-view",
+  "name": "Chat list",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "index.html",
+  "slots": ["page"],
+  "permissions": ["read"],
+  "license": "Apache-2.0"
+}

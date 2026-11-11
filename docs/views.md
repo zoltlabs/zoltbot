@@ -592,7 +592,7 @@ Mock mode makes a view usable in an ordinary browser, with no app:
 
 * When the page is not inside Zoltbot (no `connect` message within 300 ms and the page is the top window), the library loads sample data and runs a small simulation: chats change status, a request appears, spending rises. Calls succeed and change the sample data.
 * `ready.mock` is `true`, so a view can show a "Sample data" label.
-* The simulation and sample data live in `packages/view-api/mock/` and are copied next to a view by `pnpm view:dev <folder>`, which also serves the folder on loopback for editing.
+* The simulation and sample data live in `packages/view-api/mock/`. `pnpm view:dev <folder>` serves them, the client and theme tokens virtually under `_host/v1/` while serving the checked view folder on loopback. It does not copy host files into the view: `_host/` is reserved and would make that folder invalid.
 
 The simulation in the command map prototype (`docs/prototypes/command-map.html`) is the starting point for the mock.
 

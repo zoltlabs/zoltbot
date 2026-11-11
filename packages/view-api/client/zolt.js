@@ -7,9 +7,11 @@
     subscriptions = new Set(),
     events = new Map(),
     data = new Map();
-  let resolveReady;
-  const ready = new Promise((resolve) => {
+  const clientUrl = document.currentScript?.src;
+  let resolveReady, rejectReady;
+  const ready = new Promise((resolve, reject) => {
     resolveReady = resolve;
+    rejectReady = reject;
   });
   function theme(value) {
     if (!value || !value.tokens) return;
@@ -62,6 +64,7 @@
       event.ports.length !== 1
     )
       return;
+    clearTimeout(mockTimer);
     port = event.ports[0];
     port.onmessage = (message) => receive(message.data);
     port.start();
@@ -135,6 +138,7 @@
     true,
   );
   window.addEventListener("pagehide", () => {
+    clearTimeout(mockTimer);
     for (const entry of pending.values()) {
       clearTimeout(entry.timer);
       entry.reject(Object.assign(new Error("View closed."), { code: "unavailable" }));
@@ -165,4 +169,25 @@
     }),
     requests: Object.freeze({ answer: (input) => call("requests.answer", input) }),
   });
+  const mockTimer = setTimeout(() => {
+    if (port || window.top !== window || !clientUrl) return;
+    const script = document.createElement("script");
+    script.src = new URL("mock.js", clientUrl).href;
+    script.onload = () => {
+      if (port) return;
+      port = window.createZoltViewMock(receive, clientUrl, () =>
+        rejectReady(
+          Object.assign(new Error("Mock theme could not load."), { code: "unavailable" }),
+        ),
+      );
+      send({ t: "hello", api: 1 });
+    };
+    script.onerror = () =>
+      rejectReady(
+        Object.assign(new Error("Mock mode could not start. Run pnpm view:dev for this folder."), {
+          code: "unavailable",
+        }),
+      );
+    document.head.append(script);
+  }, 300);
 })();
