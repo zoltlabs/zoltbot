@@ -9,6 +9,7 @@ import fixture from "../../packages/view-api/src/fixtures/snapshot.json" with { 
 let origin = "",
   close: () => Promise<void>,
   revoke: () => void;
+let seq = 1;
 const sockets = new Set<WebSocketRoute>();
 let record: ReturnType<typeof viewRecord>,
   snapshot: { entities: Record<string, Record<string, unknown>[]> };
@@ -16,6 +17,7 @@ test.beforeAll(async () => {
   const root = process.cwd(),
     bundle = await loadView(path.join(root, "packages/views/command-map"));
   record = viewRecord(bundle, bundle, ["read"]);
+  record.reviewed = [...record.requested];
   snapshot = structuredClone(fixture) as { entities: Record<string, Record<string, unknown>[]> };
   snapshot.entities.view = [record];
   const now = new Date().toISOString();
@@ -131,8 +133,8 @@ test.beforeAll(async () => {
           jsonrpc: "2.0",
           method: "event",
           params: {
-            seq: 2,
-            eventId: "revoke",
+            seq: ++seq,
+            eventId: `view-change-${seq}`,
             aggregateType: "view",
             aggregateId: record.id,
             type: "view.updated",
@@ -165,11 +167,30 @@ test("renders real mappings, edge alerts and chat navigation without network acc
     socket.onClose(() => sockets.delete(socket));
     socket.onMessage((bytes) => {
       const message = JSON.parse(bytes.toString());
+      if (message.method === "view.setGrants") {
+        record.granted = message.params.permissions;
+        record.reviewed = [...record.requested];
+        socket.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            method: "event",
+            params: {
+              seq: ++seq,
+              eventId: `grant-${seq}`,
+              aggregateType: "view",
+              aggregateId: record.id,
+              type: "view.updated",
+              occurredAt: new Date().toISOString(),
+              payload: record,
+            },
+          }),
+        );
+      }
       const result =
         message.method === "snapshot.get"
-          ? { seq: 1, entities: snapshot.entities, counters: {} }
+          ? { seq, entities: snapshot.entities, counters: {} }
           : message.method === "events.subscribe"
-            ? { seq: 1, resync: false, events: [] }
+            ? { seq, resync: false, events: [] }
             : message.method === "view.reload"
               ? [record]
               : message.method.endsWith(".list") || message.method.endsWith(".history")
@@ -197,7 +218,22 @@ test("renders real mappings, edge alerts and chat navigation without network acc
     },
     { origin },
   );
+  record.granted = [];
+  record.reviewed = [];
   await page.goto(`${origin}/#view/command-map`);
+  const dialog = page.getByRole("dialog", { name: "Permissions for Command map" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("checkbox").nth(0)).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("checkbox").nth(1)).toBeFocused();
+  await expect(dialog.getByRole("checkbox")).toHaveCount(3);
+  await expect(dialog.getByRole("checkbox").nth(0)).toBeChecked();
+  await expect(dialog.getByRole("checkbox").nth(1)).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox").nth(2)).not.toBeChecked();
+  await dialog.getByRole("button", { name: "Save permissions" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  expect(record.granted).toEqual(["read"]);
   const frame = page.frameLocator('iframe[title="Command map"]');
   await expect(frame.getByText("Needs input — Needs you", { exact: true })).toBeVisible();
   await expect(frame.getByText("Review — Done", { exact: true })).toBeVisible();

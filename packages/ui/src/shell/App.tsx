@@ -197,6 +197,7 @@ export function App() {
         "Rules",
         "Doctor",
         "Connections",
+        "ViewsSettings",
         "Setup",
         "Chief",
         ...(import.meta.env.DEV ? ["Components"] : []),
@@ -443,7 +444,9 @@ export function App() {
               size="sm"
               label="Settings"
               className={
-                ["Settings", "Doctor", "Connections", "Rules"].includes(route) ? "on" : undefined
+                ["Settings", "Doctor", "Connections", "Rules", "ViewsSettings"].includes(route)
+                  ? "on"
+                  : undefined
               }
               onClick={() => {
                 navigate("Settings");
@@ -591,16 +594,18 @@ export function App() {
                   onDoctor={() => navigate("Doctor")}
                 />
               </Suspense>
-            ) : ["Settings", "Doctor", "Connections", "Rules"].includes(route) ? (
+            ) : ["Settings", "Doctor", "Connections", "Rules", "ViewsSettings"].includes(route) ? (
               <SettingsPage
                 tab={
-                  route === "Doctor"
-                    ? "agents"
-                    : route === "Connections"
-                      ? "connections"
-                      : route === "Rules"
-                        ? "rules"
-                        : "general"
+                  route === "ViewsSettings"
+                    ? "views"
+                    : route === "Doctor"
+                      ? "agents"
+                      : route === "Connections"
+                        ? "connections"
+                        : route === "Rules"
+                          ? "rules"
+                          : "general"
                 }
                 connection={connection}
                 settings={entities.settings ?? emptyRows}

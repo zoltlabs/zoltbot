@@ -5,6 +5,7 @@ import type { ChatConnection } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
 import { ViewBridge, ViewCallError } from "./bridge.js";
+import { GrantDialog } from "./GrantDialog.js";
 import { viewKey } from "./keys.js";
 import { viewTheme } from "./theme.js";
 import "./views.css";
@@ -29,6 +30,13 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
   const latestData = useRef(data);
   latestData.current = data;
   const granted = record.granted.includes("read");
+  const [dismissed, setDismissed] = useState("");
+  const requestedKey = record.requested.join(",");
+  const missing = record.requested.filter(
+    (permission) =>
+      !record.granted.includes(permission) && !(record.reviewed ?? []).includes(permission),
+  );
+  if (!granted && !missing.includes("read")) missing.unshift("read");
   useEffect(() => {
     document.title = `${record.name} · Zoltbot`;
     heading.current?.focus();
@@ -140,6 +148,16 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
   }
   return (
     <section className="view-page" aria-label={record.name}>
+      <GrantDialog
+        record={record}
+        connection={connection}
+        offered={missing}
+        fresh
+        open={
+          record.enabled && !!record.bundleHash && missing.length > 0 && dismissed !== requestedKey
+        }
+        onClose={() => setDismissed(requestedKey)}
+      />
       <header className="view-header">
         <h1 ref={heading} tabIndex={-1}>
           {record.name}
@@ -154,7 +172,7 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
         >
           Reload
         </Button>
-        <Button onClick={() => useShell.getState().navigate("Settings")}>Settings</Button>
+        <Button onClick={() => useShell.getState().navigate("ViewsSettings")}>Settings</Button>
       </header>
       {record.error ? (
         <p role="alert">
@@ -172,7 +190,9 @@ function ViewFrame({ record, connection }: { record: ViewRecord; connection: Cha
         <div role="alert">
           <p>{error}</p>
           <Button onClick={() => setAttempt((n) => n + 1)}>Reload</Button>
-          <Button onClick={() => useShell.getState().navigate("Settings")}>Open settings</Button>
+          <Button onClick={() => useShell.getState().navigate("ViewsSettings")}>
+            Open settings
+          </Button>
         </div>
       ) : url ? (
         <iframe

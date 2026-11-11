@@ -12,6 +12,7 @@ export const routeLabels: Partial<Record<Route, string>> = {
   Doctor: "Settings",
   Connections: "Settings",
   Rules: "Settings",
+  ViewsSettings: "Settings",
 };
 export type Route =
   | (typeof routes)[number]
@@ -26,7 +27,8 @@ export type Route =
   | "QuickChat"
   | "Chief"
   | "Compare"
-  | "View";
+  | "View"
+  | "ViewsSettings";
 export type Theme = "light" | "dark" | "system";
 function storedTheme(): Theme {
   try {

@@ -1,6 +1,6 @@
 # Views: custom interfaces for Zoltbot
 
-Status: implementation in progress. Phase 1 is under verification; phases 2 and 3 remain planned. This document is the specification to implement from.
+Status: implementation in progress. Phase 1 passed its automated checks and headless verification. Phase 2 is underway; phase 3 remains planned. This document is the specification to implement from.
 
 A view is a small web page that Zoltbot shows inside the desktop app and feeds with live data about your chats. People can change a built-in view, write their own, or ask an agent to write one. Their changes are files on disk outside the app, so installing a new version of Zoltbot keeps them.
 
@@ -196,6 +196,7 @@ interface ViewRecord {
   icon?: string;
   requested: Permission[];          // from the manifest
   granted: Permission[];            // from the database
+  reviewed?: Permission[];          // permissions previously shown, including declined ones
   overridesBuiltin: boolean;
   basedOn?: { id: string; version: string; bundleHash: string };
   builtinUpdate?: { version: string; bundleHash: string }; // set when the built-in moved on
@@ -529,7 +530,7 @@ Architecture invariant I13 says an action that widens a permission needs explici
 
 * The owner can grant `read` alone. A view must work with fewer permissions than it asked for: the client library exposes `zolt.granted`, and calls it lacks fail with `not_granted`.
 * Built-in views go through the same dialog. A built-in is not trusted more than a user view.
-* Grants are stored per view id in the database (new migration, table `view_grants(view_id, permission, granted_at)`).
+* Grants are stored per view id in the database (new migration, table `view_grants(view_id, permission, granted_at)`). `view_reviews(view_id, requested)` remembers which permissions the owner already reviewed, so declining a requested permission does not cause another prompt on every open. Neither table is writable through the bridge.
 * If a later version of the manifest asks for a permission the owner has not granted, the host asks again for that permission only.
 * Editing a user view's files does not clear its grants. The owner controls that folder, and asking again after every edit would make editing unusable. The settings page shows when the files last changed.
 * `view.import` always starts with no grants, even when a previously deleted view had the same id.

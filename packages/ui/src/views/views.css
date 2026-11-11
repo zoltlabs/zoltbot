@@ -37,3 +37,9 @@
   height: var(--zb-icon-md);
   object-fit: contain;
 }
+.view-permission {
+  display: flex;
+  align-items: start;
+  gap: var(--zb-space-2);
+  margin-block: var(--zb-space-3);
+}

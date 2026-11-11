@@ -15,10 +15,12 @@ import { BrowserSettings } from "../tasks/Browser.js";
 import { RoutineConnectionReturn } from "../tasks/RoutineConnectionReturn.js";
 import type { useConnection } from "../use-connection.js";
 
+const ViewsSettings = lazy(() => import("../views/ViewsSettings.js"));
 const Doctor = lazy(() => import("../setup/Doctor.js"));
 const Rules = lazy(() => import("../rules/Rules.js"));
 // Each section keeps its own route, so old links (#doctor, #rules) land on the right tab.
 const tabs = [
+  { id: "views", label: "Views", route: "ViewsSettings" },
   { id: "general", label: "General", route: "Settings" },
   { id: "agents", label: "Coding agents", route: "Doctor" },
   { id: "connections", label: "Connections", route: "Connections" },
@@ -65,7 +67,11 @@ export function SettingsPage({
           ))}
         </nav>
       </header>
-      {tab === "agents" ? (
+      {tab === "views" ? (
+        <Suspense fallback={<p>Loading views…</p>}>
+          <ViewsSettings connection={connection} />
+        </Suspense>
+      ) : tab === "agents" ? (
         <>
           <Suspense fallback={<p>Loading coding agents…</p>}>
             <Doctor connection={connection} onSetup={() => navigate("Setup")} />

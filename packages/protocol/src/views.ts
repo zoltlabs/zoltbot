@@ -15,6 +15,7 @@ export const ViewRecordSchema = object({
   icon: OptionalText,
   requested: Type.Array(ViewPermissionSchema),
   granted: Type.Array(ViewPermissionSchema),
+  reviewed: Type.Optional(Type.Array(ViewPermissionSchema)),
   overridesBuiltin: Type.Boolean(),
   enabled: Type.Boolean(),
   basedOn: Type.Optional(object({ id: Id, version: Type.String(), bundleHash: Type.String() })),
@@ -27,6 +28,14 @@ export const ViewRecordSchema = object({
 });
 export type ViewRecord = Static<typeof ViewRecordSchema>;
 export const viewMethods = {
+  "view.setGrants": {
+    params: object({
+      id: Id,
+      permissions: Type.Array(ViewPermissionSchema, { maxItems: 3, uniqueItems: true }),
+      confirmed: Type.Literal(true),
+    }),
+    result: ViewRecordSchema,
+  },
   "view.reload": { params: object({}), result: Type.Array(ViewRecordSchema) },
   "view.setEnabled": {
     params: object({ id: Id, enabled: Type.Boolean() }),

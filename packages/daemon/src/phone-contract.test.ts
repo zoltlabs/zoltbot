@@ -129,6 +129,14 @@ describe("phone contract", () => {
     await phone.call("settings.set", { key: "ui.sample", value: 1 }, "phone-once");
     expect(daemon.store.lastSeq()).toBe(after);
     await expect(phone.call("diagnostics.export")).rejects.toThrow(/mac_only/);
+    await expect(
+      phone.call(
+        "view.setGrants",
+        { id: "command-map", permissions: ["read"], confirmed: true },
+        "phone-view-grant",
+      ),
+    ).rejects.toThrow(/mac_only/);
+    expect(daemon.store.database.prepare("SELECT * FROM view_grants").all()).toEqual([]);
   });
 
   it("lets a phone fork a chat and change its model and effort (Release 2)", async () => {

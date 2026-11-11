@@ -8,6 +8,7 @@ import type { Store } from "@zoltbot/store";
 import type { RuntimeContext } from "../api-types.js";
 import { safeFile } from "../artifacts/intake.js";
 import type { PublicWriteCheck } from "../private-input.js";
+import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
 
 export class ViewRegistry {
@@ -30,7 +31,15 @@ export class ViewRegistry {
       records: ViewRecord[] = [];
     for (const [id, bundle] of loaded.bundles) {
       const before = this.store.record("view", id);
-      const next = viewRecord(bundle, loaded.builtins.get(id), [], before?.enabled !== false);
+      const next = viewRecord(
+        bundle,
+        loaded.builtins.get(id),
+        viewGrants(this.store, id).filter((permission) =>
+          bundle.manifest.permissions.includes(permission),
+        ),
+        before?.enabled !== false,
+      );
+      next.reviewed = reviewedGrants(this.store, id);
       const error = loaded.errors.find((entry) => entry.id === id && entry.source === "user");
       if (error) next.error = { code: "view_invalid", message: error.code, path: error.path };
       records.push(next);
@@ -125,6 +134,10 @@ export class ViewRegistry {
   }
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
     if (method === "view.reload") return this.reload();
+    if (method === "view.setGrants") {
+      if (!commandId) throw Error("command_id_required");
+      return setViewGrants(this, params, commandId);
+    }
     if (method !== "view.setEnabled") return undefined;
     if (!commandId) throw Error("command_id_required");
     const old = this.store.record("view", String(params.id));
