@@ -12,7 +12,7 @@ The website publishes released entries only; Unreleased stays in this repository
 November 10, 2026
 
 - New: Propose organization plans, assign initiative owners and delegate tasks within approved limits. Review responsibilities, blockers and project reports from the workspace.
-- New: Wake a chat when another chat finishes or a condition changes, with persistent subscriptions and controls on Mac and iPhone.
+- New: Wake a chat when another chat turn finishes, a GitHub Actions run completes or a pull request merges. Manage waits on Mac and iPhone while your Mac is awake.
 - New: Find recent chat results and compare saved artifact versions side by side.
 - New: On iPhone, review chat results and artifact versions, preview files and manage chat wake-ups through your paired Mac.
 - Improvement: Import a repository without importing sessions, and select multiple sessions for bulk actions.
