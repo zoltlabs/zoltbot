@@ -376,7 +376,7 @@ Data delivery is simple on purpose: when a topic changes, the host sends that to
 
 ## View API version 1
 
-Ship the types in a new public package, `packages/view-api`, with generated JSON Schema.
+Ship the types in a new public package, `packages/view-api`, with generated JSON Schema. Run `pnpm view:schema` to regenerate its manifest, topic, call and bridge schemas. Request context omits `cwd` and `paths` to honor the version 1 decision below. The bridge also uses `ping` and `pong` messages with a numeric `id` for liveness checks; the fixed key list includes `escape-exit` for the double-Escape exit.
 
 ### Permissions
 
@@ -422,7 +422,7 @@ interface Request {
   urgency: "blocking" | "background";
   createdAt: string;
   /** What the owner needs to decide. Present for approvals. */
-  context?: { markdown?: string; tool?: string; command?: string; cwd?: string; paths?: string[] };
+  context?: { markdown?: string; tool?: string; command?: string };
   /** Ways to answer. A view shows these; it does not invent its own. */
   choices: { id: string; label: string; widens: boolean }[];
   /** Present for questions and forms. */
@@ -437,7 +437,7 @@ interface Workspace {
 
 interface Usage {
   today: { costUsd: number; costKnown: boolean; inputTokens: number; outputTokens: number };
-  budget?: { limitUsd: number; period: "day" | "month" };
+  budget?: { limitUsd: number; period: "day" };
   activeChats: number;
 }
 
@@ -486,7 +486,7 @@ Write this as pure functions in `packages/view-api/src/model.ts`, taking the ren
 | `Chat.status` | `threadMailbox` in `packages/protocol/src/inbox.ts`; `undefined` becomes `"idle"` |
 | `Chat.problem` | the session's `RuntimeStatus` (`packages/protocol/src/entities.ts`) |
 | `Chat.lastTurn` | newest `turn` for the thread |
-| `Chat.activity` | newest running `tool.started` title or `plan` step, else absent. The host derives it in version 1. |
+| `Chat.activity` | Newest running tool item's `body.title` or plan item's in-progress `body.entries` step in a running turn. The renderer snapshot holds projected items, not raw `tool.started` events. |
 | `Chat.profile`, `provider` | `agent` and `agentDefinition` entities |
 | `Chat.worktree` | `workspace` entity for the thread |
 | `Chat.usage` | `usage` records summed by thread |
@@ -494,7 +494,7 @@ Write this as pure functions in `packages/view-api/src/model.ts`, taking the ren
 | `Request.choices[].widens` | true for `allow_session`, `allow_accept_edits`, `allow_rule`, `reject_rule` |
 | `Workspace` | `project` entities |
 | `Usage.today` | `usage` records since local midnight |
-| `Usage.budget` | the owner-level budget stored by `budget.set`, when one is set; otherwise absent |
+| `Usage.budget` | `settings` key `budget.day.<UTC date>` with `value.usd`, as stored by `budget.set`. The existing budget engine supports daily owner budgets, not monthly ones; token-only budgets have no USD limit. Otherwise absent. |
 | `Check` | `checks[]` in the shipping snapshot (`packages/protocol/src/shipping.ts`) |
 | `chats.send` | `turn.send {threadId, input, mode: "queue"}` per chat |
 | `chats.interrupt` | `turn.interrupt {threadId, turnId}` for the running turn; `skipped` when none runs |

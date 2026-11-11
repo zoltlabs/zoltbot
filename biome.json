@@ -16,6 +16,7 @@
       "!fixtures",
       "!packages/artifact-kit/v1/chart-4.5.1.umd.js",
       "!packages/protocol/schema",
+      "!packages/view-api/schema",
       "!output",
       "!dist",
       "!**/dist",
