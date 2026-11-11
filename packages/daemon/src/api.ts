@@ -476,7 +476,7 @@ async function startOwnedDaemon(
   resources.push(() => artifactSync.close());
   const artifacts = artifactsApi(runtimeContext);
   views = createViewRegistry(runtimeContext, options.dataDir, { runtime, interaction });
-  await views.reload();
+  await views.start(resources, () => logger.write("warn", "view_watch_failed"));
   const native = nativeApi({ snapshot: () => store.snapshot(), seq: () => store.lastSeq() });
   const dispatch = (command: Command, commandId: string) => {
     const before = store.lastSeq();

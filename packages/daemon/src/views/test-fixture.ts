@@ -30,6 +30,7 @@ export async function viewFixture() {
     store,
     registry,
     async close() {
+      await registry.close();
       store.close();
       await rm(root, { recursive: true, force: true });
     },

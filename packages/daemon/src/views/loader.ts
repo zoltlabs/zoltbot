@@ -126,7 +126,8 @@ export async function loadViews(builtin: string, user: string) {
     [user, "user", users],
   ] as const) {
     const info = await lstat(directory).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") throw error;
+      if (error.code !== "ENOENT")
+        errors.push({ id: "views", source, code: "view_directory_denied", path: "views" });
       return undefined;
     });
     if (!info) continue;
@@ -139,7 +140,11 @@ export async function loadViews(builtin: string, user: string) {
       errors.push({ id: "views", source, code: "view_directory_denied", path: "views" });
       continue;
     }
-    for (const entry of await readdir(root, { withFileTypes: true })) {
+    const entries = await readdir(root, { withFileTypes: true }).catch(() => {
+      errors.push({ id: "views", source, code: "view_directory_denied", path: "views" });
+      return [];
+    });
+    for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       try {
         if (!entry.isDirectory() || entry.isSymbolicLink()) throw Error("view_symlink_denied");

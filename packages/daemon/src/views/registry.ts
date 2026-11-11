@@ -7,17 +7,23 @@ import { parse, parseEvent, ViewRecordSchema } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { RuntimeContext } from "../api-types.js";
 import { safeFile } from "../artifacts/intake.js";
+import type { Cleanup } from "../daemon-resources.js";
 import type { PublicWriteCheck } from "../private-input.js";
 import { callView, type ViewActions } from "./actions.js";
+import { userRoot } from "./files.js";
 import { reviewedGrants, setViewGrants, viewGrants } from "./grants.js";
 import { viewLifecycle } from "./lifecycle.js";
 import { loadViews, type ViewBundle, viewHash, viewRecord } from "./loader.js";
 import { viewStateApi } from "./state.js";
+import { watchViews } from "./watch.js";
 
 export class ViewRegistry {
   private bundles = new Map<string, ViewBundle>();
   private pending: Promise<unknown> = Promise.resolve();
   private builtins = new Map<string, ViewBundle>();
+  private stopWatch: (() => void) | undefined;
+  private closed = false;
+  private started = false;
   constructor(
     readonly store: Store,
     readonly builtin: string,
@@ -26,7 +32,28 @@ export class ViewRegistry {
     readonly checkPublic: (value: unknown) => Promise<PublicWriteCheck> = async () => () => {},
   ) {}
   actions?: ViewActions;
+  async start(resources: Cleanup[], failed: () => void = () => {}) {
+    if (this.closed) throw Error("view_registry_closed");
+    if (!this.started) {
+      this.started = true;
+      resources.push(() => this.close());
+      try {
+        await userRoot(this.user);
+        this.stopWatch = watchViews(this.user, () => this.reload(), failed);
+      } catch {
+        failed();
+      }
+    }
+    return this.reload();
+  }
+  async close() {
+    this.closed = true;
+    this.stopWatch?.();
+    this.stopWatch = undefined;
+    await this.pending.catch(() => {});
+  }
   run<T>(work: () => Promise<T>): Promise<T> {
+    if (this.closed) return Promise.reject(Error("view_registry_closed"));
     const next = this.pending.catch(() => {}).then(work);
     this.pending = next;
     return next;
@@ -147,6 +174,7 @@ export class ViewRegistry {
     return records;
   }
   async api(method: string, params: Record<string, unknown>, commandId?: string) {
+    if (this.closed) throw Error("view_registry_closed");
     if (method === "view.reload") return this.reload();
     if (method === "view.customize" || method === "view.resolveUpdate") {
       if (!commandId) throw Error("command_id_required");
