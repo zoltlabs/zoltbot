@@ -467,18 +467,23 @@ export function writeProjectBrief(
         .join("; ") || "none"
     }. ${view.decisions.length} open decisions.`
   ).slice(0, 4000);
-  const latest = dayBriefs.slice().sort((a, b) => Number(b.revision) - Number(a.revision))[0] as
-    | ProjectBrief
-    | undefined;
-  if (
-    latest &&
-    latest.summary === resolvedSummary &&
-    Boolean(latest.auto) === Boolean(options.auto)
-  )
-    return { events: [], result: { ...latest, deduplicated: true } };
-  const revision = dayBriefs.length + 1;
+  const manualBriefs = dayBriefs.filter((r) => !r.auto);
+  const latestManual = manualBriefs
+    .slice()
+    .sort((a, b) => Number(b.revision) - Number(a.revision))[0] as ProjectBrief | undefined;
+  const existingAuto = dayBriefs.find((r) => Boolean(r.auto)) as ProjectBrief | undefined;
+  if (options.auto) {
+    if (latestManual) return { events: [], result: { ...latestManual, deduplicated: true } };
+    if (existingAuto && existingAuto.summary === resolvedSummary)
+      return { events: [], result: { ...existingAuto, deduplicated: true } };
+  } else if (latestManual && latestManual.summary === resolvedSummary) {
+    return { events: [], result: { ...latestManual, deduplicated: true } };
+  }
+  const revision = options.auto ? Number(existingAuto?.revision ?? 1) : manualBriefs.length + 1;
   const value: ProjectBrief = {
-    id: `${projectId}:${day}:${revision}`,
+    id: options.auto
+      ? (existingAuto?.id ?? `${projectId}:${day}:auto`)
+      : `${projectId}:${day}:${revision}`,
     projectId,
     day,
     revision,
@@ -500,6 +505,7 @@ export function writeProjectBrief(
     },
     createdAt: context.at,
   };
+  if (options.auto && existingAuto) return companyRecord("projectBrief", value, context);
   return handle(state, { type: "create", kind: "projectBrief", value }, context);
 }
 

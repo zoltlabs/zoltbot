@@ -244,46 +244,64 @@ export function companyTools(context: RuntimeContext) {
               pageLimit !== undefined
                 ? v.slice(startOffset, startOffset + pageLimit)
                 : v.slice(startOffset);
-        while (JSON.stringify(view).length > 3300) {
+        const buildReadEnvelope = () => {
+          const hasMore = Object.entries(view).some(
+            ([k, v]) => Array.isArray(v) && startOffset + v.length < (counts[k] ?? 0),
+          );
+          return {
+            ...(readReq.projectId ? { projectId: readReq.projectId } : {}),
+            ...view,
+            counts,
+            ...(startOffset > 0 ? { offset: startOffset } : {}),
+            ...(hasMore ? { hasMore: true } : {}),
+            hint: "Select request section/id, offset and limit for omitted records.",
+          };
+        };
+        const minimizedKeys = new Set<string>();
+        while (JSON.stringify(buildReadEnvelope()).length > 3600) {
           const largest = Object.entries(view)
-            .filter(([, v]) => Array.isArray(v) && v.length > 0)
+            .filter(
+              ([k, v]) =>
+                Array.isArray(v) && v.length > 0 && !(v.length === 1 && minimizedKeys.has(k)),
+            )
             .sort((a, b) => JSON.stringify(b[1]).length - JSON.stringify(a[1]).length)[0];
           if (!largest) break;
-          const value = largest[1] as Record<string, unknown>[];
-          if (value.length === 1) {
-            const single = value[0] as Record<string, unknown>;
-            if (Array.isArray(single.changes) && single.changes.length > 3) {
-              view[largest[0]] = [
-                {
-                  ...single,
-                  changeCount: single.changes.length,
-                  changes: single.changes.slice(0, 3),
-                },
-              ];
-              if (JSON.stringify(view).length <= 3300) break;
-            }
-            view[largest[0]] = JSON.parse(
-              JSON.stringify(value, (_k, v) =>
-                typeof v === "string" && v.length > 140 ? `${v.slice(0, 140)}…` : v,
-              ),
-            );
-            if (JSON.stringify(view).length > 3300)
-              view[largest[0]] = [{ id: single.id, state: single.state, truncated: true }];
-            break;
+          const [key, rawArr] = largest;
+          const value = rawArr as Record<string, unknown>[];
+          if (value.length > 1) {
+            view[key] = value.slice(0, Math.floor(value.length / 2));
+            continue;
           }
-          view[largest[0]] = value.slice(0, Math.ceil(value.length / 2));
+          const single = value[0] as Record<string, unknown>;
+          if (Array.isArray(single.changes) && single.changes.length > 3) {
+            view[key] = [
+              {
+                ...single,
+                changeCount: single.changes.length,
+                changes: single.changes.slice(0, 3),
+              },
+            ];
+            if (JSON.stringify(buildReadEnvelope()).length <= 3600) break;
+          }
+          view[key] = JSON.parse(
+            JSON.stringify(view[key], (_k, v) =>
+              typeof v === "string" && v.length > 120 ? `${v.slice(0, 120)}…` : v,
+            ),
+          );
+          if (JSON.stringify(buildReadEnvelope()).length > 3600) {
+            view[key] = section
+              ? [
+                  {
+                    ...(single.id !== undefined ? { id: single.id } : {}),
+                    ...(single.state !== undefined ? { state: single.state } : {}),
+                    truncated: true,
+                  },
+                ]
+              : [];
+          }
+          minimizedKeys.add(key);
         }
-        const hasMore = Object.entries(view).some(
-          ([k, v]) => Array.isArray(v) && startOffset + v.length < (counts[k] ?? 0),
-        );
-        return {
-          ...(readReq.projectId ? { projectId: readReq.projectId } : {}),
-          ...view,
-          counts,
-          ...(startOffset > 0 ? { offset: startOffset } : {}),
-          ...(hasMore ? { hasMore: true } : {}),
-          hint: "Select request section/id, offset and limit for omitted records.",
-        };
+        return buildReadEnvelope();
       }
       const normalizedRequest = { ...(args.request ?? {}) };
       if (

@@ -2,6 +2,7 @@ import type { CompanyPlan, InitiativeRecord } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { chiefFixture } from "./chief/test-fixture.js";
 import { companyApi } from "./company-api.js";
+import { companySupervisor } from "./company-supervisor.js";
 import { companyTools } from "./company-tools.js";
 
 const at = "2026-11-09T12:00:00Z";
@@ -97,43 +98,86 @@ it("returns compact brief receipts without result_too_large and deduplicates sam
       "approve-ops",
     );
 
-    const summary = "VIP SLA initiative approved; 12 tasks queued with clear acceptance criteria.";
-    const receipt1 = (await call("brief", { projectId: "coach", summary }, "brief-key-1")) as {
-      id: string;
-      revision: number;
-      deduplicated?: boolean;
-      evidenceCounts: { initiatives: number; tasks: number };
-    };
-    // Tool output stays well below the 4000-char hostmcp limit even when persisted evidence is > 8KB!
-    expect(JSON.stringify(receipt1).length).toBeLessThan(1000);
-    expect(receipt1).toMatchObject({
-      projectId: "coach",
-      revision: 1,
-      evidenceCounts: { initiatives: 1, tasks: 12 },
+    // Supervisor auto-briefs update `:auto` in place across state transitions instead of appending revisions.
+    const watcher = companySupervisor(f.context, {
+      now: () => new Date().toISOString(),
+      intervalMs: 60_000,
     });
-    expect(receipt1.deduplicated).toBeUndefined();
+    try {
+      await watcher.tick();
+      await call("dispatch", { taskId: "task-1", planId: plan.id }, "disp-task-1");
+      await watcher.tick();
+      const autoBriefs = (f.f.store.snapshot(["projectBrief"]).projectBrief ?? []).filter((b) =>
+        Boolean(b.auto),
+      );
+      expect(autoBriefs).toHaveLength(1);
+      expect(String(autoBriefs[0]?.id)).toContain(":auto");
 
-    const storedBriefsAfter1 = f.f.store.snapshot(["projectBrief"]).projectBrief ?? [];
-    expect(storedBriefsAfter1).toHaveLength(1);
-    expect(JSON.stringify(storedBriefsAfter1[0]?.evidence).length).toBeGreaterThan(4000);
+      // Unscoped `company_work(read)` across all 11 sections stays strictly under the 4000-char hostmcp limit!
+      const unscopedOverview = (await call("read", { projectId: "coach" })) as {
+        counts: { tasks: number; plans: number };
+        hasMore?: boolean;
+      };
+      expect(JSON.stringify(unscopedOverview).length).toBeLessThan(3800);
+      expect(unscopedOverview.counts).toMatchObject({ tasks: 12, plans: 1 });
+      expect(unscopedOverview.hasMore).toBe(true);
 
-    // Retrying the same summary even with a different key deduplicates instead of creating revision 2!
-    const retryReceipt = (await call("brief", { projectId: "coach", summary }, "brief-key-2")) as {
-      revision: number;
-      deduplicated?: boolean;
-    };
-    expect(retryReceipt).toMatchObject({ revision: 1, deduplicated: true });
-    expect(f.f.store.snapshot(["projectBrief"]).projectBrief).toHaveLength(1);
+      const summary =
+        "VIP SLA initiative approved; 12 tasks queued with clear acceptance criteria.";
+      const receipt1 = (await call("brief", { projectId: "coach", summary }, "brief-key-1")) as {
+        id: string;
+        revision: number;
+        deduplicated?: boolean;
+        evidenceCounts: { initiatives: number; tasks: number };
+      };
+      // Tool output stays well below the 4000-char hostmcp limit even when persisted evidence is > 8KB!
+      expect(JSON.stringify(receipt1).length).toBeLessThan(1000);
+      expect(receipt1).toMatchObject({
+        projectId: "coach",
+        revision: 1,
+        evidenceCounts: { initiatives: 1, tasks: 12 },
+      });
+      expect(receipt1.deduplicated).toBeUndefined();
 
-    // Saving an updated summary creates revision 2 cleanly.
-    const receipt2 = (await call(
-      "brief",
-      { projectId: "coach", summary: "Task 1 dispatched and verified; 11 tasks remain planned." },
-      "brief-key-3",
-    )) as { revision: number; deduplicated?: boolean };
-    expect(receipt2.revision).toBe(2);
-    expect(receipt2.deduplicated).toBeUndefined();
-    expect(f.f.store.snapshot(["projectBrief"]).projectBrief).toHaveLength(2);
+      const manualBriefsAfter1 = (f.f.store.snapshot(["projectBrief"]).projectBrief ?? []).filter(
+        (b) => !b.auto,
+      );
+      expect(manualBriefsAfter1).toHaveLength(1);
+      expect(JSON.stringify(manualBriefsAfter1[0]?.evidence).length).toBeGreaterThan(4000);
+
+      // Subsequent supervisor ticks do NOT append auto-briefs over the authored manual brief!
+      await call("dispatch", { taskId: "task-2", planId: plan.id }, "disp-task-2");
+      await watcher.tick();
+      expect(f.f.store.snapshot(["projectBrief"]).projectBrief).toHaveLength(2);
+
+      // Retrying the same summary even with a different key deduplicates instead of creating revision 2!
+      const retryReceipt = (await call(
+        "brief",
+        { projectId: "coach", summary },
+        "brief-key-2",
+      )) as {
+        revision: number;
+        deduplicated?: boolean;
+      };
+      expect(retryReceipt).toMatchObject({ revision: 1, deduplicated: true });
+      expect(
+        (f.f.store.snapshot(["projectBrief"]).projectBrief ?? []).filter((b) => !b.auto),
+      ).toHaveLength(1);
+
+      // Saving an updated summary creates manual revision 2 cleanly.
+      const receipt2 = (await call(
+        "brief",
+        { projectId: "coach", summary: "Task 1 dispatched and verified; 10 tasks remain planned." },
+        "brief-key-3",
+      )) as { revision: number; deduplicated?: boolean };
+      expect(receipt2.revision).toBe(2);
+      expect(receipt2.deduplicated).toBeUndefined();
+      expect(
+        (f.f.store.snapshot(["projectBrief"]).projectBrief ?? []).filter((b) => !b.auto),
+      ).toHaveLength(2);
+    } finally {
+      watcher.close();
+    }
   } finally {
     f.f.close();
   }
