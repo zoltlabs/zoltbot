@@ -201,6 +201,8 @@ interface ViewRecord {
   builtinUpdate?: { version: string; bundleHash: string }; // set when the built-in moved on
   error?: { code: string; message: string; path?: string };  // set when the folder did not load
   enabled: boolean;
+  shortcuts?: { id: string; keys: string; label: string }[]; // for the palette
+  changedAt?: string; // newest file modification time, for settings
 }
 ```
 

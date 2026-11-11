@@ -69,6 +69,7 @@ import { skillsApi } from "./skills-api.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
+import { createViewRegistry, type ViewRegistry } from "./views/registry.js";
 import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
 import { worktreeService } from "./worktree-service.js";
@@ -92,7 +93,8 @@ async function startOwnedDaemon(
   const bootId = `boot:${randomBytes(12).toString("hex")}`;
   recover(store, bootId);
   const origins = new Set(options.origins ?? ["zoltbot://desktop"]);
-  const assets = assetServer(store, token, origins);
+  let views: ViewRegistry | undefined;
+  const assets = assetServer(store, token, origins, () => views);
   const server = new WebSocketServer({
     server: assets,
     maxPayload: 1_048_576,
@@ -473,6 +475,8 @@ async function startOwnedDaemon(
   });
   resources.push(() => artifactSync.close());
   const artifacts = artifactsApi(runtimeContext);
+  views = createViewRegistry(runtimeContext, options.dataDir);
+  await views.reload();
   const native = nativeApi({ snapshot: () => store.snapshot(), seq: () => store.lastSeq() });
   const dispatch = (command: Command, commandId: string) => {
     const before = store.lastSeq();
@@ -592,6 +596,7 @@ async function startOwnedDaemon(
       }
       default: {
         const result =
+          (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??

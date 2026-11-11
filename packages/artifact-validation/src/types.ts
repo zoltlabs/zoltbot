@@ -46,6 +46,16 @@ export function verifiedType(name: string, bytes: Buffer) {
     bytes.subarray(-1024).includes(Buffer.from("%%EOF"))
   )
     return "application/pdf";
+  if (
+    ext === ".woff2" &&
+    bytes.length >= 48 &&
+    bytes.toString("ascii", 0, 4) === "wOF2" &&
+    bytes.readUInt32BE(8) === bytes.length &&
+    bytes.readUInt16BE(12) > 0 &&
+    bytes.readUInt16BE(14) === 0 &&
+    bytes.readUInt32BE(20) <= bytes.length - 48
+  )
+    return "font/woff2";
   const mime =
     textTypes[ext] ??
     (/^(\.env(?:\..*)?|credentials(?:\..*)?|id_rsa|id_ed25519)$/i.test(path.basename(name)) ||

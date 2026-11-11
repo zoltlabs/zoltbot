@@ -2,6 +2,7 @@ import type { DomainEvent } from "@zoltbot/protocol";
 import type Database from "better-sqlite3";
 
 export const tableMap: Record<string, string> = {
+  view: "view_records",
   initiativeRecord: "initiative_records",
   managerRemit: "manager_remits",
   companyPlan: "company_plans",

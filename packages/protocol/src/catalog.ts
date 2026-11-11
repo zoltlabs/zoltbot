@@ -82,9 +82,11 @@ import {
 import { skillMacOnlyMethods, skillMethods } from "./skills.js";
 import { terminalMethods } from "./terminal.js";
 
+import { ViewRecordSchema, viewMacOnlyMethods, viewMethods } from "./views.js";
 import { WakeSchema, wakeMethods } from "./wakes.js";
 
 export const entitySchemas = {
+  view: ViewRecordSchema,
   initiativeRecord: InitiativeRecordSchema,
   managerRemit: ManagerRemitSchema,
   companyPlan: CompanyPlanSchema,
@@ -166,6 +168,7 @@ const agent = crud(ProfileSchema),
   task = crud(TaskSchema);
 
 export const methodCatalog = {
+  ...viewMethods,
   ...companyMethods,
   ...wakeMethods,
   ...terminalMethods,
@@ -660,6 +663,7 @@ export const methodCatalog = {
 export type MethodName = keyof typeof methodCatalog;
 /** Refused when the call comes from a paired phone over the relay (D124). */
 export const macOnlyMethods: readonly MethodName[] = [
+  ...viewMacOnlyMethods,
   "compare.create",
   "compare.widen",
   ...shippingMacOnlyMethods,

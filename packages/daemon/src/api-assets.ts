@@ -2,7 +2,14 @@ import { createServer } from "node:http";
 import type { Store } from "@zoltbot/store";
 import { serveArtifactAsset } from "./artifacts/assets.js";
 import { evidenceBytes } from "./browser/evidence.js";
-export function assetServer(store: Store, token: string, origins: ReadonlySet<string>) {
+import { serveViewAsset } from "./views/assets.js";
+import type { ViewRegistry } from "./views/registry.js";
+export function assetServer(
+  store: Store,
+  token: string,
+  origins: ReadonlySet<string>,
+  views?: () => ViewRegistry | undefined,
+) {
   return createServer((request, response) => {
     const authorized = request.headers.authorization === `Bearer ${token}`;
     if (
@@ -12,6 +19,19 @@ export function assetServer(store: Store, token: string, origins: ReadonlySet<st
     ) {
       response.writeHead(403);
       response.end();
+      return;
+    }
+    if ((request.url ?? "").startsWith("/view-")) {
+      const registry = views?.();
+      if (!registry) {
+        response.writeHead(404);
+        response.end();
+        return;
+      }
+      void serveViewAsset(registry, request, response).catch(() => {
+        response.writeHead(404);
+        response.end();
+      });
       return;
     }
     if (/^\/artifact-(blob|manifest)\/[a-f0-9]{64}$/.test(request.url ?? "")) {
