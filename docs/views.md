@@ -1,6 +1,6 @@
 # Views: custom interfaces for Zoltbot
 
-Status: implementation in progress. Phase 1 passed its automated checks and headless verification. Phase 2 passed its automated checks and headless verification. Phase 3 is underway. This document is the specification to implement from.
+Status: phases 1–3 are implemented and passed their automated checks and headless workflows. Native Electron and installed-upgrade verification remain; see [the verification report](verification/views-phases-1-3.md). Phase 4 has not started. This document remains the implementation specification.
 
 A view is a small web page that Zoltbot shows inside the desktop app and feeds with live data about your chats. People can change a built-in view, write their own, or ask an agent to write one. Their changes are files on disk outside the app, so installing a new version of Zoltbot keeps them.
 
