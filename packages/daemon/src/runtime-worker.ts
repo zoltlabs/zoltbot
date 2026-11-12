@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { type AgentSession, materializeImages } from "@zoltbot/adapters-sdk";
+import { materializeImages } from "@zoltbot/adapters-sdk";
 import {
   applyEvents,
   type CommandContext,
@@ -19,63 +19,25 @@ import {
 import {
   type AgentEvent,
   AgentEventSchema,
-  type DomainEvent,
   parse,
   QueuedInputBodySchema,
   type SessionEndReason,
-  type UsageSample,
 } from "@zoltbot/protocol";
-import type { ItemScope, Store } from "@zoltbot/store";
+import type { ItemScope } from "@zoltbot/store";
 import { outputFragments } from "./artifacts/output.js";
 import { prepareRevisionTarget, revisionTarget } from "./artifacts/revision-target.js";
 import { coordinationFragments as chiefFragments } from "./company-context.js";
 import { bindManifestNative } from "./connections-delivery.js";
 import { withCopiedContext } from "./copied-fork-context.js";
 import { forkWorkspaceBusy } from "./fork-workspaces.js";
-import type { Redactor } from "./logging.js";
 import { firstNativePromptPending } from "./runtime-configuration.js";
 import { dispatchControlPending, rejectChangedWake } from "./runtime-dispatch.js";
+import { RuntimeObserver } from "./runtime-observer.js";
 import { redactRuntimeEvent } from "./runtime-redaction.js";
+import type { Pending, RuntimeWorkerOptions } from "./runtime-worker-types.js";
 
-export interface RuntimeStream {
-  threadId: string;
-  turnId: string;
-  itemId: string;
-  kind: "message" | "thought";
-  text: string;
-  complete: boolean;
-  item?: Record<string, unknown>;
-}
-interface Options {
-  store: Store;
-  session: Pick<AgentSession, "events" | "send" | "close">;
-  sessionId: string;
-  threadId: string;
-  agentId: string;
-  redactor: Redactor;
-  estimate(text: string): number;
-  fixedInjectedTokens?: number;
-  firstTurnBrowser?: { text: string; bindingId: string; digest: string };
-  firstTurnKnowledge?: { packId: string; text: string; tokens: number };
-  fragments?: readonly InjectionFragment[];
-  baseline?: UsageSample;
-  publish(events: DomainEvent[]): void;
-  stream?(update: RuntimeStream): void;
-  /** Display-safe event plus temporary native path evidence. Never persist the second argument. */
-  interaction?(
-    event: Extract<AgentEvent, { t: "interaction.requested" | "interaction.cleared" }>,
-    approvalSourcePaths?: readonly string[],
-  ): void | Promise<void>;
-  heldInteractionIds?(): readonly string[];
-  onTurn?(turnId: string | undefined): void;
-  onCleanupFailure?(): void;
-  onError?(code: string, diagnostic?: { frames: string[] }): void;
-}
-interface Pending {
-  id: string;
-  attempt: string;
-  injectedTokens: number;
-}
+export type { RuntimeStream } from "./runtime-worker-types.js";
+
 /** One owned native session. All durable writes use the store's fenced command path. */
 export class RuntimeWorker {
   private reader: Promise<void> | undefined;
@@ -93,7 +55,9 @@ export class RuntimeWorker {
   private readonly items = new Map<string, string>();
   private readonly nativeInteractions = new Map<string, string>();
   private readonly nativeTurns = new Map<string, string>();
-  constructor(private readonly options: Options) {
+  private readonly observer: RuntimeObserver;
+  constructor(private readonly options: RuntimeWorkerOptions) {
+    this.observer = new RuntimeObserver(options.observe, options.redactor);
     const state = options.store.snapshot();
     const session = state.session?.find((row) => row.id === options.sessionId);
     if (
@@ -193,6 +157,8 @@ export class RuntimeWorker {
       await this.stopNative(
         event.state === "auth_required" ? "auth_required" : "runtime_process_error",
       );
+      if (this.observer.active)
+        await this.observer.emit(redactRuntimeEvent(event, this.options.redactor));
       return;
     }
     if ("turnId" in event && event.turnId) {
@@ -238,6 +204,7 @@ export class RuntimeWorker {
       const safe = redactRuntimeEvent(event, this.options.redactor);
       if (safe.t === "interaction.requested" || safe.t === "interaction.cleared")
         await this.options.interaction(safe, approvalSourcePaths);
+      if (this.observer.active) await this.observer.emit(safe);
       return;
     }
     if (event.t === "text.delta" || event.t === "thought.delta") {
@@ -274,6 +241,7 @@ export class RuntimeWorker {
           },
         },
       });
+      if (this.observer.active) await this.observer.delta(event, itemId, text);
       return;
     }
     event = redactRuntimeEvent(event, this.options.redactor);
@@ -306,6 +274,7 @@ export class RuntimeWorker {
           context,
         ),
       );
+      if (this.observer.active) await this.observer.emit(event, { turnId });
       return;
     }
     const itemId =
@@ -416,6 +385,15 @@ export class RuntimeWorker {
       (event.t === "compaction" && event.state === "done")
     )
       void this.wake();
+    if (this.observer.active)
+      await this.observer.emit(event, {
+        ...(itemId ? { itemId } : {}),
+        ...("turnId" in event && event.turnId
+          ? { turnId: event.turnId }
+          : this.currentTurn
+            ? { turnId: this.currentTurn }
+            : {}),
+      });
   }
   holdDispatch(): () => void {
     this.dispatchHolds++;

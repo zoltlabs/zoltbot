@@ -21,6 +21,7 @@ export * from "./projectors.js";
 export * from "./routine-time.js";
 export * from "./routines.js";
 export * from "./rule-answers.js";
+export * from "./runner-scheduling.js";
 export * from "./runtime-events.js";
 export * from "./runtime-streams.js";
 export * from "./session-connect.js";

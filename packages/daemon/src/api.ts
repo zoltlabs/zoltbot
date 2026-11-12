@@ -10,7 +10,7 @@ export type {
   SetupContext,
 } from "./api-types.js";
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { chmodSync, rmSync } from "node:fs";
 import path from "node:path";
 import { type Command, handle } from "@zoltbot/core/commands";
@@ -64,8 +64,9 @@ import { pushNotifier } from "./push.js";
 import { recover } from "./recovery.js";
 import { type LinkClient, type RelayLink, relayLink } from "./relay-link.js";
 import { ruleApi } from "./rule-api.js";
+import { createInProcessRuntime, publishRuntimeStream, type Runner } from "./runner/index.js";
 import { runtimeApi } from "./runtime-api.js";
-import { SessionManager } from "./session-manager.js";
+import type { SessionManager } from "./session-manager.js";
 import { settingsApi } from "./settings-api.js";
 import { setupApi } from "./setup-api.js";
 import { skillsApi } from "./skills-api.js";
@@ -169,6 +170,7 @@ async function startOwnedDaemon(
   });
   privacy.track(redactor);
   let manager: SessionManager | undefined;
+  let runner: Runner | undefined;
   let interactions: InteractionEngine | undefined;
   let loadingInteractions: Promise<InteractionEngine> | undefined;
   const runtimeContext: RuntimeContext = {
@@ -177,8 +179,8 @@ async function startOwnedDaemon(
     privacy,
     publish,
     async wake(threadId) {
-      if (!manager) throw new Error("runtime_unavailable");
-      await (await manager.ensure(threadId)).wake();
+      if (!runner) throw new Error("runtime_unavailable");
+      await runner.startSession({ threadId });
     },
     interrupt(threadId, turnId, commandId) {
       if (!manager) return Promise.reject(new Error("runtime_unavailable"));
@@ -244,33 +246,22 @@ async function startOwnedDaemon(
   const ownedRuntime = options.runtime?.(runtimeContext);
   if (ownedRuntime) resources.push(() => ownedRuntime.close());
   const runtimeHost = ownedRuntime ?? options.runtimeHost;
-  manager = runtimeHost
-    ? new SessionManager({
+  const inProcess = runtimeHost
+    ? createInProcessRuntime({
         privacy,
         store,
         host: runtimeHost,
         ...(options.secrets ? { secrets: options.secrets } : {}),
         interactions: loadInteractions,
         publish,
-        stream: (update) => {
-          if (update.item)
-            publish([
-              {
-                eventId: randomUUID(),
-                aggregateType: "item",
-                aggregateId: update.itemId,
-                type: "item.stream",
-                occurredAt: new Date().toISOString(),
-                payload: update.item,
-              },
-            ]);
-        },
+        stream: publishRuntimeStream(publish),
         onError: (code, diagnostic) => logger.write("warn", code, diagnostic ?? {}),
       })
     : undefined;
-  if (manager) {
-    const ownedManager = manager;
-    resources.push(() => ownedManager.close());
+  manager = inProcess?.manager;
+  runner = inProcess?.runner;
+  if (inProcess) {
+    resources.push(() => inProcess.runner.close());
     await loadInteractions();
   }
   const ownedTasks = taskRunner({
@@ -287,13 +278,8 @@ async function startOwnedDaemon(
     checkPublic: (value) => privacy.prepareData(value),
     ...(manager
       ? {
-          wake: runtimeContext.wake,
-          preflight: (threadId: string) => (manager as SessionManager).preflight(threadId),
+          runner: runner as Runner,
           startInSession: true,
-          stopUnattended: (threadId: string) =>
-            (manager as SessionManager).stopUnattended(threadId),
-          interrupt: (threadId: string, turnId: string, commandId: string) =>
-            (manager as SessionManager).interrupt(threadId, turnId, commandId),
         }
       : {}),
     onError: (code) => logger.write("warn", code),

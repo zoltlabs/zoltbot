@@ -473,6 +473,7 @@ export class SessionManager {
       if (!fork && previous && native.nativeId !== previous.nativeId)
         throw new Error("resume_identity_changed");
       worker = new RuntimeWorker({
+        ...(this.options.observe ? { observe: this.options.observe(threadId, sessionId) } : {}),
         store: this.options.store,
         session: native,
         sessionId,

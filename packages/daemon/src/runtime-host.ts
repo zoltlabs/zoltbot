@@ -59,6 +59,10 @@ export interface RuntimeEntry {
 }
 
 export interface SessionManagerOptions {
+  observe?(
+    threadId: string,
+    sessionId: string,
+  ): import("./runtime-observer.js").RuntimeObservationSink;
   store: Store;
   host: RuntimeHost;
   interactions?: () => Promise<InteractionEngine>;

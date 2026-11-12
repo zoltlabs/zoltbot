@@ -9,7 +9,8 @@
     "./supervisor": "./src/supervisor.ts",
     "./logging": "./src/logging.ts",
     "./transport": "./src/transport.ts",
-    "./notifications": "./src/notifications.ts"
+    "./notifications": "./src/notifications.ts",
+    "./runner": "./src/runner/index.ts"
   },
   "dependencies": {
     "@playwright/cli": "0.1.23",

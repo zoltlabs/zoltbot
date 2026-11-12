@@ -9,6 +9,7 @@ import {
   handle,
   holdTask,
   type Outcome,
+  queuedTasks,
   resumeTask,
   retryTask,
   startTask,
@@ -35,6 +36,7 @@ import { eventRoutines } from "./event-routines.js";
 import { prepareTaskWorktree } from "./prepare-task-worktree.js";
 import type { PublicWriteCheck } from "./private-input.js";
 import { routineScheduler } from "./routine-scheduler.js";
+import type { Runner } from "./runner/interface.js";
 import { worktreeApi } from "./worktree-api.js";
 import type { worktreeService } from "./worktree-service.js";
 
@@ -42,6 +44,7 @@ const human = { kind: "human", id: "local-owner" } as const;
 const system = { kind: "system", id: "tasks" } as const;
 const ended = new Set(["completed", "failed", "interrupted"]);
 export interface TaskRunnerOptions {
+  runner?: Runner;
   store: Store;
   now?(): string;
   routinePollMs?: number;
@@ -92,6 +95,16 @@ function hasQueuedInput(state: DomainState, threadId: string): boolean {
 
 export function taskRunner(options: TaskRunnerOptions) {
   const { store } = options;
+  const runtime = options.runner;
+  const start = runtime ? (threadId: string) => runtime.startSession({ threadId }) : options.wake;
+  const prepare = runtime
+    ? (threadId: string) => runtime.prepareWorkspace({ threadId })
+    : options.preflight;
+  const interrupt = runtime
+    ? (threadId: string, turnId: string, commandId: string) =>
+        runtime.interrupt({ threadId, turnId, commandId })
+    : options.interrupt;
+  const stop = runtime ? (threadId: string) => runtime.stop({ threadId }) : options.stopUnattended;
   const gitApi = options.worktrees
     ? worktreeApi({
         store,
@@ -137,17 +150,17 @@ export function taskRunner(options: TaskRunnerOptions) {
     run: (commandId, work) => run(commandId, system, work),
     async stop(taskId) {
       const row = task(taskId);
-      if (row.threadId && options.stopUnattended) {
-        await options.stopUnattended(row.threadId);
+      if (row.threadId && stop) {
+        await stop(row.threadId);
         return;
       }
       const turn = (store.snapshot(["turn"]).turn ?? []).find(
         (entry) => entry.threadId === row.threadId && entry.status === "running",
       );
-      if (row.threadId && turn && options.interrupt)
-        await options
-          .interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`)
-          .catch(() => options.onError?.("routine_stop_uncertain"));
+      if (row.threadId && turn && interrupt)
+        await interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`).catch(() =>
+          options.onError?.("routine_stop_uncertain"),
+        );
     },
   });
   const routineTimer = setInterval(() => {
@@ -156,9 +169,9 @@ export function taskRunner(options: TaskRunnerOptions) {
   routineTimer.unref();
 
   async function wake(started: Task) {
-    if (!options.wake || !started.threadId) return;
+    if (!start || !started.threadId) return;
     try {
-      await options.wake(started.threadId);
+      await start(started.threadId);
     } catch (error) {
       // Only a bare error code or sanitized budget breakdown reaches the task, never a path.
       const raw = error instanceof Error ? error.message : "";
@@ -203,9 +216,7 @@ export function taskRunner(options: TaskRunnerOptions) {
       const folder = ["running", "blocked"].includes(row.state) ? folderOf(state, row) : undefined;
       if (folder && folder !== "choice") busy.set(folder, row);
     }
-    const queued = tasks
-      .filter((row) => row.state === "queued")
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    const queued = queuedTasks(tasks);
     for (const next of queued) {
       const graphHold = taskReady(state, next);
       if (graphHold) {
@@ -249,9 +260,9 @@ export function taskRunner(options: TaskRunnerOptions) {
           );
         continue;
       }
-      if (next.threadId && options.preflight) {
+      if (next.threadId && prepare) {
         try {
-          await options.preflight(next.threadId);
+          await prepare(next.threadId);
         } catch (error) {
           const raw = error instanceof Error ? error.message : "";
           const code = raw.split(":")[0] ?? "";
@@ -404,7 +415,9 @@ export function taskRunner(options: TaskRunnerOptions) {
         const selected = task(String(params.id));
         if (!selected.workspaceId || !options.worktrees) throw new Error("worktree_unavailable");
         const binding = await options.worktrees.contribution(selected.workspaceId);
-        return changes(binding.cwd, binding.baseCommit);
+        return runtime
+          ? runtime.collectResult({ cwd: binding.cwd, baseRef: binding.baseCommit })
+          : changes(binding.cwd, binding.baseCommit);
       }
       if (!commandId) throw new Error("command_id_required");
       if (method === "task.create") {
@@ -518,10 +531,10 @@ export function taskRunner(options: TaskRunnerOptions) {
           const turn = (store.snapshot(["turn"]).turn ?? []).find(
             (row) => row.threadId === threadId && row.status === "running",
           );
-          if (threadId && turn && options.interrupt)
-            await options
-              .interrupt(threadId, String(turn.id), `task:stop:${id}:${String(turn.id)}`)
-              .catch(() => options.onError?.("task_stop_uncertain"));
+          if (threadId && turn && interrupt)
+            await interrupt(threadId, String(turn.id), `task:stop:${id}:${String(turn.id)}`).catch(
+              () => options.onError?.("task_stop_uncertain"),
+            );
           void schedule();
           return result;
         });
