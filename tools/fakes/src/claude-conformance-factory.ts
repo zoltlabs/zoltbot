@@ -54,7 +54,8 @@ export const claudeFactory: ConformanceFactory = async (scenario) => {
       return readyTransport(supervisor);
     },
   };
-  const adapter = new ClaudeAdapter(host, 1500);
+  // Keep fixture RPCs bounded without racing SDK initialization on a busy host.
+  const adapter = new ClaudeAdapter(host, 5000);
   const options: OpenOptions = {
     mode: "new",
     cwd,

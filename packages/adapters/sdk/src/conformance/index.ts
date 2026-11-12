@@ -51,7 +51,8 @@ function check(condition: unknown, message: string): asserts condition {
 async function wait(
   trace: AgentEvent[],
   test: (event: AgentEvent) => boolean,
-  timeout = 2500,
+  // Leave room for a fixture RPC deadline to produce its required error event.
+  timeout = 10000,
 ): Promise<AgentEvent> {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
