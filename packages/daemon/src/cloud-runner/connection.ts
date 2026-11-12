@@ -21,6 +21,8 @@ export interface RunnerCredentials {
   expiresAt: number;
 }
 export interface ConnectedTask {
+  /** Whether this host still owns a ready native session for private handoffs. */
+  ready?(): boolean;
   update(lease: RunnerLease): Promise<void>;
   command(command: RunnerCommand, signal: AbortSignal): Promise<unknown>;
   close(): Promise<void>;
@@ -30,6 +32,7 @@ interface TaskEntry {
   outbox: RunnerOutbox;
   runtime?: ConnectedTask;
   sent: number;
+  ready: boolean;
 }
 interface Session {
   socket: WebSocket;
@@ -345,7 +348,7 @@ export class RunnerConnection {
         guard: this.options.guard,
       });
       outbox.reconcile(cursor);
-      task = { lease, outbox, sent: cursor };
+      task = { lease, outbox, sent: cursor, ready: false };
       this.tasks.set(lease.taskId, task);
       session.initialized.add(lease.taskId);
       this.pump(session, task);
@@ -369,10 +372,20 @@ export class RunnerConnection {
     this.request(session, "runner.heartbeat", {
       runnerId: this.hello.runnerId,
       leaseIds: [...this.tasks.values()]
-        .filter((task) => task.runtime !== undefined)
+        .filter((task) => {
+          task.ready = this.ready(task);
+          return task.ready;
+        })
         .map(({ lease }) => lease.leaseId),
       at: new Date().toISOString(),
     });
+  }
+  private ready(task: TaskEntry) {
+    try {
+      return task.runtime !== undefined && (task.runtime.ready?.() ?? true);
+    } catch {
+      return false;
+    }
   }
   private pump(session: Session, task: TaskEntry) {
     if (!session.initialized.has(task.lease.taskId)) return;
@@ -385,7 +398,10 @@ export class RunnerConnection {
   }
   publish(taskId: string) {
     const task = this.tasks.get(taskId);
-    if (this.session && task) this.pump(this.session, task);
+    if (this.session && task) {
+      this.pump(this.session, task);
+      if (task.ready !== this.ready(task)) this.heartbeat(this.session);
+    }
   }
   async close() {
     this.stopped = true;

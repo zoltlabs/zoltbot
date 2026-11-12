@@ -117,5 +117,52 @@ Tests use disposable bare repositories to check edits/base preservation, interru
 initialization, task/org isolation, scope and symlink refusal, cancellation and
 exclusive ownership. Separate synthetic Git child tests verify cleanup after
 both cancellation and a killed parent. No network or desktop input is involved.
-The task cache, native runtime factory and `zoltd` settings wiring still need to
-connect this preparer to leases. These tests do not complete W5 or W8.
+The task host below composes this preparer with leases. Production Mac resources
+and `zoltd` settings wiring remain unfinished. These tests do not complete W5 or W8.
+
+## Task cache and runtime composition
+
+`cloudTasks` connects a managed checkout, an exclusive per-org/task SQLite cache,
+`InProcessRunner` and the journal to `RunnerConnection`. It takes the authenticated
+member ID and no Local store. Its host supplies a pinned definition and task-owned
+native/tool resources. Incoming launch recipes are never evaluated. Definition
+validation requires opaque vault references for private environment values before
+the definition can enter the cache. The host must honor the supplied lifetime
+signal during definition lookup, resource creation and native startup.
+
+The cache contains only the leased project, task, thread, profile, pinned definition
+and queued inputs, followed by that task's runtime state. Its project root is the
+managed checkout. Bindings cover org, member, lease, task, thread, project, profile,
+provider, repository, default branch, location, cwd and base commit. Repeated leases
+preserve local input delivery state; canonical input IDs survive command retries.
+Local item sequence numbers are assigned inside this cache, because the Cell may
+have additional items. Duplicate IDs, changed input bodies, regressed revisions,
+changed bindings and different native IDs fail before a new assignment is applied.
+
+Restart runs the existing recovery logic, closes stale session rows and retains
+the original native identity and configuration. An uncertain native send stays on
+hold instead of being sent again. A Cell continuation without its corresponding
+task cache fails with `runner_cache_missing`; it cannot bypass lost privacy-vault
+references by inventing a prior session row. Normal process restarts preserve the
+cache and resume the original native session. Missing disks require recovery.
+
+Only normalized runtime observations enter the outbox. Readiness requires both a
+live native session row and its fsynced `session.ready` observation. Stop, process
+fault or cleanup withdraws readiness. The connection sends an immediate heartbeat
+when readiness changes and excludes stopped hosts from private-handoff presence.
+An exception from a host's readiness check also withdraws it.
+
+Turn commands, interaction answers, interrupts and stop use the existing runner
+and interaction engine. The command input ID is canonical when supplied; older
+frames without it use a stable command-derived ID. Only the Cell drives interaction
+timers. Diff collection and branch publication remain refused until their bounded
+wire results are implemented. No production Mac host, daemon opt-in or signed Mac
+execution is connected yet.
+
+Tests drive real `InProcessRunner` instances with synthetic native sessions and
+disposable local Git repositories. They cover native resume, one-time input and
+answer delivery, private-output redaction restored from an in-memory vault,
+cross-member refusal and cleanup. The localhost fake Cell disconnects after its
+first persisted event; the same native runtime replays the remaining journal and
+finishes once. These are composition tests, not the W6 CLI/template or W8 whole-flow
+gates. Local task wiring is unchanged.

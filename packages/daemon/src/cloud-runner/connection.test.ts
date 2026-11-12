@@ -185,6 +185,40 @@ function hello(socket: WebSocket, cursor = 0, assignment = lease()) {
   );
 }
 
+it("withdraws private-handoff presence immediately when its native host stops or faults", async () => {
+  const heartbeats: string[][] = [];
+  let ready = true,
+    fault = false;
+  const f = await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") hello(socket);
+      if (message.method === "runner.heartbeat")
+        heartbeats.push(parse(RunnerHeartbeatSchema, message.params).leaseIds);
+    },
+    {
+      task: async () => ({
+        ready() {
+          if (fault) throw new Error("synthetic_host_fault");
+          return ready;
+        },
+        async update() {},
+        async command() {},
+        async close() {},
+      }),
+    },
+  );
+  await expect.poll(() => heartbeats.at(-1)).toEqual(["lease"]);
+  ready = false;
+  f.append();
+  await expect.poll(() => heartbeats.at(-1)).toEqual([]);
+  ready = true;
+  f.append();
+  await expect.poll(() => heartbeats.at(-1)).toEqual(["lease"]);
+  fault = true;
+  f.append();
+  await expect.poll(() => heartbeats.at(-1)).toEqual([]);
+});
+
 it("reconnects and replays a durable frame with the same sequence after its acknowledgement is lost", async () => {
   let hellos = 0,
     arrivals = 0,
