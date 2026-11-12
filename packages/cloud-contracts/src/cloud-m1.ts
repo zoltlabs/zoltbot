@@ -76,6 +76,7 @@ export const SandboxCreateSchema = object({
 });
 export const SandboxOperationSchema = object({ orgId: Id, taskId: Id, sandboxId: Id });
 export const SandboxRecordSchema = object({
+  expiresAt: Type.Optional(At),
   orgId: Id,
   userId: Id,
   taskId: Id,

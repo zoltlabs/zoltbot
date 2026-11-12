@@ -93,13 +93,17 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     }
   }
   private async schedule(delay = 15000) {
+    if (this.deleted) return;
     const next = Date.now() + delay;
     const alarm = await this.ctx.storage.getAlarm();
+    if (this.deleted) return;
     if (alarm === null || alarm > next) await this.ctx.storage.setAlarm(next);
   }
   private async broadcast(store: Store) {
+    if (this.deleted) return;
     const sockets = new CellSockets(this.ctx);
     for (const runner of this.ctx.getWebSockets("runner")) {
+      if (this.deleted) return;
       try {
         await new CellRunners(this.ctx, store).offer(runner);
       } catch {
@@ -107,6 +111,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       }
     }
     for (const socket of this.ctx.getWebSockets("client")) {
+      if (this.deleted) return;
       try {
         const data = attachment(socket);
         if (data.claims.exp <= Math.floor(Date.now() / 1000)) {
@@ -162,6 +167,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         }
         socket.serializeAttachment(subscription);
       }
+      if (this.deleted) return;
       socket.send(JSON.stringify(response));
       await this.broadcast(store);
       await this.schedule();

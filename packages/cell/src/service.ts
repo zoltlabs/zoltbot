@@ -98,7 +98,12 @@ export class CellService {
     private readonly orgId: string,
     private readonly fetcher: typeof fetch = (...args) => fetch(...args),
   ) {}
-  async request(path: string, method: string, body: unknown): Promise<unknown> {
+  async request(
+    path: string,
+    method: string,
+    body: unknown,
+    options: { operationId?: string; timeoutMs?: number } = {},
+  ): Promise<unknown> {
     const base = this.config.origin.replace(/\/?$/, "/");
     const url = new URL(path.replace(/^\//, ""), base);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && url.hostname === "127.0.0.1"))
@@ -108,10 +113,11 @@ export class CellService {
       headers: {
         Authorization: `Bearer ${await serviceToken(this.config.signingKey, this.config.issuer, "orchestrator", this.orgId)}`,
         "Content-Type": "application/json",
+        ...(options.operationId ? { "Idempotency-Key": options.operationId } : {}),
       },
       body: JSON.stringify(body),
       redirect: "error",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 5000),
     });
     const result = await boundedJson(response, 262144);
     if (!response.ok) {

@@ -8,6 +8,20 @@ const now = 1800000000000;
 function secret() {
   return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
+it("forwards the durable effect ID and reduces an orchestrator quota response to a safe code", async () => {
+  const fetcher = vi.fn(async (_url, init) => {
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("create:task:1");
+    return Response.json({ error: "limit_reached" }, { status: 409 });
+  });
+  const service = new CellService(
+    { origin: "https://accounts.example.invalid/api/cloud", signingKey: secret(), issuer },
+    "org",
+    fetcher,
+  );
+  await expect(
+    service.request("sandboxes", "POST", {}, { operationId: "create:task:1", timeoutMs: 30000 }),
+  ).rejects.toThrow("limit_reached");
+});
 it("separates the cell service token from client and orchestrator audiences", async () => {
   const key = secret();
   const token = await serviceToken(key, issuer, "cell-service", "org", now);

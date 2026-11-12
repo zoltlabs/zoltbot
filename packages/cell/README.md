@@ -127,3 +127,27 @@ The workerd tests drive the actual runner WebSocket through hello, lease, event,
 acknowledgement and a mid-turn eviction. They also cover Mac opt-in, tasks created
 after connection, drain and refusal to write another runner's task. Sandbox
 orchestration and runner command delivery remain W4 work.
+
+## Sandbox lifecycle effects
+
+`CellSandboxes` saves a create, wake, sleep or destroy operation before calling the
+orchestrator. Each retry sends the same `Idempotency-Key`, including after object
+eviction or an uncertain response. The response must match the org, member and
+task. Provider credentials never enter these records. Only fixed error codes
+reach task holds and operation records. The orchestrator owns usage accounting in
+the same idempotent operation; the cell must not record a second charge on retry.
+
+Maintenance scans at most eight tasks per call. A durable cursor carries the
+earliest future alarm across pages. Idle tasks sleep after twenty minutes;
+questions can keep a process-preserving target awake for thirty minutes. Before
+the provider lifetime ends, an active model turn must finish its checkpoint before
+sleep. A checkpointed task resumes through the existing core continuation note,
+retaining native session metadata and advancing the item sequence. Retained
+terminal sandboxes are destroyed after twenty-four hours. An injected liveness
+check prevents in-flight responses from writing after org deletion. The cell also
+checks deletion before scheduling alarms or broadcasting to more sockets.
+
+The lifecycle controller is tested against a fake orchestrator on real local
+workerd SQLite. It is not wired into `OrgCell` yet: durable runner commands and
+checkpoint acknowledgements must land before an alarm can safely interrupt an
+active turn. W4 remains incomplete.
