@@ -33,3 +33,7 @@ use separate host resources and never pass the Local store into that factory.
 its result in assistant output. Worker tests use a generated repository credential
 as that result to verify redaction before frames, task projections or outbox events
 can retain it. Both protocol fakes preserve their existing `host_tools` behavior.
+
+`mac_exec` asks the configured host for a `uname` command and echoes its result.
+Worker tests use it with the default cloud tool set and a scripted localhost Cell.
+It does not invoke the owner's installed agent or directly run a host command.

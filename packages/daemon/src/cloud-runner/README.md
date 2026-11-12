@@ -370,3 +370,17 @@ or join its already-running command. This read requires the exact original proof
 binding and current account/device authority. It cannot claim a missing request
 or start another process. A revoked signing device and Off still refuse retrieval.
 The normal signature verifier continues to reject expired approvals for new work.
+
+`RunnerCalls` correlates bounded cloud tool RPCs, preserves their ID over socket
+reconnect, checks result scope and clears calls on timeout or cancellation. Only
+a task-bound sandbox connection can originate these calls. Its flush barrier waits
+for Cell acknowledgement of observations already committed to the outbox.
+
+`cloudMacTools` is separate from Local runtime definitions. It checks the current
+task actor, guards known private input, resolves the Mac folder through status,
+and polls the same durable request until approval or completion. The native host
+supplies an `assertPublic` port backed by that task's encrypted private context;
+private answers cannot become Mac command/stdin fields. The result uses the rich
+tool envelope to preserve the bounded Mac output. Caller tool IDs still need
+recovery across a killed worker, along with W6's pending native tool continuation.
+Cell streaming, reusable prefix approvals and W8 remain open.

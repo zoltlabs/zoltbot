@@ -339,6 +339,7 @@ async function run(text: string) {
   if (
     text === "host_tools" ||
     text === "host_tools_echo" ||
+    text === "mac_exec" ||
     text === "delegate" ||
     text === "delegate_codex" ||
     text in workspaceRequests
@@ -347,29 +348,38 @@ async function run(text: string) {
     const result = await callFixtureHost(
       host.url,
       host.headers,
-      text in workspaceRequests
-        ? workspaceRequests[text]
-        : text === "delegate" || text === "delegate_codex"
-          ? {
-              name: "team_delegate",
-              arguments: {
-                key: "feature-check",
-                title: "Feature check",
-                brief: "Check the feature and return a brief result.",
-                ...(text === "delegate_codex" ? { profileId: "codex-profile" } : {}),
-              },
-            }
-          : undefined,
+      text === "mac_exec"
+        ? { name: "mac_exec", arguments: { command: "uname" } }
+        : text in workspaceRequests
+          ? workspaceRequests[text]
+          : text === "delegate" || text === "delegate_codex"
+            ? {
+                name: "team_delegate",
+                arguments: {
+                  key: "feature-check",
+                  title: "Feature check",
+                  brief: "Check the feature and return a brief result.",
+                  ...(text === "delegate_codex" ? { profileId: "codex-profile" } : {}),
+                },
+              }
+            : undefined,
     );
     out({
       type: "assistant",
       message: {
         id: "host-message",
-        content: [{ type: "tool_use", id: "host", name: "mcp__zoltbot__ping", input: {} }],
+        content: [
+          {
+            type: "tool_use",
+            id: "host",
+            name: text === "mac_exec" ? "mcp__zoltbot__mac_exec" : "mcp__zoltbot__ping",
+            input: text === "mac_exec" ? { command: "uname" } : {},
+          },
+        ],
       },
     });
     toolResult("host", result);
-    if (text === "host_tools_echo") reply = result;
+    if (text === "host_tools_echo" || text === "mac_exec") reply = result;
   }
   out({
     type: "stream_event",

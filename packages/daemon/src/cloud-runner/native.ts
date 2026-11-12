@@ -5,10 +5,14 @@ import { claudeDefinitions } from "@zoltbot/adapters-claude/definitions";
 import { codexDefinitions } from "@zoltbot/adapters-codex/definitions";
 import type { AgentAdapter } from "@zoltbot/adapters-sdk";
 import { SessionTokens, startHostMcp, ToolDispatcher } from "@zoltbot/hostmcp";
-import type { AgentDefinition, HostToolDefinition } from "@zoltbot/protocol";
+import {
+  type AgentDefinition,
+  assertNoPrivateValue,
+  type HostToolDefinition,
+} from "@zoltbot/protocol";
 import type { Redactor } from "../logging.js";
 import { NativeRuntimeHost } from "../native-runtime.js";
-import type { PrivateVault } from "../private-context.js";
+import { PrivateContexts, type PrivateVault } from "../private-context.js";
 import { providerHosts } from "../provider-hosts.js";
 import { type CloudTasksOptions, cloudTasks } from "./task-host.js";
 import { taskVault } from "./vault.js";
@@ -22,7 +26,9 @@ export interface NativeCloudTasksOptions
   directory: string;
   /** Keychain for the Mac, an environment-keyed encrypted vault for the worker. */
   vault(taskId: string, signal: AbortSignal): Promise<PrivateVault>;
-  tools(input: ResourceInput): Promise<CloudToolSet>;
+  tools(
+    input: ResourceInput & { assertPublic(value: unknown): Promise<void> },
+  ): Promise<CloudToolSet>;
   /** Read only from the keychain or injected sandbox environment; never persist this value here. */
   providerKey?(
     provider: "claude" | "codex",
@@ -114,7 +120,18 @@ export function nativeCloudTasks(options: NativeCloudTasksOptions) {
         const source = await options.vault(input.lease.taskId, signal);
         check(signal);
         const vault = taskVault(source, { orgId: options.orgId, taskId: input.lease.taskId });
-        const ports = await options.tools(input);
+        const contexts = new PrivateContexts({ store: input.store, vault, publish() {} });
+        const ports = await options.tools({
+          ...input,
+          async assertPublic(value) {
+            check(signal);
+            options.guard(value);
+            const known = await contexts.known();
+            check(signal);
+            options.guard(value);
+            assertNoPrivateValue(value, known.values);
+          },
+        });
         check(signal);
         const definitions = structuredClone([...ports.definitions]);
         const execution = input.lease.execution;

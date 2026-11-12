@@ -110,6 +110,112 @@ export class CellMacRecords {
       throw new Error("forbidden");
     this.leases.require(taskId, lease.leaseId, claims.device, claims);
   }
+  authorizeSource(source: { claims: CellTokenClaims; connectionId: string }, taskId: string) {
+    this.member(source.claims);
+    if (source.claims.kind !== "sandbox_runner" || source.claims.task !== taskId)
+      throw new Error("forbidden");
+    this.source(source.claims, source.connectionId, taskId);
+  }
+  async poll(source: { claims: CellTokenClaims; connectionId: string }, raw: MacExecRequest) {
+    this.authorizeSource(source, raw.taskId);
+    const request = parse(MacExecRequestSchema, structuredClone(raw));
+    if (request.approval || request.userId !== source.claims.sub) throw new Error("forbidden");
+    const fingerprint = await hash(identity(request));
+    this.authorizeSource(source, request.taskId);
+    const row = this.row(request.taskId, request.requestId);
+    if (!row) return undefined;
+    if (row.fingerprint !== fingerprint) throw new Error("command_conflict");
+    return this.progress(row);
+  }
+  private mac(claims: CellTokenClaims, connectionId: string) {
+    this.member(claims);
+    const current = this.store.database
+      .prepare("SELECT connection_id FROM cell_runner_connections WHERE runner_id=?")
+      .get(claims.device) as { connection_id: string } | undefined;
+    if (claims.kind !== "mac_runner" || current?.connection_id !== connectionId)
+      throw new Error("forbidden");
+  }
+  outgoing(claims: CellTokenClaims, connectionId: string, force = false) {
+    this.mac(claims, connectionId);
+    const rows = this.store.database
+      .prepare(
+        "SELECT * FROM cell_mac_requests WHERE mac_id=? AND state IN ('approved','sent') AND (? OR sent_at IS NULL OR sent_at<=?) ORDER BY created_at,id LIMIT 8",
+      )
+      .all(claims.device, force ? 1 : 0, this.now() - 15000) as Row[];
+    return rows.flatMap((row) => {
+      const task = parse(TaskSchema, this.store.record("task", row.task_id));
+      if (
+        task.createdBy.id !== claims.sub ||
+        !["running", "blocked", "queued"].includes(task.state)
+      )
+        return [];
+      return [
+        {
+          id: row.id,
+          request: parse(MacExecRequestSchema, {
+            ...JSON.parse(row.body),
+            approval: JSON.parse(row.approval ?? "null"),
+          }),
+        },
+      ];
+    });
+  }
+  sent(id: string, claims: CellTokenClaims, connectionId: string) {
+    this.mac(claims, connectionId);
+    this.store.database
+      .prepare(
+        "UPDATE cell_mac_requests SET state='sent',sent_at=? WHERE id=? AND mac_id=? AND state IN ('approved','sent')",
+      )
+      .run(this.now(), id, claims.device);
+  }
+  receive(
+    claims: CellTokenClaims,
+    connectionId: string,
+    response: { id: string | number; result?: unknown; error?: unknown },
+  ) {
+    if (typeof response.id !== "string" || !response.id.startsWith("mac-exec:")) return false;
+    this.mac(claims, connectionId);
+    const row = this.store.database
+      .prepare("SELECT * FROM cell_mac_requests WHERE id=? AND mac_id=?")
+      .get(response.id.slice("mac-exec:".length), claims.device) as Row | undefined;
+    if (!row || !["approved", "sent", "complete", "denied"].includes(row.state))
+      throw new Error("forbidden");
+    if (row.state === "denied") return true;
+    if (response.error) {
+      if (row.state === "complete") return true;
+      const commandId = `mac-failed:${row.id}`;
+      this.store.dispatch(
+        commandId,
+        () => {
+          this.store.database
+            .prepare("UPDATE cell_mac_requests SET state='denied',reason='failed' WHERE id=?")
+            .run(row.id);
+          return {
+            events: [
+              this.audit(
+                {
+                  commandId,
+                  at: new Date(this.now()).toISOString(),
+                  actor: { kind: "system", id: "mac-runner" },
+                },
+                "mac.exec.denied",
+                row.task_id,
+                { requestId: row.request_id, reason: "failed" },
+              ),
+            ],
+            result: { ok: true },
+          };
+        },
+        { scope: { taskId: row.task_id }, kinds: [] },
+      );
+    } else {
+      const result = parse(MacExecResultSchema, response.result);
+      if (result.requestId !== row.request_id || result.taskId !== row.task_id)
+        throw new Error("forbidden");
+      this.finish(claims, result);
+    }
+    return true;
+  }
   private progress(row: Row): MacExecProgress {
     if (row.state === "complete")
       return parse(MacExecProgressSchema, {

@@ -26,14 +26,6 @@ async function boot() {
     clis: (directory) => workerCliMetadata(environment.provider, directory),
     versions: { worker: metadata.version, node: process.versions.node },
     status,
-    // The signed bridge tool set is connected in W7. No local desktop tools are offered here.
-    tools: async () => ({
-      definitions: [],
-      tools: new Map(),
-      authorize: () => false,
-      checkLimits: () => true,
-      audit: async () => {},
-    }),
   });
   if (stopped) await worker.close();
   else status("worker_started");

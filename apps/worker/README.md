@@ -2,9 +2,9 @@
 
 `zolt-worker` runs one cloud task inside its sandbox, using the daemon's shared
 native task host and Claude or Codex adapter. It has no Local store, desktop
-controller or subscription-login fallback. W6 is in progress: the signed bridge
-tools, hosted worker-refresh endpoint and whole-flow M1 harness remain unfinished.
-The CLI currently offers an empty host-tool set; W7 connects the cloud tools.
+controller or subscription-login fallback. W6 remains in progress: killed-turn
+and pending-tool continuation, the Docker build and whole-flow M1 harness remain
+unfinished. The CLI offers `mac_exec` and `mac_status` through the cloud runner.
 
 ## Boot configuration
 
@@ -105,6 +105,23 @@ The [base template](../../templates/sandbox/README.md) still needs an actual Doc
 build and E2B acceptance. Parsing its Dockerfile through the pinned E2B SDK is an
 offline compatibility check, not either of those gates. `pnpm test:cloud-m1` and
 live verification remain pending.
+
+Mac tools first flush committed native observations through their Cell
+acknowledgements, so the Cell has the calling turn before a tool request arrives.
+Status, including that wait, has a 1.9-second deadline. An offline Mac returns an
+error without requesting execution. A command uses the Mac's resolved folder and
+target, then reads durable approval/result progress. Polls use the same task and
+request ID; transient disconnects replay the transport request. Native tool result
+IDs survive that connection's retry. Recovery of an outstanding tool after worker
+process loss still needs the W6/W8 continuation work.
+
+The tool host checks known private context and injected credentials before any
+Mac RPC. Cloud command results use the bounded rich host-tool result, preserving
+the Mac's output caps beyond the normal 4,000-character tool summary. These two
+definitions are exported separately from the Local runtime tool set. Tests drive
+both fake native providers through the default worker tools and assert that the
+calling turn reaches the fake Cell first. The fake Cell supplies a scripted result;
+these tests do not prove signed execution or the full M1 flow.
 
 An explicit credential-service response of 401, 403 or 410 stops the connection,
 queued cloud work and native runtime. A network failure, 429 or service error

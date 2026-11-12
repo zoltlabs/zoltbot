@@ -271,6 +271,20 @@ original scope. A real workerd test evicts the object before session replacement
 and again after approval; the request and signed resolution remain durable.
 This does not establish worker-process continuation while awaiting a tool result.
 
-Runner socket routing, streaming and prefix rules remain unfinished.
+Runner sockets now route status and command requests through `CellMacBridge`.
+Status uses the member's current grant-capable Mac connection, rechecks account
+authority before delivery and returns within 1.8 seconds. Multiple eligible Macs
+require an explicit selection. A sandbox can query only its fenced task and turn.
+Only a matching current Mac connection can answer status or complete a command.
+Approved commands retry every fifteen seconds and on Mac hello, retaining their
+durable ID. Repeated worker requests read existing progress before checking Mac
+presence, so a pending approval or saved result survives a Mac disconnect.
+
+The socket test uses scripted clients and a generated account signer. It covers
+approval-before-delivery, changed request refusal, explicit Mac selection,
+replacement connections, wrong-Mac result refusal and object eviction. The Mac
+client returns synthetic output; separate daemon tests enforce real signatures
+and process ownership. Streaming, prefix rules and the whole-flow gate remain
+unfinished.
 The records tests cover scoped reads, concurrent replay, connection fences,
 transaction rollback, signing-device refusal and idempotent result storage.

@@ -1,6 +1,7 @@
 import { chmod, lstat, mkdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import {
+  cloudMacTools,
   EncryptedTaskVault,
   ManagedWorkspaces,
   type NativeCloudTasksOptions,
@@ -18,7 +19,7 @@ export interface WorkerOptions {
   /** Fixed /home/user paths in production; disposable roots in headless tests. */
   directory?: string;
   workDirectory?: string;
-  tools: NativeCloudTasksOptions["tools"];
+  tools?: NativeCloudTasksOptions["tools"];
   native?: NativeCloudTasksOptions["native"];
   clis: RunnerHello["clis"] | ((directory: string) => Promise<RunnerHello["clis"]>);
   versions: RunnerHello["versions"];
@@ -131,7 +132,12 @@ export async function startWorker(options: WorkerOptions) {
           },
           input.signal,
         );
-        return options.tools(input);
+        if (options.tools) return options.tools(input);
+        if (!connection) throw new Error("worker_scope_conflict");
+        return cloudMacTools(input, {
+          call: connection.call.bind(connection),
+          flush: connection.flush.bind(connection),
+        });
       },
     });
     const tasks = native.task;

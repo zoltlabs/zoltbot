@@ -16,10 +16,12 @@ import { claudeDefinitions } from "@zoltbot/adapters-claude/definitions";
 import { codexDefinitions } from "@zoltbot/adapters-codex/definitions";
 import type { RunOptions } from "@zoltbot/detect";
 import { afterEach, expect, it, vi } from "vitest";
+import { PrivateContexts } from "../private-context.js";
 import { EncryptedTaskVault } from "./encrypted-vault.js";
 import { runnerLease } from "./fixture.js";
 import { nativeCloudTasks } from "./native.js";
 import { RunnerOutbox } from "./outbox.js";
+import { taskVault } from "./vault.js";
 import { ManagedWorkspaces } from "./workspaces.js";
 
 const cleanup: (() => Promise<void>)[] = [];
@@ -82,6 +84,7 @@ child.once("exit",code=>process.exit(code??1));
   execution.profile.definitionId = builtin.id;
   execution.profile.instructions = "";
   const keys = [vaultKey, providerKey, runnerToken];
+  const privateAnswer = randomBytes(32).toString("base64url");
   const guard = (value: unknown) => {
     if (keys.some((key) => JSON.stringify(value).includes(key))) throw new Error("private_value");
   };
@@ -140,7 +143,7 @@ child.once("exit",code=>process.exit(code??1));
           };
         },
       },
-      tools: async ({ store, signal }) => ({
+      tools: async ({ store, signal, assertPublic }) => ({
         definitions: [
           {
             name: "team_fixture_ping",
@@ -154,6 +157,16 @@ child.once("exit",code=>process.exit(code??1));
             async ({ actor }) => {
               expect(signal.aborted).toBe(false);
               expect(store.record("session", actor.sessionId)?.threadId).toBe("thread");
+              const contexts = new PrivateContexts({
+                store,
+                vault: taskVault(vault, { orgId: "org", taskId: "task" }),
+                publish() {},
+              });
+              await contexts.persist(actor.sessionId, new Set([privateAnswer]));
+              await expect(assertPublic({ stdin: privateAnswer })).rejects.toThrow(
+                "private_value_requires_secure_field",
+              );
+              await assertPublic({ command: "uname" });
               calls++;
               return { text: "scoped-native-cloud-ok" };
             },
@@ -185,7 +198,8 @@ child.once("exit",code=>process.exit(code??1));
         if (entry.isDirectory()) await visit(file);
         else if (entry.isFile()) {
           const bytes = await readFile(file);
-          for (const key of keys) expect(bytes.includes(Buffer.from(key))).toBe(false);
+          for (const key of [...keys, privateAnswer])
+            expect(bytes.includes(Buffer.from(key))).toBe(false);
         }
       }
     };

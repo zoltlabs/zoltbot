@@ -8,6 +8,7 @@ import { boundedJson } from "./auth.js";
 import { CloudRpc, safeError } from "./cloud-rpc.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
+import { CellMacBridge } from "./mac-bridge.js";
 import { CellRunners } from "./runners.js";
 import { CellSandboxes } from "./sandboxes.js";
 import { seedCell } from "./seed.js";
@@ -19,6 +20,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
   private store: Store | undefined;
   private service: CellService | undefined;
   private deleted = false;
+  private mac: CellMacBridge | undefined;
   private async open(claims: CellTokenClaims): Promise<Store> {
     if (this.deleted) throw new Error("unauthorized");
     this.service ??= new CellService(
@@ -61,6 +63,8 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
   override async fetch(request: Request): Promise<Response> {
     if (request.method === "DELETE" && request.headers.get("x-zolt-service") === "delete") {
       this.deleted = true;
+      this.mac?.close();
+      this.mac = undefined;
       this.service?.invalidate();
       this.store?.database.close();
       await this.ctx.storage.deleteAlarm();
@@ -136,7 +140,8 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       if (this.deleted) return;
       try {
         await this.authorizeSocket(runner);
-        await new CellRunners(this.ctx, store).offer(runner);
+        await new CellRunners(this.ctx, store, this.bridge(store)).offer(runner);
+        this.bridge(store).deliver(runner);
       } catch (error) {
         if (error instanceof Error && error.message === "unauthorized")
           runner.close(1008, "unauthorized");
@@ -187,7 +192,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
               this.service,
               new CellAnswers(store, this.ctx),
             ).call(input)
-          : await new CellRunners(this.ctx, store).message(socket, input);
+          : await new CellRunners(this.ctx, store, this.bridge(store)).message(socket, input);
       if (
         data.claims.kind === "client" &&
         input &&
@@ -245,6 +250,23 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       current.permissions = permissions;
       socket.serializeAttachment(current);
     }
+  }
+  private bridge(store: Store) {
+    if (this.deleted) throw new Error("unauthorized");
+    if (!this.mac) {
+      const identity = store.database
+        .prepare("SELECT org_id,user_id FROM cell_identity WHERE id=1")
+        .get() as { org_id: string; user_id: string } | undefined;
+      if (!identity) throw new Error("unauthorized");
+      this.mac = new CellMacBridge(
+        store,
+        this.ctx,
+        { orgId: identity.org_id, userId: identity.user_id },
+        (socket) => this.authorizeSocket(socket),
+        () => !this.deleted,
+      );
+    }
+    return this.mac;
   }
   private async alarmStore(): Promise<Store | undefined> {
     if (this.deleted) return;

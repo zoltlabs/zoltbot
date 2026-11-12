@@ -3,6 +3,7 @@ export * from "./connection.js";
 export * from "./encrypted-vault.js";
 export * from "./mac.js";
 export * from "./mac-exec.js";
+export * from "./mac-tools.js";
 export * from "./native.js";
 export * from "./outbox.js";
 export * from "./task-host.js";

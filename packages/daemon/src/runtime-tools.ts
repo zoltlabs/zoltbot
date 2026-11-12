@@ -19,6 +19,9 @@ import {
 } from "./team-tools.js";
 import { viewToolDefinition, viewToolHint, viewTools } from "./views/tools.js";
 import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
+
+export { cloudMacToolDefinitions, cloudMacTools } from "./cloud-runner/mac-tools.js";
+
 import {
   workspaceToolDefinitions,
   workspaceToolNames,

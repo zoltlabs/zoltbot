@@ -10,6 +10,8 @@ import {
   ThreadSchema,
 } from "@zoltbot/protocol";
 import {
+  MacExecRequestSchema,
+  MacStatusRequestSchema,
   parseRunnerMessage,
   RunnerDrainSchema,
   type RunnerExecution,
@@ -22,6 +24,7 @@ import type { Store } from "@zoltbot/store/portable";
 import { CellAnswers } from "./answers.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
+import type { CellMacBridge } from "./mac-bridge.js";
 import { runnerEvent } from "./runner-events.js";
 import { attachment } from "./sockets.js";
 
@@ -53,6 +56,7 @@ export class CellRunners {
   constructor(
     private readonly ctx: DurableObjectState,
     private readonly store: Store,
+    private readonly mac?: CellMacBridge,
   ) {
     this.leases = new CellLeases(store);
     store.database.exec(
@@ -284,6 +288,7 @@ export class CellRunners {
     if (!("method" in request)) {
       if (!data.runnerId || data.runnerId !== claims.device || !this.current(socket))
         throw new Error("forbidden");
+      if (this.mac?.receive(socket, request)) return undefined;
       if (new CellAnswers(this.store, this.ctx).receive(claims, data.runnerId, request))
         return undefined;
       new CellCommands(this.store).result(claims, data.runnerId, request);
@@ -314,10 +319,27 @@ export class CellRunners {
       await this.deliver(socket, hello, claims);
       new CellCommands(this.store).deliver(socket, true);
       new CellAnswers(this.store, this.ctx).deliver(socket, true);
+      this.mac?.deliver(socket, true);
       return { jsonrpc: "2.0", id: request.id, result: { ok: true, heartbeatMs: 15000 } };
     }
     if (!data.runnerId || data.runnerId !== claims.device || !this.current(socket))
       throw new Error("forbidden");
+    if (request.method === "mac.status.request") {
+      if (!this.mac) throw new Error("method_unavailable");
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: await this.mac.status(socket, parse(MacStatusRequestSchema, request.params)),
+      };
+    }
+    if (request.method === "mac.exec.request") {
+      if (!this.mac) throw new Error("method_unavailable");
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: await this.mac.exec(socket, parse(MacExecRequestSchema, request.params)),
+      };
+    }
     if (request.method === "runner.heartbeat") {
       const heartbeat = parse(RunnerHeartbeatSchema, request.params);
       if (heartbeat.runnerId !== data.runnerId) throw new Error("forbidden");

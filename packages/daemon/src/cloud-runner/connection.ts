@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { parse } from "@zoltbot/protocol";
 import {
+  type MacExecProgress,
   type MacExecRequest,
   MacExecRequestSchema,
   type MacStatusRequest,
   MacStatusRequestSchema,
+  type MacStatusResult,
   parseRunnerMessage,
   RunnerAckSchema,
   type RunnerCommand,
@@ -15,6 +17,7 @@ import {
   RunnerLeaseSchema,
 } from "@zoltbot/runner-protocol";
 import WebSocket from "ws";
+import { RunnerCalls } from "./calls.js";
 import { RunnerOutbox } from "./outbox.js";
 
 /** An explicit credential-service refusal, never a transient network failure. */
@@ -74,6 +77,7 @@ export interface RunnerConnectionOptions {
 /** Transport only: execution and signed approvals belong to the task/bridge hosts. */
 export class RunnerConnection {
   private readonly hello: RunnerHello;
+  private readonly calls: RunnerCalls;
   private readonly tasks = new Map<string, TaskEntry>();
   private readonly lifetime = new AbortController();
   private session: Session | undefined;
@@ -96,6 +100,10 @@ export class RunnerConnection {
   private retryResolve: (() => void) | undefined;
   constructor(private readonly options: RunnerConnectionOptions) {
     this.hello = parse(RunnerHelloSchema, structuredClone(options.hello));
+    this.calls = new RunnerCalls({
+      guard: options.guard,
+      send: (frame) => (this.session ? this.send(this.session, frame) : false),
+    });
     if (this.hello.kind === "sandbox" && !options.taskId) throw new Error("runner_task_required");
   }
   start() {
@@ -265,10 +273,12 @@ export class RunnerConnection {
   }
   private receive(session: Session, message: ReturnType<typeof parseRunnerMessage>, bytes: number) {
     if (!("method" in message)) {
+      if (this.calls.receive(message)) return;
       if ("error" in message) throw new Error("runner_request_refused");
       if (message.id === "hello") {
         this.status("runner_connected");
         this.heartbeat(session);
+        this.calls.reconnect();
       }
       return;
     }
@@ -521,9 +531,46 @@ export class RunnerConnection {
       if (task.ready !== this.ready(task)) this.heartbeat(this.session);
     }
   }
+  call(
+    method: "mac.status.request",
+    request: MacStatusRequest,
+    signal: AbortSignal,
+  ): Promise<MacStatusResult>;
+  call(
+    method: "mac.exec.request",
+    request: MacExecRequest,
+    signal: AbortSignal,
+  ): Promise<MacExecProgress>;
+  call(
+    method: "mac.status.request" | "mac.exec.request",
+    request: MacStatusRequest | MacExecRequest,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    if (this.stopped || this.hello.kind !== "sandbox" || request.taskId !== this.options.taskId)
+      return Promise.reject(new Error("runner_call_unavailable"));
+    const combined = AbortSignal.any([signal, this.lifetime.signal]);
+    return method === "mac.status.request"
+      ? this.calls.call(method, parse(MacStatusRequestSchema, request), combined)
+      : this.calls.call(method, parse(MacExecRequestSchema, request), combined);
+  }
+  /** Put all observations committed before this call ahead of a dependent tool request. */
+  async flush(taskId: string, signal: AbortSignal) {
+    if (this.hello.kind !== "sandbox" || taskId !== this.options.taskId)
+      throw new Error("runner_call_unavailable");
+    const task = this.tasks.get(taskId);
+    if (!task) throw new Error("runner_call_unavailable");
+    const target = task.outbox.nextSequence - 1;
+    this.publish(taskId);
+    while (task.outbox.lastAck < target) {
+      if (this.stopped || signal.aborted) throw new Error("runner_call_unavailable");
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    }
+    if (this.stopped || signal.aborted) throw new Error("runner_call_unavailable");
+  }
   close(): Promise<void> {
     this.stopped = true;
     this.lifetime.abort();
+    this.calls.close();
     this.controller?.abort();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryResolve?.();

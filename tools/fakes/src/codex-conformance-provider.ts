@@ -190,6 +190,7 @@ async function run(threadId: string, turnId: string, text: string) {
   if (
     text === "host_tools" ||
     text === "host_tools_echo" ||
+    text === "mac_exec" ||
     text === "delegate" ||
     text in workspaceRequests
   ) {
@@ -198,29 +199,31 @@ async function run(threadId: string, turnId: string, text: string) {
     const result = await callFixtureHost(
       host.url,
       host.http_headers,
-      text in workspaceRequests
-        ? workspaceRequests[text]
-        : text === "delegate"
-          ? {
-              name: "team_delegate",
-              arguments: {
-                key: "feature-check",
-                title: "Feature check",
-                brief: "Check the feature and return a brief result.",
-              },
-            }
-          : undefined,
+      text === "mac_exec"
+        ? { name: "mac_exec", arguments: { command: "uname" } }
+        : text in workspaceRequests
+          ? workspaceRequests[text]
+          : text === "delegate"
+            ? {
+                name: "team_delegate",
+                arguments: {
+                  key: "feature-check",
+                  title: "Feature check",
+                  brief: "Check the feature and return a brief result.",
+                },
+              }
+            : undefined,
     );
     item(threadId, turnId, {
       type: "mcpToolCall",
       id: "host",
       server: "zoltbot",
-      tool: "ping",
-      arguments: {},
+      tool: text === "mac_exec" ? "mac_exec" : "ping",
+      arguments: text === "mac_exec" ? { command: "uname" } : {},
       status: "completed",
       result: { content: [{ type: "text", text: result }] },
     });
-    if (text === "host_tools_echo") reply = result;
+    if (text === "host_tools_echo" || text === "mac_exec") reply = result;
   }
   notify("item/agentMessage/delta", {
     threadId,
