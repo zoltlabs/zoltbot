@@ -72,3 +72,36 @@ it("rejects cyclic values with a fixed error and preserves legal renamed paths",
   };
   expect(parseRunnerCommandResult("collect_diff", renamed).files[0]?.path).toBe("src/new\nname.ts");
 });
+
+it("bounds review metadata and keeps checkout paths out of commit results", () => {
+  const value = {
+    taskId: "task",
+    revision: 1,
+    fingerprint: "f".repeat(64),
+    head: "b".repeat(40),
+    base: "a".repeat(40),
+    files: [{ path: "new.txt", hash: "c".repeat(64), mode: "100644" }],
+  };
+  expect(parseRunnerCommandResult("review_preview", value)).toEqual(value);
+  expect(() =>
+    parseRunnerCommandResult("review_preview", { ...value, cwd: "/unexpected" }),
+  ).toThrow("runner_result_invalid");
+  expect(() =>
+    parseRunnerCommandResult("review_preview", {
+      ...value,
+      files: [{ ...value.files[0], mode: "777" }],
+    }),
+  ).toThrow("runner_result_invalid");
+  const committed = {
+    taskId: "task",
+    revision: 1,
+    fingerprint: value.fingerprint,
+    head: "d".repeat(40),
+    previous: value.head,
+    base: value.base,
+  };
+  expect(parseRunnerCommandResult("review_commit", committed)).toEqual(committed);
+  expect(() =>
+    parseRunnerCommandResult("review_commit", { ...committed, token: "untrusted" }),
+  ).toThrow("runner_result_invalid");
+});

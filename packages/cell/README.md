@@ -324,14 +324,14 @@ Only four snapshots per task remain; older command IDs report failure rather tha
 queueing another collection. A fresh command ID requests a new snapshot.
 Pending runner commands wake sleeping review tasks and prevent idle sleep while
 the request is unfinished. Lifetime limits still apply. Full view-presence tracking,
-review commits and client polling remain unfinished.
+client polling and whole-flow verification remain unfinished.
 
 Branch-publication acknowledgements now require the queued command's exact head,
 branch and revision and the task project's repository. They use a separate durable
 proof table, so refreshing diffs cannot remove a publication acknowledgement.
 Only the current authenticated lease can complete the command. Wrong fields and
 extra result properties are refused, duplicate replies save one proof, and the
-proof survives object eviction. Review commits and client presentation remain unfinished; this is not W4 sign-off.
+proof survives object eviction. Client presentation and whole-flow verification remain unfinished; this is not W4 sign-off.
 
 
 Cloud `task.review` acceptance requires `reviewedCommit` from a completed,
@@ -356,4 +356,19 @@ Sleeping accepted tasks wake for pending publication before their existing
 review work, with no queued agent inputs; completion withdraws that maintenance
 offer. Tests cover RPC receipts, rollback, scoped proofs, eviction, uncertain PR
 replies, invalid URLs, deletion fences, wake and runner reconnect. Uncommitted
-changes still require the unfinished review-commit path. W4 and W8 remain open.
+changes require the confirmed review-commit path below. W4 and W8 remain open.
+
+Cloud `task.reviewCommitPreview` now queues a bounded native preview. The caller
+uses a fresh command ID to refresh and repeats it while polling, as for diffs.
+The last four previews remain per task. `task.reviewCommit` requires explicit
+confirmation and a current preview fingerprint; its durable command and human
+user/device/surface audit commit atomically. Native replies must match the task,
+revision, fingerprint, previous head and base. Commit receipts remain separate
+from expiring previews and survive eviction. After committing, collect a fresh
+complete diff and accept its exact head through the publication path above.
+
+M1 cloud commits use a fixed message. Nonempty custom messages are refused before
+persistence; Local callers keep their existing message and execution-approval
+flow. No additional human text enters the cloud Git metadata. Component/client
+flows and whole-flow verification remain unfinished; these routes do not sign
+W4 or W8 off by themselves.

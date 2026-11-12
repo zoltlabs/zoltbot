@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Improvement: Cloud tasks can create a review commit from a confirmed file preview.
+
 - Improvement: Cloud task acceptance keeps the reviewed commit fixed through branch publication and PR creation.
 
 - Fix: Signing out after a restart removes saved account credentials.

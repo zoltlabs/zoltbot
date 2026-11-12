@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { type AgentSession, AsyncQueue } from "@zoltbot/adapters-sdk";
@@ -11,6 +11,7 @@ import { WebSocketServer } from "ws";
 import { referenceCapabilities } from "../../../../tools/fakes/src/capabilities.js";
 import { type ConnectedTask, RunnerConnection } from "./connection.js";
 import { runnerLease } from "./fixture.js";
+import { managedReviews } from "./managed-review.js";
 import { RunnerOutbox } from "./outbox.js";
 import { cloudTasks } from "./task-host.js";
 import { ManagedWorkspaces } from "./workspaces.js";
@@ -63,7 +64,7 @@ const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
-async function fixture() {
+async function fixture(inputGuard: (value: unknown) => void = () => {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "zoltbot-cloud-task-host-"));
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const source = path.join(root, "source"),
@@ -107,16 +108,17 @@ async function fixture() {
   let closes = 0,
     publications = 0;
   const controller = new AbortController();
+  const workspaces = new ManagedWorkspaces({
+    directory: path.join(root, "managed"),
+    localRepository: () => remote,
+  });
   const create = cloudTasks({
     orgId: "org",
     memberId: "member",
     cacheDirectory: path.join(root, "cache"),
-    workspaces: new ManagedWorkspaces({
-      directory: path.join(root, "managed"),
-      localRepository: () => remote,
-    }),
+    workspaces,
     definition: async () => definition,
-    guard() {},
+    guard: inputGuard,
     status: (code) => statuses.push(code),
     resources: async ({ cwd, signal, store }) => {
       currentStore = store;
@@ -171,6 +173,7 @@ async function fixture() {
   return {
     root,
     remote,
+    workspaces,
     setPrivacyGuard(guard: (value: unknown) => Promise<void>) {
       assertPublic = guard;
     },
@@ -532,4 +535,229 @@ it("publishes the current reviewed task commit through its pinned repository and
     repository: f.execution.project.cloud?.repository,
     pushed: true,
   });
+});
+
+it("creates one revision-bound review commit and replays its native receipt after reopening", async () => {
+  const f = await fixture();
+  let task = await f.start();
+  await expect.poll(() => done(f)).toBe(1);
+  await writeFile(path.join(f.cwd, "README.md"), "Reviewed task content\n");
+  const revision = Number(f.store.record("task", "task")?.revision);
+  const preview = (await task.command(
+    {
+      taskId: "task",
+      leaseId: "lease",
+      commandId: "preview",
+      command: { type: "review_preview", revision },
+    },
+    f.controller.signal,
+  )) as { fingerprint: string; head: string; base: string; taskId: string; revision: number };
+  expect(preview).toMatchObject({ taskId: "task", revision });
+  expect(JSON.stringify(preview).includes(f.cwd)).toBe(false);
+  const command = {
+    taskId: "task",
+    leaseId: "lease",
+    commandId: "commit",
+    command: {
+      type: "review_commit" as const,
+      revision,
+      fingerprint: preview.fingerprint,
+      head: preview.head,
+      base: preview.base,
+    },
+  };
+  const result = await task.command(command, f.controller.signal);
+  expect(result).toMatchObject({
+    taskId: "task",
+    revision,
+    fingerprint: preview.fingerprint,
+    previous: preview.head,
+  });
+  await task.close();
+  task = await f.start();
+  expect(await task.command(command, f.controller.signal)).toEqual(result);
+  expect(
+    execFileSync("git", ["rev-list", "--count", "HEAD"], { cwd: f.cwd, encoding: "utf8" }).trim(),
+  ).toBe("2");
+  await expect(
+    task.command(
+      { ...command, command: { ...command.command, fingerprint: "f".repeat(64) } },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("command_conflict");
+});
+
+it.each([
+  false,
+  true,
+])("reconciles a prepared review commit after restart (Git ref already advanced: %s)", async (advanced) => {
+  const f = await fixture();
+  let task = await f.start();
+  await expect.poll(() => done(f)).toBe(1);
+  await writeFile(path.join(f.cwd, "README.md"), "Reviewed task content\n");
+  const revision = Number(f.store.record("task", "task")?.revision),
+    cloud = f.execution.project.cloud;
+  if (!cloud) throw new Error("fixture_cloud_missing");
+  const reviews = managedReviews({
+    workspaces: f.workspaces,
+    scope: {
+      orgId: "org",
+      taskId: "task",
+      repository: cloud.repository,
+      defaultBranch: cloud.defaultBranch,
+    },
+    signal: f.controller.signal,
+    assertPublic: async () => {},
+  });
+  const preview = await reviews.preview(),
+    prepared = await reviews.prepareCommit(preview.fingerprint);
+  f.store.database.exec(
+    "CREATE TABLE cloud_review_commits(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,revision INTEGER NOT NULL,previous TEXT NOT NULL,base TEXT NOT NULL,state TEXT NOT NULL,prepared TEXT,result TEXT)",
+  );
+  f.store.database
+    .prepare(
+      "INSERT INTO cloud_review_commits(command_id,fingerprint,revision,previous,base,state,prepared) VALUES(?,?,?,?,?,'prepared',?)",
+    )
+    .run(
+      "commit",
+      preview.fingerprint,
+      revision,
+      preview.head,
+      preview.base,
+      JSON.stringify(prepared),
+    );
+  if (advanced) await reviews.finish(prepared);
+  await task.close();
+  task = await f.start();
+  const result = await task.command(
+    {
+      taskId: "task",
+      leaseId: "lease",
+      commandId: "commit",
+      command: {
+        type: "review_commit",
+        revision,
+        fingerprint: preview.fingerprint,
+        head: preview.head,
+        base: preview.base,
+      },
+    },
+    f.controller.signal,
+  );
+  expect(result).toMatchObject({ taskId: "task", revision, head: prepared.head });
+  expect(
+    execFileSync("git", ["rev-list", "--count", "HEAD"], { cwd: f.cwd, encoding: "utf8" }).trim(),
+  ).toBe("2");
+});
+
+it("holds an uncertain pre-prepare review claim without creating another commit", async () => {
+  const f = await fixture(),
+    task = await f.start();
+  await expect.poll(() => done(f)).toBe(1);
+  await writeFile(path.join(f.cwd, "README.md"), "Reviewed task content\n");
+  const revision = Number(f.store.record("task", "task")?.revision);
+  const preview = (await task.command(
+    {
+      taskId: "task",
+      leaseId: "lease",
+      commandId: "preview",
+      command: { type: "review_preview", revision },
+    },
+    f.controller.signal,
+  )) as { head: string; base: string; fingerprint: string };
+  f.store.database.exec(
+    "CREATE TABLE cloud_review_commits(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,revision INTEGER NOT NULL,previous TEXT NOT NULL,base TEXT NOT NULL,state TEXT NOT NULL,prepared TEXT,result TEXT)",
+  );
+  f.store.database
+    .prepare(
+      "INSERT INTO cloud_review_commits(command_id,fingerprint,revision,previous,base,state) VALUES(?,?,?,?,?,'claimed')",
+    )
+    .run("commit", preview.fingerprint, revision, preview.head, preview.base);
+  await expect(
+    task.command(
+      {
+        taskId: "task",
+        leaseId: "lease",
+        commandId: "commit",
+        command: {
+          type: "review_commit",
+          revision,
+          fingerprint: preview.fingerprint,
+          head: preview.head,
+          base: preview.base,
+        },
+      },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("review_commit_uncertain");
+  expect(execFileSync("git", ["rev-parse", "HEAD"], { cwd: f.cwd, encoding: "utf8" }).trim()).toBe(
+    preview.head,
+  );
+});
+
+it("checks review operation metadata before creating its native journal", async () => {
+  const f = await fixture(),
+    task = await f.start();
+  await expect.poll(() => done(f)).toBe(1);
+  await writeFile(path.join(f.cwd, "README.md"), "Reviewed task content\n");
+  const revision = Number(f.store.record("task", "task")?.revision);
+  f.setPrivacyGuard(async (value) => {
+    if (JSON.stringify(value).includes("classified-operation")) throw new Error("private_context");
+  });
+  await expect(
+    task.command(
+      {
+        taskId: "task",
+        leaseId: "lease",
+        commandId: "classified-operation",
+        command: { type: "review_preview", revision },
+      },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("private_context");
+  const preview = (await task.command(
+    {
+      taskId: "task",
+      leaseId: "lease",
+      commandId: "preview",
+      command: { type: "review_preview", revision },
+    },
+    f.controller.signal,
+  )) as { fingerprint: string; head: string; base: string };
+  await expect(
+    task.command(
+      {
+        taskId: "task",
+        leaseId: "lease",
+        commandId: "classified-operation",
+        command: {
+          type: "review_commit",
+          revision,
+          fingerprint: preview.fingerprint,
+          head: preview.head,
+          base: preview.base,
+        },
+      },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("private_context");
+  expect(
+    f.store.database
+      .prepare("SELECT name FROM sqlite_master WHERE name='cloud_review_commits'")
+      .get(),
+  ).toBeUndefined();
+});
+
+it("refuses private lease metadata before creating managed checkout control files", async () => {
+  const f = await fixture((value) => {
+    if (JSON.stringify(value).includes("classified-repository")) throw new Error("private_context");
+  });
+  const lease = structuredClone(f.lease);
+  if (!lease.execution?.project.cloud) throw new Error("fixture_cloud_missing");
+  lease.execution.project.cloud.repository = "example/classified-repository";
+  await expect(f.create(lease, f.outbox, () => {}, f.controller.signal)).rejects.toThrow(
+    "runner_task_unavailable",
+  );
+  await expect(lstat(path.join(f.root, "managed"))).rejects.toMatchObject({ code: "ENOENT" });
+  expect(f.natives).toHaveLength(0);
 });

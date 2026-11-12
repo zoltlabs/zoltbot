@@ -83,7 +83,7 @@ Tests use a localhost fake Cell and synthetic credentials. They cover lost-ack
 replay without duplicate application, bounded sends while a command blocks,
 credential renewal without a second native runtime, cancellation, insecure-URL
 refusal, missing cursors, wrong-task sandbox leases and mismatched metadata.
-The transport is not yet wired into `zoltd` or a sandbox worker. The fake bridge
+The sandbox worker uses the transport; packaged `zoltd` settings wiring remains pending. The fake bridge
 callback is not the W7 signature or host-command gate.
 
 The full-suite run exposed timing assumptions in existing daemon integration tests.
@@ -169,7 +169,7 @@ Turn commands, interaction answers, interrupts and stop use the existing runner
 and interaction engine. The command input ID is canonical when supplied; older
 frames without it use a stable command-derived ID. Only the Cell drives interaction
 timers. Diff collection and branch publication use bounded wire results; the
-acceptance and PR flow remains unfinished. Native assembly is available below; daemon opt-in
+client views and whole-flow verification remain unfinished. Native assembly is available below; daemon opt-in
 and signed Mac execution are not connected yet.
 
 Tests drive real `InProcessRunner` instances with synthetic native sessions and
@@ -319,8 +319,8 @@ releasing the journal.
 Sixteen synthetic process-port tests cover these checks, forged Cell approvals,
 Off, revoked keys, changed fields, uncertain results, concurrent delivery and
 shutdown. No shell or desktop application is launched by those tests. Prefix
-rules currently require a fresh command approval. Cell routing, streaming delivery,
-prefix policy and tools remain unfinished; W7 is not signed off.
+rules and transport are described below. Client signing cards, settings and the
+whole-flow gate remain unfinished; W7 is not signed off.
 
 `startMacRunner` constructs that gate and the process host itself when explicitly
 enabled. It accepts local mode/folder/environment ports, never a raw Cell-approved
@@ -424,7 +424,7 @@ The host refuses a changed binding or task revision, checks injected credentials
 and private human answers through the task vault, then validates the bounded
 result before sending it. Missing private context fails closed. Large results that exceed the
 wire budget fail rather than sending an incomplete unmarked payload. Local diff
-collection is unchanged. Review commits and the acceptance/PR flow remain unfinished.
+collection is unchanged. The cloud review and publication paths still need client integration and W8.
 
 ## Reviewed branch publication (in progress)
 
@@ -452,3 +452,33 @@ They cover stale revisions, private intermediate history, retries, branch
 collisions and a simulated lost push reply. The Cell saves an authenticated,
 revision-bound exact-head acknowledgement; cloud acceptance now queues this command and alarms request the PR after proof. No real repository is pushed
 by these tests. This does not complete W4 or W8.
+
+## Cloud review commits (in progress)
+
+`managedReviews` is a native-only capability for a task's pinned clone. Its
+preview contains relative paths, file hashes, executable modes and exclusions;
+its fingerprint also binds the base, current head, branch and index. It exposes
+no checkout path. Previews cap changed paths at 200, individual files at 1 MiB
+and total file bytes at 8 MiB. Known private values fail before Git writes;
+secret-shaped filenames and links leaving the clone require removal or ignoring.
+
+After confirmation, it captures the approved bytes in memory, writes Git blobs
+without filters, builds the index and prepares a commit object. It never runs
+Git hooks, an editor, a pager, signing programs or configured clean filters.
+Subsequent worktree edits cannot change those captured bytes and remain dirty.
+The fixed message is `Review cloud task changes`; the automation author is
+`Zolt Labs <zolt@zoltbot.ai>`. These package choices avoid copying task briefs,
+private answers or machine account configuration into commit metadata.
+
+The native task cache claims the operation before preparing Git objects and
+saves the prepared commit with FULL synchronization before advancing its ref.
+Ref updates compare the previous head. A restart on either side of that update
+finishes the same prepared commit without creating another. A claim interrupted
+before its prepared identity was saved stays uncertain; the person must refresh
+the preview instead of repeating an unknown preparation. Completed native
+receipts replay their bounded metadata. Local review-commit behavior is unchanged.
+
+The shared Git runner retains parent-death cleanup, bounded streams and its
+isolated environment. Its transport policy also refuses worktree configuration,
+which could otherwise supply overrides outside the ordinary local config file.
+Cloud settings, native pending-call recovery and W8 remain unfinished.

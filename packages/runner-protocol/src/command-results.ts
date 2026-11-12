@@ -44,7 +44,35 @@ export const RunnerPushResultSchema = object({
   head: commit,
   pushed: Type.Literal(true),
 });
+export const RunnerReviewPreviewSchema = object({
+  taskId: Id,
+  revision: Type.Integer({ minimum: 1 }),
+  fingerprint: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+  head: commit,
+  base: commit,
+  files: Type.Array(
+    object({
+      path: relativePath,
+      hash: Type.Union([Type.String({ pattern: "^[a-f0-9]{64}$" }), Type.Literal("deleted")]),
+      mode: Type.Optional(
+        Type.Union([Type.Literal("100644"), Type.Literal("100755"), Type.Literal("120000")]),
+      ),
+      excluded: Type.Optional(Type.String({ maxLength: 2000 })),
+    }),
+    { maxItems: 200 },
+  ),
+});
+export const RunnerReviewCommitSchema = object({
+  taskId: Id,
+  revision: Type.Integer({ minimum: 1 }),
+  fingerprint: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+  head: commit,
+  previous: commit,
+  base: commit,
+});
 export const runnerResults = {
+  review_preview: RunnerReviewPreviewSchema,
+  review_commit: RunnerReviewCommitSchema,
   collect_diff: RunnerDiffResultSchema,
   push_branch: RunnerPushResultSchema,
 };

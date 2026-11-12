@@ -31,6 +31,7 @@ import { CellLeases } from "./leases.js";
 import { CellMacRecords } from "./mac-records.js";
 import { CellMacStreams } from "./mac-streams.js";
 import { CellPublications } from "./publications.js";
+import { CellReviews } from "./review-rpc.js";
 import type { CellService } from "./service.js";
 
 const metadata: readonly EntityKind[] = [
@@ -76,6 +77,11 @@ const publicErrors = new Set([
   "mac_output_unavailable",
   "review_changes_unavailable",
   "publication_pending",
+  "task_review_required",
+  "review_preview_stale",
+  "review_files_excluded",
+  "cloud_commit_message_unavailable",
+  "no_review_changes",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -244,6 +250,24 @@ export class CloudRpc {
     const p = request.params as Record<string, unknown>;
     let result: unknown;
     switch (request.method) {
+      case "task.reviewCommitPreview": {
+        const value = parse(methodCatalog["task.reviewCommitPreview"].params, p);
+        const task = parse(TaskSchema, this.owner("task", value.id).row);
+        if (!request.commandId) throw new Error("command_id_required");
+        result = new CellReviews(this.store, request.actor).preview(task, request.commandId);
+        break;
+      }
+      case "task.reviewCommit": {
+        const value = parse(methodCatalog["task.reviewCommit"].params, p);
+        const task = parse(TaskSchema, this.owner("task", value.id).row);
+        if (!request.commandId) throw new Error("command_id_required");
+        result = new CellReviews(this.store, request.actor).commit(task, {
+          ...value,
+          commandId: request.commandId,
+          requestFingerprint: this.fingerprint,
+        });
+        break;
+      }
       case "shipping.get":
       case "shipping.refresh": {
         this.owner("task", p.id);

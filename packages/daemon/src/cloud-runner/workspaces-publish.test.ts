@@ -226,3 +226,16 @@ it("refuses shallow metadata that could hide intermediate history", async () => 
   ).rejects.toThrow("managed_publication_unavailable");
   expect(f.credentialReads()).toBe(0);
 });
+
+it("refuses worktree configuration that could override a pinned transport", async () => {
+  const f = await fixture();
+  git(f.workspace.cwd, ["config", "extensions.worktreeConfig", "true"]);
+  await writeFile(
+    path.join(f.workspace.cwd, ".git/config.worktree"),
+    "[http]\n\tproxy = http://example.invalid\n",
+  );
+  await expect(
+    f.managed.publish(f.input, { head: f.base, branch: "zoltbot/task" }, f.signal, async () => {}),
+  ).rejects.toThrow("managed_publication_unavailable");
+  expect(f.credentialReads()).toBe(0);
+});

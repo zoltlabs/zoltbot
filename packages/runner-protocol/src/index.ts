@@ -135,6 +135,14 @@ export const RunnerCommandSchema = object({
     object({ type: Type.Literal("interrupt"), turnId: Type.Optional(Id) }),
     object({ type: Type.Literal("stop") }),
     object({ type: Type.Literal("collect_diff"), revision: Type.Optional(seq) }),
+    object({ type: Type.Literal("review_preview"), revision: seq }),
+    object({
+      type: Type.Literal("review_commit"),
+      revision: seq,
+      fingerprint: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+      head: Type.String({ pattern: "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }),
+      base: Type.String({ pattern: "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }),
+    }),
     object({
       type: Type.Literal("push_branch"),
       revision: seq,

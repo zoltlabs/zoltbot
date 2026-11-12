@@ -7,6 +7,7 @@ import { createInProcessRuntime } from "../runner/in-process.js";
 import type { RuntimeHost } from "../runtime-host.js";
 import { CloudTaskCache } from "./cache.js";
 import type { RunnerConnectionOptions } from "./connection.js";
+import { managedReviews, type PreparedReviewCommit } from "./managed-review.js";
 import { ObservationJournal } from "./observation-journal.js";
 import type { ManagedWorkspaces } from "./workspaces.js";
 
@@ -104,6 +105,7 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
     };
     try {
       check();
+      options.guard(initial);
       const execution = initial.execution;
       if (!execution?.project.cloud || initial.actor.userId !== options.memberId)
         throw new Error("runner_task_scope_conflict");
@@ -279,6 +281,115 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
               taskId: initial.taskId,
               revision,
             });
+          }
+          if (command.type === "review_preview" || command.type === "review_commit") {
+            const publicationResources = resources;
+            const revision = Number(cache.store.record("task", initial.taskId)?.revision);
+            const current = () => {
+              check();
+              if (
+                signal.aborted ||
+                Number(cache?.store.record("task", initial.taskId)?.revision) !== revision ||
+                command.revision !== revision
+              )
+                throw new Error("stale_revision");
+            };
+            current();
+            options.guard(input);
+            await publicationResources.assertPublic(input);
+            current();
+            const reviews = managedReviews({
+              workspaces: options.workspaces,
+              scope: {
+                orgId: options.orgId,
+                taskId: initial.taskId,
+                repository: cloud.repository,
+                defaultBranch: cloud.defaultBranch,
+              },
+              signal,
+              async assertPublic(value) {
+                current();
+                options.guard(value);
+                await publicationResources.assertPublic(value);
+                current();
+              },
+            });
+            if (command.type === "review_preview") {
+              const preview = await reviews.preview();
+              current();
+              return parseRunnerCommandResult("review_preview", {
+                ...preview,
+                taskId: initial.taskId,
+                revision,
+              });
+            }
+            const database = cache.store.database;
+            database.exec(
+              "CREATE TABLE IF NOT EXISTS cloud_review_commits(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,revision INTEGER NOT NULL,previous TEXT NOT NULL,base TEXT NOT NULL,state TEXT NOT NULL,prepared TEXT,result TEXT)",
+            );
+            const previous = database
+              .prepare(
+                "SELECT fingerprint,revision,previous,base,state,prepared,result FROM cloud_review_commits WHERE command_id=?",
+              )
+              .get(input.commandId) as
+              | {
+                  fingerprint: string;
+                  revision: number;
+                  previous: string;
+                  base: string;
+                  state: string;
+                  prepared: string | null;
+                  result: string | null;
+                }
+              | undefined;
+            if (
+              previous &&
+              (previous.fingerprint !== command.fingerprint ||
+                previous.revision !== revision ||
+                previous.previous !== command.head ||
+                previous.base !== command.base)
+            )
+              throw new Error("command_conflict");
+            if (previous?.state === "complete" && previous.result)
+              return parseRunnerCommandResult("review_commit", JSON.parse(previous.result));
+            let prepared: PreparedReviewCommit;
+            if (previous?.state === "prepared" && previous.prepared)
+              prepared = JSON.parse(previous.prepared);
+            else {
+              if (previous) throw new Error("review_commit_uncertain");
+              database
+                .prepare(
+                  "INSERT INTO cloud_review_commits(command_id,fingerprint,revision,previous,base,state) VALUES(?,?,?,?,?,'claimed')",
+                )
+                .run(input.commandId, command.fingerprint, revision, command.head, command.base);
+              prepared = await reviews.prepareCommit(command.fingerprint);
+              if (prepared.previous !== command.head || prepared.base !== command.base)
+                throw new Error("review_preview_stale");
+              current();
+              // Cache SQLite uses synchronous FULL. Save the object before advancing its Git ref.
+              database
+                .prepare(
+                  "UPDATE cloud_review_commits SET state='prepared',prepared=? WHERE command_id=? AND state='claimed'",
+                )
+                .run(JSON.stringify(prepared), input.commandId);
+            }
+            current();
+            const completed = await reviews.finish(prepared);
+            current();
+            const result = parseRunnerCommandResult("review_commit", {
+              ...completed,
+              taskId: initial.taskId,
+              revision,
+            });
+            options.guard(result);
+            await publicationResources.assertPublic(result);
+            current();
+            database
+              .prepare(
+                "UPDATE cloud_review_commits SET state='complete',result=? WHERE command_id=? AND state='prepared'",
+              )
+              .run(JSON.stringify(result), input.commandId);
+            return result;
           }
           if (command.type === "push_branch") {
             const publicationRunner = runtime.runner,

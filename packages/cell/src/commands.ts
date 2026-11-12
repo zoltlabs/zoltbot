@@ -15,6 +15,13 @@ import type { Store } from "@zoltbot/store/portable";
 import { CellLeases } from "./leases.js";
 import { attachment } from "./sockets.js";
 
+const resultTables = {
+  collect_diff: "cell_runner_command_results",
+  push_branch: "cell_runner_publications",
+  review_preview: "cell_runner_review_previews",
+  review_commit: "cell_runner_review_commits",
+} as const;
+
 interface CommandRow {
   id: string;
   task_id: string;
@@ -37,44 +44,68 @@ export class CellCommands {
     store.database.exec(
       "CREATE TABLE IF NOT EXISTS cell_runner_publications(command_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL)",
     );
+    for (const table of [resultTables.review_preview, resultTables.review_commit])
+      store.database.exec(
+        `CREATE TABLE IF NOT EXISTS ${table}(command_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL)`,
+      );
   }
   published(taskId: string, commandId: string) {
+    return this.saved(taskId, commandId, "push_branch");
+  }
+  collected(taskId: string, commandId: string) {
+    return this.saved(taskId, commandId, "collect_diff");
+  }
+  reviewPreview(taskId: string, commandId: string) {
+    return this.saved(taskId, commandId, "review_preview");
+  }
+  reviewCommitted(taskId: string, commandId: string) {
+    return this.saved(taskId, commandId, "review_commit");
+  }
+  private saved<K extends keyof typeof resultTables>(taskId: string, commandId: string, kind: K) {
     const row = this.store.database
       .prepare("SELECT task_id,state,body FROM cell_runner_commands WHERE id=?")
       .get(commandId) as { task_id: string; state: string; body: string } | undefined;
     if (!row) return undefined;
     if (row.task_id !== taskId) throw new Error("forbidden");
-    if (parse(RunnerCommandSchema, JSON.parse(row.body)).command.type !== "push_branch")
+    if (parse(RunnerCommandSchema, JSON.parse(row.body)).command.type !== kind)
       throw new Error("command_conflict");
     if (row.state === "failed") return { state: "failed" as const };
     const result = this.store.database
-      .prepare("SELECT body FROM cell_runner_publications WHERE command_id=? AND task_id=?")
+      .prepare(`SELECT body FROM ${resultTables[kind]} WHERE command_id=? AND task_id=?`)
       .get(commandId, taskId) as { body: string } | undefined;
     return result
       ? {
           state: "complete" as const,
-          result: parseRunnerCommandResult("push_branch", JSON.parse(result.body)),
+          result: parseRunnerCommandResult(kind, JSON.parse(result.body)),
         }
       : { state: row.state === "complete" ? ("failed" as const) : ("pending" as const) };
   }
-  collected(taskId: string, commandId: string) {
-    const row = this.store.database
-      .prepare("SELECT task_id,state,body FROM cell_runner_commands WHERE id=?")
-      .get(commandId) as { task_id: string; state: string; body: string } | undefined;
-    if (!row) return undefined;
-    if (row.task_id !== taskId) throw new Error("forbidden");
-    if (parse(RunnerCommandSchema, JSON.parse(row.body)).command.type !== "collect_diff")
-      throw new Error("command_conflict");
-    if (row.state === "failed") return { state: "failed" as const };
-    const result = this.store.database
-      .prepare("SELECT body FROM cell_runner_command_results WHERE command_id=? AND task_id=?")
-      .get(commandId, taskId) as { body: string } | undefined;
-    return result
-      ? {
-          state: "complete" as const,
-          result: parseRunnerCommandResult("collect_diff", JSON.parse(result.body)),
+  private save(kind: keyof typeof resultTables, row: CommandRow, value: { revision: number }) {
+    const table = resultTables[kind];
+    this.store.database
+      .transaction(() => {
+        this.store.database
+          .prepare(`INSERT INTO ${table}(command_id,task_id,revision,body) VALUES(?,?,?,?)`)
+          .run(row.id, row.task_id, value.revision, JSON.stringify(value));
+        this.store.database
+          .prepare(
+            "UPDATE cell_runner_commands SET state='complete' WHERE id=? AND state='pending'",
+          )
+          .run(row.id);
+        if (kind === "collect_diff" || kind === "review_preview") {
+          this.store.database
+            .prepare(
+              `UPDATE cell_runner_commands SET state='failed',error_code='review_expired' WHERE id IN (SELECT command_id FROM ${table} WHERE task_id=? ORDER BY rowid DESC LIMIT -1 OFFSET 4)`,
+            )
+            .run(row.task_id);
+          this.store.database
+            .prepare(
+              `DELETE FROM ${table} WHERE task_id=? AND command_id NOT IN (SELECT command_id FROM ${table} WHERE task_id=? ORDER BY rowid DESC LIMIT 4)`,
+            )
+            .run(row.task_id, row.task_id);
         }
-      : { state: row.state === "complete" ? ("failed" as const) : ("pending" as const) };
+      })
+      .immediate();
   }
   enqueue(taskId: string, commandId: string, command: RunnerCommand["command"]) {
     const task = parse(TaskSchema, this.store.record("task", taskId));
@@ -112,7 +143,7 @@ export class CellCommands {
   reviewPending(taskId: string): boolean {
     return !!this.store.database
       .prepare(
-        "SELECT id FROM cell_runner_commands WHERE task_id=? AND state='pending' AND json_extract(body,'$.command.type') IN ('collect_diff','push_branch') LIMIT 1",
+        "SELECT id FROM cell_runner_commands WHERE task_id=? AND state='pending' AND json_extract(body,'$.command.type') IN ('collect_diff','push_branch','review_preview','review_commit') LIMIT 1",
       )
       .get(taskId);
   }
@@ -173,31 +204,7 @@ export class CellCommands {
         (command.revision !== undefined && value.revision !== command.revision)
       )
         throw new Error("forbidden");
-      this.store.database
-        .transaction(() => {
-          this.store.database
-            .prepare(
-              "INSERT INTO cell_runner_command_results(command_id,task_id,revision,body) VALUES(?,?,?,?)",
-            )
-            .run(id, row.task_id, value.revision, JSON.stringify(value));
-          this.store.database
-            .prepare(
-              "UPDATE cell_runner_commands SET state='complete' WHERE id=? AND state='pending'",
-            )
-            .run(id);
-          // Retain four snapshots per task; refreshing a diff must not fill the Cell with copies.
-          this.store.database
-            .prepare(
-              "UPDATE cell_runner_commands SET state='failed',error_code='review_expired' WHERE id IN (SELECT command_id FROM cell_runner_command_results WHERE task_id=? ORDER BY rowid DESC LIMIT -1 OFFSET 4)",
-            )
-            .run(row.task_id);
-          this.store.database
-            .prepare(
-              "DELETE FROM cell_runner_command_results WHERE task_id=? AND command_id NOT IN (SELECT command_id FROM cell_runner_command_results WHERE task_id=? ORDER BY rowid DESC LIMIT 4)",
-            )
-            .run(row.task_id, row.task_id);
-        })
-        .immediate();
+      this.save("collect_diff", row, value);
       return;
     }
     if (command.type === "push_branch" && response.result !== undefined) {
@@ -215,20 +222,36 @@ export class CellCommands {
         value.repository !== project.cloud?.repository
       )
         throw new Error("forbidden");
-      this.store.database
-        .transaction(() => {
-          this.store.database
-            .prepare(
-              "INSERT INTO cell_runner_publications(command_id,task_id,revision,body) VALUES(?,?,?,?)",
-            )
-            .run(id, row.task_id, value.revision, JSON.stringify(value));
-          this.store.database
-            .prepare(
-              "UPDATE cell_runner_commands SET state='complete' WHERE id=? AND state='pending'",
-            )
-            .run(id);
-        })
-        .immediate();
+      this.save("push_branch", row, value);
+      return;
+    }
+    if (command.type === "review_preview" && response.result !== undefined) {
+      if (response.error !== undefined) throw new Error("forbidden");
+      const value = parseRunnerCommandResult("review_preview", response.result);
+      const task = parse(TaskSchema, this.store.record("task", row.task_id));
+      if (
+        value.taskId !== row.task_id ||
+        value.revision !== task.revision ||
+        value.revision !== command.revision
+      )
+        throw new Error("forbidden");
+      this.save("review_preview", row, value);
+      return;
+    }
+    if (command.type === "review_commit" && response.result !== undefined) {
+      if (response.error !== undefined) throw new Error("forbidden");
+      const value = parseRunnerCommandResult("review_commit", response.result);
+      const task = parse(TaskSchema, this.store.record("task", row.task_id));
+      if (
+        value.taskId !== row.task_id ||
+        value.revision !== task.revision ||
+        value.revision !== command.revision ||
+        value.fingerprint !== command.fingerprint ||
+        value.previous !== command.head ||
+        value.base !== command.base
+      )
+        throw new Error("forbidden");
+      this.save("review_commit", row, value);
       return;
     }
     const value = response.result;
