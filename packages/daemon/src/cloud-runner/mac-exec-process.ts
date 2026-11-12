@@ -210,6 +210,8 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
             truncated: stdoutBytes > stdoutLimit || stderrBytes > stderrLimit,
             durationMs: Math.max(0, Math.round(performance.now() - started)),
             mac: options.mac,
+            stdoutBytes,
+            stderrBytes,
           });
         });
       });

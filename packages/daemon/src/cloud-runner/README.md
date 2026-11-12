@@ -383,7 +383,14 @@ supplies an `assertPublic` port backed by that task's encrypted private context;
 private answers cannot become Mac command/stdin fields. The result uses the rich
 tool envelope to preserve the bounded Mac output. Caller tool IDs still need
 recovery across a killed worker, along with W6's pending native tool continuation.
-Cell streaming, reusable prefix approvals and W8 remain open.
+Reusable prefix approvals and W8 remain open.
+
+The Mac connection sends redacted output chunks independently of task outboxes.
+Live delivery is best effort: a disconnected socket cannot block an approved
+process. The fsynced local log remains complete, while the Cell retains bounded
+tails and repairs delivery gaps from the idempotent final result. Result metadata
+includes total redacted byte counts for auditing; the model receives only the
+bounded result fields. Client output viewing remains unfinished.
 
 For an interrupted ordinary turn, `CloudTaskCache` now queues the existing core
 restart continuation after recovery, before applying the new lease. It retains

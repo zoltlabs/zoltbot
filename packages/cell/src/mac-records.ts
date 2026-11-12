@@ -135,6 +135,17 @@ export class CellMacRecords {
     if (claims.kind !== "mac_runner" || current?.connection_id !== connectionId)
       throw new Error("forbidden");
   }
+  streamScope(claims: CellTokenClaims, connectionId: string, taskId: string, requestId: string) {
+    this.mac(claims, connectionId);
+    const row = this.row(taskId, requestId);
+    if (
+      !row ||
+      !["approved", "sent", "complete"].includes(row.state) ||
+      (JSON.parse(row.body) as MacExecRequest).targetDeviceId !== claims.device
+    )
+      throw new Error("forbidden");
+    return { id: row.id, complete: row.state === "complete" };
+  }
   outgoing(claims: CellTokenClaims, connectionId: string, force = false) {
     this.mac(claims, connectionId);
     const rows = this.store.database
@@ -460,6 +471,15 @@ export class CellMacRecords {
     this.member(claims);
     const value = parse(MacExecResultSchema, result),
       row = this.row(value.taskId, value.requestId);
+    const stdoutBytes = new TextEncoder().encode(value.stdout).byteLength,
+      stderrBytes = new TextEncoder().encode(value.stderr).byteLength;
+    if (
+      stdoutBytes > 262144 ||
+      stderrBytes > 65536 ||
+      (value.stdoutBytes !== undefined && value.stdoutBytes < stdoutBytes) ||
+      (value.stderrBytes !== undefined && value.stderrBytes < stderrBytes)
+    )
+      throw new Error("forbidden");
     if (
       claims.kind !== "mac_runner" ||
       !row ||
@@ -490,8 +510,8 @@ export class CellMacRecords {
               requestId: row.request_id,
               exitCode: value.exitCode,
               durationMs: value.durationMs,
-              stdoutBytes: new TextEncoder().encode(value.stdout).byteLength,
-              stderrBytes: new TextEncoder().encode(value.stderr).byteLength,
+              stdoutBytes: value.stdoutBytes ?? stdoutBytes,
+              stderrBytes: value.stderrBytes ?? stderrBytes,
             }),
           ],
           result: { ok: true },

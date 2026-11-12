@@ -1,4 +1,4 @@
-import { parse, TaskSchema } from "@zoltbot/protocol";
+import { type MacOutputChunk, parse, TaskSchema } from "@zoltbot/protocol";
 import {
   type MacExecProgress,
   type MacExecRequest,
@@ -10,6 +10,7 @@ import {
 } from "@zoltbot/runner-protocol";
 import type { Store } from "@zoltbot/store/portable";
 import { CellMacRecords } from "./mac-records.js";
+import { CellMacStreams } from "./mac-streams.js";
 import { attachment } from "./sockets.js";
 
 interface Pending {
@@ -20,6 +21,7 @@ interface Pending {
 /** Pending status is transient; command authority and results live in CellMacRecords. */
 export class CellMacBridge {
   private readonly records: CellMacRecords;
+  private readonly streams: CellMacStreams;
   private readonly pending = new Map<string, Pending>();
   constructor(
     private readonly store: Store,
@@ -27,8 +29,18 @@ export class CellMacBridge {
     private readonly owner: { orgId: string; userId: string },
     private readonly authorize: (socket: WebSocket) => Promise<void>,
     private readonly alive = () => true,
+    private readonly publishChunk: (chunk: MacOutputChunk) => Promise<void> = async () => {},
   ) {
     this.records = new CellMacRecords(store, owner);
+    this.streams = new CellMacStreams(store, this.records, owner);
+  }
+  async chunk(socket: WebSocket, value: MacOutputChunk) {
+    if (!this.currentMac(socket)) throw new Error("forbidden");
+    const data = attachment(socket);
+    if (await this.streams.append(data.claims, data.connectionId, value)) {
+      if (!this.alive()) throw new Error("forbidden");
+      await this.publishChunk(value);
+    }
   }
   private currentMac(socket: WebSocket) {
     if (!this.alive() || socket.readyState !== WebSocket.OPEN) return false;

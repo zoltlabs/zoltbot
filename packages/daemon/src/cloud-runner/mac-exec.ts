@@ -236,6 +236,15 @@ export class MacExecutionHost {
           ),
         );
         if (result.mac !== this.options.mac) throw new Error("mac_exec_unavailable");
+        if (
+          Buffer.byteLength(result.stdout) > 262144 ||
+          Buffer.byteLength(result.stderr) > 65536 ||
+          (result.stdoutBytes !== undefined &&
+            result.stdoutBytes < Buffer.byteLength(result.stdout)) ||
+          (result.stderrBytes !== undefined &&
+            result.stderrBytes < Buffer.byteLength(result.stderr))
+        )
+          throw new Error("mac_exec_unavailable");
         this.journal.complete(scope, binding, result);
         return result;
       })();

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { parse } from "@zoltbot/protocol";
 import {
+  type MacExecChunk,
+  MacExecChunkSchema,
   type MacExecProgress,
   type MacExecRequest,
   MacExecRequestSchema,
@@ -530,6 +532,11 @@ export class RunnerConnection {
       this.pump(this.session, task);
       if (task.ready !== this.ready(task)) this.heartbeat(this.session);
     }
+  }
+  chunk(raw: MacExecChunk) {
+    if (this.hello.kind !== "mac" || !this.session || this.stopped) return false;
+    const chunk = parse(MacExecChunkSchema, raw);
+    return this.request(this.session, "mac.exec.chunk", chunk);
   }
   call(
     method: "mac.status.request",

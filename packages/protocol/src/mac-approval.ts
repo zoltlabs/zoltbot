@@ -31,3 +31,23 @@ export const MacApprovalDraftSchema = Type.Omit(MacApprovalPayloadSchema, [
 export type MacApprovalPayload = Static<typeof MacApprovalPayloadSchema>;
 export type SignedMacApproval = Static<typeof SignedMacApprovalSchema>;
 export type MacApprovalDraft = Static<typeof MacApprovalDraftSchema>;
+export const MacOutputChunkSchema = object({
+  requestId: Id,
+  taskId: Id,
+  chunkSeq: Type.Integer({ minimum: 1 }),
+  stream: values(["stdout", "stderr"]),
+  data: Type.String({ maxLength: 65536 }),
+});
+export const MacOutputSnapshotSchema = object({
+  requestId: Id,
+  taskId: Id,
+  state: values(["pending", "running", "complete", "denied"]),
+  lastChunkSeq: Type.Integer({ minimum: 0 }),
+  stdout: Type.String({ maxLength: 262144 }),
+  stderr: Type.String({ maxLength: 65536 }),
+  truncated: Type.Boolean(),
+  missingChunks: Type.Boolean(),
+  exitCode: Type.Optional(Type.Integer()),
+});
+export type MacOutputChunk = Static<typeof MacOutputChunkSchema>;
+export type MacOutputSnapshot = Static<typeof MacOutputSnapshotSchema>;

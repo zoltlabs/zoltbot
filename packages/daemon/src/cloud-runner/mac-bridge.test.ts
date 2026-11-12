@@ -32,6 +32,7 @@ it("runs only signed member commands over the runner socket and replays their re
     string,
     { result?: { stdout: string; exitCode: number }; error?: unknown }
   >();
+  const chunks: { requestId: string; taskId: string; chunkSeq: number; data: string }[] = [];
   let socket: WebSocket | undefined,
     hellos = 0,
     keyReads = 0,
@@ -43,7 +44,10 @@ it("runs only signed member commands over the runner socket and replays their re
     connected.on("message", (data) => {
       const message = JSON.parse(data.toString());
       if (message.method === "runner.hello") hellos++;
-      else if (typeof message.id === "string") replies.set(message.id, message);
+      else if (message.method === "mac.exec.chunk") {
+        chunks.push(message.params);
+        connected.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { ok: true } }));
+      } else if (typeof message.id === "string") replies.set(message.id, message);
     });
   });
   const options: MacRunnerOptions = {
@@ -157,6 +161,17 @@ it("runs only signed member commands over the runner socket and replays their re
     await expect.poll(() => replies.has("first")).toBe(true);
     expect(replies.get("first")?.result?.exitCode).toBe(0);
     expect(replies.get("first")?.result?.stdout.trim()).toBe(os.type());
+    await expect
+      .poll(() =>
+        chunks
+          .filter((frame) => frame.requestId === "signed")
+          .map((frame) => frame.data)
+          .join("")
+          .trim(),
+      )
+      .toBe(os.type());
+    expect(chunks.every((frame) => frame.taskId === "task" && frame.chunkSeq >= 1)).toBe(true);
+    expect(chunks.some((frame) => frame.requestId === "forged")).toBe(false);
     send("repeat", signed);
     await expect.poll(() => replies.has("repeat")).toBe(true);
     expect(replies.get("repeat")?.result?.stdout.trim()).toBe(os.type());

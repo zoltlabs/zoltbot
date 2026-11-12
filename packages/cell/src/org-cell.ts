@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { type CellTokenClaims, CellTokenClaimsSchema } from "@zoltbot/cloud-contracts";
-import { parse } from "@zoltbot/protocol";
+import { type MacOutputChunk, parse } from "@zoltbot/protocol";
 import { migrateDriver, Store } from "@zoltbot/store/portable";
 import { interactionAlarms, rebuildAlarm } from "./alarm-work.js";
 import { CellAnswers } from "./answers.js";
@@ -264,9 +264,22 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         { orgId: identity.org_id, userId: identity.user_id },
         (socket) => this.authorizeSocket(socket),
         () => !this.deleted,
+        (chunk) => this.publishMacChunk(chunk),
       );
     }
     return this.mac;
+  }
+  private async publishMacChunk(chunk: MacOutputChunk) {
+    for (const socket of this.ctx.getWebSockets("client")) {
+      if (this.deleted) return;
+      try {
+        await this.authorizeSocket(socket);
+        if (!attachment(socket).subscribed || this.deleted) continue;
+        socket.send(JSON.stringify({ jsonrpc: "2.0", method: "mac.exec.chunk", params: chunk }));
+      } catch {
+        socket.close(1008, "unauthorized");
+      }
+    }
   }
   private async alarmStore(): Promise<Store | undefined> {
     if (this.deleted) return;

@@ -81,7 +81,10 @@ export function startMacRunner(options: MacRunnerOptions) {
             environment: bridgeOptions.environment,
             privateValues: () => [...privateValues, ...(options.privateValues?.() ?? [])],
             ...(bridgeOptions.shell ? { shell: bridgeOptions.shell } : {}),
-            ...(bridgeOptions.chunk ? { chunk: bridgeOptions.chunk } : {}),
+            chunk(frame) {
+              connection.chunk(frame);
+              bridgeOptions.chunk?.(frame);
+            },
           }),
         })
       : undefined;

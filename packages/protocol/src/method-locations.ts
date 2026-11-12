@@ -40,6 +40,7 @@ const cloudOnlyMethods: readonly MethodName[] = [
   "cloud.project.create",
   "cloud.project.list",
   "usage.get",
+  "cloud.mac.output",
 ];
 const cloudSharedMethods: readonly MethodName[] = [
   "hello",

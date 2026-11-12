@@ -88,6 +88,8 @@ it("caps UTF-8 result bytes while retaining all output in a durable ordered loca
   expect(result.stdout.endsWith("DONE")).toBe(true);
   expect(result.stdout.includes("�")).toBe(false);
   expect(result.stderr.endsWith("ERR")).toBe(true);
+  expect(result.stdoutBytes).toBe(280004);
+  expect(result.stderrBytes).toBe(70003);
   const frames = f.logs()[0]?.frames ?? [];
   expect(frames.every((frame) => Buffer.byteLength(frame.data) <= 65536)).toBe(true);
   expect(frames.map((frame) => frame.chunkSeq)).toEqual(frames.map((_, i) => i + 1));

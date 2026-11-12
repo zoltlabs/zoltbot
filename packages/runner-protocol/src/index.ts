@@ -8,6 +8,7 @@ import {
   ContextPackSchema,
   Id,
   ItemSchema,
+  MacOutputChunkSchema,
   object,
   ProfileSchema,
   ProjectSchema,
@@ -150,13 +151,7 @@ export const MacExecRequestSchema = object({
   stdin: Type.Optional(Type.String({ maxLength: 65536 })),
   approval: Type.Optional(SignedMacApprovalSchema),
 });
-export const MacExecChunkSchema = object({
-  requestId: Id,
-  taskId: Id,
-  chunkSeq: seq,
-  stream: values(["stdout", "stderr"]),
-  data: Type.String({ maxLength: 262144 }),
-});
+export const MacExecChunkSchema = MacOutputChunkSchema;
 export const MacExecResultSchema = object({
   requestId: Id,
   taskId: Id,
@@ -166,6 +161,8 @@ export const MacExecResultSchema = object({
   truncated: Type.Boolean(),
   durationMs: nonnegative,
   mac: Text,
+  stdoutBytes: Type.Optional(Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
+  stderrBytes: Type.Optional(Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
 });
 export const MacStatusRequestSchema = object({
   requestId: Id,
@@ -245,6 +242,7 @@ export type RunnerEvent = Static<typeof RunnerEventSchema>;
 export type RunnerCommand = Static<typeof RunnerCommandSchema>;
 export type MacExecRequest = Static<typeof MacExecRequestSchema>;
 export type MacExecResult = Static<typeof MacExecResultSchema>;
+export type MacExecChunk = Static<typeof MacExecChunkSchema>;
 export type MacStatusRequest = Static<typeof MacStatusRequestSchema>;
 export type MacStatusResult = Static<typeof MacStatusResultSchema>;
 export type MacExecProgress = Static<typeof MacExecProgressSchema>;

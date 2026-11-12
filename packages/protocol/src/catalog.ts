@@ -77,6 +77,7 @@ import {
   WorkflowRunSchema,
 } from "./knowledge-workflows.js";
 import { KnowledgeProposalSchema, knowledgeWriteMethods } from "./knowledge-writes.js";
+import { MacOutputSnapshotSchema } from "./mac-approval.js";
 import { withMethodLocations } from "./method-locations.js";
 import { OrchestrationSchema, orchestrationMethods } from "./orchestration.js";
 import { quickChatEvents, quickChatMethods } from "./quick-chat.js";
@@ -181,6 +182,7 @@ const rawMethodCatalog = {
     object({ items: Type.Array(ProjectSchema), cursor: OptionalText }),
   ),
   "usage.get": entry(empty, CloudUsageSchema),
+  "cloud.mac.output": entry(object({ taskId: Id, requestId: Id }), MacOutputSnapshotSchema),
   ...viewMethods,
   ...companyMethods,
   ...wakeMethods,

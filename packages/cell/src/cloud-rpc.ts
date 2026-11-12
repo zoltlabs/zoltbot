@@ -29,6 +29,7 @@ import { CellAnswers, type PreparedAnswer } from "./answers.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import { CellMacRecords } from "./mac-records.js";
+import { CellMacStreams } from "./mac-streams.js";
 import type { CellService } from "./service.js";
 
 const metadata: readonly EntityKind[] = [
@@ -71,6 +72,7 @@ const publicErrors = new Set([
   "empty_input",
   "invalid_attachment",
   "view_context_required",
+  "mac_output_unavailable",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -239,6 +241,15 @@ export class CloudRpc {
     const p = request.params as Record<string, unknown>;
     let result: unknown;
     switch (request.method) {
+      case "cloud.mac.output": {
+        const taskId = String(p.taskId);
+        this.owner("task", taskId);
+        result = new CellMacStreams(this.store, this.mac, {
+          orgId: this.claims.org,
+          userId: this.claims.sub,
+        }).read(this.claims, taskId, String(p.requestId));
+        break;
+      }
       case "hello":
         result = { protocolVersion: 1, version: "0.1.0" };
         break;

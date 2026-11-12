@@ -10,6 +10,7 @@ import {
   ThreadSchema,
 } from "@zoltbot/protocol";
 import {
+  MacExecChunkSchema,
   MacExecRequestSchema,
   MacStatusRequestSchema,
   parseRunnerMessage,
@@ -339,6 +340,11 @@ export class CellRunners {
         id: request.id,
         result: await this.mac.exec(socket, parse(MacExecRequestSchema, request.params)),
       };
+    }
+    if (request.method === "mac.exec.chunk") {
+      if (!this.mac) throw new Error("method_unavailable");
+      await this.mac.chunk(socket, parse(MacExecChunkSchema, request.params));
+      return { jsonrpc: "2.0", id: request.id, result: { ok: true } };
     }
     if (request.method === "runner.heartbeat") {
       const heartbeat = parse(RunnerHeartbeatSchema, request.params);

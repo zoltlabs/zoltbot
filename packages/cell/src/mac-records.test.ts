@@ -15,6 +15,7 @@ import { CellAnswers } from "./answers.js";
 import { CloudRpc } from "./cloud-rpc.js";
 import { CellLeases } from "./leases.js";
 import { CellMacRecords } from "./mac-records.js";
+import { CellMacStreams } from "./mac-streams.js";
 import { runnerEvent } from "./runner-events.js";
 import { seedCell } from "./seed.js";
 import { CellService } from "./service.js";
@@ -188,6 +189,131 @@ function fixture() {
     });
   return { store, database, now, records, source, mac, request, client, answer, resolve };
 }
+async function streamingFixture() {
+  const f = fixture();
+  const streams = new CellMacStreams(f.store, f.records, { orgId: "org", userId: "member" });
+  const macClaims: CellTokenClaims = {
+    ...f.source.claims,
+    kind: "mac_runner",
+    device: "mac",
+    session: "mac-session",
+    grant: "grant",
+  };
+  delete macClaims.task;
+  f.database
+    .prepare("INSERT INTO cell_runner_connections VALUES(?,?)")
+    .run("mac", "mac-connection");
+  const pending = await f.records.request(f.source, f.request, f.mac);
+  if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+  const chunk = {
+    requestId: "request",
+    taskId: "task",
+    chunkSeq: 1,
+    stream: "stdout" as const,
+    data: "first",
+  };
+  return { ...f, streams, macClaims, pending, chunk };
+}
+it("persists ordered Mac output tails across eviction, ignores duplicates and repairs gaps at completion", async () => {
+  const f = await streamingFixture();
+  expect(f.streams.read(f.client, "task", "request").state).toBe("pending");
+  await expect(f.streams.append(f.macClaims, "mac-connection", f.chunk)).rejects.toThrow(
+    "forbidden",
+  );
+  f.resolve(f.pending.interactionId, f.answer(f.pending.interactionId));
+  expect(await f.streams.append(f.macClaims, "mac-connection", f.chunk)).toBe(true);
+  expect(await f.streams.append(f.macClaims, "mac-connection", f.chunk)).toBe(false);
+  await expect(
+    f.streams.append(f.macClaims, "mac-connection", { ...f.chunk, data: "changed" }),
+  ).rejects.toThrow("command_conflict");
+  const reopened = new CellMacStreams(f.store, f.records, { orgId: "org", userId: "member" });
+  await reopened.append(f.macClaims, "mac-connection", { ...f.chunk, chunkSeq: 3, data: "third" });
+  expect(reopened.read(f.client, "task", "request")).toMatchObject({
+    stdout: "firstthird",
+    lastChunkSeq: 3,
+    missingChunks: true,
+    state: "running",
+  });
+  const result = {
+    requestId: "request",
+    taskId: "task",
+    stdout: "firstsecondthird",
+    stderr: "",
+    exitCode: 0,
+    durationMs: 5,
+    truncated: false,
+    mac: "Test Mac",
+    stdoutBytes: 16,
+    stderrBytes: 0,
+  };
+  f.records.finish(f.macClaims, result);
+  expect(
+    await reopened.append(f.macClaims, "mac-connection", { ...f.chunk, chunkSeq: 4, data: "late" }),
+  ).toBe(false);
+  expect(reopened.read(f.client, "task", "request")).toMatchObject({
+    stdout: result.stdout,
+    missingChunks: false,
+    state: "complete",
+    exitCode: 0,
+  });
+  expect(JSON.stringify(f.store.read({ taskId: "task" }, ["audit"]))).not.toContain(
+    "firstsecondthird",
+  );
+});
+it("bounds UTF-8 stream storage and refuses stale, cross-account or oversized chunks and reads", async () => {
+  const f = await streamingFixture();
+  f.resolve(f.pending.interactionId, f.answer(f.pending.interactionId));
+  for (const [claims, connection] of [
+    [{ ...f.macClaims, org: "other" }, "mac-connection"],
+    [{ ...f.macClaims, sub: "other" }, "mac-connection"],
+    [{ ...f.macClaims, device: "other" }, "mac-connection"],
+    [f.macClaims, "stale"],
+    [f.source.claims, "connection"],
+  ] as const)
+    await expect(f.streams.append(claims, connection, f.chunk)).rejects.toThrow("forbidden");
+  await expect(
+    f.streams.append(f.macClaims, "mac-connection", { ...f.chunk, data: "🌈".repeat(20000) }),
+  ).rejects.toThrow();
+  for (let chunkSeq = 1; chunkSeq <= 6; chunkSeq++)
+    await f.streams.append(f.macClaims, "mac-connection", {
+      ...f.chunk,
+      chunkSeq,
+      data: "🌈".repeat(16384),
+    });
+  await f.streams.append(f.macClaims, "mac-connection", {
+    ...f.chunk,
+    chunkSeq: 7,
+    stream: "stderr",
+    data: "x".repeat(65536),
+  });
+  await f.streams.append(f.macClaims, "mac-connection", {
+    ...f.chunk,
+    chunkSeq: 8,
+    stream: "stderr",
+    data: "end",
+  });
+  const output = f.streams.read(f.client, "task", "request");
+  expect(new TextEncoder().encode(output.stdout).length).toBe(262144);
+  expect(new TextEncoder().encode(output.stderr).length).toBe(65536);
+  expect(output.stdout).not.toContain("�");
+  expect(output.stderr.endsWith("end")).toBe(true);
+  expect(output.truncated).toBe(true);
+  for (const claims of [{ ...f.client, org: "other" }, { ...f.client, sub: "other" }, f.macClaims])
+    expect(() => f.streams.read(claims, "task", "request")).toThrow("forbidden");
+  expect(() => f.streams.read(f.client, "task", "missing")).toThrow("mac_output_unavailable");
+  expect(() =>
+    f.records.finish(f.macClaims, {
+      requestId: "request",
+      taskId: "task",
+      stdout: "🌈".repeat(70000),
+      stderr: "",
+      exitCode: 0,
+      durationMs: 1,
+      truncated: false,
+      mac: "Test Mac",
+    }),
+  ).toThrow("forbidden");
+});
 it("commits one scoped approval interaction and survives a new records instance without duplicates", async () => {
   const f = fixture();
   vi.spyOn(f.store, "snapshot").mockImplementation(() => {

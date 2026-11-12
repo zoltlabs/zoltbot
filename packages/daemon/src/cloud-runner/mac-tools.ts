@@ -173,7 +173,13 @@ export function cloudMacTools(input: Input, transport: Transport): CloudToolSet 
           if (progress.state === "denied") return rich({ error: `mac_${progress.reason}` }, true);
           if (progress.state === "complete") {
             await input.assertPublic(progress.result);
-            const { requestId: _request, taskId: _task, ...result } = progress.result;
+            const {
+              requestId: _request,
+              taskId: _task,
+              stdoutBytes: _stdoutBytes,
+              stderrBytes: _stderrBytes,
+              ...result
+            } = progress.result;
             return rich(result);
           }
           await pause(input.signal);

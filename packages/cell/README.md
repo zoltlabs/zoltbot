@@ -284,7 +284,17 @@ The socket test uses scripted clients and a generated account signer. It covers
 approval-before-delivery, changed request refusal, explicit Mac selection,
 replacement connections, wrong-Mac result refusal and object eviction. The Mac
 client returns synthetic output; separate daemon tests enforce real signatures
-and process ownership. Streaming, prefix rules and the whole-flow gate remain
-unfinished.
+and process ownership. Prefix rules and the whole-flow gate remain unfinished.
 The records tests cover scoped reads, concurrent replay, connection fences,
 transaction rollback, signing-device refusal and idempotent result storage.
+
+`CellMacStreams` stores mutable UTF-8 tails per approved request: 256 KiB of
+stdout and 64 KiB of stderr. Current target-Mac connections send redacted chunks
+of at most 64 KiB. Sequence numbers suppress duplicates and flag delivery gaps.
+Subscribed, authorized clients receive live `mac.exec.chunk` notifications and
+can read `cloud.mac.output` after reconnecting. Notifications do not consume the
+core event sequence. Reopening the object preserves the tails; the completed
+result replaces incomplete tails and clears the gap flag. Full output stays in
+the Mac's ordered local log. The client viewer and full local log paging remain
+unfinished. These storage and delivery choices avoid copying full command output
+into the historical event log.

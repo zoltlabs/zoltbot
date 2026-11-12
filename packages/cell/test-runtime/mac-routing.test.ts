@@ -217,6 +217,18 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
     const command = mac.packets.find((packet) => packet.method === "mac.exec.request");
     if (!command) throw new Error("fixture_command_missing");
     expect(command.params?.approval).toBeDefined();
+    const chunk = {
+      requestId: "request",
+      taskId: task?.id,
+      chunkSeq: 1,
+      stream: "stdout",
+      data: "before-eviction",
+    };
+    expect((await other.call("mac.exec.chunk", chunk)).error?.message).toBe("forbidden");
+    expect((await mac.call("mac.exec.chunk", chunk)).error).toBeUndefined();
+    expect(
+      (await rpc("cloud.mac.output", { taskId: task?.id, requestId: "request" }))?.stdout,
+    ).toBe("before-eviction");
     await evictDurableObject(stub);
     replacement = await connect("mac");
     await vi.waitFor(() =>
@@ -225,6 +237,16 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
           (packet) => packet.id === command.id && packet.method === "mac.exec.request",
         ),
       ).toBe(true),
+    );
+    expect(
+      (await rpc("cloud.mac.output", { taskId: task?.id, requestId: "request" }))?.stdout,
+    ).toBe("before-eviction");
+    expect(
+      (await replacement.call("mac.exec.chunk", { ...chunk, chunkSeq: 3, data: "after-gap" }))
+        .error,
+    ).toBeUndefined();
+    expect(await rpc("cloud.mac.output", { taskId: task?.id, requestId: "request" })).toMatchObject(
+      { stdout: "before-evictionafter-gap", missingChunks: true },
     );
     const result = {
       requestId: "request",
@@ -248,6 +270,9 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
     );
     replacement.socket.send(JSON.stringify({ jsonrpc: "2.0", id: command.id, result }));
     expect((await sandbox.call("mac.exec.request", request)).result?.result).toEqual(result);
+    expect(await rpc("cloud.mac.output", { taskId: task?.id, requestId: "request" })).toMatchObject(
+      { stdout: result.stdout, missingChunks: false, state: "complete" },
+    );
   } finally {
     mac.socket.close();
     replacement?.socket.close();
