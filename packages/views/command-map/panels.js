@@ -1,5 +1,5 @@
-// The side panel under the chat list: requests for the selected chats, orders, and island
-// positions. Also loads and saves what the view remembers between sessions.
+// The command panel on the right of the console: requests for the selected chats, orders,
+// and platform positions. Also loads and saves what the view remembers between sessions.
 (() => {
   const node = (tag, text, parent) => {
     const element = document.createElement(tag);
@@ -66,6 +66,8 @@
           : ["Rebase on main", "Run the tests"],
       // Sound is off unless the owner turned it on. Graphics is automatic unless they chose a level.
       sound: value.sound === true ? true : undefined,
+      // The chat list is shown unless the owner hid it.
+      list: value.list === false ? false : undefined,
       quality: ["high", "medium", "low"].includes(value.quality) ? value.quality : undefined,
     };
   };
@@ -334,12 +336,13 @@
       }
       if (window.zolt.granted.includes("act")) {
         const orders = node("section", undefined, this.container);
+        orders.className = "orders";
         node("h2", "Orders", orders);
-        if (!selected.size) node("p", "Select chats to send them an order.", orders);
         if (selected.size > 50) node("p", "Select up to 50 chats to send an order.", orders);
         this.saved.presets.forEach((text, index) => {
           const label = node("label", `Preset ${index + 1}`, orders),
             input = node("textarea", text, label);
+          input.rows = 1;
           input.dataset.panelFocus = `preset-${index}`;
           input.maxLength = 8000;
           input.onchange = () => {

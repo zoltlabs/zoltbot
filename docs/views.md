@@ -4,7 +4,7 @@ Status: phases 1–4 are implemented and passed their automated checks and headl
 
 A view is a small web page that Zoltbot shows inside the desktop app and feeds with live data about your chats. People can change a built-in view, write their own, or ask an agent to write one. Their changes are files on disk outside the app, so installing a new version of Zoltbot keeps them.
 
-The first built-in view is the command map: a strategy-game map where each chat is a unit, each workspace is a region, and a chat that needs you raises an alert you can jump to. It is drawn as a miniature settlement: islands for workspaces, workshops for worktrees and a small robot for each chat.
+The first built-in view is the command map: a strategy-game map where each chat is a unit, each workspace is a region, and a chat that needs you raises an alert you can jump to. It is drawn as a forward base: steel platforms for workspaces, fabrication bays for worktrees and a walker for each chat, inside a strategy-game frame with a console along the bottom.
 
 ## Goals
 
@@ -115,8 +115,8 @@ A view follows the artifact rules in `packages/artifact-validation`, with these 
   "manifest": 1,
   "id": "command-map",
   "name": "Command map",
-  "description": "Your chats as robots in a miniature settlement. Beacons point at the ones that need you.",
-  "version": "2.0.0",
+  "description": "Your chats as units on a forward base. Beacons point at the ones that need you.",
+  "version": "2.1.0",
   "api": 1,
   "entry": "index.html",
   "icon": "icon.svg",
@@ -726,48 +726,55 @@ Done when: a person can press Customize, ask an agent to change the map's colors
 
 ### Phase 4: design pass on the command map
 
-Visual design, motion, sound and accessibility review of the built-in map. Not a dependency of phases 1 to 3. Built as view version 2.0.0; the View API, the sandbox, the file rules and the bridge did not change.
+Visual design, motion, sound and accessibility review of the built-in map. Not a dependency of phases 1 to 3. The View API, the sandbox, the file rules and the bridge did not change.
 
-**The world.** A miniature diorama seen from above at an angle, through a perspective camera with a 20° field of view.
+The first version of this pass (view version 2.0.0) drew a miniature diorama of islands, cottages and toy robots. The owner found it cartoonish, so version 2.1.0 restyles the world as a forward base and the controls as a classic strategy-game frame. The structure, behaviour, tests and budgets below apply to 2.1.0.
 
-* Each workspace is an island with its own ground color, a layered edge and a nameplate. Calm water lies between islands. Trees, stones and lamps stand on the margins.
-* Each worktree is a workshop with the branch name on a sign. Its windows light up and its chimney steams while a chat there is working.
-* Each chat is a robot. Its body color comes from the provider's theme token and one detail on its head (antenna, twin antennas, fin, ears, halo, hat, brim or dome) comes from the provider, so providers differ by shape as well as color.
+**The world.** A base seen from above at an angle, through a perspective camera with a 24° field of view. The palette is muted steel and bare ground, with a few lit accents.
+
+* Each workspace is a raised steel platform with plate seams, a stepped base, a painted line around its edge in its own color, and a stencilled nameplate. Bare ground with a survey grid lies between platforms. Crates and light pylons stand on the margins.
+* Each worktree is a fabrication bay on a marked pad, with the branch name on a lit sign. Its light strips come on and its stack vents while a chat there is working.
+* Each chat is a walker with a steel frame. Its shoulders and chest plate carry the provider's theme color and one piece of equipment on top (antenna, twin antennas, fin, side pods, ring, turret, hood or dome) comes from the provider, so providers differ by shape as well as color.
 * All geometry, textures, particles and sound are built in code. The folder ships no image, model or audio file.
 
-**States.** Each state has a distinct shape and motion, and a text label in the chat list, on name tags and in accessible names.
+**States.** Each state has a distinct shape and motion, and a text label in the chat list, on name tags, in the console and in accessible names.
 
 | State | On the map | Icon and label |
 |---|---|---|
-| Working | The robot hammers; sparks, lit windows, chimney steam. Zoomed far out: a turning cog above a pawn. | Hexagon, "Working" |
-| Needs you | A tall beam with a diamond on top, a filled ring and a pulsing ring on the ground, arms raised, and a name tag with the waiting time. The beam and diamond are the only marks that glow by day. | Diamond, "Needs you" |
-| Done (finished, unread) | A flag beside the robot. It rises with one hop and a burst of confetti when the chat finishes, then stays still. | Flag, "Done" |
-| Idle or later | Sitting, visor and chest light off. | Bar, "Idle" or "Later" |
-| Failed turn or session problem | Leaning pose and a warning triangle above the head. | Triangle, "Warning" |
-| Selected | A white ring with a dark edge. Hover shows a thinner ring and the name tag. | Checked in the list |
+| Working | The unit welds with its tool arm; sparks, lit bay, venting stack. Zoomed far out: a turning cog above a marker block. | Hexagon, "Working" |
+| Needs you | A tall beam with a diamond on top, a ring and a turning target ring on the ground, and a name tag with the waiting time. The beam and diamond are the only marks that glow by day. | Diamond, "Needs you" |
+| Done (finished, unread) | A pennant beside the unit. It rises with one hop and a green signal burst when the chat finishes, then stays still. | Flag, "Done" |
+| Idle or later | Crouched, visor off. | Bar, "Idle" or "Later" |
+| Failed turn or session problem | Slumped pose and a warning triangle above. | Triangle, "Warning" |
+| Selected | A thin broken ring. Hover shows a fainter full ring and the name tag. | Checked in the list, shown in the console |
 
-**Light and atmosphere.** Two palettes follow the app theme: day for light, night for dark. At night windows, lamps, visors, beams and diamonds glow and throw pools of light. Soft shadows from one sun or moon, contact shadows under units and buildings, ambient occlusion, bloom on emitters only, fog toward the horizon, and a tilt-shift blur that keeps the row of the selection (or the middle of the screen) sharp.
+**Light and atmosphere.** Two palettes follow the app theme: day for light, night for dark. At night bay lights, pylons, signs, visors, beams and diamonds glow and throw pools of light. One sun or moon casts firm shadows; there are contact shadows under units and structures, ambient occlusion, bloom on emitters only, fog toward the horizon, and a light depth-of-field blur toward the top and bottom edges that keeps the row of the selection (or the middle of the screen) sharp.
 
-**Camera.** Pan, zoom and jump-to-alert ease toward their target. The opening view shows the whole map when it fits at a readable size, otherwise the busiest island at zoom 1. Below zoom 0.5 robots become simple pawns and marks grow so they stay readable; name tags for waiting chats shrink to the waiting time. On first load the camera eases in once while workshops and robots settle outward from the center.
+**Camera.** Pan, zoom and jump-to-alert ease toward their target. The opening view shows the whole map when it fits at a readable size, otherwise the busiest platform at zoom 1. Below zoom 0.5 units become simple marker blocks and marks grow so they stay readable; name tags for waiting chats shrink to the waiting time. On first load the camera eases in once while structures and units settle outward from the center.
 
-**HUD.** One set of controls over the map, on opaque theme-token surfaces: today's spend against the budget with a meter, active chats, requests and failing required checks; Pause updates, Sound, Graphics and Next alert; control group chips; camera buttons including "Show the whole map"; and the minimap, where each state has its own shape. Edge alerts point at off-screen chats that need you, show how long each has waited, sit above every other control, and are limited to the six longest waits. The side panel docks requests and orders below the chat list so they stay in view; the request panel is plain text and native controls.
+**HUD.** A strategy-game frame on opaque theme-token surfaces, with square corners and monospaced figures.
+
+* Top bar: today's spend against the budget with a meter, active chats, requests and failing required checks; Pause updates, Sound, Graphics, Chat list and Next alert.
+* Map: full width beside the chat list. The chat list is a column the owner can hide with the Chat list button; the choice is saved through `storage`. It is shown by default because it is the keyboard and screen-reader path to everything on the map.
+* Console along the bottom: the minimap (each state has its own shape) with the camera buttons; the selection panel, which shows one chat's details in a portrait frame or a grid of tiles for several; and the command panel with requests first, then orders as a command card, then platform positions. The request stays plain text and native controls.
+* On the map: flat name tags with a bar in the state's color, stencilled nameplates, control group tabs on the console's top edge, and edge alerts that point at off-screen chats that need you, show how long each has waited, sit above every other control, and are limited to the six longest waits.
 
 **Sound.** Three synthesized Web Audio cues (needs you, finished, failed), off by default, with a toggle saved through `storage`. No music.
 
-**Structure for customization.** `skin.js` holds palettes, sizes, timing, graphics levels, sounds and the name of the builder for each part. `world/` has one builder per file: `terrain.js`, `buildings.js`, `units.js`, `marks.js`, `effects.js`, `lighting.js`, `post.js`, with shared helpers in `kit.js` and the frame loop in `scene.js`. Data and interaction are separate: `layout.js`, `states.js`, `camera.js`, `input.js`, `overlay.js`, `minimap.js`, `hud.js`, `list.js`, `panels.js`, `quality.js`, `sound.js`, `map.js`. The folder's `README.md` explains the files and shows how to change a palette and replace the unit model. The view's code is unbundled classic scripts; only three.js is bundled.
+**Structure for customization.** `skin.js` holds palettes, sizes, timing, graphics levels, sounds and the name of the builder for each part. `world/` has one builder per file: `terrain.js`, `buildings.js`, `units.js`, `marks.js`, `effects.js`, `lighting.js`, `post.js`, with shared helpers in `kit.js` and the frame loop in `scene.js`. Data and interaction are separate: `layout.js`, `states.js`, `camera.js`, `input.js`, `overlay.js`, `minimap.js`, `hud.js`, `list.js`, `selection.js`, `panels.js`, `quality.js`, `sound.js`, `map.js`. The restyle from 2.0.0 to 2.1.0 replaced four builders, the palettes and the stylesheets and left the logic files almost untouched. The folder's `README.md` explains the files and shows how to change a palette and replace the unit model. The view's code is unbundled classic scripts; only three.js is bundled.
 
 **Script loading.** ES module scripts do load in a sandboxed frame under the view's Content Security Policy in headless Chromium (the response carries `Access-Control-Allow-Origin: null`). The view still uses classic scripts, because the existing unit tests load `layout.js` and `panels.js` as classic scripts and Electron's custom scheme could not be checked without launching it. three.js and its add-ons are therefore pre-bundled into one classic script.
 
 **Performance and power.**
 
-* Instanced meshes and shared materials keep the cost flat as chats are added. With 200 sample chats at zoom 1 the high level uses 114 draw calls and about 349,000 triangles across all passes (medium: 62 and 174,000; low: 35 and 108,000); the budget is 300 and 500,000. A test checks every level with `renderer.info`.
+* Instanced meshes and shared materials keep the cost flat as chats are added. With 200 sample chats at zoom 1 the high level uses 82 draw calls and about 205,000 triangles across all passes (medium: 46 and 102,000; low: 26 and 67,000); the budget is 300 and 500,000. Every part of a unit's frame and of a structure is one stretched box drawn from a shared instanced mesh. A test checks every level with `renderer.info`.
 * Three graphics levels: high has everything; medium turns off depth of field and ambient occlusion; low also turns off shadows and bloom and draws at the display's base resolution. Auto starts at high, or at low on a software renderer, and steps down when the median frame time over 40 consecutive frames passes 26 ms. The owner's choice is saved through `storage`.
 * Rendering stops when the host says the view is hidden. While only ambient animation plays the map draws at 30 frames a second; when nothing moves it draws nothing and checks twice a second.
 * The folder is about 1 MB; the limit set for this phase is 5 MB.
 
 **Accessibility.** With `reducedMotion` the camera jumps, nothing animates, there are no particles and no opening animation, and marks stand still. No state relies on color alone. A test measures every text, icon and control-border color pair in the HUD and side panel in both themes against WCAG 2.2 AA. Keyboard focus stays visible. Existing keyboard paths remain; arrow keys, `+`, `-` and `0` now also move the camera. Dragging an island has the position form in the side panel as its single-pointer alternative.
 
-**Behaviour changes.** Shift+click toggles a unit's selection; a plain click still opens the chat. Control group buttons moved from the side panel to chips over the map with the same names. The chat list sorts chats that need you first.
+**Behaviour changes.** Shift+click toggles a unit's selection; a plain click still opens the chat. Control group buttons moved from the side panel to tabs over the map with the same names. Requests and orders moved from under the chat list to the console. The chat list can be hidden and sorts chats that need you first.
 
 ## Decisions on open points
 

@@ -1,5 +1,5 @@
-// Post-processing: ambient occlusion, bloom on things that give off light, and a tilt-shift
-// blur that keeps the focus row sharp, which is what makes the map read as a miniature.
+// Post-processing: ambient occlusion, bloom on things that give off light, and a light
+// depth-of-field blur toward the top and bottom edges that keeps the focus row sharp.
 // Each graphics level in skin.js turns some of these off; the lowest level skips this file's
 // passes and draws the scene directly.
 (() => {
@@ -35,7 +35,7 @@
       }`,
   };
 
-  map.builders.post.diorama = (world, renderer, camera) => {
+  map.builders.post.lens = (world, renderer, camera) => {
     const { scene, skin } = world;
     let composer,
       passes = {},

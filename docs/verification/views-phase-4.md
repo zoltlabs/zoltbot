@@ -103,3 +103,23 @@ No Electron app or visible window was launched. These remain unverified:
 6. Night and day against the app's dark and light themes, including a theme switch while the map is open.
 7. VoiceOver through the chat list, the request panel and the HUD, and the map at 200% text size.
 8. Reduced motion set in macOS, to confirm the host passes it to the view.
+
+## Revision: strategy-game restyle (view 2.1.0)
+
+After seeing the diorama the owner called it cartoonish and chose a sci-fi base for the world and a classic strategy-game frame for the controls. Everything above this section describes version 2.0.0; this section records what changed and what was checked again.
+
+Changed: the palettes (muted steel, bare ground, lit accents); four world builders (platforms, fabrication bays, walkers, tactical marks); a wider lens, steeper camera, firmer shadows and a much lighter edge blur; and the page frame (top bar, full-width map with a chat list the owner can hide, and a bottom console with minimap, selection panel and command panel). `selection.js` is new. Layout, camera, input, states, the frame loop, sound, graphics levels and the tests' expectations are unchanged apart from the manifest version.
+
+Numbers for 200 sample chats at zoom 1, from the same test:
+
+| Graphics level | Draw calls | Triangles |
+| --- | --- | --- |
+| High | 82 | 204,552 |
+| Medium | 46 | 102,254 |
+| Low | 26 | 67,410 |
+
+Checks on the restyled view: `pnpm typecheck`, `pnpm lint`, the view unit tests and all 14 headless workflows (`pnpm exec playwright test --config tests/views/playwright.config.ts`, 1.7 minutes) passed. Earlier runs of the long phases 1–3 workflow timed out at a different step each time while other sessions held the machine at a load average above 400; it passed once the load eased. `pnpm test`, `pnpm build:ui` and `pnpm build:desktop` were not rerun for the restyle; it touches only files inside the view folder, the manifest version in one unit test, and documents.
+
+Review screenshots of the restyle are in `output/command-map/s1` to `s5` (not committed). They cover the default view, a close-up of a working unit, a selected group, the request panel, the 200-chat case and the whole map, mostly at 1440×900. The full 44-shot set was not retaken. Fixes from review: units were too small and grew by about 45%; night steel and moonlight were raised twice because platforms read as near-black; fog was pushed back; the console was shortened.
+
+The "Not reached" list still applies, with these differences: there is no water now; signs are lit and read from further out; and the edge blur is light enough that its screen-row shortcut is hard to notice.

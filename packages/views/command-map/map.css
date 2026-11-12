@@ -1,4 +1,5 @@
-/* Page layout, the side panel and its forms. The HUD over the map is in hud.css. */
+/* Page frame: a resource bar on top, the map with the chat list beside it, and a console
+   along the bottom. Controls drawn over the map are in hud.css. */
 * {
   box-sizing: border-box;
 }
@@ -28,13 +29,14 @@ select,
 textarea {
   font: inherit;
 }
+/* Controls are square-cornered and tight, like a game interface. */
 button,
 select {
   color: var(--zb-text);
   background: var(--zb-bg-raised);
   border: 1px solid var(--zb-border-control);
-  border-radius: var(--zb-radius-sm);
-  padding: var(--zb-space-1) var(--zb-space-2);
+  border-radius: var(--zb-radius-xs);
+  padding: var(--zb-space-0-5) var(--zb-space-2);
   min-height: var(--zb-control-md);
   cursor: pointer;
 }
@@ -49,9 +51,12 @@ button:disabled {
 }
 @media (hover: hover) {
   button:hover:not(:disabled) {
-    background: var(--zb-bg-popover);
+    background: var(--zb-bg-active);
     border-color: var(--zb-text);
   }
+}
+button:active:not(:disabled) {
+  background: var(--zb-bg-selected);
 }
 .icon {
   flex: none;
@@ -59,17 +64,141 @@ button:disabled {
   height: var(--zb-icon-md);
   fill: currentColor;
 }
-.stage {
+h2 {
+  margin: 0 0 var(--zb-space-1);
+  padding-block-end: var(--zb-space-1);
+  border-block-end: 1px solid var(--zb-border-strong);
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
+  font-weight: var(--zb-weight-semibold);
+  letter-spacing: var(--zb-tracking-label);
+  color: var(--zb-text-secondary);
+}
+h3 {
+  margin: 0 0 var(--zb-space-1);
+  font-size: calc(var(--zb-text-lg) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-lg) * var(--zb-font-scale, 1));
+  font-weight: var(--zb-weight-semibold);
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Top: today's numbers on the left, controls on the right. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-1) var(--zb-space-4);
+  padding: var(--zb-space-1) var(--zb-space-2);
+  background: var(--zb-bg-raised);
+  border-block-end: 1px solid var(--zb-border-control);
+}
+.stats,
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-1) var(--zb-space-4);
+}
+.tools {
+  gap: var(--zb-space-1-5);
+}
+.stat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  min-height: var(--zb-control-md);
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  font-variant-numeric: tabular-nums;
+}
+.stat .icon {
+  color: var(--zb-text-secondary);
+}
+.stat.waiting .icon {
+  color: var(--zb-attention);
+}
+.stat.failing,
+.stat.failing .icon,
+.stat.over .icon {
+  color: var(--zb-danger);
+}
+.meter {
+  position: absolute;
+  inset: auto 0 0 calc(var(--zb-icon-md) + var(--zb-space-1-5));
+  height: var(--zb-space-0-5);
+  background: var(--zb-border-strong);
+}
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--zb-accent-text);
+}
+.over .meter span {
+  background: var(--zb-danger);
+}
+.tag {
+  padding: 0 var(--zb-space-2);
+  border: 1px dashed var(--zb-border-control);
+  color: var(--zb-text-secondary);
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  color: var(--zb-text-secondary);
+}
+.square {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--zb-panel-width);
+  place-items: center;
+  width: var(--zb-control-md);
+  padding: 0;
+}
+button[aria-pressed="true"] {
+  background: var(--zb-bg-selected);
+  border-color: var(--zb-text);
+}
+.primary {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  font-weight: var(--zb-weight-semibold);
+}
+.primary:not(:disabled) {
+  border-color: var(--zb-attention);
+  box-shadow: inset 0 calc(var(--zb-space-0-5) * -1) 0 var(--zb-attention);
+}
+.count {
+  min-width: var(--zb-control-xs);
+  padding-inline: var(--zb-space-1);
+  border: 1px solid var(--zb-attention);
+  color: var(--zb-attention);
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Middle: the map, with the chat list as a column the owner can hide. */
+.stage {
+  display: flex;
   flex: 1;
   min-height: 0;
 }
 .map {
   container-type: inline-size;
   position: relative;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  min-height: var(--zb-panel-width);
   background: var(--zb-bg-canvas);
 }
 #map {
@@ -80,58 +209,33 @@ button:disabled {
   display: block;
   touch-action: none;
 }
-
-/* The side panel: the chat list scrolls; requests and orders stay docked below it. */
 .panel {
-  display: flex;
-  flex-direction: column;
+  flex: none;
+  width: calc(var(--zb-panel-width) - var(--zb-space-8));
   min-height: 0;
-  border-inline-start: 1px solid var(--zb-border);
+  background: var(--zb-bg-raised);
+  border-inline-start: 1px solid var(--zb-border-control);
   overflow-wrap: anywhere;
 }
 .list {
-  flex: 1 1 40%;
-  min-height: 0;
+  height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: var(--zb-space-3);
-}
-#actions {
-  flex: 0 1 auto;
-  max-height: 60%;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 0 var(--zb-space-3) var(--zb-space-3);
-  border-block-start: 1px solid var(--zb-border-strong);
-}
-h2 {
-  margin: 0 0 var(--zb-space-2);
-  font-size: calc(var(--zb-text-xl) * var(--zb-font-scale, 1));
-  line-height: calc(var(--zb-leading-xl) * var(--zb-font-scale, 1));
-  font-weight: var(--zb-weight-semibold);
-}
-h3 {
-  margin: 0 0 var(--zb-space-2);
-  font-size: calc(var(--zb-text-lg) * var(--zb-font-scale, 1));
-  line-height: calc(var(--zb-leading-lg) * var(--zb-font-scale, 1));
-  font-weight: var(--zb-weight-semibold);
-}
-ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  padding: var(--zb-space-2);
 }
 #chats li {
-  padding: var(--zb-space-2);
-  border-radius: var(--zb-radius-md);
+  padding: var(--zb-space-1-5) var(--zb-space-2);
+  border-inline-start: var(--zb-space-0-5) solid transparent;
+  border-block-end: 1px solid var(--zb-border);
 }
 #chats li.selected {
   background: var(--zb-bg-selected);
+  border-inline-start-color: var(--zb-text);
 }
 #chats label {
   display: flex;
   align-items: start;
-  gap: var(--zb-space-2);
+  gap: var(--zb-space-1-5);
   font-weight: var(--zb-weight-medium);
   cursor: pointer;
 }
@@ -149,7 +253,7 @@ ul {
   font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
   line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
 }
-#chats .row {
+.row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--zb-space-1);
@@ -176,32 +280,133 @@ ul {
   color: var(--zb-warn);
 }
 
-#actions section {
-  margin-block: var(--zb-space-4);
+/* Bottom: the console. Minimap and camera, the selection, then requests and orders. */
+.console {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.4fr);
+  height: calc(var(--zb-space-12) * 4 + var(--zb-space-4));
+  background: var(--zb-bg-canvas);
+  border-block-start: var(--zb-space-0-5) solid var(--zb-border-control);
+  overflow-wrap: anywhere;
+}
+.console > * {
+  min-height: 0;
+  padding: var(--zb-space-2);
+}
+.console > * + * {
+  border-inline-start: 1px solid var(--zb-border-strong);
+}
+.console-map {
+  display: flex;
+  align-items: start;
+  gap: var(--zb-space-2);
+}
+.mini {
+  border: 1px solid var(--zb-border-control);
+  line-height: 0;
+}
+#mini {
+  width: 184px;
+  height: 124px;
+  background: var(--zb-bg-canvas);
+  cursor: crosshair;
+  touch-action: none;
+}
+.camera {
+  display: grid;
+  grid-template-columns: repeat(3, var(--zb-control-md));
+  gap: var(--zb-space-1);
+}
+.camera button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.console-selection,
+.console-orders {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.console p {
+  margin: var(--zb-space-1) 0;
+}
+.hint,
+.portrait p {
+  color: var(--zb-text-secondary);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
+}
+.portrait {
+  display: flex;
+  gap: var(--zb-space-3);
+  margin-block-end: var(--zb-space-2);
+}
+.portrait .status {
+  color: var(--zb-text);
+  font-family: var(--zb-font-mono);
+}
+/* The portrait frame: the state's icon, large, in a bordered square. */
+.badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--zb-space-12);
+  height: var(--zb-space-12);
+  background: var(--zb-bg-sunken);
+  border: 1px solid var(--zb-border-control);
+}
+.badge .icon {
+  width: var(--zb-space-6);
+  height: var(--zb-space-6);
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--zb-space-12) * 2), 1fr));
+  gap: var(--zb-space-1);
+}
+.tile {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-1);
+  min-width: 0;
+  text-align: start;
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+}
+.tile span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Requests and orders. The request stays plain: it is where real decisions are made. */
+#actions section + section,
+#actions details {
+  margin-block-start: var(--zb-space-3);
 }
 #actions section section {
-  margin-block: var(--zb-space-3);
-  padding: var(--zb-space-3);
-  border: 1px solid var(--zb-border-strong);
-  border-radius: var(--zb-radius-md);
-  background: var(--zb-bg-raised);
-}
-#actions p {
-  margin: var(--zb-space-2) 0;
+  margin-block: var(--zb-space-2);
+  padding: var(--zb-space-2) var(--zb-space-3);
+  border: 1px solid var(--zb-border-control);
+  border-inline-start: var(--zb-space-1) solid var(--zb-attention);
+  background: var(--zb-bg-page);
 }
 #actions label {
   display: grid;
-  gap: var(--zb-space-1);
-  margin-block: var(--zb-space-2);
+  gap: var(--zb-space-0-5);
+  margin-block: var(--zb-space-1);
+}
+.orders label {
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  color: var(--zb-text-secondary);
 }
 #actions input,
 #actions textarea,
 #actions select {
   color: var(--zb-text);
-  background: var(--zb-bg-raised);
+  background: var(--zb-bg-page);
   border: 1px solid var(--zb-border-control);
-  border-radius: var(--zb-radius-sm);
-  padding: var(--zb-space-2);
+  border-radius: var(--zb-radius-xs);
+  padding: var(--zb-space-1) var(--zb-space-2);
   min-width: 0;
   max-width: 100%;
   font: inherit;
@@ -212,9 +417,8 @@ ul {
 }
 #actions fieldset {
   min-width: 0;
-  margin: var(--zb-space-3) 0;
+  margin: var(--zb-space-2) 0;
   border: 1px solid var(--zb-border-control);
-  border-radius: var(--zb-radius-sm);
 }
 #actions pre {
   margin: var(--zb-space-2) 0;
@@ -223,14 +427,28 @@ ul {
   overflow-wrap: anywhere;
   font-family: var(--zb-font-mono);
   background: var(--zb-bg-sunken);
-  border-radius: var(--zb-radius-sm);
 }
 #actions button {
   margin: var(--zb-space-1) var(--zb-space-1) var(--zb-space-1) 0;
 }
 #actions summary {
   cursor: pointer;
-  padding-block: var(--zb-space-2);
+  color: var(--zb-text-secondary);
+}
+/* The command card: each order is a field and its button, side by side. */
+.orders {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0 var(--zb-space-2);
+}
+.orders h2,
+.orders p {
+  grid-column: 1 / -1;
+}
+.orders > button:last-child {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 #error {
   margin: 0;
@@ -246,21 +464,39 @@ ul {
   overflow: hidden;
   clip-path: inset(50%);
 }
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    transition:
+      background-color var(--zb-duration-fast),
+      border-color var(--zb-duration-fast);
+  }
+}
+/* Small windows: everything stacks and the page scrolls. */
 @media (max-width: 700px) {
-  .stage {
+  .app {
     display: block;
     overflow: auto;
   }
+  .stage,
+  .console {
+    display: block;
+    height: auto;
+  }
   .map {
-    height: 62dvh;
+    height: 58dvh;
   }
   .panel {
-    display: block;
+    width: auto;
     border-inline-start: 0;
   }
   .list,
-  #actions {
+  .console-selection,
+  .console-orders {
+    height: auto;
     overflow: visible;
-    max-height: none;
+  }
+  .console > * + * {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--zb-border-strong);
   }
 }

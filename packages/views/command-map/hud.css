@@ -1,129 +1,6 @@
-/* The HUD: everything drawn over the map. Surfaces are opaque theme tokens so text contrast
-   is the same over water, grass or night sky. */
-.hud {
-  position: absolute;
-  z-index: 2;
-}
-.hud.bar,
-.groups,
-.camera,
-.mini,
-.stats,
-.tools {
-  border-radius: var(--zb-radius-lg);
-}
-.stats,
-.tools,
-.groups,
-.camera,
-.mini {
-  background: var(--zb-bg-popover);
-  border: 1px solid var(--zb-border-strong);
-  box-shadow: var(--zb-shadow-popover);
-}
-
-/* Top bar: today's numbers on the left, controls on the right. */
-.hud.bar {
-  inset: var(--zb-space-2) var(--zb-space-2) auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--zb-space-2);
-  pointer-events: none;
-}
-.stats,
-.tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--zb-space-1) var(--zb-space-3);
-  padding: var(--zb-space-1-5) var(--zb-space-3);
-  pointer-events: auto;
-}
-.tools {
-  gap: var(--zb-space-2);
-  padding: var(--zb-space-1-5);
-}
-.stat {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--zb-space-1-5);
-  min-height: var(--zb-control-md);
-  font-variant-numeric: tabular-nums;
-}
-.stat .icon {
-  color: var(--zb-text-secondary);
-}
-.stat.waiting .icon {
-  color: var(--zb-attention);
-}
-.stat.failing,
-.stat.failing .icon,
-.stat.over .icon {
-  color: var(--zb-danger);
-}
-.meter {
-  position: absolute;
-  inset: auto 0 0 calc(var(--zb-icon-md) + var(--zb-space-1-5));
-  height: var(--zb-space-0-5);
-  border-radius: var(--zb-radius-pill);
-  background: var(--zb-border-strong);
-  overflow: hidden;
-}
-.meter span {
-  display: block;
-  height: 100%;
-  background: var(--zb-accent-text);
-}
-.over .meter span {
-  background: var(--zb-danger);
-}
-.tag {
-  padding: var(--zb-space-0-5) var(--zb-space-2);
-  border: 1px solid var(--zb-border-control);
-  border-radius: var(--zb-radius-pill);
-  color: var(--zb-text-secondary);
-  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
-}
-.pick {
-  display: flex;
-  align-items: center;
-  gap: var(--zb-space-1-5);
-  color: var(--zb-text-secondary);
-}
-.square {
-  display: grid;
-  place-items: center;
-  width: var(--zb-control-md);
-  padding: 0;
-}
-.square[aria-pressed="true"] {
-  background: var(--zb-bg-selected);
-  border-color: var(--zb-text);
-}
-.primary {
-  display: flex;
-  align-items: center;
-  gap: var(--zb-space-1-5);
-  font-weight: var(--zb-weight-medium);
-}
-.primary:not(:disabled) {
-  border-color: var(--zb-attention);
-}
-.count {
-  min-width: var(--zb-control-xs);
-  padding-inline: var(--zb-space-1);
-  border: 1px solid var(--zb-attention);
-  border-radius: var(--zb-radius-pill);
-  color: var(--zb-attention);
-  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-/* Text on the map: island nameplates, unit name tags and edge alerts. */
+/* Drawn over the map: platform nameplates, unit name tags, edge alerts, the selection box and
+   the control group tabs. Surfaces are opaque theme tokens so text contrast is the same over
+   any ground. */
 .overlay {
   position: absolute;
   inset: 0;
@@ -138,45 +15,56 @@
   align-items: center;
   gap: var(--zb-space-1);
   min-height: var(--zb-control-sm);
-  padding: 0 var(--zb-space-2);
+  padding: 0 var(--zb-space-1-5);
   pointer-events: auto;
   white-space: nowrap;
   background: var(--zb-bg-popover);
   border-color: var(--zb-border-strong);
-  box-shadow: var(--zb-shadow-popover);
-  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
-  line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
+  border-radius: 0;
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-xs) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-xs) * var(--zb-font-scale, 1));
 }
 .unit-name {
-  max-width: 22ch;
+  max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A nameplate: a stencilled label on the platform's front edge. */
 .overlay .region {
   font-weight: var(--zb-weight-semibold);
-  font-size: calc(var(--zb-text-md) * var(--zb-font-scale, 1));
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  letter-spacing: var(--zb-tracking-label);
   border-color: var(--zb-border-control);
+  border-block-end-width: var(--zb-space-0-5);
   cursor: grab;
   touch-action: none;
 }
+/* A name tag: a flat label with a bar in the state's color on its leading edge. */
 .overlay .unit {
-  border-radius: var(--zb-radius-pill);
+  border-inline-start: var(--zb-space-1) solid var(--zb-text-muted);
+}
+.overlay .unit[data-state="working"] {
+  border-inline-start-color: var(--zb-accent-text);
+}
+.overlay .unit[data-state="review"] {
+  border-inline-start-color: var(--zb-ok);
+}
+.overlay .unit[data-state="needs_you"],
+.overlay .edge-alert {
+  border-color: var(--zb-attention);
+  border-inline-start: var(--zb-space-1) solid var(--zb-attention);
 }
 .overlay.compact .unit:not(.selected, :hover, :focus-visible) .unit-name {
   display: none;
 }
 .overlay .unit.selected {
-  border-color: var(--zb-text);
   box-shadow: 0 0 0 1px var(--zb-text);
-}
-.overlay .unit[data-state="needs_you"],
-.overlay .edge-alert {
-  border: var(--zb-space-0-5) solid var(--zb-attention);
 }
 .overlay .edge-alert {
   min-height: var(--zb-control-md);
-  border-radius: var(--zb-radius-pill);
-  font-weight: var(--zb-weight-medium);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  font-weight: var(--zb-weight-semibold);
 }
 .edge-alert .icon {
   color: var(--zb-attention);
@@ -186,98 +74,58 @@
   font-variant-numeric: tabular-nums;
   font-weight: var(--zb-weight-regular);
 }
-/* Alerts stay above the rest of the HUD: nothing may cover a chat that needs the owner. */
+/* Alerts stay above everything else on the map: nothing may cover a chat that needs the owner. */
 #alerts {
   z-index: 3;
 }
 #box {
   position: absolute;
   z-index: 1;
-  border: 1px solid var(--zb-text);
-  background: var(--zb-bg-selected);
+  border: 1px solid var(--zb-ok);
+  background: var(--zb-ok-soft);
   pointer-events: none;
 }
 
-/* Bottom: camera buttons on the left, control groups in the middle, minimap on the right. */
-.camera {
-  inset: auto auto var(--zb-space-2) var(--zb-space-2);
-  display: grid;
-  grid-template-columns: repeat(3, var(--zb-control-md));
-  gap: var(--zb-space-1);
-  padding: var(--zb-space-1-5);
-}
-.camera button {
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
+/* Control groups: tabs standing on the console's top edge. */
 .groups {
-  inset: auto auto var(--zb-space-2) 50%;
-  transform: translateX(-50%);
+  position: absolute;
+  z-index: 2;
+  inset: auto auto 0 var(--zb-space-2);
   display: flex;
-  gap: var(--zb-space-2);
-  padding: var(--zb-space-1-5);
+  gap: var(--zb-space-1);
 }
 .group {
   display: flex;
+}
+.group button {
+  border-block-end: 0;
+  border-radius: 0;
 }
 .group button:first-child {
   display: flex;
   align-items: center;
   gap: var(--zb-space-1-5);
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
 }
 .group button:last-child {
   display: grid;
   place-items: center;
   padding: 0 var(--zb-space-1);
   border-inline-start: 0;
-  border-start-start-radius: 0;
-  border-end-start-radius: 0;
 }
 .group kbd {
   min-width: var(--zb-control-xs);
   border: 1px solid currentColor;
-  border-radius: var(--zb-radius-xs);
-  font: inherit;
+  font-family: var(--zb-font-mono);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
   font-weight: var(--zb-weight-semibold);
   text-align: center;
 }
 .group .size {
+  font-family: var(--zb-font-mono);
   font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
   font-variant-numeric: tabular-nums;
 }
-.mini {
-  inset: auto var(--zb-space-2) var(--zb-space-2) auto;
-  padding: var(--zb-space-1);
-  line-height: 0;
-}
-#mini {
-  width: 184px;
-  height: 124px;
-  border-radius: var(--zb-radius-md);
-  background: var(--zb-bg-canvas);
-  cursor: crosshair;
-  touch-action: none;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .hud button {
-    transition:
-      background-color var(--zb-duration-fast),
-      border-color var(--zb-duration-fast);
-  }
-}
-/* Narrow maps: the group chips sit above the camera buttons; narrower still, the minimap goes. */
-@container (max-width: 760px) {
-  .groups {
-    inset: auto auto calc(var(--zb-space-2) * 2 + var(--zb-control-md) * 3 + var(--zb-space-6))
-      var(--zb-space-2);
-    transform: none;
-  }
-}
 @container (max-width: 420px) {
-  .mini,
   .group .size {
     display: none;
   }

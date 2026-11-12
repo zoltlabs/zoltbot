@@ -9,9 +9,7 @@
 </head>
 <body>
 <div class="app">
-<main class="stage">
-<section class="map" aria-label="Chat map">
-<header class="hud bar">
+<header class="bar">
 <ul id="resources" class="stats" aria-label="Today"><li class="stat">Loading…</li></ul>
 <div class="tools">
 <span id="sample" class="tag" hidden>Sample data</span>
@@ -25,16 +23,31 @@
 <option value="low">Low</option>
 </select>
 </label>
+<button id="list-toggle" type="button" aria-pressed="true" aria-controls="chat-list">Chat list</button>
 <button id="alert" type="button" class="primary" aria-label="Next alert" title="Press Space">Next alert<span id="alert-count" class="count" hidden></span></button>
 </div>
 </header>
+<main class="stage">
+<section class="map" aria-label="Chat map">
 <canvas id="map" aria-hidden="true"></canvas>
 <div id="regions" class="overlay"></div>
 <div id="units" class="overlay"></div>
 <div id="alerts" class="overlay"></div>
 <div id="box" hidden></div>
-<div id="groups" class="hud groups" role="group" aria-label="Control groups"></div>
-<div class="hud camera" role="group" aria-label="Camera">
+<div id="groups" class="groups" role="group" aria-label="Control groups"></div>
+</section>
+<aside id="chat-list" class="panel" aria-label="Chats">
+<div class="list">
+<h2>Chats</h2>
+<p id="empty" hidden>No active chats. Open a chat in Zoltbot to begin.</p>
+<ul id="chats"></ul>
+</div>
+</aside>
+</main>
+<footer class="console">
+<div class="console-map">
+<div class="mini"><canvas id="mini" aria-hidden="true"></canvas></div>
+<div class="camera" role="group" aria-label="Camera">
 <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
 <button type="button" data-pan="0,-1" aria-label="Pan up">↑</button>
 <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
@@ -44,17 +57,10 @@
 <span></span>
 <button type="button" data-pan="0,1" aria-label="Pan down">↓</button>
 </div>
-<div class="hud mini"><canvas id="mini" aria-hidden="true"></canvas></div>
-</section>
-<aside class="panel" aria-label="Chats">
-<div class="list">
-<h2>Chats</h2>
-<p id="empty" hidden>No active chats. Open a chat in Zoltbot to begin.</p>
-<ul id="chats"></ul>
 </div>
-<div id="actions"></div>
-</aside>
-</main>
+<section id="selection" class="console-selection" aria-label="Selection"></section>
+<div id="actions" class="console-orders"></div>
+</footer>
 <p id="error" role="alert"></p>
 <p id="live" role="status" class="sr-only"></p>
 </div>
@@ -73,6 +79,7 @@
 <script src="minimap.js"></script>
 <script src="hud.js"></script>
 <script src="list.js"></script>
+<script src="selection.js"></script>
 <script src="panels.js"></script>
 <!-- The world: one builder per file. -->
 <script src="world/kit.js"></script>

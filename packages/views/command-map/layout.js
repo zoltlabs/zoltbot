@@ -1,7 +1,7 @@
 // Turns chats and workspaces into positions: one region (island) per workspace, one base
 // (workshop) per worktree, and one slot per chat in front of its base. Pure data, no drawing.
 (() => {
-  const SLOT = 3.5, // spacing between units
+  const SLOT = 4, // spacing between units
     BUILDING = { w: 5, d: 4 }, // workshop footprint
     SIGN = 2.5, // room beside the workshop for its sign
     MARGIN = 3.5, // grass around the cells of a region

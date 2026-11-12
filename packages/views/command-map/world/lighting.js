@@ -11,7 +11,7 @@
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 0.05;
-    sun.shadow.radius = 3;
+    sun.shadow.radius = 1.6;
     scene.add(sky, sun, sun.target);
     const offset = new T.Vector3();
     return {
@@ -52,9 +52,9 @@
           });
           shadow.updateProjectionMatrix();
         }
-        // Fog starts behind the look-at point and thickens toward the horizon.
-        scene.fog.near = frame.distance * 0.95;
-        scene.fog.far = frame.distance * 2.4;
+        // Fog starts well behind the look-at point and thickens toward the horizon.
+        scene.fog.near = frame.distance * 1.4;
+        scene.fog.far = frame.distance * 4;
       },
       dispose() {
         scene.remove(sky, sun, sun.target);

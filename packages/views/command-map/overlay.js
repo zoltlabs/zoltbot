@@ -170,7 +170,7 @@
         if (wanted) {
           shown++;
           // Name tags sit above the head; one that would cover another moves up a row.
-          let [, top] = camera.project(unit.x, 3.1 * skin.sizes.robot, unit.z);
+          let [, top] = camera.project(unit.x, 2.9 * skin.sizes.robot, unit.z);
           while (tags.some((tag) => Math.abs(tag.x - x) < 130 && Math.abs(tag.top - top) < 24))
             top -= 26;
           tags.push({ x, top });
@@ -187,8 +187,8 @@
       for (const unit of waiting.sort((a, b) => a.since - b.since).slice(0, MAX_ALERTS)) {
         const left = 96,
           right = width - 96,
-          top = 76,
-          bottom = height - 190;
+          top = 28,
+          bottom = height - 80;
         const x = Math.min(right, Math.max(left, unit.sx));
         let y = Math.min(bottom, Math.max(top, unit.sy));
         while (placed.some((other) => Math.abs(other.x - x) < 190 && Math.abs(other.y - y) < 36))

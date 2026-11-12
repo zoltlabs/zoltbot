@@ -1,6 +1,7 @@
-// Units: each chat is a small robot. Its body color and the detail on its head come from the
-// provider. Its pose shows its state: hammering (working), arms up (needs you), standing
-// (finished), sitting with lights off (idle) or leaning (problem).
+// Units: each chat is a small walker. Its frame is steel; its shoulders and chest plate carry
+// the provider's color, and one piece of equipment on top differs by provider. Its pose shows
+// its state: welding (working), braced with visor lit (needs you), standing (finished),
+// crouched with lights off (idle) or slumped to one side (problem).
 //
 // To replace the model, copy this file, register your builder under another name
 // (CommandMap.builders.units.<name>) and name it in skin.js. A units builder must return
@@ -55,98 +56,75 @@
   };
 
   // Target pose for a state. Angles are radians; negative arm angles swing forward and up.
+  // `sit` lowers the legs, `lean` and `roll` tip the torso, `head` and `tilt` turn the sensor.
   function pose(state, problem, time, skin, still) {
-    if (state === "needs_you") {
-      const wave = still ? 0 : Math.sin(time * 2.4) * 0.16;
-      return {
-        sit: 0,
-        lean: -0.06,
-        roll: 0,
-        head: -0.38,
-        tilt: 0,
-        left: -2.7 + wave,
-        right: -2.7 - wave,
-      };
-    }
+    if (state === "needs_you")
+      return { sit: 0, lean: -0.05, roll: 0, head: -0.3, tilt: 0, left: -0.5, right: -0.5 };
     if (problem)
-      return {
-        sit: -0.05,
-        lean: 0.05,
-        roll: 0.22,
-        head: 0.12,
-        tilt: -0.3,
-        left: -0.1,
-        right: -0.9,
-      };
+      return { sit: -0.12, lean: 0.1, roll: 0.2, head: 0.2, tilt: -0.25, left: 0.1, right: -0.4 };
     if (state === "working") {
-      const beat = still ? 0.4 : (time / skin.timing.work) % 1,
-        raise = beat < 0.65 ? kit.ease(beat / 0.65) : 1 - ((beat - 0.65) / 0.35) ** 0.6;
+      // The tool arm makes short passes forward and back.
+      const pass = still ? 0.5 : (Math.sin((time / skin.timing.work) * Math.PI * 2) + 1) / 2;
       return {
-        sit: still ? 0 : Math.sin(time * 5) * 0.025,
-        lean: 0.1,
+        sit: -0.06,
+        lean: 0.16,
         roll: 0,
-        head: 0.18,
+        head: 0.25,
         tilt: 0,
-        left: -0.5,
-        right: -0.7 - raise * 1.6,
+        left: -0.3,
+        right: -1.0 - pass * 0.35,
       };
     }
     if (state === "review")
-      return { sit: 0, lean: 0, roll: 0, head: -0.08, tilt: 0, left: -0.1, right: -0.1 };
-    return { sit: -0.2, lean: 0.14, roll: 0, head: 0.3, tilt: 0, left: 0.05, right: 0.05 }; // idle
+      return { sit: 0, lean: 0, roll: 0, head: 0, tilt: 0, left: 0, right: 0 };
+    return { sit: -0.3, lean: 0.2, roll: 0, head: 0.4, tilt: 0, left: 0.1, right: 0.1 }; // idle
   }
 
-  map.builders.units.robots = (world) => {
+  map.builders.units.mechs = (world) => {
     const { skin, root } = world,
       S = skin.sizes.robot,
       yaw = skin.camera.yaw;
-    const solid = (options) => new T.MeshStandardMaterial({ roughness: 0.6, ...options });
-    const parts = {
-      treads: new kit.Pool(root, new T.BoxGeometry(1.5, 0.45, 1.25), solid({ roughness: 0.9 }), {
-        cast: true,
-      }),
-      bodies: new kit.Pool(root, box(1.25, 1.05, 1.0, 1, 0.2), solid(), {
+    const solid = (options) =>
+      new T.MeshStandardMaterial({ roughness: 0.55, metalness: 0.2, ...options });
+    // Every part of the frame is the same unit box, stretched and tinted.
+    const PARTS = 10;
+    const frames = new kit.Pool(root, new T.BoxGeometry(1, 1, 1), solid(), {
         cast: true,
         receive: true,
       }),
-      heads: new kit.Pool(root, box(1.15, 0.8, 0.95, 1, 0.2), solid({ roughness: 0.45 }), {
-        cast: true,
-      }),
-      visors: new kit.Pool(
+      visors = new kit.Pool(
         root,
-        new T.BoxGeometry(0.82, 0.3, 0.12),
+        new T.BoxGeometry(0.46, 0.13, 0.06),
         new T.MeshBasicMaterial({ toneMapped: false }),
-      ),
-      arms: new kit.Pool(root, new T.BoxGeometry(0.26, 0.78, 0.3).translate(0, -0.3, 0), solid()),
-    };
-    const hats = Object.fromEntries(
+      );
+    const gear = Object.fromEntries(
       Object.entries(details).map(([name, build]) => [name, new kit.Pool(root, build(), solid())]),
     );
-    // Far away, a robot becomes one simple pawn.
+    // Far away, a unit becomes one simple marker block.
     const pawns = new kit.Pool(
       root,
-      kit.join([
-        new T.CylinderGeometry(0.3, 0.72, 1.4, 10).translate(0, 0.7, 0),
-        new T.SphereGeometry(0.5, 10, 8).translate(0, 1.75, 0),
-      ]),
-      solid(),
+      new T.CylinderGeometry(0.62, 0.85, 1.5, 6).translate(0, 0.75, 0),
+      solid({ flatShading: true }),
       { cast: true },
     );
     pawns.show(false);
     const memory = new Map(), // per chat: smoothed pose and when its state last changed
       base = new T.Matrix4(),
       torso = new T.Matrix4(),
-      skull = new T.Matrix4(),
-      visor = new T.Color();
+      sensor = new T.Matrix4(),
+      arm = new T.Matrix4(),
+      tint = new T.Color(),
+      armor = new T.Color(),
+      joint = new T.Color();
     let units = [],
       far = false;
 
     function count() {
-      const used = Object.fromEntries(Object.keys(hats).map((name) => [name, 0]));
-      for (const unit of units) unit.hat = used[unit.look.detail]++;
-      for (const [name, pool] of Object.entries(hats)) pool.begin(far ? 0 : used[name]);
-      for (const [name, pool] of Object.entries(parts))
-        pool.begin(far ? 0 : units.length * (name === "arms" || name === "visors" ? 2 : 1));
+      const used = Object.fromEntries(Object.keys(gear).map((name) => [name, 0]));
+      for (const unit of units) unit.gear = used[unit.look.detail]++;
+      for (const [name, pool] of Object.entries(gear)) pool.begin(far ? 0 : used[name]);
+      frames.begin(far ? 0 : units.length * PARTS);
+      visors.begin(far ? 0 : units.length);
       pawns.begin(far ? units.length : 0);
       pawns.show(far);
     }
@@ -158,7 +136,7 @@
             id = unit.chat.id;
           let mind = memory.get(id);
           if (!mind) {
-            mind = { phase: kit.unit(id) * 10, turn: (kit.unit(`${id}t`) - 0.5) * 0.5, born: time };
+            mind = { phase: kit.unit(id) * 10, turn: (kit.unit(`${id}t`) - 0.5) * 0.4, born: time };
             memory.set(id, mind);
           } else if (mind.state !== state) {
             mind.since = time;
@@ -176,7 +154,7 @@
         far = value;
         count();
       },
-      // True while any robot is moving, so the scene keeps drawing frames.
+      // True while any unit is moving, so the scene keeps drawing frames.
       animated: () =>
         !world.reducedMotion &&
         units.some(
@@ -187,17 +165,20 @@
         const palette = world.palette,
           still = world.reducedMotion,
           blend = still ? 1 : 1 - Math.exp(-frame.delta * 12);
+        armor.set(palette.armor);
+        joint.set(palette.joint);
         units.forEach((unit, index) => {
           const mind = unit.mind,
-            time = frame.time + mind.phase;
+            time = frame.time + mind.phase,
+            team = unit.look.color;
           const grow =
             S * (frame.settle?.(unit) ?? (still ? 1 : kit.pop((frame.time - mind.born) / 0.4)));
           if (far) {
             const k = frame.markScale * grow * 0.8;
             pawns.put(
               index,
-              kit.place(unit.x, 0, unit.z, { s: k, sy: unit.state === "idle" ? k * 0.72 : k }),
-              unit.look.color,
+              kit.place(unit.x, 0, unit.z, { s: k, sy: unit.state === "idle" ? k * 0.6 : k }),
+              team,
             );
             return;
           }
@@ -209,60 +190,60 @@
           const since = frame.time - (mind.since ?? -99);
           mind.hop =
             !still && unit.state === "review" && since < skin.timing.celebrate
-              ? Math.abs(Math.sin(since * 9)) * 0.45 * (1 - since / skin.timing.celebrate)
+              ? Math.abs(Math.sin(since * 9)) * 0.3 * (1 - since / skin.timing.celebrate)
               : 0;
+          let part = index * PARTS;
+          const put = (parent, x, y, z, sx, sy, sz, color) =>
+            frames.put(part++, kit.under(parent, x, y, z, { sx, sy, sz }), color);
           base.copy(kit.place(unit.x, mind.hop, unit.z, { ry: yaw + mind.turn, s: grow }));
-          parts.treads.put(index, kit.under(base, 0, 0.225, 0), visor.set(palette.tread));
-          torso.copy(kit.under(base, 0, 1.0 + now.sit, 0, { rx: now.lean, rz: now.roll }));
-          parts.bodies.put(index, torso, unit.look.color);
-          parts.arms.put(
-            index * 2,
-            kit.under(torso, -0.77, 0.3, 0, { rx: now.left }),
-            unit.look.color,
-          );
-          parts.arms.put(
-            index * 2 + 1,
-            kit.under(torso, 0.77, 0.3, 0, { rx: now.right }),
-            unit.look.color,
-          );
-          skull.copy(kit.under(torso, 0, 0.99, 0.02, { rx: now.head, rz: now.tilt }));
-          parts.heads.put(index, skull, visor.set(palette.shell));
-          if (unit.state === "idle" && !unit.problem) visor.set(palette.visorOff);
+          // Legs shorten when the unit crouches.
+          const leg = 0.85 * (1 + now.sit * 1.6);
+          put(base, -0.34, leg / 2, 0, 0.3, leg, 0.5, joint);
+          put(base, 0.34, leg / 2, 0, 0.3, leg, 0.5, joint);
+          torso.copy(kit.under(base, 0, leg + 0.14, 0, { rx: now.lean, rz: now.roll }));
+          put(torso, 0, 0, 0, 0.98, 0.28, 0.62, joint); // hips
+          put(torso, 0, 0.5, 0, 1.0, 0.72, 0.78, armor); // body
+          put(torso, 0, 0.52, 0.4, 0.62, 0.4, 0.08, team); // chest plate
+          put(torso, -0.7, 0.62, 0, 0.36, 0.4, 0.62, team); // shoulders
+          put(torso, 0.7, 0.62, 0, 0.36, 0.4, 0.62, team);
+          for (const [side, angle] of [
+            [-0.7, now.left],
+            [0.7, now.right],
+          ]) {
+            arm.copy(kit.under(torso, side, 0.5, 0, { rx: angle }));
+            put(arm, 0, -0.42, 0, 0.2, 0.7, 0.24, joint);
+          }
+          sensor.copy(kit.under(torso, 0, 1.02, 0.04, { rx: now.head, rz: now.tilt }));
+          put(sensor, 0, 0, 0, 0.56, 0.32, 0.52, armor); // sensor head
+          if (unit.state === "idle" && !unit.problem) tint.set(palette.visorOff);
           else
-            visor
+            tint
               .copy(
                 world.stateColor(
                   unit.problem && unit.state !== "needs_you" ? "problem" : unit.state,
                 ),
               )
               .multiplyScalar(world.emit());
-          parts.visors.put(index * 2, kit.under(skull, 0, 0.02, 0.45), visor);
-          // A small chest light repeats the visor's color, so the state reads from further off.
-          parts.visors.put(
-            index * 2 + 1,
-            kit.under(torso, 0, 0.08, 0.47, { sx: 0.42, sy: 0.9 }),
-            visor,
-          );
-          hats[unit.look.detail].put(unit.hat, skull, unit.look.color);
-          // Each hammer blow throws a spark.
+          visors.put(index, kit.under(sensor, 0, 0, 0.27), tint);
+          gear[unit.look.detail].put(unit.gear, kit.under(sensor, 0, -0.1, 0, { s: 0.6 }), team);
+          // The welding arm throws sparks at the end of each pass.
           if (unit.state === "working" && !unit.problem && !still) {
-            const blow = Math.floor(time / skin.timing.work + 0.35);
-            if (mind.blow !== undefined && blow !== mind.blow)
+            const pass = Math.floor(time / skin.timing.work);
+            if (mind.pass !== undefined && pass !== mind.pass) {
+              const turn = yaw + mind.turn;
               world.fire("spark", {
-                x:
-                  unit.x + (Math.cos(yaw + mind.turn) * 0.75 + Math.sin(yaw + mind.turn) * 0.7) * S,
-                y: 0.95 * S,
-                z:
-                  unit.z +
-                  (-Math.sin(yaw + mind.turn) * 0.75 + Math.cos(yaw + mind.turn) * 0.7) * S,
+                x: unit.x + (Math.cos(turn) * 0.7 + Math.sin(turn) * 0.75) * S,
+                y: 0.85 * S,
+                z: unit.z + (-Math.sin(turn) * 0.7 + Math.cos(turn) * 0.75) * S,
               });
-            mind.blow = blow;
+            }
+            mind.pass = pass;
           }
         });
-        for (const pool of [...Object.values(parts), ...Object.values(hats), pawns]) pool.end();
+        for (const pool of [frames, visors, pawns, ...Object.values(gear)]) pool.end();
       },
       dispose() {
-        for (const pool of [...Object.values(parts), ...Object.values(hats), pawns]) pool.dispose();
+        for (const pool of [frames, visors, pawns, ...Object.values(gear)]) pool.dispose();
       },
     };
   };

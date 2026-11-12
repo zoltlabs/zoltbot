@@ -7,6 +7,7 @@
     panel,
     hud,
     list,
+    selection,
     sound,
     paused = false,
     selected = new Set(),
@@ -22,6 +23,7 @@
     selected = new Set(ids);
     scene?.setSelection(ids);
     list?.render(layout?.units ?? []);
+    selection?.render(layout?.units ?? [], selected);
     hud?.renderGroups();
     panel?.render();
   }
@@ -76,6 +78,7 @@
     }
     listen();
     list?.render(layout.units);
+    selection?.render(layout.units, selected);
     panel?.render();
     hud?.renderStats(topics);
     hud?.renderGroups();
@@ -113,6 +116,16 @@
     panel.saved.sound = enabled || undefined;
     panel.save();
   };
+  function showList(shown) {
+    $("#chat-list").hidden = !shown;
+    $("#list-toggle").setAttribute("aria-pressed", String(shown));
+  }
+  $("#list-toggle").onclick = () => {
+    const shown = $("#chat-list").hidden;
+    showList(shown);
+    panel.saved.list = shown ? undefined : false;
+    panel.save();
+  };
   $("#quality").onchange = () => {
     const choice = $("#quality").value;
     scene?.setQuality(choice);
@@ -144,6 +157,8 @@
       }
       sound = new map.Sound(map.skin);
       list = new map.ChatList({ selected: () => selected, select, find, open });
+      selection = new map.Selection({ select, find, open });
+      selection.render([], selected);
       panel = new window.CommandMapPanel(
         {
           topics,
@@ -186,6 +201,7 @@
         $("#quality").disabled = true;
       }
       // Audio can only start after a click or key press, so a saved "on" waits for one.
+      showList(panel.saved.list !== false);
       showSound(!!panel.saved.sound);
       if (panel.saved.sound) {
         const start = () => {

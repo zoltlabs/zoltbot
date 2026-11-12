@@ -1,5 +1,5 @@
-// Effects: soft contact shadows, pools of light at night, and small particles (sparks from
-// work, steam from chimneys, confetti when a chat finishes). With reduced motion there are no
+// Effects: soft contact shadows, pools of light at night, and small particles (welding sparks,
+// exhaust from stacks, a green signal burst when a chat finishes). With reduced motion there are no
 // particles at all.
 (() => {
   const map = window.CommandMap,
@@ -120,7 +120,7 @@
     const stop = [
       world.on("spark", ({ x, y, z }) => {
         if (world.reducedMotion || world.far) return;
-        color.set("#ffd27a").multiplyScalar(Math.max(1.4, world.emit()));
+        color.set("#cfe8ff").multiplyScalar(Math.max(1.4, world.emit()));
         for (let index = 0; index < 4; index++)
           sparks.emit(
             x,
@@ -136,7 +136,7 @@
       }),
       world.on("celebrate", ({ x, z }) => {
         if (world.reducedMotion) return;
-        for (let index = 0; index < 36; index++)
+        for (let index = 0; index < 20; index++)
           confetti.emit(
             x,
             2.4,
@@ -145,7 +145,7 @@
             4 + Math.random() * 4,
             random(5),
             skin.timing.celebrate * (0.6 + Math.random() * 0.4),
-            world.stateColor(["review", "working", "needs_you"][index % 3]),
+            world.stateColor("review"),
             11,
           );
       }),
@@ -170,7 +170,7 @@
       const lights = palette.glow
         ? [
             ...world.parts.terrain.lights().map(([x, z]) => [x, z, 2.4, palette.lampLit]),
-            ...world.parts.buildings.lights().map(([x, z]) => [x, z, 2.2, palette.windowLit]),
+            ...world.parts.buildings.lights().map(([x, z]) => [x, z, 2.2, palette.bayLit]),
             ...layout.units
               .filter((unit) => unit.chat.status === "needs_you")
               .map((unit) => [unit.x, unit.z, 4.2, world.stateColor("needs_you")]),
@@ -200,7 +200,7 @@
         puff += frame.delta;
         if (puff > 0.5 && !world.far) {
           puff = 0;
-          color.set(world.palette.foam);
+          color.set(world.palette.exhaust);
           for (const [x, y, z] of world.parts.buildings.chimneys())
             steam.emit(
               x + random(0.2),

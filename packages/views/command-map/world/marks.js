@@ -1,9 +1,9 @@
 // Marks: the shapes that show a unit's state from far away, and the selection rings.
-//   needs you  a tall beam with a diamond on top and a ring on the ground
-//   finished   a flag on a pole
+//   needs you  a tall beam with a diamond on top and a turning target ring on the ground
+//   finished   a pennant on a pole
 //   problem    a warning triangle
 //   working    (far zoom only) a turning cog
-//   selected   a white ring with a dark edge; hover shows a thinner one
+//   selected   a thin broken ring, as in a strategy game; hover shows a fainter full ring
 // Each mark is a different shape, so no state depends on color alone.
 (() => {
   const map = window.CommandMap,
@@ -43,21 +43,32 @@
       kit.paint(new T.BoxGeometry(0.13, 0.13, 0.06).translate(0, -0.2, 0.09), dark),
     ]);
   }
+  // A ring broken into equal arcs with gaps between them.
+  function arcs(inner, outer, count, gap) {
+    const span = (Math.PI * 2) / count;
+    return kit.join(
+      Array.from({ length: count }, (_, index) =>
+        flat(
+          new T.RingGeometry(
+            inner,
+            outer,
+            10,
+            1,
+            index * span + (span * gap) / 2,
+            span * (1 - gap),
+          ),
+        ),
+      ),
+    );
+  }
   function selectionRing(palette) {
     return kit.join([
-      kit.paint(flat(new T.RingGeometry(1.08, 1.3, 40)), new T.Color(palette.ring)),
-      kit.paint(
-        flat(new T.RingGeometry(1.3, 1.4, 40)).translate(0, -0.01, 0),
-        new T.Color(palette.ringEdge),
-      ),
-      kit.paint(
-        flat(new T.RingGeometry(0.98, 1.08, 40)).translate(0, -0.01, 0),
-        new T.Color(palette.ringEdge),
-      ),
+      kit.paint(arcs(1.16, 1.27, 4, 0.16), new T.Color(palette.ring)),
+      kit.paint(arcs(1.11, 1.32, 4, 0.14).translate(0, -0.01, 0), new T.Color(palette.ringEdge)),
     ]);
   }
 
-  map.builders.marks.beacons = (world) => {
+  map.builders.marks.tactical = (world) => {
     const { skin, root } = world,
       yaw = skin.camera.yaw,
       pitch = skin.camera.pitch;
@@ -69,16 +80,12 @@
         glow(),
       ),
       diamonds: new kit.Pool(root, new T.OctahedronGeometry(0.78).scale(1, 1.35, 1), glow()),
-      alerts: new kit.Pool(
-        root,
-        flat(new T.RingGeometry(1.45, 1.72, 48)),
-        glow({ side: T.DoubleSide }),
-      ),
+      alerts: new kit.Pool(root, arcs(1.45, 1.62, 3, 0.2), glow({ side: T.DoubleSide })),
       // A soft filled circle under the rings.
       discs: new kit.Pool(
         root,
         flat(new T.CircleGeometry(1, 40)),
-        glow({ transparent: true, opacity: 0.22, depthWrite: false }),
+        glow({ transparent: true, opacity: 0.16, depthWrite: false }),
       ),
       flags: new kit.Pool(root, flag(), glow({ vertexColors: true, side: T.DoubleSide })),
       warnings: new kit.Pool(root, warning(), glow({ vertexColors: true })),
@@ -131,7 +138,7 @@
           S = skin.sizes.robot,
           k = frame.markScale, // grows as the camera pulls back, so marks stay readable
           wide = Math.max(1, k * 0.8) * S, // ground rings
-          top = (far ? 2.3 * k * 0.8 : 2.75) * S; // just above a unit's head
+          top = (far ? 1.9 * k * 0.8 : 2.5) * S; // just above a unit's head
         const grown = (unit) => frame.settle?.(unit) ?? 1;
         const needs = units.filter((unit) => unit.state === "needs_you"),
           done = units.filter((unit) => unit.state === "review"),
@@ -177,7 +184,10 @@
           pools.alerts.put(index * 2, kit.place(unit.x, 0.08, unit.z, { s: grow * wide }), ground);
           pools.alerts.put(
             index * 2 + 1,
-            kit.place(unit.x, 0.07, unit.z, { s: grow * wide * (1.25 + pulse * 0.25) }),
+            kit.place(unit.x, 0.07, unit.z, {
+              s: grow * wide * (1.3 + pulse * 0.18),
+              ry: still ? 0.5 : -frame.time * 0.7,
+            }),
             ground,
           );
         });

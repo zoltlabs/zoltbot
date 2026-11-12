@@ -1,8 +1,10 @@
 # Command map
 
-Your chats as a miniature settlement seen from above. Each workspace is an island, each
-worktree a workshop with its branch name on a sign, and each chat a small robot. A chat that
-needs you raises a beacon you can see across the map.
+Your chats as a forward base in a strategy game. Each workspace is a steel platform, each
+worktree a fabrication bay with its branch name on a lit sign, and each chat a walker that
+wears its provider's color. A chat that needs you raises a beacon you can see across the map.
+The frame is the classic one: numbers along the top, the map in the middle, and a console
+along the bottom with the minimap, the selection and the orders.
 
 Press **Customize** in Settings → Views to get your own copy of this folder. Everything the map
 loads is in the folder; it never uses the network. Preview changes without the app:
@@ -17,12 +19,12 @@ Add `#chats=200` to the preview URL to see a large map.
 
 | State | On the map | In the list and on labels |
 | --- | --- | --- |
-| Working | The robot hammers at its workshop. Sparks fly, the windows are lit and the chimney steams. | Hexagon icon, "Working" |
-| Needs you | A tall beam with a diamond on top, rings on the ground, arms raised. An alert at the screen edge points to it when it is off screen and shows how long it has waited. | Diamond icon, "Needs you" |
-| Done (finished, unread) | A flag beside the robot. It hops once with confetti when it finishes. | Flag icon, "Done" |
-| Idle or later | Sitting, lights off. | Bar icon, "Idle" or "Later" |
-| Failed turn or session problem | Leaning over, with a warning triangle above. | Triangle icon, "Warning" |
-| Selected | A white ring on the ground. Hover shows a thinner ring. | Checked in the list |
+| Working | The unit welds in front of its bay. Sparks fly, the bay's light strips are on and its stack vents. | Hexagon icon, "Working" |
+| Needs you | A tall beam with a diamond on top and a turning target ring on the ground. An alert at the screen edge points to it when it is off screen and shows how long it has waited. | Diamond icon, "Needs you" |
+| Done (finished, unread) | A pennant beside the unit. It hops once with a green signal burst when it finishes. | Flag icon, "Done" |
+| Idle or later | Crouched, visor off. | Bar icon, "Idle" or "Later" |
+| Failed turn or session problem | Slumped to one side, with a warning triangle above. | Triangle icon, "Warning" |
+| Selected | A thin broken ring on the ground. Hover shows a fainter full ring. | Checked in the list, shown in the console |
 
 With reduced motion turned on, the camera jumps instead of gliding, nothing animates, and
 there are no particles. Every mark stays, standing still.
@@ -34,56 +36,54 @@ Change how it looks:
 | File | Holds |
 | --- | --- |
 | `skin.js` | Palettes for day and night, sizes, timing, camera, graphics levels, sounds, and which builder draws each part |
-| `world/terrain.js` | Water, islands, paths, trees, stones, lamps |
-| `world/buildings.js` | Workshops and their signs |
-| `world/units.js` | The robot model and its poses |
-| `world/marks.js` | Beacons, flags, warning triangles, selection rings |
-| `world/effects.js` | Contact shadows, light pools, sparks, steam, confetti |
+| `world/terrain.js` | Ground grid, platforms, bays, crates, light pylons |
+| `world/buildings.js` | Fabrication bays and their signs |
+| `world/units.js` | The walker model and its poses |
+| `world/marks.js` | Beacons, pennants, warning triangles, selection rings |
+| `world/effects.js` | Contact shadows, light pools, sparks, exhaust, the finish burst |
 | `world/lighting.js` | Sun or moon, sky light, fog |
-| `world/post.js` | Ambient occlusion, bloom, tilt-shift blur |
+| `world/post.js` | Ambient occlusion, bloom, light depth of field |
 | `world/kit.js` | Helpers the builders share |
-| `map.css`, `hud.css` | The side panel and the controls over the map. They use the app's theme tokens. |
+| `map.css`, `hud.css` | The top bar, chat list and console; the labels drawn over the map. They use the app's theme tokens. |
 
 Change how it behaves:
 
 | File | Holds |
 | --- | --- |
 | `map.js` | Connects Zoltbot's data to everything else |
-| `layout.js` | Where islands, workshops and units go |
+| `layout.js` | Where platforms, bays and units go |
 | `states.js` | What each chat status means, waiting times, icons |
 | `world/scene.js` | The renderer and the frame loop |
 | `camera.js`, `input.js` | Camera movement; mouse, touch and keys |
-| `overlay.js`, `minimap.js`, `hud.js`, `list.js`, `panels.js` | Name tags and edge alerts, minimap, top bar and group chips, chat list, requests and orders |
+| `overlay.js`, `minimap.js`, `hud.js`, `list.js`, `selection.js`, `panels.js` | Name tags and edge alerts, minimap, top bar and group tabs, chat list, selection panel, requests and orders |
 | `quality.js`, `sound.js` | Graphics level; the three sounds |
 | `vendor/` | three.js, bundled. See `vendor/README.md`. |
 
 ## Change a palette
 
 Open `skin.js` and edit `palettes.day` (light theme) or `palettes.night` (dark theme). For a
-desert by day:
+rust-red desert base by day:
 
 ```js
 day: {
-  mist: "#f3e6d2",
-  water: "#d9b98a",       // sand instead of sea
-  shallows: "#e2c79c",
-  foam: "#ecd9b6",
-  grass: ["#d8b56f", "#cfa962", "#e0c080"],
-  soil: "#a8743f",
-  rock: "#7d5a3a",
+  mist: "#d9c2ad",
+  ground: "#b98f6f",      // bare ground between platforms
+  gridLine: "#a67c5e",
+  deck: ["#7d6f66", "#85766b"],
+  trim: ["#e0b030"],      // every platform gets a yellow line
   // …leave the rest as it is
 }
 ```
 
-Lists such as `grass`, `walls` and `roofs` hold several colors; each island or building picks
-one. `states` colors the marks and robot visors. `emit` and `bloom` set how strongly lights
-glow. Reload the preview to see the change.
+Lists such as `deck`, `trim` and `hull` hold several colors; each platform or structure picks
+one. `states` colors the marks and visors. `emit` and `bloom` set how strongly lights glow.
+Reload the preview to see the change.
 
 ## Replace the unit model
 
-A builder is a function that draws one part of the world. `world/units.js` registers the robot
-builder as `CommandMap.builders.units.robots`, and `skin.js` chooses it with
-`builders.units: "robots"`. To use your own model:
+A builder is a function that draws one part of the world. `world/units.js` registers the walker
+builder as `CommandMap.builders.units.mechs`, and `skin.js` chooses it with
+`builders.units: "mechs"`. To use your own model:
 
 1. Copy `world/units.js` to `world/crates.js` and add it to `index.html` after `world/units.js`.
 2. Register it under a new name and draw what you like. This one draws each chat as a crate:

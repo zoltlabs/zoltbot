@@ -276,6 +276,6 @@ it("ships a readable folder under 5 MB that loads nothing from the network", () 
   }
   expect(total).toBeLessThan(5 * 1024 * 1024);
   const manifest = JSON.parse(readFileSync(new URL("view.json", viewFolder), "utf8"));
-  expect(manifest.version).toBe("2.0.0");
+  expect(manifest.version).toBe("2.1.0");
   expect(manifest.permissions).toEqual(["read", "act", "approve"]);
 });

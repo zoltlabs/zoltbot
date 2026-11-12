@@ -1,34 +1,9 @@
-// Buildings: one small workshop per worktree, with the branch name on a sign beside it.
-// Windows light up and the chimney steams while a chat is working there.
+// Buildings: one fabrication bay per worktree, with the branch name on a lit sign beside it.
+// Its light strips come on and its stack vents while a chat is working there.
 (() => {
   const map = window.CommandMap,
     T = window.THREE,
     kit = map.kit;
-
-  // A gable roof: ridge along x, eaves overhanging the walls.
-  function roof(w, h, d) {
-    const x = w / 2,
-      z = d / 2;
-    const corners = {
-      a: [-x, 0, z],
-      b: [x, 0, z],
-      c: [x, 0, -z],
-      d: [-x, 0, -z],
-      e: [-x, h, 0],
-      f: [x, h, 0],
-    };
-    const faces = ["abf", "afe", "cde", "cef", "bcf", "dae"];
-    const geometry = new T.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new T.Float32BufferAttribute(
-        faces.flatMap((face) => [...face].flatMap((corner) => corners[corner])),
-        3,
-      ),
-    );
-    geometry.computeVertexNormals();
-    return geometry;
-  }
 
   // Sign text is drawn once into a shared canvas; each sign shows its own cell of it.
   const CELL = { w: 256, h: 64, columns: 8, rows: 32 };
@@ -49,40 +24,24 @@
     return `${short}…`;
   }
 
-  map.builders.buildings.workshops = (world) => {
+  map.builders.buildings.facilities = (world) => {
     const { skin, root } = world,
       size = skin.sizes.building,
       yaw = skin.camera.yaw;
-    const solid = (options) => new T.MeshStandardMaterial({ roughness: 0.85, ...options });
-    const pools = {
-      walls: new kit.Pool(
-        root,
-        new T.RoundedBoxGeometry(size.w, size.h, size.d, 1, 0.16),
-        solid(),
-        {
-          cast: true,
-          receive: true,
-        },
-      ),
-      roofs: new kit.Pool(
-        root,
-        roof(size.w + 0.7, size.roof, size.d + 0.7),
-        solid({ flatShading: true, side: T.DoubleSide }),
-        {
-          cast: true,
-        },
-      ),
-      chimneys: new kit.Pool(root, new T.BoxGeometry(0.6, 1.5, 0.6), solid(), { cast: true }),
-      doors: new kit.Pool(root, new T.BoxGeometry(1, 1.6, 0.16), solid()),
-      windows: new kit.Pool(
-        root,
-        new T.BoxGeometry(0.95, 0.85, 0.14),
-        new T.MeshBasicMaterial({ toneMapped: false }),
-      ),
-      posts: new kit.Pool(root, new T.CylinderGeometry(0.07, 0.07, 1.5, 6), solid(), {
+    const solid = (options) =>
+      new T.MeshStandardMaterial({ roughness: 0.7, metalness: 0.15, ...options });
+    // Every structural part is the same unit box, stretched; lights are a second set.
+    const blocks = new kit.Pool(root, new T.BoxGeometry(1, 1, 1), solid(), {
         cast: true,
+        receive: true,
       }),
-    };
+      lights = new kit.Pool(
+        root,
+        new T.BoxGeometry(1, 1, 1),
+        new T.MeshBasicMaterial({ toneMapped: false }),
+      );
+    const BLOCKS = 9,
+      LIGHTS = 3;
     const atlas = signAtlas();
     const words = new T.Mesh(
       new T.BufferGeometry(),
@@ -165,50 +124,58 @@
       return target.copy(kit.place(x, 1.55, z, { ry: yaw, rx: -0.5 }));
     }
 
+    // The stack at the back right of the roof, where exhaust rises.
+    const stackSpot = (base) => [base.x + size.w * 0.3, base.z - size.d * 0.22];
     function place() {
       if (!layout) return;
       const palette = world.palette,
-        bases = layout.bases;
-      for (const pool of Object.values(pools)) pool.begin(bases.length);
-      pools.windows.begin(bases.length * 2);
+        bases = layout.bases,
+        { w, h, d } = size;
+      blocks.begin(bases.length * BLOCKS);
+      lights.begin(bases.length * LIGHTS);
       bases.forEach((base, index) => {
         const s = appear(base),
-          lit = color.set(base.active ? palette.windowLit : palette.windowOff).clone();
+          { x, z } = base,
+          hull = color.set(kit.pick(palette.hull, base.id)).clone(),
+          dark = color.set(palette.hullDark).clone(),
+          lit = color.set(base.active ? palette.bayLit : palette.bayOff).clone();
         if (base.active) lit.multiplyScalar(world.emit());
-        pools.walls.put(
-          index,
-          kit.place(base.x, (size.h / 2) * s, base.z, { s }),
-          color.set(kit.pick(palette.walls, base.id)),
-        );
-        pools.roofs.put(
-          index,
-          kit.place(base.x, size.h * s, base.z, { s }),
-          color.set(kit.pick(palette.roofs, base.id)),
-        );
-        pools.chimneys.put(
-          index,
-          kit.place(base.x - size.w * 0.28, (size.h + 0.9) * s, base.z - size.d * 0.2, { s }),
-          color.set(palette.chimney),
-        );
-        pools.doors.put(
-          index,
-          kit.place(base.x - 1.1, 0.8 * s, base.z + size.d / 2, { s }),
-          color.set(palette.door),
-        );
-        pools.windows.put(
-          index * 2,
-          kit.place(base.x + 1.05, 1.5 * s, base.z + size.d / 2, { s }),
-          lit,
-        );
-        pools.windows.put(
-          index * 2 + 1,
-          kit.place(base.x + size.w / 2, 1.5 * s, base.z, { s, ry: Math.PI / 2 }),
-          lit,
-        );
-        const [x, z] = signSpot(base);
-        pools.posts.put(index, kit.place(x, 0.75 * s, z, { s }), color.set(palette.signPost));
+        const [stackX, stackZ] = stackSpot(base),
+          [signX, signZ] = signSpot(base);
+        // Each row: center x, y, z, then width, height, depth, then color.
+        const parts = [
+          [x, h / 2, z, w, h, d, hull], // main hall
+          [x - w * 0.2, h + 0.4, z - d * 0.12, w * 0.5, 0.8, d * 0.6, dark], // upper deck
+          [x, h + 0.06, z, w + 0.3, 0.12, d + 0.3, hull], // roof lip
+          [x - w * 0.12, 0.85, z + d / 2, 2.5, 1.7, 0.12, color.set(palette.door).clone()], // bay door
+          [x + w / 2 - 0.5, 0.6, z + d / 2 + 0.25, 0.7, 1.2, 0.5, dark], // power unit by the door
+          [stackX, h + 0.75, stackZ, 0.55, 1.5, 0.55, color.set(palette.stack).clone()], // stack
+          [x - w * 0.36, h + 1.6, z - d * 0.3, 0.08, 1.6, 0.08, dark], // antenna mast
+          [x - w * 0.36, h + 2.2, z - d * 0.3, 0.5, 0.06, 0.06, dark], // antenna crossbar
+          [signX, 0.75, signZ, 0.12, 1.5, 0.12, color.set(palette.signPost).clone()], // sign post
+        ];
+        parts.forEach(([px, py, pz, sx, sy, sz, tint], part) => {
+          blocks.put(
+            index * BLOCKS + part,
+            kit.place(px, py * s, pz, { sx: sx * s, sy: sy * s, sz: sz * s }),
+            tint,
+          );
+        });
+        const strips = [
+          [x - w * 0.12, 1.85, z + d / 2 + 0.02, 2.5, 0.14, 0.1], // over the bay door
+          [x + w / 2 + 0.02, 1.5, z, 0.1, 0.14, d * 0.6], // along the side
+          [x + w / 2 - 0.5, 1.05, z + d / 2 + 0.51, 0.4, 0.14, 0.04], // on the power unit
+        ];
+        strips.forEach(([px, py, pz, sx, sy, sz], part) => {
+          lights.put(
+            index * LIGHTS + part,
+            kit.place(px, py * s, pz, { sx: sx * s, sy: sy * s, sz: sz * s }),
+            lit,
+          );
+        });
       });
-      for (const pool of Object.values(pools)) pool.end();
+      blocks.end();
+      lights.end();
     }
     return {
       setData(next) {
@@ -222,26 +189,27 @@
         if (layout) writeSigns(layout.bases);
         place();
       },
-      // During the first load each workshop grows into place. `scale(base)` runs from 0 to 1.
+      // During the first load each structure grows into place. `scale(base)` runs from 0 to 1.
       settle(scale) {
         appear = scale ?? (() => 1);
         words.visible = !scale;
         place();
       },
-      // Chimney tops of workshops with work under way, for steam.
+      // Stack tops of bays with work under way, for exhaust.
       chimneys: () =>
         (layout?.bases ?? [])
           .filter((base) => base.active)
-          .map((base) => [base.x - size.w * 0.28, size.h + 1.7, base.z - size.d * 0.2]),
-      // Where lit windows throw light on the ground at night.
+          .map((base) => [stackSpot(base)[0], size.h + 1.6, stackSpot(base)[1]]),
+      // Where the lit bay door throws light on the ground at night.
       lights: () =>
         (layout?.bases ?? [])
           .filter((base) => base.active)
-          .map((base) => [base.x + 1.05, base.z + size.d / 2 + 1.1]),
+          .map((base) => [base.x - size.w * 0.12, base.z + size.d / 2 + 1.2]),
       footprints: () => (layout?.bases ?? []).map((base) => [base.x, base.z, size.w, size.d]),
       update() {},
       dispose() {
-        for (const pool of Object.values(pools)) pool.dispose();
+        blocks.dispose();
+        lights.dispose();
         root.remove(words);
         words.geometry.dispose();
         words.material.dispose();

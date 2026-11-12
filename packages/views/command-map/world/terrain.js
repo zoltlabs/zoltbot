@@ -1,5 +1,6 @@
-// Terrain: calm water, one raised island per workspace, paths under each worktree, and a few
-// trees, stones and lamps. Everything is built from the layout; nothing is loaded from a file.
+// Terrain: bare ground with a survey grid, one raised steel platform per workspace, a marked
+// bay for each worktree, and a few crates and light pylons. Everything is built from the
+// layout; nothing is loaded from a file.
 (() => {
   const map = window.CommandMap,
     T = window.THREE,
@@ -44,172 +45,179 @@
     return kit.paint(geometry, color);
   }
 
-  map.builders.terrain.islands = (world) => {
+  // The survey grid: one cell of faint lines, repeated across the ground.
+  function gridTexture(palette) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const context = canvas.getContext("2d");
+    context.fillStyle = palette.ground;
+    context.fillRect(0, 0, 128, 128);
+    context.strokeStyle = palette.gridLine;
+    context.lineWidth = 2;
+    context.strokeRect(0, 0, 128, 128);
+    const texture = new T.CanvasTexture(canvas);
+    texture.colorSpace = T.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = T.RepeatWrapping;
+    texture.anisotropy = 8;
+    return texture;
+  }
+
+  map.builders.terrain.platforms = (world) => {
     const { skin, root } = world,
       sizes = skin.sizes;
-    const ground = new T.Mesh(
+    const decks = new T.Mesh(
       new T.BufferGeometry(),
-      new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }),
+      new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.15 }),
     );
-    ground.receiveShadow = true;
-    ground.castShadow = true;
-    ground.frustumCulled = false;
-    const water = new T.Mesh(
+    decks.receiveShadow = true;
+    decks.castShadow = true;
+    decks.frustumCulled = false;
+    const ground = new T.Mesh(
       new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2),
-      new T.MeshStandardMaterial({ roughness: 0.45, metalness: 0 }),
+      new T.MeshStandardMaterial({ roughness: 1 }),
     );
-    water.position.y = sizes.water;
-    water.receiveShadow = true;
-    root.add(water, ground);
+    ground.position.y = sizes.ground;
+    ground.receiveShadow = true;
+    root.add(ground, decks);
 
-    const solid = (options) => new T.MeshStandardMaterial({ roughness: 0.9, ...options });
-    const foliage = new kit.Pool(
-        root,
-        new T.IcosahedronGeometry(1, 1).scale(1, 1.15, 1),
-        solid({ flatShading: true }),
-        { cast: true, receive: true },
-      ),
-      trunks = new kit.Pool(root, new T.CylinderGeometry(0.14, 0.2, 1, 6), solid(), {
+    const solid = (options) => new T.MeshStandardMaterial({ roughness: 0.75, ...options });
+    const crates = new kit.Pool(root, new T.BoxGeometry(1, 1, 1), solid(), {
         cast: true,
+        receive: true,
       }),
-      stones = new kit.Pool(
-        root,
-        new T.DodecahedronGeometry(0.5, 0).scale(1, 0.65, 1),
-        solid({ flatShading: true }),
-        { cast: true, receive: true },
-      ),
-      posts = new kit.Pool(root, new T.CylinderGeometry(0.06, 0.08, 2.1, 6), solid(), {
-        cast: true,
-      }),
+      pylons = new kit.Pool(root, new T.BoxGeometry(0.16, 2.6, 0.16), solid(), { cast: true }),
       lamps = new kit.Pool(
         root,
-        new T.SphereGeometry(0.22, 10, 8),
+        new T.BoxGeometry(0.5, 0.16, 0.3),
         new T.MeshBasicMaterial({ toneMapped: false }),
       );
-    const color = new T.Color();
+    const color = new T.Color(),
+      tone = (value) => color.set(value).clone();
     let layout,
       lampSpots = [];
 
     function rebuild() {
+      const palette = world.palette;
+      ground.material.map?.dispose();
+      ground.material.map = gridTexture(palette);
+      ground.material.map.repeat.setScalar(4000 / sizes.grid);
+      ground.material.needsUpdate = true;
       if (!layout) return;
-      const palette = world.palette,
-        pieces = [],
-        trees = [],
-        rocks = [];
+      const pieces = [],
+        boxes = [];
       lampSpots = [];
       for (const region of layout.regions) {
         const cx = region.x + region.w / 2,
           cz = region.z + region.d / 2,
-          r = sizes.islandCorner,
+          r = sizes.platformCorner,
           skirt = sizes.skirt;
-        const grass = color.set(kit.pick(palette.grass, region.id)).clone();
         pieces.push(
-          sheet(
-            cx,
-            cz,
-            region.w + 7,
-            region.d + 7,
-            r + 3.5,
-            sizes.water + 0.05,
-            color.set(palette.shallows).clone(),
-          ),
-          sheet(
-            cx,
-            cz,
-            region.w + 3.6,
-            region.d + 3.6,
-            r + 1.8,
-            sizes.water + 0.1,
-            color.set(palette.foam).clone(),
-          ),
+          // A stepped base, the deck, a painted line around its edge, then the deck again inside it.
           slab(
             cx,
             cz,
             region.w + skirt * 2,
             region.d + skirt * 2,
             r + skirt,
-            -1.25,
-            2.4,
-            0.3,
-            color.set(palette.rock).clone(),
+            -0.45,
+            1.1,
+            0,
+            tone(palette.deckEdge),
           ),
-          slab(cx, cz, region.w, region.d, r, -0.45, 0.9, 0, color.set(palette.soil).clone()),
-          slab(cx, cz, region.w, region.d, r, 0, 0.5, 0.16, grass),
+          slab(cx, cz, region.w, region.d, r, 0, 0.6, 0.1, tone(kit.pick(palette.deck, region.id))),
+          sheet(
+            cx,
+            cz,
+            region.w - 0.5,
+            region.d - 0.5,
+            r,
+            0.02,
+            tone(kit.pick(palette.trim, region.id)),
+          ),
+          sheet(
+            cx,
+            cz,
+            region.w - 1,
+            region.d - 1,
+            r,
+            0.03,
+            tone(kit.pick(palette.deck, region.id)),
+          ),
         );
-        // Trees and stones stand on the grass margin, along the back and the sides.
-        const step = 4.2;
-        for (let along = 2.5; along < region.w - 2; along += step) {
+        // Seams between deck plates.
+        for (let x = 6; x < region.w - 3; x += 6)
+          pieces.push(
+            sheet(region.x + x, cz, 0.1, region.d - 1.4, 0, 0.035, tone(palette.deckLine)),
+          );
+        for (let z = 6; z < region.d - 3; z += 6)
+          pieces.push(
+            sheet(cx, region.z + z, region.w - 1.4, 0.1, 0, 0.035, tone(palette.deckLine)),
+          );
+        // Supply crates stand on the margin, along the back and the sides.
+        for (let along = 3; along < region.w - 3; along += 4.5) {
           const key = `${region.id}:b${along}`;
-          if (kit.unit(key) < 0.62)
-            trees.push([
-              region.x + along + kit.unit(`${key}x`) * 1.5,
-              region.z + 1.5 + kit.unit(`${key}z`),
-              key,
-            ]);
+          if (kit.unit(key) < 0.4) boxes.push([region.x + along, region.z + 1.5, key]);
         }
-        for (let along = 5; along < region.d - 4; along += step) {
+        for (let along = 6; along < region.d - 4; along += 4.5)
           for (const side of [0, 1]) {
-            const key = `${region.id}:s${side}${along}`,
-              x = side ? region.x + region.w - 1.6 : region.x + 1.6;
-            if (kit.unit(key) < 0.4) trees.push([x, region.z + along + kit.unit(`${key}z`), key]);
-            else if (kit.unit(key) > 0.86) rocks.push([x, region.z + along, key]);
+            const key = `${region.id}:s${side}${along}`;
+            if (kit.unit(key) < 0.3)
+              boxes.push([
+                side ? region.x + region.w - 1.5 : region.x + 1.5,
+                region.z + along,
+                key,
+              ]);
           }
-        }
         lampSpots.push(
-          [region.x + 1.7, region.z + region.d - 1.7],
-          [region.x + region.w - 1.7, region.z + region.d - 1.7],
+          [region.x + 1.4, region.z + region.d - 1.4],
+          [region.x + region.w - 1.4, region.z + region.d - 1.4],
         );
       }
-      for (const cell of layout.cells)
+      // Each worktree's bay: a dark pad with a painted outline.
+      for (const cell of layout.cells) {
+        const x = cell.x + cell.w / 2,
+          z = cell.z + cell.d / 2;
         pieces.push(
-          sheet(
-            cell.x + cell.w / 2,
-            cell.z + cell.d / 2,
-            cell.w + 0.6,
-            cell.d + 0.6,
-            1.2,
-            0.03,
-            color.set(palette.path).clone(),
-          ),
+          sheet(x, z, cell.w + 0.5, cell.d + 0.5, 0.5, 0.045, tone(palette.padLine)),
+          sheet(x, z, cell.w + 0.24, cell.d + 0.24, 0.4, 0.055, tone(palette.pad)),
         );
-      ground.geometry.dispose();
-      ground.geometry = pieces.length ? kit.join(pieces) : new T.BufferGeometry();
-      water.material.color.set(palette.water);
+      }
+      decks.geometry.dispose();
+      decks.geometry = pieces.length ? kit.join(pieces) : new T.BufferGeometry();
 
-      foliage.begin(trees.length);
-      trunks.begin(trees.length);
-      trees.forEach(([x, z, key], index) => {
-        const height = 0.9 + kit.unit(`${key}h`) * 0.7,
-          spread = 0.85 + kit.unit(`${key}w`) * 0.5;
-        trunks.put(index, kit.place(x, height / 2, z, { sy: height }), color.set(palette.trunk));
-        foliage.put(
+      // One or two crates per spot, the second stacked on the first.
+      const stacked = boxes.flatMap(([x, z, key]) =>
+        kit.unit(`${key}s`) < 0.45
+          ? [
+              [x, 0.45, z, key, 0.9],
+              [x + 0.1, 1.25, z - 0.05, `${key}t`, 0.7],
+            ]
+          : [[x, 0.45, z, key, 0.9]],
+      );
+      crates.begin(stacked.length);
+      stacked.forEach(([x, y, z, key, size], index) => {
+        crates.put(
           index,
-          kit.place(x, height + spread * 0.75, z, { s: spread, ry: kit.unit(key) * 6 }),
-          color.set(kit.pick(palette.foliage, key)),
+          kit.place(x, y, z, {
+            s: size,
+            sx: size * (1 + kit.unit(`${key}w`) * 0.6),
+            ry: kit.unit(key) * 0.5,
+          }),
+          color.set(kit.pick(palette.crate, key)),
         );
       });
-      foliage.end();
-      trunks.end();
-      stones.begin(rocks.length);
-      rocks.forEach(([x, z, key], index) => {
-        stones.put(
-          index,
-          kit.place(x, 0.2, z, { s: 0.7 + kit.unit(key) * 0.8, ry: kit.unit(key) * 6 }),
-          color.set(palette.stone),
-        );
-      });
-      stones.end();
-      posts.begin(lampSpots.length);
+      crates.end();
+      pylons.begin(lampSpots.length);
       lamps.begin(lampSpots.length);
       lampSpots.forEach(([x, z], index) => {
-        posts.put(index, kit.place(x, 1.05, z), color.set(palette.signPost));
+        pylons.put(index, kit.place(x, 1.3, z), color.set(palette.signPost));
         lamps.put(
           index,
-          kit.place(x, 2.2, z),
+          kit.place(x, 2.6, z, { ry: skin.camera.yaw }),
           color.set(palette.lampLit).multiplyScalar(world.emit()),
         );
       });
-      posts.end();
+      pylons.end();
       lamps.end();
     }
     return {
@@ -225,12 +233,13 @@
       lights: () => lampSpots,
       update() {},
       dispose() {
-        root.remove(water, ground);
+        root.remove(ground, decks);
+        decks.geometry.dispose();
+        decks.material.dispose();
         ground.geometry.dispose();
+        ground.material.map?.dispose();
         ground.material.dispose();
-        water.geometry.dispose();
-        water.material.dispose();
-        for (const pool of [foliage, trunks, stones, posts, lamps]) pool.dispose();
+        for (const pool of [crates, pylons, lamps]) pool.dispose();
       },
     };
   };
