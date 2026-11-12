@@ -33,12 +33,23 @@ export function waitingState(
     )
   )
     return undefined;
-  if (entities.interaction?.some((row) => row.threadId === threadId && row.state === "pending"))
+  const request = entities.interaction?.find(
+    (row) => row.threadId === threadId && row.state === "pending",
+  );
+  if (request) {
+    const labels: Record<string, string> = {
+      approval: "Approval needed",
+      question: "Answer needed",
+      plan: "Plan review needed",
+      form: "Details needed",
+      gate: "Sign-off needed",
+    };
     return {
-      label: "Needs you",
-      description: "Answer the pending request to continue.",
+      label: labels[text(request.type)] ?? "Needs you",
+      description: "Review the pending request to continue.",
       kind: "request",
     };
+  }
   const status = session?.runtimeStatus as Row | undefined;
   if (status?.state === "rate_limited") {
     const date = new Date(text(status.resetsAt));

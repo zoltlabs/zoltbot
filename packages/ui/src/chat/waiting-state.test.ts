@@ -55,3 +55,19 @@ it("ignores historical provider waits and distinguishes background work from a r
     ),
   ).toBeUndefined();
 });
+
+it("names the pending decision instead of collapsing every request into a generic status", () => {
+  for (const [type, label] of [
+    ["approval", "Approval needed"],
+    ["question", "Answer needed"],
+    ["form", "Details needed"],
+    ["plan", "Plan review needed"],
+  ])
+    expect(
+      waitingState(
+        { interaction: [{ threadId: "thread", state: "pending", type }] },
+        "thread",
+        "online",
+      )?.label,
+    ).toBe(label);
+});

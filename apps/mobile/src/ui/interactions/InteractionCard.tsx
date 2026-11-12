@@ -1,6 +1,7 @@
 import type { Interaction } from "@zoltbot/protocol";
-import { StyleSheet, View } from "react-native";
-import { defaultTitles, typeLabels } from "../../data/interactions";
+import { permissionExpansion } from "@zoltbot/ui/interactions/request-presentation";
+import { Alert, StyleSheet, View } from "react-native";
+import { type AnswerDraft, defaultTitles, typeLabels } from "../../data/interactions";
 import { mono, useTheme } from "../../theme";
 import { Avatar, Button, Card, Chip, Txt } from "../kit";
 import { Markdown } from "../Markdown";
@@ -25,7 +26,7 @@ function Context({ request }: { request: Interaction }) {
         </Txt>
       ) : null}
       {context.cwd ? (
-        <Txt v="meta" tone="muted" lines={2}>
+        <Txt v="meta" tone="muted">
           {`In ${context.cwd}`}
         </Txt>
       ) : null}
@@ -70,7 +71,23 @@ export function InteractionCard({
   /** "1 of 3" when the thread has more than one pending request. */
   position?: string;
 }) {
-  const { submit, busy, error, disabled, online } = useAnswer(request);
+  const answer = useAnswer(request);
+  const { busy, error, disabled, online } = answer;
+  const submit = async (draft: AnswerDraft): Promise<boolean> => {
+    if (disabled) return false;
+    const expansion = permissionExpansion(request, draft.choice);
+    if (!expansion) return answer.submit(draft);
+    Alert.alert(expansion.title, expansion.description, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: expansion.action,
+        onPress: () => {
+          void answer.submit(draft);
+        },
+      },
+    ]);
+    return false;
+  };
   const type = request.type;
   const body =
     type === "question" ? (
@@ -96,11 +113,13 @@ export function InteractionCard({
         </View>
         <Chip label={typeLabels[type]} tone="attention" dot />
       </View>
-      {error ? (
-        <Txt v="meta" tone="danger" accessibilityRole="text">
-          {error}
-        </Txt>
-      ) : null}
+      <View accessibilityLiveRegion="polite">
+        {error ? (
+          <Txt v="meta" tone="danger" accessibilityRole="text">
+            {error}
+          </Txt>
+        ) : null}
+      </View>
       {!online ? (
         <Txt v="meta" tone="muted">
           Answering is paused until your Mac is reachable.

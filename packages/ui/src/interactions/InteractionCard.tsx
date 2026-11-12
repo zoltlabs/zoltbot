@@ -2,15 +2,16 @@ import type { Interaction } from "@zoltbot/protocol";
 import { useEffect, useRef, useState } from "react";
 import { useDictation } from "../chat/Dictation.js";
 import type { ChatConnection } from "../chat/types.js";
-import { Avatar, Chip } from "../components/primitives.js";
+import { Avatar, Button, Chip, Dialog } from "../components/primitives.js";
 import { validSuggestion } from "../rules/rule-data.js";
 import { AlwaysAllowRule } from "./AlwaysAllowRule.js";
-import { useInteractionActions } from "./actions.js";
+import { type AnswerDraft, useInteractionActions } from "./actions.js";
 import { FormCard } from "./FormCard.js";
 import { QuestionCard } from "./QuestionCard.js";
 import { ApprovalActions, PlanActions } from "./RequestActions.js";
 import { FeedbackField, RequestContext } from "./RequestContext.js";
 import { linkOnlyForm, planApproval, requestChoices } from "./request-data.js";
+import { permissionExpansion } from "./request-presentation.js";
 import { SavedResolution } from "./SavedResolution.js";
 import "./interactions.css";
 import "./approval.css";
@@ -30,6 +31,12 @@ export function InteractionCard({
   autoFocus?: boolean;
 }) {
   const actions = useInteractionActions(connection, request, onDeferred);
+  const [confirmation, setConfirmation] = useState<{ draft: AnswerDraft; version: number }>();
+  const submit = async (draft: AnswerDraft) => {
+    if (permissionExpansion(request, draft.choice))
+      setConfirmation({ draft, version: request.version });
+    else await actions.submit(draft);
+  };
   const [feedback, setFeedback] = useState(""),
     [explaining, setExplaining] = useState(false),
     [alwaysAllow, setAlwaysAllow] = useState(false);
@@ -118,6 +125,7 @@ export function InteractionCard({
       aria-label={`${request.type} from ${profile}`}
       onKeyDown={(event) => {
         if (
+          confirmation ||
           request.state !== "pending" ||
           disabled ||
           event.metaKey ||
@@ -154,7 +162,7 @@ export function InteractionCard({
         }
         if (event.key === "s" && choices.has("allow_session")) {
           event.preventDefault();
-          void actions.submit({ action: "accept", choice: "allow_session", ...withFeedback });
+          void submit({ action: "accept", choice: "allow_session", ...withFeedback });
         }
         if (event.key === "a" && canAlwaysAllow) {
           event.preventDefault();
@@ -214,7 +222,7 @@ export function InteractionCard({
         <>
           <RequestContext request={request} />
           {request.type === "question" ? (
-            <QuestionCard request={request} disabled={disabled} submit={actions.submit} />
+            <QuestionCard request={request} disabled={disabled} submit={submit} />
           ) : request.type === "approval" ? (
             <ApprovalActions
               request={request}
@@ -224,7 +232,7 @@ export function InteractionCard({
               explaining={explaining}
               ruleOpen={alwaysAllow && canAlwaysAllow}
               canAlwaysAllow={canAlwaysAllow}
-              submit={actions.submit}
+              submit={submit}
               onExplain={explain}
               onAlwaysAllow={() => {
                 setExplaining(false);
@@ -253,18 +261,13 @@ export function InteractionCard({
               choices={choices}
               disabled={disabled}
               feedback={feedback}
-              submit={actions.submit}
+              submit={submit}
               onNeedFeedback={() => feedbackInput.current?.focus()}
             >
               {feedbackField("Comments or requested changes")}
             </PlanActions>
           ) : (
-            <FormCard
-              request={request}
-              disabled={disabled}
-              submit={actions.submit}
-              decline={reject}
-            />
+            <FormCard request={request} disabled={disabled} submit={submit} decline={reject} />
           )}
           <footer className="interaction-buttons interaction-footer">
             <span className="sp" />
@@ -290,6 +293,39 @@ export function InteractionCard({
           </footer>
         </>
       )}
+      {confirmation ? (
+        <Dialog
+          open
+          title={
+            permissionExpansion(request, confirmation.draft.choice)?.title ?? "Review permission"
+          }
+          description={permissionExpansion(request, confirmation.draft.choice)?.description ?? ""}
+          onClose={() => setConfirmation(undefined)}
+          actions={
+            <>
+              <Button onClick={() => setConfirmation(undefined)}>Cancel</Button>
+              <Button
+                disabled={
+                  disabled ||
+                  request.state !== "pending" ||
+                  request.version !== confirmation.version
+                }
+                onClick={() => {
+                  const draft = confirmation.draft;
+                  setConfirmation(undefined);
+                  void actions.submit(draft);
+                }}
+              >
+                {permissionExpansion(request, confirmation.draft.choice)?.action ?? "Approve"}
+              </Button>
+            </>
+          }
+        >
+          {request.version !== confirmation.version ? (
+            <p role="alert">This request changed. Cancel and review the latest version.</p>
+          ) : null}
+        </Dialog>
+      ) : null}
     </article>
   );
 }

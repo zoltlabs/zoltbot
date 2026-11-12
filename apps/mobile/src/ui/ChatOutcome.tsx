@@ -11,7 +11,7 @@ export function ChatWaiting({ threadId }: { threadId: string }) {
   const waiting = waitingState(snapshot.entities, threadId, status);
   return (
     <View accessibilityLiveRegion="polite">
-      {waiting ? (
+      {waiting && waiting.kind !== "request" ? (
         <Card>
           <Txt v="bodyMedium">{waiting.label}</Txt>
           <Txt tone="secondary">{waiting.description}</Txt>

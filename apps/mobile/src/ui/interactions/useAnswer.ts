@@ -17,6 +17,10 @@ export function useAnswer(request: Interaction) {
   const flight = useRef(singleFlight());
   const submit = async (draft: AnswerDraft): Promise<boolean> => {
     if (request.state !== "pending") return false;
+    if (useLink.getState().client?.getState().status !== "online") {
+      setError("Reconnect to your Mac, then send your answer again.");
+      return false;
+    }
     const client = useLink.getState().client;
     if (!client) {
       setError(answerError(new Error("Not connected to your Mac.")));

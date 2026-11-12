@@ -1,6 +1,7 @@
 import type { Interaction } from "@zoltbot/protocol";
+import { formLinks, linkOnlyForm } from "@zoltbot/ui/interactions/request-data";
 import { useState } from "react";
-import { StyleSheet, Switch, View } from "react-native";
+import { Linking, StyleSheet, Switch, View } from "react-native";
 import {
   type AnswerDraft,
   type FormField,
@@ -119,8 +120,47 @@ export function FormCard({
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(request.items.map((item) => [item.id, formDefaults(item)])),
   );
+  const [linkError, setLinkError] = useState("");
   const [touched, setTouched] = useState(false);
   const decline = () => void submit({ action: "decline" });
+  if (linkOnlyForm(request)) {
+    const links = formLinks(request);
+    return (
+      <View style={styles.root}>
+        {request.items.map((item) => (
+          <Txt key={item.id}>{item.prompt}</Txt>
+        ))}
+        {links.map((url) => (
+          <Button
+            key={url}
+            label={`Open ${new URL(url).hostname}`}
+            disabled={disabled}
+            onPress={() => {
+              void Linking.openURL(url).catch(() =>
+                setLinkError("Could not open the link. Check your connection and try again."),
+              );
+            }}
+          />
+        ))}
+        {linkError ? <Txt tone="danger">{linkError}</Txt> : null}
+        {links.length ? (
+          <Txt tone="secondary">
+            Finish in your browser, then continue here. Opening the link does not approve this
+            request.
+          </Txt>
+        ) : null}
+        <Button
+          label="Continue"
+          kind="primary"
+          disabled={disabled}
+          onPress={() => {
+            void submit({ action: "accept" });
+          }}
+        />
+        <Button label="Decline" disabled={disabled} onPress={decline} />
+      </View>
+    );
+  }
   if (!request.items.every(formSupported))
     return (
       <View style={styles.root}>

@@ -30,22 +30,22 @@ export function PlanCard({
         multiline
         disabled={disabled}
       />
+      <Button
+        label={acceptEdits ? "Approve, review each edit" : "Approve"}
+        kind="primary"
+        disabled={disabled}
+        onPress={() => send("approve")}
+        a11y={gate ? "Approve" : "Approve the plan"}
+      />
       {acceptEdits ? (
         <Button
-          label="Approve & auto-accept edits"
-          kind="primary"
+          label="Approve and auto-accept edits"
+          kind="secondary"
           disabled={disabled}
           onPress={() => send("approve_edits")}
           a11y="Approve the plan and auto-accept edits"
         />
       ) : null}
-      <Button
-        label="Approve"
-        kind={acceptEdits ? "secondary" : "primary"}
-        disabled={disabled}
-        onPress={() => send("approve")}
-        a11y={gate ? "Approve" : "Approve the plan"}
-      />
       <View style={styles.row}>
         <Button
           label={gate ? "Request changes" : "Keep planning"}

@@ -1,4 +1,5 @@
 import type { Interaction } from "@zoltbot/protocol";
+import { webResultUrl } from "../chat/tools/result-data.js";
 import { linkParts } from "../chat/tools/tool-data.js";
 import type { AnswerDraft } from "./actions.js";
 
@@ -40,7 +41,7 @@ export function linkOnlyForm(request: Interaction): boolean {
 export function formLinks(request: Interaction): string[] {
   const texts = [request.context?.markdown ?? "", ...request.items.map((item) => item.prompt)];
   const links = texts.flatMap((value) => linkParts(value).flatMap((part) => part.href ?? []));
-  return [...new Set(links)].filter(formHost).slice(0, 3);
+  return [...new Set(links.flatMap((href) => webResultUrl(href) ?? []))].slice(0, 3);
 }
 export function formHost(href: string) {
   try {

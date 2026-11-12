@@ -2,6 +2,7 @@ import { type Interaction, InteractionSchema, parse } from "@zoltbot/protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { InteractionCard } from "./InteractionCard.js";
+import { selectedRequest } from "./request-presentation.js";
 
 export default function PendingInteraction({
   connection,
@@ -33,7 +34,12 @@ export default function PendingInteraction({
   }, [entities.interaction, threadId, inline]);
   const setting = entities.settings?.find((row) => row.key === "interaction.deferred")?.value;
   const deferred = new Set(Array.isArray(setting) ? setting : []);
-  const current = requests.find((request) => revealed || !deferred.has(request.id));
+  const [selected, setSelected] = useState<string>();
+  const current = selectedRequest(
+    requests.filter((request) => revealed || !deferred.has(request.id)),
+    selected,
+  );
+  useEffect(() => setSelected(current?.id), [current?.id]);
   useEffect(() => {
     if (previous.current && !current?.id)
       document.querySelector<HTMLTextAreaElement>(".chat-composer textarea")?.focus();
@@ -50,7 +56,7 @@ export default function PendingInteraction({
   return (
     <section className="chat-pending-request" aria-label={label}>
       <InteractionCard
-        key={`${current.id}:${current.version}`}
+        key={current.id}
         request={current}
         connection={connection}
         profile={profile}

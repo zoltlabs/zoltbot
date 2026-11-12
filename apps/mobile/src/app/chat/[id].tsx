@@ -1,4 +1,5 @@
 import type { ArtifactTarget } from "@zoltbot/protocol";
+import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import {
@@ -76,7 +77,9 @@ export default function Chat() {
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
   const pending = pendingFor(snapshot, id);
-  const request = pending[0];
+  const [selected, setSelected] = useState<string>();
+  const request = selectedRequest(pending, selected);
+  useEffect(() => setSelected(request?.id), [request?.id]);
   const { height } = useWindowDimensions();
   const fork = forkInfo(snapshot, id);
   const edits = editsOf(snapshot, id);
@@ -239,7 +242,11 @@ export default function Chat() {
             key={request.id}
             request={request}
             who={profileName(snapshot, request.agentId)}
-            {...(pending.length > 1 ? { position: `1 of ${pending.length} waiting` } : {})}
+            {...(pending.length > 1
+              ? {
+                  position: `${pending.findIndex((row) => row.id === request.id) + 1} of ${pending.length} waiting`,
+                }
+              : {})}
           />
         </ScrollView>
       ) : null}
