@@ -114,6 +114,108 @@ it("executes an exact signed request once and replays its result across a host r
   expect((await f.open().request(reordered, signal())).stdout).toBe(first.stdout);
   expect(f.execute).toHaveBeenCalledTimes(1);
 });
+function prefixRequest(f: ReturnType<typeof fixture>) {
+  const initial = f.request();
+  if (!initial.approval) throw new Error("fixture_approval_missing");
+  initial.command = "pnpm test --filter core";
+  initial.approval = signApproval(f.identity, {
+    ...initial.approval.payload,
+    scope: "prefix",
+    command: "pnpm test",
+    expiresAt: f.now + 86400000,
+  });
+  return initial;
+}
+it("reuses a registered signed prefix only for this active task and retains one claim per command", async () => {
+  const f = fixture();
+  f.mode("allow_listed");
+  const host = f.open(),
+    initial = prefixRequest(f);
+  const next = {
+    ...initial,
+    requestId: "next",
+    turnId: "later-turn",
+    command: "pnpm test --filter store",
+  };
+  await expect(host.request(next, signal())).rejects.toThrow(/^mac_approval_refused$/);
+  await host.request(initial, signal());
+  await host.request(next, signal());
+  await host.request(next, signal());
+  expect(f.execute).toHaveBeenCalledTimes(2);
+  await expect(
+    host.request({ ...next, command: "pnpm test --filter changed" }, signal()),
+  ).rejects.toThrow(/^mac_request_conflict$/);
+  await host.close();
+  if (!initial.approval) throw new Error("fixture_approval_missing");
+  initial.approval.payload = Object.fromEntries(
+    Object.entries(initial.approval.payload).reverse(),
+  ) as typeof initial.approval.payload;
+  const resumed = f.open();
+  await resumed.request(
+    {
+      ...initial,
+      requestId: "third",
+      turnId: "third-turn",
+      command: "pnpm test --filter protocol",
+    },
+    signal(),
+  );
+  expect(f.execute).toHaveBeenCalledTimes(3);
+});
+it("requires allow-listed mode and fresh approvals for settings, keychain, shell syntax and stdin", async () => {
+  const f = fixture(),
+    initial = prefixRequest(f),
+    host = f.open();
+  await expect(host.request(initial, signal())).rejects.toThrow(/^mac_approval_required$/);
+  f.mode("allow_listed");
+  await host.request(initial, signal());
+  for (const change of [
+    { command: "pnpm test; uname" },
+    { command: "pnpm test $(uname)" },
+    { command: "pnpm test sudo" },
+    { command: "pnpm test /usr/bin/security" },
+    { command: "pnpm test systemsetup" },
+    { command: "pnpm testing" },
+    { stdin: "input" },
+  ])
+    await expect(
+      host.request({ ...initial, ...change, requestId: "unsafe" }, signal()),
+    ).rejects.toThrow(/^mac_approval_required$/);
+  f.mode("ask");
+  await expect(host.request(initial, signal())).rejects.toThrow(/^mac_approval_required$/);
+  expect(f.execute).toHaveBeenCalledTimes(1);
+});
+it("rechecks prefix task scope, expiry, device revocation and mode before each execution", async () => {
+  const f = fixture();
+  f.mode("allow_listed");
+  const initial = prefixRequest(f),
+    host = f.open();
+  await host.request(initial, signal());
+  const next = { ...initial, requestId: "next" };
+  for (const change of [
+    { taskId: "other" },
+    { targetDeviceId: "other" },
+    { userId: "other" },
+    { timeoutSeconds: 1 },
+  ])
+    await expect(host.request({ ...next, ...change }, signal())).rejects.toThrow(
+      /^mac_approval_refused$/,
+    );
+  const registered = f.keys[0];
+  if (!registered) throw new Error("fixture_key_missing");
+  registered.revokedAt = new Date(f.now).toISOString();
+  await expect(host.request(next, signal())).rejects.toThrow(/^mac_approval_refused$/);
+  delete registered.revokedAt;
+  f.options.task = async () => ({ active: false, folder: f.root });
+  await expect(host.request(next, signal())).rejects.toThrow(/^mac_unavailable$/);
+  f.options.task = async () => ({ active: true, folder: f.root });
+  f.options.now = () => f.now + 86400001;
+  await expect(host.request(next, signal())).rejects.toThrow(/^mac_approval_refused$/);
+  expect((await host.request(initial, signal())).exitCode).toBe(0);
+  f.mode("off");
+  await expect(host.request(initial, signal())).rejects.toThrow(/^mac_unavailable$/);
+  expect(f.execute).toHaveBeenCalledTimes(1);
+});
 it("refuses a forged Cell approval and unsigned requests before starting any process", async () => {
   const f = fixture(),
     host = f.open(),
@@ -162,6 +264,7 @@ it("reports the configured Mac and canonical folder without executing a command"
     mac: "Test Mac",
     osVersion: "15.0",
     cwd: f.root,
+    allowListedCommands: false,
   });
   expect(await host.status({ ...request, userId: "other" }, signal())).toEqual({
     available: false,

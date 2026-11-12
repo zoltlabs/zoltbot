@@ -182,6 +182,7 @@ export const MacStatusResultSchema = Type.Union([
     targetDeviceId: Id,
     mac: Text,
     osVersion: Text,
+    allowListedCommands: Type.Optional(Type.Boolean()),
     cwd: Type.String({ minLength: 1, maxLength: 4096, pattern: "^/" }),
   }),
 ]);

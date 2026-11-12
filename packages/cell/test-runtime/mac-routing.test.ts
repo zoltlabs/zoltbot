@@ -104,6 +104,7 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
               targetDeviceId: device,
               mac: "Test Mac",
               osVersion: "15.0",
+              allowListedCommands: true,
               cwd: "/home/user/work",
             },
           }),
@@ -175,7 +176,7 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
     ).toBe("forbidden");
     const { targetDeviceId: _selected, ...choose } = base;
     expect((await sandbox.call("mac.status.request", choose)).result?.reason).toBe("choose_mac");
-    const request = { ...base, command: "uname", cwd: "/home/user/work" };
+    const request = { ...base, command: "uname -a", cwd: "/home/user/work" };
     const pending = await sandbox.call("mac.exec.request", request);
     expect(pending.result?.state).toBe("pending");
     expect((await sandbox.call("mac.exec.request", request)).result).toEqual(pending.result);
@@ -201,11 +202,18 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
       version: interaction.version,
       answer: {
         action: "accept",
-        choice: "allow_once",
+        choice: "allow_task_prefix",
         by: { kind: "human", id: "member" },
         at: new Date(now).toISOString(),
         signedApproval: {
-          payload: { ...draft, signerDeviceId: "phone", issuedAt: now, expiresAt: now + 300000 },
+          payload: {
+            ...draft,
+            scope: "prefix",
+            command: "uname -a",
+            signerDeviceId: "phone",
+            issuedAt: now,
+            expiresAt: now + 86400000,
+          },
           signature: "A".repeat(86),
         },
       },
@@ -272,6 +280,21 @@ it("routes durable signed requests only to the selected Mac and reconciles resul
     expect((await sandbox.call("mac.exec.request", request)).result?.result).toEqual(result);
     expect(await rpc("cloud.mac.output", { taskId: task?.id, requestId: "request" })).toMatchObject(
       { stdout: result.stdout, missingChunks: false, state: "complete" },
+    );
+    const repeated = await sandbox.call("mac.exec.request", {
+      ...request,
+      requestId: "prefix-next",
+      command: "uname -a --example",
+    });
+    expect(repeated.error).toBeUndefined();
+    expect(repeated.result?.state).toBe("running");
+    await vi.waitFor(() =>
+      expect(
+        replacement?.packets.some(
+          (packet) =>
+            packet.method === "mac.exec.request" && packet.params?.requestId === "prefix-next",
+        ),
+      ).toBe(true),
     );
   } finally {
     mac.socket.close();

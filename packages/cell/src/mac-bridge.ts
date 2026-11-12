@@ -151,6 +151,7 @@ export class CellMacBridge {
       deviceId: status.targetDeviceId,
       mac: status.mac,
       cwd: status.cwd,
+      allowListedCommands: status.allowListedCommands === true,
     });
   }
   deliver(socket: WebSocket, force = false) {

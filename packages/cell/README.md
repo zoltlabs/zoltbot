@@ -260,7 +260,7 @@ fails. Reads load only that task's metadata and the latest item sequence.
 
 Core interaction resolution and the signed approval commit in one transaction.
 The approving device must match the authenticated client device; all signed fields
-must match the saved request. The Mac independently verifies the signature with
+must match the saved request or its offered prefix. The Mac independently verifies the signature with
 its account registry. A result must come from the selected member's target Mac;
 the audit stores exit code, duration and output size, without command output.
 
@@ -284,9 +284,23 @@ The socket test uses scripted clients and a generated account signer. It covers
 approval-before-delivery, changed request refusal, explicit Mac selection,
 replacement connections, wrong-Mac result refusal and object eviction. The Mac
 client returns synthetic output; separate daemon tests enforce real signatures
-and process ownership. Prefix rules and the whole-flow gate remain unfinished.
+and process ownership. The whole-flow gate remains unfinished.
 The records tests cover scoped reads, concurrent replay, connection fences,
 transaction rollback, signing-device refusal and idempotent result storage.
+
+The Mac status response can explicitly enable task-prefix choices. Missing or
+false policy hints offer only one-command approval. A prefix choice names a
+conservative parsed prefix; a client cannot widen it while signing. Once the Mac
+confirms the first execution, the Cell can relay that same proof for matching
+requests in the same active task, folder and timeout, with empty stdin. It never
+reuses a still-pending first execution. A Mac refusal disables that proof for
+future automatic delivery, so the next request asks for a new approval. The Mac
+independently checks current mode, keys and task state on every command.
+
+The prefix parser rejects shell operators, expansions, broad execution wrappers
+and settings/keychain commands. Ambiguity falls back to command approval. Rules
+can span turns but cannot span tasks or continue after task expiry/completion.
+Clients still need their signing card and Cloud settings; this is not W7 sign-off.
 
 `CellMacStreams` stores mutable UTF-8 tails per approved request: 256 KiB of
 stdout and 64 KiB of stderr. Current target-Mac connections send redacted chunks

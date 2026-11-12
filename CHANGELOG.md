@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
+
 ## v0.1.6: Custom views and clearer chat activity
 
 November 12, 2026

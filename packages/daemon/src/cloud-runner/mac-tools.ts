@@ -130,7 +130,7 @@ export function cloudMacTools(input: Input, transport: Transport): CloudToolSet 
         const args = parse(statusArgs, call.arguments),
           result = await status(call, args.cwd);
         if (!result.available) return rich(result);
-        const { targetDeviceId: _target, ...visible } = result;
+        const { targetDeviceId: _target, allowListedCommands: _policy, ...visible } = result;
         return rich(visible);
       },
     ],

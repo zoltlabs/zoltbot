@@ -9,7 +9,7 @@ import {
   linkId,
   verifyApproval,
 } from "@zoltbot/link";
-import { parse } from "@zoltbot/protocol";
+import { macPrefixMatches, parse } from "@zoltbot/protocol";
 import {
   type MacExecRequest,
   MacExecRequestSchema,
@@ -105,6 +105,7 @@ export class MacExecutionHost {
         targetDeviceId: this.options.deviceId,
         mac: this.options.mac,
         osVersion: this.options.osVersion,
+        allowListedCommands: this.options.mode() === "allow_listed",
         cwd,
       });
     } catch {
@@ -141,7 +142,15 @@ export class MacExecutionHost {
       )
         throw new Error("mac_approval_refused");
       const approval = request.approval;
-      if (!approval || approval.payload.scope !== "command")
+      if (!approval) throw new Error("mac_approval_required");
+      const prefix = approval.payload.scope === "prefix";
+      if (
+        prefix &&
+        (this.options.mode() !== "allow_listed" ||
+          !macPrefixMatches(approval.payload.command, request.command) ||
+          !!request.stdin ||
+          approval.payload.stdinHash !== approvalStdinHash())
+      )
         throw new Error("mac_approval_required");
       const keys = await this.options.deviceKeys(combined);
       const registered = keys.filter(
@@ -164,12 +173,12 @@ export class MacExecutionHost {
         ...approval.payload,
         orgId: this.options.orgId,
         userId: this.options.userId,
-        requestId: request.requestId,
+        requestId: prefix ? approval.payload.requestId : request.requestId,
         taskId: request.taskId,
-        turnId: request.turnId,
+        turnId: prefix ? approval.payload.turnId : request.turnId,
         targetDeviceId: this.options.deviceId,
-        scope: "command",
-        command: request.command,
+        scope: prefix ? "prefix" : "command",
+        command: prefix ? approval.payload.command : request.command,
         cwd,
         stdinHash: approvalStdinHash(request.stdin ?? ""),
         timeoutSeconds: request.timeoutSeconds ?? 600,
@@ -179,6 +188,7 @@ export class MacExecutionHost {
       if (
         combined.aborted ||
         !["ask", "allow_listed"].includes(this.options.mode()) ||
+        (prefix && this.options.mode() !== "allow_listed") ||
         !verifyApproval(
           device.publicKey,
           approval,
@@ -192,12 +202,12 @@ export class MacExecutionHost {
           JSON.stringify([
             expected.orgId,
             expected.userId,
-            expected.requestId,
+            request.requestId,
             expected.taskId,
-            expected.turnId,
+            request.turnId,
             expected.targetDeviceId,
             expected.scope,
-            expected.command,
+            request.command,
             expected.cwd,
             expected.stdinHash,
             expected.timeoutSeconds,
@@ -211,9 +221,27 @@ export class MacExecutionHost {
         requestId: request.requestId,
       };
       const key = JSON.stringify(scope),
-        claimed = expired
-          ? this.journal.existing(scope, binding, approval.signature)
-          : this.journal.begin(scope, binding, approval.signature);
+        ruleBinding = createHash("sha256")
+          .update(
+            JSON.stringify(
+              Object.entries(approval.payload).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+            ),
+          )
+          .digest("hex"),
+        claimed = prefix
+          ? expired
+            ? this.journal.existingPrefix(scope, binding, approval.signature, ruleBinding)
+            : this.journal.beginPrefix(
+                scope,
+                binding,
+                approval.signature,
+                ruleBinding,
+                request.requestId === approval.payload.requestId &&
+                  request.turnId === approval.payload.turnId,
+              )
+          : expired
+            ? this.journal.existing(scope, binding, approval.signature)
+            : this.journal.begin(scope, binding, approval.signature);
       if (!claimed) throw new Error("mac_approval_refused");
       if (claimed.state === "completed") return claimed.result;
       const running = this.active.get(key);

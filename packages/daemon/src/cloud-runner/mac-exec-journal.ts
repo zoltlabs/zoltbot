@@ -56,6 +56,8 @@ export class MacExecJournal {
         state TEXT NOT NULL CHECK(state IN ('executing','uncertain','completed')), result TEXT);
         CREATE TABLE IF NOT EXISTS mac_approvals (
         signature_hash TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE REFERENCES mac_requests(request_key));
+        CREATE TABLE IF NOT EXISTS mac_prefix_approvals (
+        signature_hash TEXT PRIMARY KEY,binding TEXT NOT NULL);
         UPDATE mac_requests SET state='uncertain' WHERE state='executing';`);
       return new MacExecJournal(database, owner);
     } catch {
@@ -105,6 +107,55 @@ export class MacExecJournal {
         return { state: "new" as const };
       })
       .immediate();
+  }
+  /** The host verifies the current signed rule; first registration must bind its original request. */
+  beginPrefix(
+    scope: MacRequestScope,
+    binding: string,
+    signature: string,
+    ruleBinding: string,
+    initial: boolean,
+  ) {
+    this.check();
+    if (!/^[a-f0-9]{64}$/.test(ruleBinding) || !/^[A-Za-z0-9_-]{86}$/.test(signature))
+      throw new Error("mac_approval_refused");
+    return this.database
+      .transaction(() => {
+        const prior = this.database
+          .prepare("SELECT binding FROM mac_prefix_approvals WHERE signature_hash=?")
+          .get(digest(signature)) as { binding: string } | undefined;
+        if ((prior && prior.binding !== ruleBinding) || (!prior && !initial))
+          throw new Error("mac_approval_refused");
+        if (!prior)
+          this.database
+            .prepare("INSERT INTO mac_prefix_approvals VALUES(?,?)")
+            .run(digest(signature), ruleBinding);
+        return this.begin(scope, binding, this.prefixClaim(scope, signature));
+      })
+      .immediate();
+  }
+  existingPrefix(scope: MacRequestScope, binding: string, signature: string, ruleBinding: string) {
+    this.check();
+    const prior = this.database
+      .prepare("SELECT binding FROM mac_prefix_approvals WHERE signature_hash=?")
+      .get(digest(signature)) as { binding: string } | undefined;
+    if (!prior || prior.binding !== ruleBinding) return undefined;
+    return this.existing(scope, binding, this.prefixClaim(scope, signature));
+  }
+  private prefixClaim(scope: MacRequestScope, signature: string) {
+    // Internal journal identity, not a device signature: each command still has one durable claim.
+    return createHash("sha512")
+      .update(
+        JSON.stringify([
+          "mac-prefix-request",
+          signature,
+          scope.orgId,
+          scope.userId,
+          scope.taskId,
+          scope.requestId,
+        ]),
+      )
+      .digest("base64url");
   }
   /** Read only: an expired approval can retrieve only the exact claim it originally authorized. */
   existing(scope: MacRequestScope, binding: string, signature: string) {

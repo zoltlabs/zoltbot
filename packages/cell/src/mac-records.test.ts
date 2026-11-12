@@ -214,6 +214,122 @@ async function streamingFixture() {
   };
   return { ...f, streams, macClaims, pending, chunk };
 }
+it("offers a task prefix only under Mac allow-list policy and reuses it after confirmed execution", async () => {
+  const f = fixture(),
+    request = { ...f.request, command: "pnpm test --filter core" },
+    mac = { ...f.mac, allowListedCommands: true };
+  const pending = await f.records.request(f.source, request, mac);
+  if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+  const interaction = parse(
+    InteractionSchema,
+    f.store.record("interaction", pending.interactionId),
+  );
+  expect(interaction.items[0]?.choices).toContainEqual({
+    id: "allow_task_prefix",
+    prefix: "pnpm test",
+  });
+  const answer = f.answer(pending.interactionId);
+  if (!answer.signedApproval) throw new Error("fixture_approval_missing");
+  answer.choice = "allow_task_prefix";
+  answer.signedApproval.payload.scope = "prefix";
+  answer.signedApproval.payload.command = "pnpm test";
+  answer.signedApproval.payload.expiresAt = f.now + 86400000;
+  f.resolve(pending.interactionId, answer);
+  expect(
+    (await f.records.request(f.source, { ...request, requestId: "before-first-result" }, mac))
+      .state,
+  ).toBe("pending");
+  const macClaims: CellTokenClaims = {
+    ...f.source.claims,
+    kind: "mac_runner",
+    device: "mac",
+    session: "mac-session",
+    grant: "grant",
+  };
+  delete macClaims.task;
+  f.records.finish(macClaims, {
+    requestId: request.requestId,
+    taskId: request.taskId,
+    stdout: "ok",
+    stderr: "",
+    exitCode: 0,
+    durationMs: 1,
+    truncated: false,
+    mac: "Test Mac",
+  });
+  expect(
+    (
+      await f.records.request(
+        f.source,
+        { ...request, requestId: "next", command: "pnpm test --filter store" },
+        mac,
+      )
+    ).state,
+  ).toBe("running");
+  expect(
+    (await f.records.request(f.source, { ...request, requestId: "ask-mode" }, f.mac)).state,
+  ).toBe("pending");
+  expect(
+    (
+      await f.records.request(
+        f.source,
+        { ...request, requestId: "settings", command: "pnpm test systemsetup" },
+        mac,
+      )
+    ).state,
+  ).toBe("pending");
+  expect(
+    (
+      await f.records.request(
+        f.source,
+        { ...request, requestId: "stdin", stdin: "private input" },
+        mac,
+      )
+    ).state,
+  ).toBe("pending");
+  f.database
+    .prepare("INSERT INTO cell_runner_connections VALUES(?,?)")
+    .run("mac", "mac-connection");
+  const outgoing = f.records
+    .outgoing(macClaims, "mac-connection", true)
+    .find((row) => row.request.requestId === "next");
+  if (!outgoing) throw new Error("fixture_prefix_delivery_missing");
+  f.records.receive(macClaims, "mac-connection", {
+    id: `mac-exec:${outgoing.id}`,
+    error: { code: -32000, message: "mac_approval_refused" },
+  });
+  expect(
+    (await f.records.request(f.source, { ...request, requestId: "after-mac-refusal" }, mac)).state,
+  ).toBe("pending");
+  const reopened = new CellMacRecords(
+    f.store,
+    { orgId: "org", userId: "member" },
+    () => f.now + 86400001,
+  );
+  expect(
+    (await reopened.request(f.source, { ...request, requestId: "expired-rule" }, mac)).state,
+  ).toBe("pending");
+});
+it("refuses prefix widening and a prefix choice never offered by the Mac's policy", async () => {
+  for (const allowListedCommands of [false, true]) {
+    const f = fixture(),
+      pending = await f.records.request(
+        f.source,
+        { ...f.request, command: "pnpm test --filter core" },
+        { ...f.mac, allowListedCommands },
+      );
+    if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+    const answer = f.answer(pending.interactionId);
+    if (!answer.signedApproval) throw new Error("fixture_approval_missing");
+    answer.choice = "allow_task_prefix";
+    answer.signedApproval.payload.scope = "prefix";
+    answer.signedApproval.payload.command = allowListedCommands ? "pnpm" : "pnpm test";
+    expect(() => f.resolve(pending.interactionId, answer)).toThrow(
+      allowListedCommands ? "forbidden" : "invalid_interaction_answer",
+    );
+    expect(f.store.record("interaction", pending.interactionId)?.state).toBe("pending");
+  }
+});
 it("persists ordered Mac output tails across eviction, ignores duplicates and repairs gaps at completion", async () => {
   const f = await streamingFixture();
   expect(f.streams.read(f.client, "task", "request").state).toBe("pending");

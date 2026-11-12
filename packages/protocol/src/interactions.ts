@@ -31,6 +31,7 @@ export const RuleDraftSchema = object({
 });
 export type RuleDraft = Static<typeof RuleDraftSchema>;
 export const ApprovalChoiceSchema = Type.Union([
+  object({ id: Type.Literal("allow_task_prefix"), prefix: Text }),
   object({
     id: values(["allow_once", "allow_session", "reject_once", "allow_accept_edits"]),
     /** Short native description of what the choice grants, e.g. "Bash(npm test:*)". */

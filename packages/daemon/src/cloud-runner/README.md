@@ -383,7 +383,22 @@ supplies an `assertPublic` port backed by that task's encrypted private context;
 private answers cannot become Mac command/stdin fields. The result uses the rich
 tool envelope to preserve the bounded Mac output. Caller tool IDs still need
 recovery across a killed worker, along with W6's pending native tool continuation.
-Reusable prefix approvals and W8 remain open.
+W8 remains open.
+
+In Allow listed commands mode, the host can register a verified signed prefix
+against its original task/request/turn. Later requests require that existing
+registration, matching task, canonical folder, timeout and empty stdin. Each
+command still commits its own execution claim before spawning. Reopening the
+journal preserves rules without turning uncertain commands into new executions.
+Current account keys, Mac policy and active task checks apply to every use.
+Expired rules can retrieve only a previously claimed exact result.
+
+`macPrefixMatches` uses parsed argument boundaries and refuses ambiguous syntax,
+generic interpreter/execution wrappers, broad package-manager verbs and explicit
+settings/keychain commands. Unsupported prefixes ask for a fresh command approval.
+The matcher does not inspect a program's implementation or project scripts; an
+approved program can execute project code. Local approval behavior is unchanged.
+The desktop/phone signing card and settings remain unfinished.
 
 The Mac connection sends redacted output chunks independently of task outboxes.
 Live delivery is best effort: a disconnected socket cannot block an approved

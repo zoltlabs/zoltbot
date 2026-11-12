@@ -6,7 +6,10 @@ import {
   type InteractionAnswer,
   InteractionSchema,
   MacApprovalDraftSchema,
+  macPrefixCandidate,
+  macPrefixMatches,
   parse,
+  SignedMacApprovalSchema,
   TaskSchema,
 } from "@zoltbot/protocol";
 import {
@@ -37,6 +40,7 @@ export interface PreparedMac {
   deviceId: string;
   mac: string;
   cwd: string;
+  allowListedCommands?: boolean;
 }
 const kinds = ["task", "thread", "session", "turn", "interaction"] as const;
 const hash = async (value: unknown) =>
@@ -83,6 +87,9 @@ export class CellMacRecords {
       state TEXT NOT NULL DEFAULT 'pending',approval TEXT,result TEXT,reason TEXT,sent_at INTEGER,
       created_at INTEGER NOT NULL,UNIQUE(task_id,request_id));
       CREATE INDEX IF NOT EXISTS cell_mac_pending ON cell_mac_requests(mac_id,state,created_at);`);
+    store.database.exec(
+      "CREATE TABLE IF NOT EXISTS cell_mac_prefix_disabled(signature TEXT PRIMARY KEY)",
+    );
     store.database.exec(
       "CREATE TABLE IF NOT EXISTS cell_runner_connections(runner_id TEXT PRIMARY KEY,connection_id TEXT NOT NULL)",
     );
@@ -198,6 +205,13 @@ export class CellMacRecords {
       this.store.dispatch(
         commandId,
         () => {
+          if (row.approval) {
+            const proof = parse(SignedMacApprovalSchema, JSON.parse(row.approval));
+            if (proof.payload.scope === "prefix")
+              this.store.database
+                .prepare("INSERT OR IGNORE INTO cell_mac_prefix_disabled VALUES(?)")
+                .run(proof.signature);
+          }
           this.store.database
             .prepare("UPDATE cell_mac_requests SET state='denied',reason='failed' WHERE id=?")
             .run(row.id);
@@ -329,6 +343,69 @@ export class CellMacRecords {
           at: new Date(this.now()).toISOString(),
           actor: { kind: "agent", id: agentId },
         };
+        if (mac.allowListedCommands && !request.stdin) {
+          const rules = this.store.database
+            .prepare(
+              "SELECT approval FROM cell_mac_requests WHERE task_id=? AND mac_id=? AND state='complete' AND approval IS NOT NULL ORDER BY created_at DESC LIMIT 64",
+            )
+            .all(task.id, mac.deviceId) as { approval: string }[];
+          for (const row of rules) {
+            const proof = parse(SignedMacApprovalSchema, JSON.parse(row.approval)),
+              p = proof.payload;
+            if (
+              this.store.database
+                .prepare("SELECT 1 FROM cell_mac_prefix_disabled WHERE signature=?")
+                .get(proof.signature)
+            )
+              continue;
+            if (
+              p.scope !== "prefix" ||
+              p.orgId !== claims.org ||
+              p.userId !== claims.sub ||
+              p.taskId !== task.id ||
+              p.targetDeviceId !== mac.deviceId ||
+              p.cwd !== mac.cwd ||
+              p.stdinHash !== inputHash ||
+              p.timeoutSeconds !== (request.timeoutSeconds ?? 600) ||
+              p.expiresAt <= this.now() ||
+              !macPrefixMatches(p.command, request.command)
+            )
+              continue;
+            this.store.database
+              .prepare(
+                "INSERT INTO cell_mac_requests(id,task_id,request_id,fingerprint,body,interaction_id,mac_id,created_at,state,approval) VALUES(?,?,?,?,?,?,?,?,'approved',?)",
+              )
+              .run(
+                id,
+                task.id,
+                request.requestId,
+                fingerprint,
+                JSON.stringify(request),
+                interactionId,
+                mac.deviceId,
+                this.now(),
+                JSON.stringify(proof),
+              );
+            return {
+              events: [
+                this.audit(context, "mac.exec.requested", task.id, {
+                  requestId: request.requestId,
+                  macDeviceId: mac.deviceId,
+                }),
+                this.audit(context, "mac.exec.approved", task.id, {
+                  requestId: request.requestId,
+                  deviceId: p.signerDeviceId,
+                  scope: "prefix",
+                }),
+              ],
+              result: { interactionId },
+            };
+          }
+        }
+        const prefix =
+          mac.allowListedCommands && !request.stdin
+            ? macPrefixCandidate(request.command)
+            : undefined;
         const draft = parse(MacApprovalDraftSchema, {
           v: 1,
           orgId: claims.org,
@@ -368,7 +445,11 @@ export class CellMacRecords {
               {
                 id: "command",
                 prompt: "Run on my Mac",
-                choices: [{ id: "allow_once" }, { id: "reject_once" }],
+                choices: [
+                  { id: "allow_once" },
+                  { id: "reject_once" },
+                  ...(prefix ? [{ id: "allow_task_prefix" as const, prefix }] : []),
+                ],
               },
             ],
             chain: [],
@@ -436,15 +517,21 @@ export class CellMacRecords {
     }
     const approval = answer.signedApproval,
       expected = parse(InteractionSchema, interaction).context?.macExec;
+    const prefix =
+      answer.choice === "allow_task_prefix"
+        ? interaction.items
+            .flatMap((item) => item.choices ?? [])
+            .find((choice) => choice.id === "allow_task_prefix")
+        : undefined;
     if (
       !approval ||
       !expected ||
-      answer.choice !== "allow_once" ||
+      (answer.choice !== "allow_once" && !prefix) ||
       approval.payload.signerDeviceId !== claims.device ||
       approval.payload.issuedAt > this.now() + 30000 ||
       approval.payload.expiresAt <= this.now() ||
       approval.payload.expiresAt <= approval.payload.issuedAt ||
-      approval.payload.expiresAt - approval.payload.issuedAt > 300000
+      (!prefix && approval.payload.expiresAt - approval.payload.issuedAt > 300000)
     )
       throw new Error("forbidden");
     const actual = parse(
@@ -455,8 +542,18 @@ export class CellMacRecords {
         ),
       ),
     );
+    if (prefix) {
+      if (
+        prefix.id !== "allow_task_prefix" ||
+        actual.scope !== "prefix" ||
+        actual.command !== prefix.prefix ||
+        !macPrefixMatches(actual.command, expected.command)
+      )
+        throw new Error("forbidden");
+    }
     for (const key of Object.keys(expected) as (keyof typeof expected)[])
-      if (actual[key] !== expected[key]) throw new Error("forbidden");
+      if (prefix && (key === "scope" || key === "command")) continue;
+      else if (actual[key] !== expected[key]) throw new Error("forbidden");
     this.store.database
       .prepare("UPDATE cell_mac_requests SET state='approved',approval=? WHERE id=?")
       .run(JSON.stringify(approval), row.id);
