@@ -1,5 +1,6 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { InteractionSchema, parse } from "../../packages/protocol/src/index.js";
 import Chat from "../../packages/ui/src/chat/Chat.js";
 import type { ChatConnection, Row } from "../../packages/ui/src/chat/types.js";
 import { useShell } from "../../packages/ui/src/state.js";
@@ -75,6 +76,16 @@ const base: Record<string, Row[]> = {
       createdAt: at,
     },
     {
+      id: "commentary",
+      threadId: "thread",
+      turnId: "turn",
+      kind: "message",
+      phase: "commentary",
+      seq: 1.5,
+      body: { text: "The existing sidebar is too dense. I’ll simplify it.", streaming: false },
+      createdAt: at,
+    },
+    {
       id: "edit",
       threadId: "thread",
       turnId: "turn",
@@ -128,6 +139,7 @@ function Fixture() {
   const entities = structuredClone(base);
   const session = entities.session?.[0];
   if (entities.thread?.[0]) entities.thread[0].archived = archived;
+  if (session && state === "terminal") session.cwd = "/workspace/example";
   if (session && state === "limited")
     session.runtimeStatus = {
       state: "rate_limited",
@@ -160,14 +172,47 @@ function Fixture() {
             allowOther: true,
           },
         ],
-        presentation: {},
         context: {},
+        chain: [],
+        urgency: "blocking",
         version: 1,
         createdAt: at,
-        updatedAt: at,
-        expiresAt: "2026-11-30T00:00:00Z",
       },
     ];
+  if (state === "running" && entities.turn?.[0]) {
+    entities.turn[0].status = "running";
+    delete entities.turn[0].endedAt;
+    entities.item = entities.item?.filter((item) => item.id !== "reply");
+    const edit = entities.item?.find((item) => item.id === "edit");
+    if (edit) edit.body = { ...(edit.body as Row), status: "running" };
+  }
+  if (state === "approval")
+    entities.interaction = [
+      {
+        id: "approval",
+        threadId: "thread",
+        agentId: "profile",
+        type: "approval",
+        state: "pending",
+        title: "Read project files?",
+        items: [
+          {
+            id: "tool",
+            prompt: "Read the project files",
+            choices: [
+              { id: "allow_once", label: "Read once" },
+              { id: "allow_session", label: "Read project files" },
+            ],
+          },
+        ],
+        context: { toolName: "Read", toolKind: "read" },
+        urgency: "blocking",
+        version: 1,
+        createdAt: at,
+        chain: [],
+      },
+    ];
+  for (const request of entities.interaction ?? []) parse(InteractionSchema, request);
   const connection: ChatConnection = {
     status: state === "offline" ? "offline" : "online",
     snapshot: { seq: 1, counters: {}, entities },
@@ -190,6 +235,7 @@ function Fixture() {
           saveChecks: [],
         };
       }
+      if (method === "terminal.list") return { items: [] };
       if (method === "thread.settle") setArchived(true);
       return {};
     },
@@ -201,6 +247,9 @@ function Fixture() {
         <select value={state} onChange={(event) => setState(event.target.value)}>
           {[
             "online",
+            "running",
+            "terminal",
+            "approval",
             "limited",
             "reconnecting",
             "background",

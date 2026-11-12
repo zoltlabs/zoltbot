@@ -17,7 +17,7 @@ test("results, exact-version comparison and feedback preserve the composer draft
 }) => {
   await expect(page.getByRole("region", { name: "Completed work" })).toBeVisible();
   await page.getByRole("textbox", { name: /Message/ }).fill("Keep the existing navigation.");
-  await page.getByRole("button", { name: "View results", exact: true }).click();
+  await page.getByRole("button", { name: "Results", exact: true }).click();
   const panel = page.getByRole("complementary", { name: "Results" });
   await expect(panel.getByRole("button", { name: /Field notes/ })).toBeVisible();
   await panel.getByRole("button", { name: "View 1 changed file" }).click();
@@ -81,7 +81,7 @@ test("completion is suppressed for waits and uncertain delivery, then archives t
     ["reconnecting", "Coding tool reconnecting"],
     ["offline", "Waiting for connection"],
     ["background", "Background work in progress"],
-    ["pending", "Needs you"],
+    ["pending", "Answer needed"],
     ["uncertain", "Message delivery needs review"],
     ["failed", ""],
   ]) {
@@ -90,6 +90,7 @@ test("completion is suppressed for waits and uncertain delivery, then archives t
     if (label) await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await page.getByLabel("Fixture state").selectOption("online");
+  await card.getByText("More actions", { exact: true }).click();
   await card.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(card).not.toBeVisible();
 });
@@ -139,7 +140,7 @@ test("letters share completion actions and Results preserves the preview prefere
 }) => {
   await page.getByRole("button", { name: "Letters", exact: true }).click();
   await expect(page.getByRole("region", { name: "Completed work" })).toBeVisible();
-  await page.getByRole("button", { name: "View results", exact: true }).click();
+  await page.getByRole("button", { name: "Results", exact: true }).click();
   const results = page.getByRole("complementary", { name: "Results" });
   await results.getByLabel("Previews in chat").uncheck();
   expect(await page.evaluate(() => localStorage.getItem("zoltbot.inline-artifacts"))).toBe(
@@ -201,4 +202,108 @@ test("comparison supports keyboard activation, focus restoration and 200% text",
     animations: "disabled",
     path: "output/results-comparison-text-resize.png",
   });
+});
+
+// The receipt is an evidence link, not a second generic completion banner.
+test("completion opens this turn's diff directly and preserves meaningful commentary", async ({
+  page,
+}) => {
+  await expect(
+    page.getByText("The existing sidebar is too dense. I’ll simplify it.", { exact: true }),
+  ).toBeVisible();
+  const card = page.getByRole("region", { name: "Completed work" });
+  await expect(card).toContainText("1 file changed");
+  const review = card.getByRole("button", { name: "Review changes", exact: true });
+  await review.click();
+  const dialog = page.getByRole("dialog", { name: "Latest turn changes" });
+  await expect(dialog.getByText("src/notes.tsx", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(review).toBeFocused();
+});
+
+test("running activity remains collapsed, supports keyboard inspection and respects reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByLabel("Fixture state").selectOption("running");
+  const activity = page.locator(".activity-details");
+  await expect(activity).toHaveCount(1);
+  await expect(activity).not.toHaveAttribute("open");
+  const summary = activity.locator("summary").first();
+  await expect(summary).toContainText("Editing files…");
+  expect(
+    await summary.locator(".chat-shimmer").evaluate((node) => getComputedStyle(node).animationName),
+  ).toBe("none");
+  await page.screenshot({ animations: "disabled", path: "output/chat-running-collapsed.png" });
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(activity).toHaveAttribute("open", "");
+  await page.getByLabel("Fixture state").selectOption("online");
+  await expect(
+    page.getByText("The existing sidebar is too dense. I’ll simplify it.", { exact: true }),
+  ).toBeVisible();
+});
+
+test("session permission needs scope review and cancellation sends no answer", async ({ page }) => {
+  await page.getByLabel("Fixture state").selectOption("approval");
+  const card = page.getByRole("article", { name: "approval from Designer" });
+  await card.getByRole("button", { name: "More", exact: true }).click();
+  await card.getByRole("menuitem", { name: /Allow for session/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Allow for this session?" });
+  await expect(dialog).toContainText("Read project files");
+  await page.screenshot({ animations: "disabled", path: "output/chat-permission-scope.png" });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(
+    await page.evaluate(() =>
+      (
+        window as unknown as { resultsFixture: { calls: { method: string }[] } }
+      ).resultsFixture.calls.filter((call) => call.method === "interaction.answer"),
+    ),
+  ).toHaveLength(0);
+  await card.focus();
+  await page.keyboard.press("s");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Allow for session", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as { resultsFixture: { calls: { method: string }[] } }
+          ).resultsFixture.calls.filter((call) => call.method === "interaction.answer").length,
+      ),
+    )
+    .toBe(1);
+});
+
+test("terminal shares the desktop workspace and has a clear return path at narrow widths", async ({
+  page,
+}) => {
+  await page.getByLabel("Fixture state").selectOption("terminal");
+  await page
+    .getByRole("textbox", { name: /Message Designer/ })
+    .fill("Keep this draft while inspecting output.");
+  await page.getByRole("button", { name: "Show terminal", exact: true }).click();
+  const terminal = page.getByRole("region", { name: "Workspace terminal", exact: true });
+  await expect(terminal.getByRole("button", { name: "Start shell", exact: true })).toBeVisible();
+  const chat = await page.locator(".chat-conversation").boundingBox();
+  const pane = await terminal.boundingBox();
+  expect(chat && pane && pane.x >= chat.x + chat.width - 1).toBe(true);
+  await page.screenshot({ animations: "disabled", path: "output/chat-terminal-pane.png" });
+  await page.setViewportSize({ width: 320, height: 844 });
+  await expect(terminal).toBeVisible();
+  await expect(page.locator(".chat-conversation")).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await terminal.getByRole("button", { name: "Hide terminal", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Show terminal", exact: true })).toBeFocused();
+  await expect(page.getByRole("textbox", { name: /Message Designer/ })).toHaveValue(
+    "Keep this draft while inspecting output.",
+  );
+  expect(
+    await page.evaluate(() =>
+      (
+        window as unknown as { resultsFixture: { calls: { method: string }[] } }
+      ).resultsFixture.calls.filter((call) => call.method === "terminal.open"),
+    ),
+  ).toHaveLength(0);
 });

@@ -29,18 +29,4 @@
 .message-details-content .chat-usage {
   margin: 0;
 }
-/* Opacity keeps the disclosure in the keyboard order and reserves its resting space. */
-@media (hover: hover) {
-  .message-details:not([open]) > summary,
-  .message-secondary {
-    opacity: 0;
-  }
-  .chat-message:hover .message-details > summary,
-  .chat-message:focus-within .message-details > summary,
-  .quick-message:hover .message-details > summary,
-  .quick-message:focus-within .message-details > summary,
-  .chat-message:hover .message-secondary,
-  .chat-message:focus-within .message-secondary {
-    opacity: 1;
-  }
-}
+/* Details and message actions remain discoverable with pointer, touch and keyboard. */

@@ -113,3 +113,36 @@ it("includes manager-delegated chats without a parent task and holds completion 
     ).complete,
   ).toBe(false);
 });
+
+it("keeps this turn's command output and failures available from Results", () => {
+  const data = threadResults(
+    {
+      turn: [turn],
+      item: [
+        {
+          id: "old",
+          threadId: "thread",
+          turnId: "old",
+          kind: "tool",
+          body: { kind: "execute", status: "ok" },
+        },
+        {
+          id: "run",
+          threadId: "thread",
+          turnId: "turn",
+          kind: "tool",
+          body: { kind: "execute", status: "ok", output: "passed" },
+        },
+        {
+          id: "failed",
+          threadId: "thread",
+          turnId: "turn",
+          kind: "tool",
+          body: { kind: "read", status: "error" },
+        },
+      ],
+    },
+    "thread",
+  );
+  expect(data.tools.map((tool) => tool.id)).toEqual(["run", "failed"]);
+});

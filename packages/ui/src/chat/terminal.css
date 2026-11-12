@@ -32,3 +32,29 @@
 .terminal-screen .xterm {
   height: 100%;
 }
+
+/* The terminal shares the workspace with the conversation, without pushing messages down. */
+.chat-main > .terminal-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(480px, 42%);
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-top: 0;
+  border-inline-start: 1px solid var(--zb-border);
+}
+.chat-main > .terminal-panel .terminal-screen {
+  flex: 1;
+  min-height: 12rem;
+  height: auto;
+}
+@media (max-width: 800px) {
+  .chat-main:has(> .terminal-panel) > .chat-conversation {
+    display: none;
+  }
+  .chat-main > .terminal-panel {
+    flex: 1;
+    border-inline-start: 0;
+  }
+}

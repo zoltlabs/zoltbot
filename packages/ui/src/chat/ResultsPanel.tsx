@@ -1,5 +1,5 @@
 import { ArtifactSchema, type ArtifactTarget, parse } from "@zoltbot/protocol";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArtifactComparison } from "../artifacts/ArtifactComparison.js";
 import { ArtifactPanel } from "../artifacts/Artifacts.js";
 import { visualOptions } from "../artifacts/comparison-data.js";
@@ -9,7 +9,8 @@ import { useShell } from "../state.js";
 import { Markdown } from "./Markdown.js";
 import { threadResults } from "./results-data.js";
 import { DiffDialog } from "./tools/DiffDialog.js";
-import { type ChatConnection, text } from "./types.js";
+import { ToolRow } from "./tools/ToolRow.js";
+import { body, type ChatConnection, text } from "./types.js";
 import "./results.css";
 
 export function ResultsPanel({
@@ -23,6 +24,15 @@ export function ResultsPanel({
   onClose(): void;
   onRevise?: ((target: ArtifactTarget) => void) | undefined;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const previous =
+      document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    heading.current?.focus();
+    return () => {
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
   const inline = useInlinePreviews();
   const [comparing, setComparing] = useState(false);
   const options = visualOptions(
@@ -42,12 +52,15 @@ export function ResultsPanel({
     !data.artifacts.length &&
     !data.links.length &&
     !data.diffs.length &&
+    !data.tools.length &&
     !data.children.length &&
     !data.requests.length;
   return (
     <aside className="chat-results" aria-label="Results">
       <header className="chat-results-header">
-        <h2>Results</h2>
+        <h2 ref={heading} tabIndex={-1}>
+          Results
+        </h2>
         {options.length > 1 ? (
           <Button size="sm" onClick={() => setComparing(true)}>
             Compare
@@ -119,6 +132,14 @@ export function ResultsPanel({
                 View {new Set(data.diffs.map((diff) => diff.path)).size} changed{" "}
                 {new Set(data.diffs.map((diff) => diff.path)).size === 1 ? "file" : "files"}
               </Button>
+            </section>
+          ) : null}
+          {data.tools.length ? (
+            <section>
+              <h3>Tool results</h3>
+              {data.tools.map((item) => (
+                <ToolRow key={text(item.id)} id={text(item.id)} value={body(item)} />
+              ))}
             </section>
           ) : null}
           {files.length ? (

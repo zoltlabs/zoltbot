@@ -147,6 +147,7 @@ it("keeps unresolved failures outside disclosures and folds only a matching reco
   ];
   const entry = conversation(transcript(snapshot, "chat"), snapshot)[0];
   if (entry?.kind !== "assistant") throw new Error("Expected assistant turn");
+  expect(activityLabel(entry.rows.slice(0, 2))).toContain("fixed 1 failed step");
   expect(
     assistantSegments(entry.rows).map((segment) => ({
       activity: segment.activity,

@@ -1,22 +1,72 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { mono, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Button, Txt } from "./kit";
 import { Markdown } from "./Markdown";
+import { pick } from "./SessionControls";
+
+function MessageActions({
+  row,
+  edit,
+  forward,
+}: {
+  row: TranscriptRow;
+  edit?: () => void;
+  forward?: () => void;
+}) {
+  const [error, setError] = useState("");
+  const options = [
+    ...(edit
+      ? [{ label: row.queued ? "Edit queued message" : "Edit and send again", run: edit }]
+      : []),
+    ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
+    {
+      label: "Share message",
+      run: () => {
+        void Share.share({ message: row.text }).catch(() =>
+          setError("Could not open sharing. Try again."),
+        );
+      },
+    },
+  ];
+  return (
+    <View style={{ alignSelf: "flex-start" }}>
+      <Button
+        kind="plain"
+        label="Message actions"
+        onPress={() =>
+          pick(
+            "Message actions",
+            undefined,
+            options.map((option) => option.label),
+            (index) => options[index]?.run(),
+          )
+        }
+      />
+      {error ? (
+        <Txt v="meta" tone="danger">
+          {error}
+        </Txt>
+      ) : null}
+    </View>
+  );
+}
 
 function ToolRow({ row, threadId }: { row: TranscriptRow; threadId?: string }) {
   const { c } = useTheme();
-  const label =
-    row.activityItem && (row.activityItem.body as Record<string, unknown>)?.recovered === true
-      ? "fixed on retry"
-      : row.status === "running"
-        ? "running"
-        : row.status === "ok"
-          ? "done"
-          : "failed";
+  const recovered =
+    row.activityItem && (row.activityItem.body as Record<string, unknown>)?.recovered === true;
+  const status = recovered ? "ok" : row.status;
+  const label = recovered
+    ? "fixed on retry"
+    : status === "running"
+      ? "running"
+      : status === "ok"
+        ? "done"
+        : "failed";
   return (
     <Pressable
       onPress={
@@ -34,14 +84,19 @@ function ToolRow({ row, threadId }: { row: TranscriptRow; threadId?: string }) {
       style={[styles.tool, { backgroundColor: c["bg-sunken"], borderColor: c.border }]}
     >
       <Icon
-        name={row.status === "running" ? "spinner" : row.status === "ok" ? "check" : "warning"}
+        name={status === "running" ? "spinner" : status === "ok" ? "check" : "warning"}
         size={14}
         stroke={2.4}
-        color={row.status === "running" ? c["accent-text"] : row.status === "ok" ? c.ok : c.danger}
+        color={status === "running" ? c["accent-text"] : status === "ok" ? c.ok : c.danger}
       />
       <Txt v="meta" tone="secondary" style={[styles.toolText, { fontFamily: mono }]}>
         {row.text}
       </Txt>
+      {recovered || status === "failed" ? (
+        <Txt v="meta" tone={recovered ? "secondary" : "danger"}>
+          {recovered ? "Fixed on retry" : "Failed"}
+        </Txt>
+      ) : null}
       {row.added !== undefined ? (
         <Txt v="meta" style={{ fontFamily: mono, color: c.ok }}>{`+${row.added}`}</Txt>
       ) : null}
@@ -274,7 +329,7 @@ export function Message({
               Artifact reference: {row.artifactReference}
             </Txt>
           ) : null}
-          <Txt>{row.text}</Txt>
+          <Txt selectable>{row.text}</Txt>
         </Pressable>
         {edits?.count ? (
           <Button
@@ -285,17 +340,16 @@ export function Message({
             style={styles.edit}
           />
         ) : null}
+        <MessageActions
+          row={row}
+          {...(row.queued && onEdit
+            ? { edit: () => onEdit(row) }
+            : row.turnId && onEditSent
+              ? { edit: () => onEditSent(row) }
+              : {})}
+        />
         {row.delivery ? (
           <View style={styles.delivery}>
-            {row.queued && onEdit ? (
-              <Button
-                kind="plain"
-                label="Edit"
-                a11y="Take back and edit"
-                onPress={() => onEdit(row)}
-                style={styles.edit}
-              />
-            ) : null}
             <Txt v="meta" tone="muted">
               {row.delivery}
             </Txt>
@@ -319,16 +373,21 @@ export function Message({
         {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}
       </Txt>
     );
-  if (!onForward || row.kind !== "message" || row.streaming || compact) return prose;
+  if (row.kind !== "message" || row.streaming || compact) return prose;
   return (
-    <Pressable
-      onLongPress={() => onForward(row)}
-      accessibilityHint="Touch and hold to send to another chat"
-      accessibilityActions={[{ name: "forward", label: "Send to another chat" }]}
-      onAccessibilityAction={() => onForward(row)}
-    >
-      {prose}
-    </Pressable>
+    <View style={{ gap: 4 }}>
+      <Pressable
+        onLongPress={() => onForward?.(row)}
+        accessibilityHint={onForward ? "Touch and hold to send to another chat" : undefined}
+        accessibilityActions={
+          onForward ? [{ name: "forward", label: "Send to another chat" }] : undefined
+        }
+        onAccessibilityAction={() => onForward?.(row)}
+      >
+        {prose}
+      </Pressable>
+      <MessageActions row={row} {...(onForward ? { forward: () => onForward(row) } : {})} />
+    </View>
   );
 }
 

@@ -1,6 +1,7 @@
 import { threadResults } from "@zoltbot/ui/chat/results-data";
 import { router, useLocalSearchParams } from "expo-router";
 import { Linking } from "react-native";
+import { toolTitle } from "../../data/timeline";
 import { text } from "../../data/view";
 import { useSnapshot } from "../../state/link";
 import { DetailScreen } from "../../ui/DetailScreen";
@@ -19,6 +20,7 @@ export default function Results() {
     !data.artifacts.length &&
     !data.links.length &&
     !data.diffs.length &&
+    !data.tools.length &&
     !data.children.length &&
     !data.requests.length;
   return (
@@ -83,6 +85,24 @@ export default function Results() {
             label="Review file changes"
             onPress={() => router.push(`/chat/changes?id=${encodeURIComponent(id)}`)}
           />
+        </Card>
+      ) : null}
+      {data.tools.length ? (
+        <Card>
+          <Txt v="cardTitle" accessibilityRole="header">
+            Tool results
+          </Txt>
+          {data.tools.map((item) => (
+            <Button
+              key={text(item.id)}
+              label={toolTitle(item)}
+              onPress={() =>
+                router.push(
+                  `/chat/tool?id=${encodeURIComponent(id)}&item=${encodeURIComponent(text(item.id))}`,
+                )
+              }
+            />
+          ))}
         </Card>
       ) : null}
       {data.links.length ? (

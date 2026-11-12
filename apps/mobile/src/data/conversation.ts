@@ -54,7 +54,9 @@ export function conversation(
 }
 
 export function activityLabel(rows: readonly TranscriptRow[], active = false): string {
-  const failed = rows.filter((row) => row.status === "failed").length;
+  const failed = rows.filter(
+    (row) => row.status === "failed" && body(activitySource(row)).recovered !== true,
+  ).length;
   if (failed) return `${failed} ${failed === 1 ? "tool failed" : "tools failed"}`;
   const items = rows.map(activitySource).map((item) =>
     active

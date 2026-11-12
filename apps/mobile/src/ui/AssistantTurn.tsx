@@ -88,10 +88,12 @@ function Activity({
   rows,
   active,
   threadId,
+  onInspect,
 }: {
   rows: TranscriptRow[];
   active: boolean;
   threadId: string;
+  onInspect?: () => void;
 }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
@@ -103,7 +105,10 @@ function Activity({
   return (
     <View>
       <Pressable
-        onPress={() => setOpen(!open)}
+        onPress={() => {
+          if (!open) onInspect?.();
+          setOpen(!open);
+        }}
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded: open }}
@@ -137,12 +142,14 @@ export function AssistantTurn({
   paused,
   threadId,
   onForward,
+  onInspect,
 }: {
   rows: TranscriptRow[];
   active: boolean;
   paused: boolean;
   threadId: string;
   onForward?: (row: TranscriptRow) => void;
+  onInspect?: () => void;
 }) {
   const segments = assistantSegments(rows);
   const last = rows.at(-1);
@@ -155,6 +162,7 @@ export function AssistantTurn({
             key={segment.id}
             rows={segment.rows}
             threadId={threadId}
+            onInspect={onInspect}
             active={active && !paused && segment === segments.at(-1)}
           />
         ) : (

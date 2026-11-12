@@ -257,7 +257,16 @@ export function Timeline({
                       <ActivityGroup
                         items={display.items}
                         name={name}
-                        active={!paused && rows.at(-1) === display}
+                        active={
+                          !paused &&
+                          rows.findLast(
+                            (entry) => entry.type === "activity" || entry.type === "message",
+                          ) === display &&
+                          turns.some(
+                            (turn) =>
+                              turn.id === display.items[0]?.turnId && turn.status === "running",
+                          )
+                        }
                       />
                     ) : display.type === "artifact" && connection ? (
                       <InlineArtifact

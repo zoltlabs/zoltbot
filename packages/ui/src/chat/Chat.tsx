@@ -274,7 +274,11 @@ export default function Chat({
             label={showTerminal ? "Hide terminal" : "Show terminal"}
             aria-expanded={showTerminal}
             size="sm"
-            onClick={() => setShowTerminal((value) => !value)}
+            onClick={() => {
+              setShowTerminal((value) => !value);
+              setShowResults(false);
+              setShowContext(false);
+            }}
           />
         ) : null}
         <ForkControl
@@ -317,6 +321,7 @@ export default function Chat({
           aria-expanded={showResults}
           onClick={() => {
             setShowResults(!showResults);
+            setShowTerminal(false);
             setShowContext(false);
           }}
         >
@@ -329,6 +334,7 @@ export default function Chat({
           aria-expanded={showContext}
           onClick={() => {
             setShowContext((value) => !value);
+            setShowTerminal(false);
             setShowResults(false);
           }}
         />
@@ -347,19 +353,6 @@ export default function Chat({
         <p className="chat-error" role="alert">
           {error}
         </p>
-      ) : null}
-      {showTerminal && !compareReadOnly ? (
-        <Suspense fallback={null}>
-          <TerminalPanel
-            key={threadId}
-            connection={connection}
-            threadId={threadId}
-            onClose={() => {
-              setShowTerminal(false);
-              terminalToggle.current?.focus();
-            }}
-          />
-        </Suspense>
       ) : null}
       <div className="chat-main">
         <div className="chat-conversation">
@@ -381,6 +374,7 @@ export default function Chat({
               steer={caps.steer === "native"}
               onResults={() => {
                 setShowResults(true);
+                setShowTerminal(false);
                 setShowContext(false);
               }}
             />
@@ -454,6 +448,7 @@ export default function Chat({
               threadId={threadId}
               onResults={() => {
                 setShowResults(true);
+                setShowTerminal(false);
                 setShowContext(false);
               }}
             />
@@ -485,6 +480,19 @@ export default function Chat({
             />
           )}
         </div>
+        {showTerminal && !compareReadOnly ? (
+          <Suspense fallback={null}>
+            <TerminalPanel
+              key={threadId}
+              connection={connection}
+              threadId={threadId}
+              onClose={() => {
+                setShowTerminal(false);
+                terminalToggle.current?.focus();
+              }}
+            />
+          </Suspense>
+        ) : null}
         {showResults ? (
           <ResultsPanel
             key={threadId}

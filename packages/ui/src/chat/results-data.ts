@@ -1,4 +1,5 @@
 import { compareSessions } from "@zoltbot/protocol";
+import { markRecovered } from "./activity-data.js";
 import { backgroundTasks } from "./parity-data.js";
 import { fileDiffs } from "./tools/diff-data.js";
 import { body, type Row, text } from "./types.js";
@@ -72,6 +73,20 @@ export function threadResults(entities: Entities, threadId: string) {
       (row) => row.turnId === latestTurn?.id && row.kind === "tool" && body(row).kind === "edit",
     )
     .flatMap((row) => fileDiffs(body(row).diffs));
+  const tools = markRecovered([...items].sort((a, b) => Number(a.seq) - Number(b.seq))).filter(
+    (item) => {
+      const value = body(item);
+      return (
+        item.turnId === latestTurn?.id &&
+        item.kind === "tool" &&
+        value.interactive !== true &&
+        (value.kind === "execute" ||
+          value.output !== undefined ||
+          value.content !== undefined ||
+          ["error", "denied"].includes(text(value.status)))
+      );
+    },
+  );
   // Only explicit web links from agent replies; never interpret tool output as navigation.
   const links = new Map<string, string>();
   for (const item of items) {
@@ -105,6 +120,7 @@ export function threadResults(entities: Entities, threadId: string) {
     (!task || ["review", "completed"].includes(text(task.state)));
   return {
     latestTurn,
+    tools,
     task,
     result,
     artifacts,

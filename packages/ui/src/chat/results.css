@@ -125,3 +125,13 @@
   display: flex;
   gap: var(--zb-space-2);
 }
+
+@media (max-width: 800px) {
+  .chat-main:has(> .chat-results) > .chat-conversation {
+    display: none;
+  }
+  .chat-main > .chat-results {
+    flex: 1;
+    border-block-start: 0;
+  }
+}

@@ -32,16 +32,28 @@ export function InteractionCard({
 }) {
   const actions = useInteractionActions(connection, request, onDeferred);
   const [confirmation, setConfirmation] = useState<{ draft: AnswerDraft; version: number }>();
+  const confirmationOrigin = useRef<HTMLElement | null>(null);
   const submit = async (draft: AnswerDraft) => {
-    if (permissionExpansion(request, draft.choice))
+    if (permissionExpansion(request, draft.choice)) {
+      confirmationOrigin.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setConfirmation({ draft, version: request.version });
-    else await actions.submit(draft);
+    } else await actions.submit(draft);
   };
   const [feedback, setFeedback] = useState(""),
     [explaining, setExplaining] = useState(false),
     [alwaysAllow, setAlwaysAllow] = useState(false);
   const feedbackInput = useRef<HTMLTextAreaElement>(null);
   const root = useRef<HTMLElement>(null);
+  const dismissConfirmation = () => {
+    setConfirmation(undefined);
+    requestAnimationFrame(() => {
+      (confirmationOrigin.current?.isConnected
+        ? confirmationOrigin.current
+        : root.current
+      )?.focus();
+    });
+  };
   const entities = connection.snapshot.entities,
     agent = entities.agent?.find((row) => row.id === request.agentId);
   const hasSecretItem = request.items.some((item) => item.secret === true);
@@ -300,10 +312,10 @@ export function InteractionCard({
             permissionExpansion(request, confirmation.draft.choice)?.title ?? "Review permission"
           }
           description={permissionExpansion(request, confirmation.draft.choice)?.description ?? ""}
-          onClose={() => setConfirmation(undefined)}
+          onClose={dismissConfirmation}
           actions={
             <>
-              <Button onClick={() => setConfirmation(undefined)}>Cancel</Button>
+              <Button onClick={dismissConfirmation}>Cancel</Button>
               <Button
                 disabled={
                   disabled ||
@@ -312,7 +324,7 @@ export function InteractionCard({
                 }
                 onClick={() => {
                   const draft = confirmation.draft;
-                  setConfirmation(undefined);
+                  dismissConfirmation();
                   void actions.submit(draft);
                 }}
               >

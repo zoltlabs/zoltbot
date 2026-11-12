@@ -49,3 +49,27 @@ it("retains unresolved failures and omits generic completion for ordinary answer
       .visible,
   ).toBe(false);
 });
+
+it("does not announce unconfirmed edits or old artifacts as new work", () => {
+  const data = completionReceipt(
+    {
+      turn: [turn],
+      artifact: [{ id: "a", threadId: "chat" }],
+      artifactVersion: [{ artifactId: "a", turnId: "old" }],
+      item: [tool("1", "error", "edit", { diffs: [{ path: "proposed", patch: "+not applied" }] })],
+    },
+    "chat",
+  );
+  expect(data.files).toBe(0);
+  expect(data.summary).toBe("1 step failed");
+  expect(
+    completionReceipt(
+      {
+        turn: [turn],
+        artifact: [{ id: "a", threadId: "chat" }],
+        artifactVersion: [{ artifactId: "a", turnId: "old" }],
+      },
+      "chat",
+    ).visible,
+  ).toBe(false);
+});

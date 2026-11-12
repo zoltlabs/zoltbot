@@ -35,7 +35,7 @@ import { sans, touch, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
-import { BackBar, OfflineBanner } from "../../ui/chrome";
+import { BackBar } from "../../ui/chrome";
 import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
@@ -66,6 +66,7 @@ export default function Chat() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const followLatest = useRef(true);
+  const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const rows = transcript(snapshot, id);
   const turn = runningTurn(snapshot, id);
@@ -98,6 +99,7 @@ export default function Chat() {
     });
     if (result) {
       followLatest.current = true;
+      setFollowing(true);
       void donateBotConversation(id).catch(() => undefined);
       setDraft("");
       setAttachments([]);
@@ -151,14 +153,14 @@ export default function Chat() {
         contentContainerStyle={styles.body}
         scrollEventThrottle={100}
         onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
-          followLatest.current =
-            contentSize.height - layoutMeasurement.height - contentOffset.y < 80;
+          const nearEnd = contentSize.height - layoutMeasurement.height - contentOffset.y < 80;
+          followLatest.current = nearEnd;
+          setFollowing(nearEnd);
         }}
         onContentSizeChange={() => {
           if (followLatest.current) scroll.current?.scrollToEnd({ animated: false });
         }}
       >
-        <OfflineBanner />
         <WakeStatus
           rows={(snapshot.entities.wake ?? []).filter((w) => w.threadId === id)}
           online={online}
@@ -186,6 +188,10 @@ export default function Chat() {
               rows={entry.rows}
               active={entry.active}
               paused={!!request || !online}
+              onInspect={() => {
+                followLatest.current = false;
+                setFollowing(false);
+              }}
               threadId={id}
               {...(online
                 ? {
@@ -231,6 +237,17 @@ export default function Chat() {
         })}
         <ChatOutcome threadId={id} />
       </ScrollView>
+      {!following ? (
+        <Button
+          kind="plain"
+          label="Jump to latest"
+          onPress={() => {
+            followLatest.current = true;
+            setFollowing(true);
+            scroll.current?.scrollToEnd({ animated: false });
+          }}
+        />
+      ) : null}
       {request ? (
         <ScrollView
           style={[styles.pinned, { maxHeight: height * 0.6, borderTopColor: c.border }]}

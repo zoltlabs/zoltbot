@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Icon } from "../shell/icons.js";
 import "./message-details.css";
 
-/** Native disclosure: hover reveals the control; focus and touch work without a pointer. */
+/** Native disclosure stays visible and works with pointer, keyboard and touch. */
 export function MessageDetails({ children }: { children: ReactNode }) {
   return (
     <details className="message-details">
