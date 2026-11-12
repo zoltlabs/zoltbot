@@ -1,45 +1,15 @@
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import { requestInteraction } from "@zoltbot/core";
 import { methodCatalog } from "@zoltbot/protocol";
+import { Store } from "@zoltbot/store/portable";
 import { afterEach, expect, it, vi } from "vitest";
-import { base64url } from "../src/auth.js";
 import { serviceToken } from "../src/service.js";
+import { CellSqlDriver } from "../src/sql-driver.js";
 import worker from "../src/worker.js";
+import { signer } from "./identity.js";
 
 afterEach(() => vi.restoreAllMocks());
-async function signer() {
-  const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const exported = await crypto.subtle.exportKey("jwk", keys.publicKey);
-  const kid = crypto.randomUUID();
-  return {
-    jwk: { kty: "EC", crv: "P-256", alg: "ES256", use: "sig", kid, x: exported.x, y: exported.y },
-    async token(org: string) {
-      const seconds = Math.floor(Date.now() / 1000);
-      const input = [
-        { alg: "ES256", typ: "JWT", kid },
-        {
-          iss: env.CELL_JWT_ISSUER,
-          aud: "cell",
-          sub: "member",
-          device: "device",
-          session: "session",
-          surface: "desktop",
-          kind: "client",
-          org,
-          iat: seconds,
-          exp: seconds + 600,
-          jti: crypto.randomUUID(),
-        },
-      ]
-        .map((value) => base64url(new TextEncoder().encode(JSON.stringify(value))))
-        .join(".");
-      return `${input}.${base64url(new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keys.privateKey, new TextEncoder().encode(input))))}`;
-    },
-  };
-}
 async function call(path: string, method: string, token?: string, body?: unknown) {
   const response = await worker.fetch(
     new Request(`https://cell.example.invalid${path}`, {
@@ -122,7 +92,124 @@ it("opens only after the active membership check and deletes storage only with a
   );
   const org = crypto.randomUUID();
   const token = await id.token(org);
-  expect((await call(`/v1/orgs/${org}/rpc`, "POST", token, {})).status).toBe(501);
+  const rpc = async (
+    method: string,
+    params: unknown,
+    commandId = crypto.randomUUID(),
+    orgId = org,
+  ) => {
+    const response = await call(`/v1/orgs/${orgId}/rpc`, "POST", await id.token(orgId), {
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+      commandId,
+    });
+    expect(response.status).toBe(200);
+    return response.json() as Promise<{
+      result?: Record<string, unknown>;
+      error?: { message: string };
+    }>;
+  };
+  expect((await rpc("hello", { protocolVersion: 1, token: "unused" })).result?.version).toBe(
+    "0.1.0",
+  );
+  const projectParams = {
+    name: "Repository",
+    repository: "example/repository",
+    defaultBranch: "main",
+    setupScript: "",
+  };
+  const commandId = crypto.randomUUID();
+  const project = await rpc("cloud.project.create", projectParams, commandId);
+  expect(project.error).toBeUndefined();
+  expect((await rpc("cloud.project.create", projectParams, commandId)).result).toEqual(
+    project.result,
+  );
+  expect(
+    (await rpc("cloud.project.create", { ...projectParams, name: "Changed" }, commandId)).error
+      ?.message,
+  ).toBe("command_conflict");
+  const projectId = String(project.result?.id);
+  const task = await rpc("task.create", {
+    title: "First task",
+    brief: "Inspect the repository",
+    profileId: "cloud-claude",
+    node: { type: "project", id: projectId },
+    location: "sandbox",
+  });
+  expect(task.error).toBeUndefined();
+  expect(task.result?.location).toBe("sandbox");
+  const listed = await rpc("task.list", { projectId });
+  expect((listed.result?.items as { id: string }[]).map((task) => task.id)).toEqual([
+    task.result?.id,
+  ]);
+  const memberStub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(org));
+  const taskId = String(task.result?.id);
+  await runInDurableObject(memberStub, (_instance, state) => {
+    const store = new Store(new CellSqlDriver(state.storage));
+    const commandId = "question:create";
+    store.dispatch(
+      commandId,
+      (snapshot) =>
+        requestInteraction(
+          snapshot,
+          {
+            id: "question",
+            agentId: "cloud-claude",
+            threadId: String(task.result?.threadId),
+            taskId,
+            type: "question",
+            items: [
+              { id: "answer", prompt: "Enter a private answer", allowOther: true, secret: true },
+            ],
+            chain: [],
+            urgency: "blocking",
+          },
+          "question:item",
+          { commandId, at: "2026-11-11T00:00:00Z", actor: { kind: "system", id: "cell" } },
+        ),
+      { scope: { taskId } },
+    );
+  });
+  const privateAnswer = crypto.randomUUID();
+  const answered = await rpc("interaction.answer", {
+    id: "question",
+    version: 1,
+    answer: {
+      action: "accept",
+      answers: { answer: { other: privateAnswer } },
+      by: { kind: "agent", id: "forged" },
+      at: "2026-11-11T00:00:00Z",
+    },
+  });
+  expect(answered.error).toBeUndefined();
+  expect((answered.result?.resolution as { by: { kind: string; id: string } }).by).toEqual({
+    kind: "human",
+    id: "member",
+  });
+  const persisted = await runInDurableObject(memberStub, (_instance, state) => {
+    const store = new Store(new CellSqlDriver(state.storage));
+    return JSON.stringify({
+      events: store.eventsSince(0),
+      receipts: store.database.prepare("SELECT result FROM command_receipts").all(),
+    });
+  });
+  expect(persisted.includes(privateAnswer)).toBe(false);
+  const otherOrg = crypto.randomUUID();
+  expect(
+    (
+      await rpc(
+        "task.cancel",
+        { id: task.result?.id, confirmed: true },
+        crypto.randomUUID(),
+        otherOrg,
+      )
+    ).error?.message,
+  ).toBe("forbidden");
+  expect(
+    (await rpc("task.list", { projectId }, crypto.randomUUID(), otherOrg)).error?.message,
+  ).toBe("forbidden");
   const stub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(org));
   expect(
     await runInDurableObject(

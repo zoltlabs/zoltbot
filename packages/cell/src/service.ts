@@ -126,7 +126,7 @@ export class CellService {
     }
     return result;
   }
-  async authorize(claims: CellTokenClaims, now = Date.now()): Promise<void> {
+  async authorize(claims: CellTokenClaims, now = Date.now(), fresh = false): Promise<void> {
     if (claims.org !== this.orgId || claims.exp <= Math.floor(now / 1000))
       throw new Error("unauthorized");
     const id = JSON.stringify([
@@ -138,7 +138,7 @@ export class CellService {
       claims.jti,
       claims.session,
     ]);
-    if ((this.access.get(id) ?? 0) > now) return;
+    if (!fresh && (this.access.get(id) ?? 0) > now) return;
     const response = await this.request("access", "POST", {
       orgId: claims.org,
       userId: claims.sub,
@@ -154,8 +154,10 @@ export class CellService {
       typeof response !== "object" ||
       !("active" in response) ||
       response.active !== true
-    )
+    ) {
+      this.access.delete(id);
       throw new Error("unauthorized");
+    }
     for (const [key, expiry] of this.access) if (expiry <= now) this.access.delete(key);
     if (this.access.size >= 128) {
       const oldest = this.access.keys().next().value;

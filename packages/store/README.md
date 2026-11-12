@@ -30,3 +30,8 @@ A full disk rolls back a command and reports `storage_full`; existing reads rema
 available. Each item version keeps its body in the event log. The item and JSON projections
 reference that event, and FTS uses external content, so those tables do not store
 additional copies of the body. Older event versions remain available for replay.
+
+Resumable rebuilds hydrate one event at a time and stop after the requested count
+or one MiB of encoded events, whichever comes first. A single larger event is
+applied by itself. This bounds transcript memory without changing the Mac's
+one-shot rebuild.

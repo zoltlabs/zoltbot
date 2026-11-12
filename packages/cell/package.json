@@ -26,6 +26,6 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:runtime": "WRANGLER_SEND_METRICS=false vitest run --config vitest.runtime.config.ts",
     "types": "WRANGLER_SEND_METRICS=false wrangler types --include-runtime false worker-configuration.d.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
   }
 }

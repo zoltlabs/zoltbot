@@ -8,7 +8,7 @@ instance.
 
 The driver tests use an in-memory SQLite implementation of the platform surface.
 They verify migrations, receipts, rollback, trigger row counts and instance isolation.
-Worker-runtime tests for routing, hibernation and restart remain separate gates.
+The workerd tests cover routing, hibernation and restart on the actual platform surface.
 
 ## Worker foundation
 
@@ -33,9 +33,12 @@ is persisted.
 config and service key through the environment. Nothing here deploys a Worker or
 creates a Cloudflare account resource.
 
-This commit establishes authentication, storage initialization and deletion.
-Application RPC handlers, runner leases, hibernating sockets and alarms are still
-W4 work; authenticated application requests currently return `method_unavailable`.
+Cloud project creation/listing, task creation/update/cancel/retry/review, thread
+metadata/history, interaction answers and usage requests now use scoped core
+handlers. Snapshot responses contain metadata; transcript history is paged by
+thread. Unsupported methods return `method_unavailable`. W4 is still incomplete:
+the runner wire handler, task scheduler and orchestrator lifecycle are not wired.
+The lease store below is tested independently until that wiring lands.
 
 ## Test runtime
 
@@ -57,3 +60,34 @@ SELECT. Message bodies are hydrated only for requested IDs. The runtime eviction
 test exercises the real migrations and durable receipts, complementing the Node
 shim tests. Boundary checks refuse daemon/native dependencies and full store
 snapshots in cell source.
+
+## RPC, sockets and alarms
+
+A command's durable identity hashes the org, member, device and client command ID.
+Receipts also store a hash of the method and canonical parameters, so reusing an
+ID for changed input fails. Raw parameters are never copied into receipt metadata.
+Receipts retain the trusted member/device/surface actor. Core handlers replace
+caller-supplied answer attribution with the authenticated member. Tests check that private answer values appear in neither events nor
+receipts.
+
+Clients use hibernating WebSockets tagged `client`. Their attachment holds verified
+claims, subscription state and the last event sequence sent, never a bearer token.
+Reconnect supplies `lastSeq`. Replay reads one event at a time and sends bounded
+batches. An alarm continues replay and checks account revocation with a fresh
+request every fifteen seconds, independently of the HTTP access cache. Expired
+claims close the socket. A reconnect authenticates again.
+
+Alarms resume a persisted projection rebuild cursor after eviction. Each store
+step reads one event at a time and stops at the event count or after one MiB of
+encoded events; one larger event can exceed that threshold. The Mac's one-shot
+rebuild stays unchanged. Tests cover an interrupted rebuild and metadata reads
+from a database containing over one GB of synthetic message events.
+
+`CellLeases` stores one fenced runner per task, its event acknowledgement and its
+heartbeat in SQLite. Event acknowledgements participate in the receipt transaction.
+A missing heartbeat marks presence offline after sixty seconds; it does not permit
+another runner to take the task. One wake operation is persisted before network
+I/O. Failed requests retry the same operation ID. A matching heartbeat clears the
+wake marker; a successful old wake response cannot overwrite a newer heartbeat.
+The real runtime tests exercise rollback, duplicate receipts, eviction, heartbeat
+recovery and refusal of a second writer. Runner delivery is the next W4 step.

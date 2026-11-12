@@ -50,3 +50,19 @@ it("reports a full disk without a receipt or partial events and keeps reads avai
     f.close();
   }
 });
+
+it("limits transcript memory independently of the requested event count", async () => {
+  const f = await runtimeFixture();
+  try {
+    for (let n = 0; n < 4; n++) f.queue(`large-${n}`, "界".repeat(250000));
+    const expected = f.store.snapshot();
+    const reads = vi.spyOn(f.store, "eventsSince");
+    let cursor = f.store.rebuildStep(undefined, 5000);
+    expect(cursor).not.toBeNull();
+    while (cursor !== null) cursor = f.store.rebuildStep(cursor, 5000);
+    expect(reads.mock.calls.every(([, limit]) => limit === 1)).toBe(true);
+    expect(f.store.snapshot()).toEqual(expected);
+  } finally {
+    f.close();
+  }
+});

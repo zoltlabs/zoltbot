@@ -221,9 +221,18 @@ export class Store {
             .prepare("INSERT INTO store_rebuild(id,cursor,target) VALUES(1,0,?)")
             .run(progress.target);
         } else if (!progress || cursor !== progress.cursor) throw new Error("stale_rebuild_cursor");
-        const batch = this.eventsSince(progress.cursor, maxEvents);
-        for (const event of batch) applyProjection(this.database, event);
-        const next = batch.at(-1)?.seq ?? progress.cursor;
+        let next = progress.cursor;
+        let bytes = 0;
+        for (let count = 0; count < maxEvents; count++) {
+          // An event can contain a large transcript body. Hydrate one at a time,
+          // and stop this step after one MiB rather than retaining a whole batch.
+          const event = this.eventsSince(next, 1)[0];
+          if (!event) break;
+          applyProjection(this.database, event);
+          next = event.seq ?? next;
+          bytes += new TextEncoder().encode(JSON.stringify(event)).byteLength;
+          if (bytes >= 1048576) break;
+        }
         if (next >= progress.target) {
           this.database.prepare("DELETE FROM store_rebuild WHERE id=1").run();
           return null;

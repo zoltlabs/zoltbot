@@ -4,11 +4,11 @@ import { base64url, bearer, boundedJson, CellTokenVerifier } from "./auth.js";
 const now = 1_800_000_000_000;
 const issuer = "https://accounts.example.invalid";
 async function identity(kid = crypto.randomUUID()) {
-  const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+  const keys = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
     "sign",
     "verify",
-  ]);
-  const exported = await crypto.subtle.exportKey("jwk", keys.publicKey);
+  ])) as CryptoKeyPair;
+  const exported = (await crypto.subtle.exportKey("jwk", keys.publicKey)) as JsonWebKey;
   const jwk = {
     kty: "EC",
     crv: "P-256",
