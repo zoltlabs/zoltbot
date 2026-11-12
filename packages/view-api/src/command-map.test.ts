@@ -228,7 +228,7 @@ it("places 200 chats without overlap, inside their regions, with regions apart",
     id: `chat-${index}`,
     status: "working",
     workspaceId: `space-${index % 7}`,
-    worktree: index % 5 ? { id: `tree-${index % 23}`, kind: "worktree" } : undefined,
+    ...(index % 5 ? { worktree: { id: `tree-${index % 23}`, kind: "worktree" as const } } : {}),
     updatedAt,
   }));
   const layout = window.commandMapLayout(

@@ -1,6 +1,7 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { OutputModeSchema } from "./artifacts.js";
 import { BrowserSelectionSchema } from "./browser.js";
+import { CloudRepositorySchema, TaskLocationSchema } from "./cloud.js";
 import {
   ActorSchema,
   At,
@@ -38,6 +39,7 @@ export const ProfileSchema = object({
 });
 export type Profile = Static<typeof ProfileSchema>;
 export const ProjectSchema = object({
+  cloud: Type.Optional(CloudRepositorySchema),
   artifactDesignContextId: Type.Optional(Type.Union([Id, Type.Null()])),
   artifactRepositoryMode: Type.Optional(values(["on_accept", "every_save", "off"])),
   /** Absolute paths chats read for design and page work. Absent or null: found automatically. */
@@ -183,6 +185,7 @@ export const TaskStateSchema = values([
 ]);
 export type TaskState = Static<typeof TaskStateSchema>;
 export const TaskSchema = object({
+  location: Type.Optional(TaskLocationSchema),
   sourceMessageId: Type.Optional(Id),
   accountableThreadId: Type.Optional(Id),
   pendingAccountableThreadId: Type.Optional(Id),

@@ -36,7 +36,11 @@ async function walk(directory) {
       const text = await readFile(file, "utf8");
       for (const match of text.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
         const value = match[1];
-        if (value === "cloud" && ["scripts/quality.mjs", "tsconfig.json"].includes(relative))
+        // "cloud" is also a public routing enum. A bare module import still violates the boundary.
+        if (
+          value === "cloud" &&
+          !/\b(?:from|import|require(?:\.resolve)?)\s*(?:\(\s*)?$/.test(text.slice(0, match.index))
+        )
           continue;
         if (/^https?:\/\//.test(value) || value.startsWith(".cache/spikes/")) continue;
         if (forbidden.test(value) && !value.startsWith("!"))

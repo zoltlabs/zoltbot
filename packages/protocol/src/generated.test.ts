@@ -8,6 +8,7 @@ import {
   methodCatalog,
   parse,
   protocolVersion,
+  RpcRequestSchema,
 } from "./index.js";
 
 function sample(schema: TSchema): unknown {
@@ -50,6 +51,7 @@ describe("generated schema contracts", () => {
     methods: methodCatalog,
     events: eventCatalog,
     adapterEvents: agentEventSchemas,
+    requests: { rpc: RpcRequestSchema },
   })) {
     it(`${name} JSON schema matches its TypeBox source`, () => {
       const generated = JSON.parse(

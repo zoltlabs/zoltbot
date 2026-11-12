@@ -21,7 +21,9 @@ import {
   ImportReceiptSchema,
   type Interaction,
   type InteractionAnswer,
+  localCommandActor,
   macOnlyMethods,
+  methodCatalog,
   parse,
   parseRequest,
   protocolVersion,
@@ -506,6 +508,12 @@ async function startOwnedDaemon(
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
   ): Promise<unknown> => {
+    if (methodCatalog[request.method].where === "cloud") throw new Error("method_unavailable");
+    if (
+      request.method === "task.create" &&
+      (request.params as { location?: string }).location === "sandbox"
+    )
+      throw new Error("cloud_task_requires_cell");
     const params = request.params as Record<string, unknown>;
     let commandId = request.commandId;
     if (commandId) chiefWake.active();
@@ -627,7 +635,7 @@ async function startOwnedDaemon(
         (typeof raw.id === "string" || typeof raw.id === "number")
       )
         id = raw.id;
-      const request = parseRequest(raw);
+      const request = parseRequest(raw, localCommandActor(client.deviceId));
       const result = await call(request, client);
       logger.write("info", "API request", {
         method: request.method,

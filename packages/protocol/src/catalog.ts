@@ -8,7 +8,14 @@ import {
   artifactMethods,
   OutputModeSchema,
 } from "./artifacts.js";
-import { BrowserSelectionSchema, browserMacOnlyMethods, browserMethods } from "./browser.js";
+import { BrowserSelectionSchema, browserMethods } from "./browser.js";
+import {
+  CloudProjectCreateSchema,
+  CloudProjectListParamsSchema,
+  CloudUsageSchema,
+  CommandActorSchema,
+  TaskLocationSchema,
+} from "./cloud.js";
 import {
   At,
   Id,
@@ -70,19 +77,19 @@ import {
   WorkflowRunSchema,
 } from "./knowledge-workflows.js";
 import { KnowledgeProposalSchema, knowledgeWriteMethods } from "./knowledge-writes.js";
+import { withMethodLocations } from "./method-locations.js";
 import { OrchestrationSchema, orchestrationMethods } from "./orchestration.js";
-import { quickChatEvents, quickChatMacOnlyMethods, quickChatMethods } from "./quick-chat.js";
+import { quickChatEvents, quickChatMethods } from "./quick-chat.js";
 import {
   ShippingFeedbackSchema,
   ShippingOperationSchema,
   ShippingSchema,
-  shippingMacOnlyMethods,
   shippingMethods,
 } from "./shipping.js";
-import { skillMacOnlyMethods, skillMethods } from "./skills.js";
+import { skillMethods } from "./skills.js";
 import { terminalMethods } from "./terminal.js";
 
-import { ViewRecordSchema, viewMacOnlyMethods, viewMethods } from "./views.js";
+import { ViewRecordSchema, viewMethods } from "./views.js";
 import { WakeSchema, wakeMethods } from "./wakes.js";
 
 export const entitySchemas = {
@@ -167,7 +174,13 @@ const agent = crud(ProfileSchema),
   subproject = crud(SubprojectSchema),
   task = crud(TaskSchema);
 
-export const methodCatalog = {
+const rawMethodCatalog = {
+  "cloud.project.create": entry(CloudProjectCreateSchema, ProjectSchema),
+  "cloud.project.list": entry(
+    CloudProjectListParamsSchema,
+    object({ items: Type.Array(ProjectSchema), cursor: OptionalText }),
+  ),
+  "usage.get": entry(empty, CloudUsageSchema),
   ...viewMethods,
   ...companyMethods,
   ...wakeMethods,
@@ -426,6 +439,7 @@ export const methodCatalog = {
   ...browserMethods,
   "task.create": entry(
     object({
+      location: Type.Optional(TaskLocationSchema),
       outputMode: Type.Optional(OutputModeSchema),
       title: Type.String({ minLength: 1, maxLength: 150 }),
       brief: Type.String({ minLength: 1, maxLength: 4000 }),
@@ -660,37 +674,13 @@ export const methodCatalog = {
     object({ versions: Type.Record(Text, Text), checks: Type.Array(Json), logs: Strings }),
   ),
 };
-export type MethodName = keyof typeof methodCatalog;
+export type MethodName = keyof typeof rawMethodCatalog;
+export const methodCatalog = withMethodLocations(rawMethodCatalog);
+export type { MethodWhere } from "./method-locations.js";
 /** Refused when the call comes from a paired phone over the relay (D124). */
-export const macOnlyMethods: readonly MethodName[] = [
-  ...viewMacOnlyMethods,
-  "compare.create",
-  "compare.widen",
-  ...shippingMacOnlyMethods,
-  ...skillMacOnlyMethods,
-  ...browserMacOnlyMethods,
-  ...quickChatMacOnlyMethods,
-  "routine.checkSource",
-  "routine.connectionHandoff",
-  "routine.prepare",
-  "routine.editEvent",
-  "routine.preview",
-  "routine.commit",
-  "routine.retrySource",
-  "routine.archiveHistory",
-  "routine.create",
-  "connection.install",
-  "connection.auth.start",
-  "connection.auth.status",
-  "connection.auth.cancel",
-  "connection.import",
-  "connection.save",
-  "device.pair.start",
-  "device.pair.confirm",
-  "detect.startLogin",
-  "native.openCommand",
-  "diagnostics.export",
-];
+export const macOnlyMethods: readonly MethodName[] = (
+  Object.keys(methodCatalog) as MethodName[]
+).filter((method) => !methodCatalog[method].pairedPhone);
 /**
  * In the catalog but not served by zoltd yet: a call fails with `method_unavailable`. Clients and
  * fakes read this so they do not offer what the Mac cannot do. A daemon test keeps it honest.
@@ -776,6 +766,7 @@ export function assertCatalogCoverage(methods: readonly string[], events: readon
 }
 
 export const RpcRequestSchema = object({
+  actor: Type.Optional(CommandActorSchema),
   jsonrpc: Type.Literal("2.0"),
   id: Type.Union([Id, Type.Integer()]),
   method: Id,

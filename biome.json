@@ -17,6 +17,7 @@
       "!packages/artifact-kit/v1/chart-4.5.1.umd.js",
       "!packages/views/command-map/vendor/three-0.187.0.bundle.min.js",
       "!packages/protocol/schema",
+      "!packages/runner-protocol/schema",
       "!packages/view-api/schema",
       "!output",
       "!dist",

@@ -37,4 +37,5 @@ export const syntheticCredentials: Credentials = {
   sessionId: "synthetic-session",
 };
 
+export * from "./cloud-m1.js";
 export * from "./wire.js";

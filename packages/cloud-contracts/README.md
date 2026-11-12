@@ -16,3 +16,19 @@ semantics requires a new contract version and a migration. The supported old-cli
 window is an owner decision, not defined by this package. Synthetic credentials are
 examples only. Private PostgreSQL and broker tests parse real server responses with
 these schemas; public controller tests use an independent synthetic HTTP fake.
+
+## Cloud tasks
+
+The M1 wire types contain cell and runner claims, public JWKS entries, member device
+keys, write-only secret inputs, and cell-to-orchestrator operations. Hosted configuration
+and credentials remain in the hosted service.
+
+Cell tokens use audience `cell`; cell-to-orchestrator tokens use `orchestrator` and a
+separate signing key. Claims use standard `sub` for the member and `org`, `device` and
+`surface` for authorization. Token verification must also enforce issuer, time, runner
+grant and sandbox-task binding; schema validation alone does not authenticate a token.
+
+Secret names are `anthropic`, `openai` and `github`. Sandbox create calls carry repository
+and provider metadata, not credentials or task transcripts. The orchestrator loads and
+injects the member's credentials at create time. Usage operation ids support idempotent
+accounting when a cell retries a lifecycle call.

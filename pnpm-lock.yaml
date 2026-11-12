@@ -395,6 +395,15 @@ importers:
         specifier: 0.34.48
         version: 0.34.48
 
+  packages/runner-protocol:
+    dependencies:
+      '@sinclair/typebox':
+        specifier: 0.34.48
+        version: 0.34.48
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
   packages/sandbox:
     dependencies:
       e2b:

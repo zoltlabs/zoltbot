@@ -1,0 +1,14 @@
+{
+  "name": "@zoltbot/runner-protocol",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.48",
+    "@zoltbot/protocol": "workspace:*"
+  }
+}

@@ -5,6 +5,7 @@ import {
   eventCatalog,
   methodCatalog,
   protocolVersion,
+  RpcRequestSchema,
 } from "./src/index.js";
 
 const directory = new URL("./schema/", import.meta.url);
@@ -14,6 +15,7 @@ for (const [name, body] of Object.entries({
   methods: methodCatalog,
   events: eventCatalog,
   adapterEvents: agentEventSchemas,
+  requests: { rpc: RpcRequestSchema },
 })) {
   await writeFile(
     new URL(`${name}.json`, directory),
