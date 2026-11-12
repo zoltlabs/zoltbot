@@ -10,6 +10,7 @@ import {
   type SandboxSpec,
   type SandboxStatus,
 } from "../../interface.js";
+import { lookupLabels, matchesLabels } from "../../labels.js";
 import { ExecChannel, resolvePath, shellJoin } from "../../stream.js";
 
 // The managed target (D134): sandboxes on E2B's hosted service, through the official SDK. The API
@@ -62,6 +63,10 @@ interface Connection {
 }
 
 export interface E2bSdk {
+  list(
+    labels: Record<string, string>,
+    options: Connection,
+  ): Promise<Array<{ sandboxId: string; metadata: Record<string, string> }>>;
   create(
     template: string,
     options: Connection & {
@@ -93,6 +98,20 @@ function wrap(sandbox: Sandbox): E2bInstance {
 }
 
 export const e2bSdk: E2bSdk = {
+  async list(metadata, options) {
+    const paginator = Sandbox.list({
+      ...options,
+      query: { metadata, state: ["running", "paused"] },
+    });
+    const found: Array<{ sandboxId: string; metadata: Record<string, string> }> = [];
+    let pages = 0;
+    while (paginator.hasNext) {
+      if (++pages > 16) throw new SandboxError("provider", "Sandbox lookup limit exceeded");
+      found.push(...(await paginator.nextItems({ requestTimeoutMs: 10000 })));
+      if (found.length > 256) throw new SandboxError("provider", "Sandbox lookup limit exceeded");
+    }
+    return found;
+  },
   create: async (template, options) => wrap(await Sandbox.create(template, options)),
   connect: async (id, options) => wrap(await Sandbox.connect(id, options)),
   kill: (id, options) => Sandbox.kill(id, options),
@@ -173,6 +192,21 @@ export function createE2bTarget(options: E2bTargetOptions): ExecutionTarget {
     id,
     capabilities,
     versions: { component: "e2b", tested: "none", range: `>=${SDK_VERSION} <3` },
+    async find(raw) {
+      const labels = lookupLabels(raw),
+        found = await guard(() => sdk.list(labels, connection));
+      if (found.length > 256) throw new SandboxError("provider", "Sandbox lookup limit exceeded");
+      const ids = new Set(
+        found.filter((row) => matchesLabels(labels, row.metadata)).map((row) => row.sandboxId),
+      );
+      if (
+        [...ids].some(
+          (value) => typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(value),
+        )
+      )
+        throw new SandboxError("provider", "Invalid sandbox lookup result");
+      return [...ids].sort().map((sandboxId) => ({ target: id, id: sandboxId, workdir: WORKDIR }));
+    },
 
     async create(spec: SandboxSpec = {}) {
       if (spec.size)

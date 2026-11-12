@@ -103,6 +103,8 @@ export interface ExecutionTarget {
   readonly capabilities: SandboxCapabilities;
   readonly versions: TargetVersions;
   create(spec?: SandboxSpec): Promise<SandboxRef>;
+  /** Find live or sleeping resources by every supplied label, without waking them. */
+  find(labels: Readonly<Record<string, string>>): Promise<SandboxRef[]>;
   wake(ref: SandboxRef): Promise<void>;
   sleep(ref: SandboxRef): Promise<void>;
   destroy(ref: SandboxRef): Promise<void>;

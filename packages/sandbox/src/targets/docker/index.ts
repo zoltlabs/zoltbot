@@ -11,6 +11,7 @@ import {
   type SandboxSpec,
   type SandboxStatus,
 } from "../../interface.js";
+import { lookupLabels, matchesLabels } from "../../labels.js";
 import { ExecChannel, resolvePath } from "../../stream.js";
 
 // The Docker dev target backs the conformance suite and template development. It is not offered to
@@ -132,8 +133,57 @@ export function createDockerTarget(options: DockerTargetOptions = {}): Execution
     id,
     capabilities,
     versions: { component: "docker-engine", tested: "unknown", range: ">=24" },
+    async find(raw: Readonly<Record<string, string>>) {
+      const labels = lookupLabels(raw);
+      const output = await ok([
+        "ps",
+        "--all",
+        "--filter",
+        `label=${LABEL}=${label}`,
+        ...Object.entries(labels).flatMap(([key, value]) => ["--filter", `label=${key}=${value}`]),
+        "--format",
+        "{{.Names}}",
+      ]);
+      const names = [...new Set(output.split("\n").filter(Boolean))];
+      if (
+        names.length > 256 ||
+        names.some((value) => !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,199}$/.test(value))
+      )
+        throw new SandboxError("provider", "Invalid sandbox lookup result");
+      const refs: SandboxRef[] = [];
+      for (const container of names) {
+        const found = await docker([
+          "inspect",
+          "--format",
+          "{{json .Config.Labels}}|{{.State.Status}}",
+          container,
+        ]);
+        if (found.code !== 0) {
+          if (/No such object|No such container/i.test(found.stderr)) continue;
+          throw failure(found.stderr);
+        }
+        const text = found.stdout.toString("utf8").trim(),
+          split = text.lastIndexOf("|");
+        let saved: Record<string, string>;
+        try {
+          saved = JSON.parse(text.slice(0, split));
+          if (!saved || typeof saved !== "object" || Array.isArray(saved)) throw new Error();
+        } catch {
+          throw new SandboxError("provider", "Invalid sandbox lookup result");
+        }
+        if (
+          ["running", "paused"].includes(text.slice(split + 1)) &&
+          saved[LABEL] === label &&
+          matchesLabels(labels, saved)
+        )
+          refs.push({ target: id, id: container, workdir: WORKDIR });
+      }
+      return refs.sort((a, b) => a.id.localeCompare(b.id));
+    },
 
     async create(spec: SandboxSpec = {}) {
+      if (spec.labels && Object.hasOwn(spec.labels, LABEL))
+        throw new SandboxError("invalid", "Reserved sandbox label");
       const container = `zoltbot-sandbox-${randomUUID()}`;
       const ports = spec.ports ?? [];
       const args = [
@@ -144,6 +194,10 @@ export function createDockerTarget(options: DockerTargetOptions = {}): Execution
         container,
         "--label",
         `${LABEL}=${label}`,
+        ...Object.entries(spec.labels ?? {}).flatMap(([key, value]) => [
+          "--label",
+          `${key}=${value}`,
+        ]),
         "--workdir",
         WORKDIR,
         "--env",

@@ -20,6 +20,7 @@ function stub(overrides: Partial<E2bSdk> = {}, instance: Partial<E2bInstance> = 
     ...instance,
   };
   const sdk: E2bSdk = {
+    list: async () => [],
     create: async (template, options) => {
       calls.push(["create", { template, ...options }]);
       return box;

@@ -25,6 +25,7 @@ import {
   type SandboxStatus,
   type SnapshotRef,
 } from "../../interface.js";
+import { lookupLabels, matchesLabels } from "../../labels.js";
 import { ExecChannel } from "../../stream.js";
 
 // The fake target: each sandbox is a private folder on this machine and its processes run in their
@@ -43,6 +44,7 @@ interface FakeSandbox {
   state: "running" | "sleeping";
   groups: Set<number>;
   exits: Set<Promise<unknown>>;
+  labels: Record<string, string>;
 }
 
 const capabilities: SandboxCapabilities = {
@@ -103,6 +105,13 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
     id,
     capabilities: { ...capabilities, ...options.capabilities },
     versions: { component: "none", tested: "0.0.0", range: "*" },
+    async find(raw) {
+      const labels = lookupLabels(raw);
+      return [...sandboxes.entries()]
+        .filter(([, box]) => matchesLabels(labels, box.labels))
+        .map(([sandboxId, box]) => ({ target: id, id: sandboxId, workdir: box.root }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+    },
 
     async create(spec: SandboxSpec = {}) {
       if (spec.from && !snapshots.has(spec.from.id))
@@ -120,6 +129,7 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
         state: "running",
         groups: new Set(),
         exits: new Set(),
+        labels: { ...spec.labels },
       });
       return { target: id, id: sandboxId, workdir: root };
     },

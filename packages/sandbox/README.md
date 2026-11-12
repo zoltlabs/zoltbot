@@ -29,3 +29,14 @@ sets `sleepKeepsProcesses: false` instead kills its owned groups, waits for thei
 process streams to close, and preserves only files. Wake permits new processes;
 it does not restart an old worker implicitly. This mode exercises orchestration
 and native-resume recovery without pretending that a file-only target pauses RAM.
+
+`find(labels)` discovers live or sleeping resources without waking them. It
+requires a nonempty bounded label filter and returns references only. The hosted
+adapter checks returned metadata and bounds pagination; the Docker adapter also
+checks labels/state after its filtered container listing. Docker's operator label
+cannot be overridden by task metadata. Scripted SDK/CLI tests use no account or
+Docker engine; actual Docker conformance and live provider lookup remain unrun.
+
+`@zoltbot/sandbox/orchestrate` supplies the generic provider-operation helper.
+Its [README](src/orchestrate/README.md) records journal, reconciliation and retry
+choices and the Global-service responsibilities that remain unfinished.
