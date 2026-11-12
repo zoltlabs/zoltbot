@@ -1,3 +1,5 @@
+// The side panel under the chat list: requests for the selected chats, orders, and island
+// positions. Also loads and saves what the view remembers between sessions.
 (() => {
   const node = (tag, text, parent) => {
     const element = document.createElement(tag);
@@ -62,6 +64,9 @@
                 : ["Rebase on main", "Run the tests"][index],
             )
           : ["Rebase on main", "Run the tests"],
+      // Sound is off unless the owner turned it on. Graphics is automatic unless they chose a level.
+      sound: value.sound === true ? true : undefined,
+      quality: ["high", "medium", "low"].includes(value.quality) ? value.quality : undefined,
     };
   };
   window.CommandMapPanel = class {
@@ -100,8 +105,7 @@
     saveGroup(id) {
       this.saved.groups[id] = [...this.host.selected()];
       this.save();
-      this.signature = "";
-      this.render();
+      this.host.groups();
     }
     recallGroup(id) {
       const known = new Set(this.host.topics.chats.map((chat) => chat.id));
@@ -321,18 +325,17 @@
       if (this.signature === signature || this.busy) return;
       this.signature = signature;
       const active = document.activeElement?.dataset?.panelFocus;
+      const wasOpen = !!this.container.querySelector("details")?.open;
       this.container.replaceChildren();
-      const groups = node("section", undefined, this.container);
-      node("h2", "Control groups", groups);
-      for (const id of ["1", "2", "3"]) {
-        const row = node("div", undefined, groups);
-        button(`Select group ${id}`, row, () => this.recallGroup(id)).disabled =
-          !this.saved.groups[id]?.length;
-        button(`Save group ${id}`, row, () => this.saveGroup(id)).disabled = !selected.size;
+      if (requests.length) {
+        const panel = node("section", undefined, this.container);
+        node("h2", "Requests", panel);
+        for (const request of requests) this.request(request, panel);
       }
       if (window.zolt.granted.includes("act")) {
         const orders = node("section", undefined, this.container);
         node("h2", "Orders", orders);
+        if (!selected.size) node("p", "Select chats to send them an order.", orders);
         if (selected.size > 50) node("p", "Select up to 50 chats to send an order.", orders);
         this.saved.presets.forEach((text, index) => {
           const label = node("label", `Preset ${index + 1}`, orders),
@@ -357,13 +360,9 @@
           this.perform(() => window.zolt.chats.interrupt({ chatIds: [...selected] })),
         ).disabled = !selected.size || selected.size > 50;
       }
-      if (requests.length) {
-        const panel = node("section", undefined, this.container);
-        node("h2", "Requests", panel);
-        for (const request of requests) this.request(request, panel);
-      }
       const layout = node("details", undefined, this.container);
       node("summary", "Region positions", layout);
+      layout.open = wasOpen;
       for (const region of this.host.regions()) {
         const form = node("form", undefined, layout);
         form.setAttribute("aria-label", `Position for ${region.name}`);

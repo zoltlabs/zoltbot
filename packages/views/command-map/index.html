@@ -1,15 +1,89 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Command map</title><link rel="stylesheet" href="map.css"></head>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command map</title>
+<link rel="stylesheet" href="map.css">
+<link rel="stylesheet" href="hud.css">
+</head>
 <body>
 <div class="app">
-<header class="resources"><output id="resources">Loading chats…</output><span id="sample" hidden>Sample data</span><button id="pause" type="button" aria-pressed="false">Pause updates</button><button id="alert" type="button">Next alert</button></header>
 <main class="stage">
-<section class="map" aria-label="Chat map"><canvas id="map" aria-hidden="true"></canvas><div id="regions" class="overlay"></div><div id="units" class="overlay"></div><div id="alerts" class="overlay"></div><div id="box" hidden></div>
-<div class="camera"><button type="button" id="zoom-in" aria-label="Zoom in">+</button><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" data-pan="-10,0" aria-label="Pan left">←</button><button type="button" data-pan="10,0" aria-label="Pan right">→</button><button type="button" data-pan="0,-10" aria-label="Pan up">↑</button><button type="button" data-pan="0,10" aria-label="Pan down">↓</button></div>
-<canvas id="mini" aria-hidden="true"></canvas></section>
-<aside class="panel" aria-label="Chats"><h2>Chats</h2><p id="empty" hidden>No active chats. Open a chat in Zoltbot to begin.</p><ul id="chats"></ul><div id="actions"></div></aside>
-</main><p id="error" role="alert"></p><p id="live" role="status" class="sr-only"></p>
+<section class="map" aria-label="Chat map">
+<header class="hud bar">
+<ul id="resources" class="stats" aria-label="Today"><li class="stat">Loading…</li></ul>
+<div class="tools">
+<span id="sample" class="tag" hidden>Sample data</span>
+<button id="pause" type="button" aria-pressed="false">Pause updates</button>
+<button id="sound" type="button" class="square" aria-pressed="false" aria-label="Sound" title="Sound"></button>
+<label class="pick">Graphics
+<select id="quality">
+<option value="auto">Auto</option>
+<option value="high">High</option>
+<option value="medium">Medium</option>
+<option value="low">Low</option>
+</select>
+</label>
+<button id="alert" type="button" class="primary" aria-label="Next alert" title="Press Space">Next alert<span id="alert-count" class="count" hidden></span></button>
 </div>
-<script src="_host/v1/zolt.js"></script><script src="vendor/three-0.128.0.min.js"></script><script src="layout.js"></script><script src="scene.js"></script><script src="panels.js"></script><script src="map.js"></script>
-</body></html>
+</header>
+<canvas id="map" aria-hidden="true"></canvas>
+<div id="regions" class="overlay"></div>
+<div id="units" class="overlay"></div>
+<div id="alerts" class="overlay"></div>
+<div id="box" hidden></div>
+<div id="groups" class="hud groups" role="group" aria-label="Control groups"></div>
+<div class="hud camera" role="group" aria-label="Camera">
+<button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+<button type="button" data-pan="0,-1" aria-label="Pan up">↑</button>
+<button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+<button type="button" data-pan="-1,0" aria-label="Pan left">←</button>
+<button type="button" id="fit" aria-label="Show the whole map" title="Show the whole map"></button>
+<button type="button" data-pan="1,0" aria-label="Pan right">→</button>
+<span></span>
+<button type="button" data-pan="0,1" aria-label="Pan down">↓</button>
+</div>
+<div class="hud mini"><canvas id="mini" aria-hidden="true"></canvas></div>
+</section>
+<aside class="panel" aria-label="Chats">
+<div class="list">
+<h2>Chats</h2>
+<p id="empty" hidden>No active chats. Open a chat in Zoltbot to begin.</p>
+<ul id="chats"></ul>
+</div>
+<div id="actions"></div>
+</aside>
+</main>
+<p id="error" role="alert"></p>
+<p id="live" role="status" class="sr-only"></p>
+</div>
+<script src="_host/v1/zolt.js"></script>
+<script src="vendor/three-0.187.0.bundle.min.js"></script>
+<!-- What the map looks like: colors, sizes, timing and which builders draw it. -->
+<script src="skin.js"></script>
+<!-- Data and interaction. -->
+<script src="states.js"></script>
+<script src="layout.js"></script>
+<script src="camera.js"></script>
+<script src="input.js"></script>
+<script src="quality.js"></script>
+<script src="sound.js"></script>
+<script src="overlay.js"></script>
+<script src="minimap.js"></script>
+<script src="hud.js"></script>
+<script src="list.js"></script>
+<script src="panels.js"></script>
+<!-- The world: one builder per file. -->
+<script src="world/kit.js"></script>
+<script src="world/terrain.js"></script>
+<script src="world/buildings.js"></script>
+<script src="world/units.js"></script>
+<script src="world/marks.js"></script>
+<script src="world/effects.js"></script>
+<script src="world/lighting.js"></script>
+<script src="world/post.js"></script>
+<script src="world/scene.js"></script>
+<script src="map.js"></script>
+</body>
+</html>

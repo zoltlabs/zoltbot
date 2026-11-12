@@ -1,3 +1,4 @@
+/* Page layout, the side panel and its forms. The HUD over the map is in hud.css. */
 * {
   box-sizing: border-box;
 }
@@ -22,40 +23,39 @@ body {
   display: none !important;
 }
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
-button {
+button,
+select {
   color: var(--zb-text);
   background: var(--zb-bg-raised);
   border: 1px solid var(--zb-border-control);
   border-radius: var(--zb-radius-sm);
   padding: var(--zb-space-1) var(--zb-space-2);
-  min-height: var(--zb-control-sm);
+  min-height: var(--zb-control-md);
   cursor: pointer;
 }
-button:focus-visible,
-input:focus-visible {
+:is(button, input, select, textarea, summary):focus-visible {
   outline: var(--zb-space-0-5) solid var(--zb-text);
   outline-offset: var(--zb-space-0-5);
 }
 button:disabled {
   color: var(--zb-text-dim);
+  border-color: var(--zb-border-strong);
   cursor: default;
 }
-button:hover {
+button:hover:not(:disabled) {
   background: var(--zb-bg-popover);
+  border-color: var(--zb-text);
 }
-.resources {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--zb-space-2);
-  padding: var(--zb-space-3);
-}
-.resources output {
-  flex: 1;
-  font-variant-numeric: tabular-nums;
+.icon {
+  flex: none;
+  width: var(--zb-icon-md);
+  height: var(--zb-icon-md);
+  fill: currentColor;
 }
 .stage {
   display: grid;
@@ -64,126 +64,126 @@ button:hover {
   min-height: 0;
 }
 .map {
+  container-type: inline-size;
   position: relative;
   overflow: hidden;
   min-height: var(--zb-panel-width);
   background: var(--zb-bg-canvas);
 }
 #map {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
   touch-action: none;
 }
-.overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.overlay button {
-  position: absolute;
-  inset: 0 auto auto 0;
-  pointer-events: auto;
-  max-width: 70%;
+
+/* The side panel: the chat list scrolls; requests and orders stay docked below it. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-inline-start: 1px solid var(--zb-border);
   overflow-wrap: anywhere;
 }
-.region {
-  font-weight: var(--zb-weight-semibold);
-}
-.unit,
-.edge-alert {
-  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
-  line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
-}
-.unit[data-status="needs_you"],
-.edge-alert {
-  border-color: var(--zb-attention);
-}
-.unit.selected {
-  outline: var(--zb-space-0-5) solid var(--zb-text);
-}
-.camera {
-  position: absolute;
-  inset: auto auto var(--zb-space-2) var(--zb-space-2);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--zb-space-1);
-  max-width: 55%;
-}
-#mini {
-  position: absolute;
-  inset: auto var(--zb-space-2) var(--zb-space-2) auto;
-  width: 160px;
-  height: 110px;
-  border: 1px solid var(--zb-border-control);
-}
-#box {
-  position: absolute;
-  border: var(--zb-space-0-5) solid var(--zb-text);
-  pointer-events: none;
-}
-.panel {
+.list {
+  flex: 1 1 40%;
+  min-height: 0;
   overflow: auto;
   padding: var(--zb-space-3);
 }
+#actions {
+  flex: 0 1 auto;
+  max-height: 60%;
+  overflow: auto;
+  padding: 0 var(--zb-space-3) var(--zb-space-3);
+  border-block-start: 1px solid var(--zb-border-strong);
+}
 h2 {
+  margin: 0 0 var(--zb-space-2);
   font-size: calc(var(--zb-text-xl) * var(--zb-font-scale, 1));
   line-height: calc(var(--zb-leading-xl) * var(--zb-font-scale, 1));
+  font-weight: var(--zb-weight-semibold);
+}
+h3 {
+  margin: 0 0 var(--zb-space-2);
+  font-size: calc(var(--zb-text-lg) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-lg) * var(--zb-font-scale, 1));
+  font-weight: var(--zb-weight-semibold);
 }
 ul {
   list-style: none;
+  margin: 0;
   padding: 0;
 }
-li {
-  margin-block-end: var(--zb-space-4);
-  overflow-wrap: anywhere;
+#chats li {
+  padding: var(--zb-space-2);
+  border-radius: var(--zb-radius-md);
 }
-li label {
+#chats li.selected {
+  background: var(--zb-bg-selected);
+}
+#chats label {
   display: flex;
   align-items: start;
   gap: var(--zb-space-2);
+  font-weight: var(--zb-weight-medium);
+  cursor: pointer;
 }
-li p {
+#chats label .icon,
+#chats input {
+  margin-block-start: calc(
+    (var(--zb-leading-md) * var(--zb-font-scale, 1) - var(--zb-icon-md)) /
+    2
+  );
+  margin-inline: 0;
+}
+#chats p {
   color: var(--zb-text-secondary);
-  margin-block: var(--zb-space-1);
+  margin: var(--zb-space-0-5) 0 var(--zb-space-1);
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
+  line-height: calc(var(--zb-leading-sm) * var(--zb-font-scale, 1));
 }
-li button {
-  margin-inline-end: var(--zb-space-1);
-  margin-block: var(--zb-space-1);
+#chats .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1);
 }
-#error {
-  margin: 0;
-  padding-inline: var(--zb-space-3);
+#chats .row button {
+  min-height: var(--zb-control-sm);
+  padding-block: 0;
+  font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
 }
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+/* State colors for icons. Each state also has its own icon shape and its name in words. */
+[data-state="needs_you"] .icon {
+  color: var(--zb-attention);
 }
-@media (max-width: 700px) {
-  .stage {
-    grid-template-columns: minmax(0, 1fr);
-    display: block;
-    overflow: auto;
-  }
-  .map {
-    height: 55dvh;
-  }
-  .panel {
-    overflow: visible;
-  }
+[data-state="working"] .icon {
+  color: var(--zb-accent-text);
+}
+[data-state="review"] .icon {
+  color: var(--zb-ok);
+}
+[data-state="idle"] .icon {
+  color: var(--zb-text-muted);
+}
+[data-state] .icon.icon-problem {
+  color: var(--zb-warn);
 }
 
-@media (max-width: 700px) {
-  #mini {
-    top: var(--zb-space-2);
-    bottom: auto;
-  }
-}
 #actions section {
   margin-block: var(--zb-space-4);
+}
+#actions section section {
+  margin-block: var(--zb-space-3);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border-strong);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-raised);
+}
+#actions p {
+  margin: var(--zb-space-2) 0;
 }
 #actions label {
   display: grid;
@@ -208,20 +208,55 @@ li button {
 }
 #actions fieldset {
   min-width: 0;
-  margin-block: var(--zb-space-3);
+  margin: var(--zb-space-3) 0;
   border: 1px solid var(--zb-border-control);
+  border-radius: var(--zb-radius-sm);
 }
 #actions pre {
+  margin: var(--zb-space-2) 0;
+  padding: var(--zb-space-2);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-family: var(--zb-font-mono);
+  background: var(--zb-bg-sunken);
+  border-radius: var(--zb-radius-sm);
 }
 #actions button {
-  margin: var(--zb-space-1);
+  margin: var(--zb-space-1) var(--zb-space-1) var(--zb-space-1) 0;
 }
-#actions :is(textarea, select, summary):focus-visible {
-  outline: var(--zb-space-0-5) solid var(--zb-text);
-  outline-offset: var(--zb-space-0-5);
+#actions summary {
+  cursor: pointer;
+  padding-block: var(--zb-space-2);
 }
-.region {
-  touch-action: none;
+#error {
+  margin: 0;
+  padding-inline: var(--zb-space-3);
+}
+#error:not(:empty) {
+  padding-block: var(--zb-space-2);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (max-width: 700px) {
+  .stage {
+    display: block;
+    overflow: auto;
+  }
+  .map {
+    height: 62dvh;
+  }
+  .panel {
+    display: block;
+    border-inline-start: 0;
+  }
+  .list,
+  #actions {
+    overflow: visible;
+    max-height: none;
+  }
 }
