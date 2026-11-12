@@ -10,7 +10,10 @@
     "ios": {
       "bundleIdentifier": "com.zoltlabs.zoltbot",
       "supportsTablet": false,
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "plugins": [
       "expo-router",
