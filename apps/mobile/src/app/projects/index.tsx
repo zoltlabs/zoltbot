@@ -54,6 +54,12 @@ export default function Projects() {
           {terms.workspace.Many}
         </Txt>
         <OfflineBanner />
+        {__DEV__ ? (
+          <Row
+            title="Prototype: project command"
+            onPress={() => router.push("/project-command-prototype")}
+          />
+        ) : null}
         {projects.map((project) => (
           <Group key={project.id}>
             <Pressable
