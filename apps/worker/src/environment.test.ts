@@ -33,6 +33,7 @@ it("reads one sandbox scope without exposing environment credentials through JSO
 it("requires API-key mode, refresh/private-context keys and an explicit sleep capability", () => {
   const f = fixture();
   for (const name of Object.keys(f.env)) {
+    if (name === "ZOLTBOT_RUNNER_TOKEN") continue;
     const input: Record<string, string | undefined> = { ...f.env, [name]: undefined };
     expect(() => readWorkerEnvironment(input), name).toThrow(/^worker_environment_invalid$/);
   }
@@ -50,6 +51,20 @@ it("requires API-key mode, refresh/private-context keys and an explicit sleep ca
   codex.clear();
   expect(() =>
     readWorkerEnvironment({ ...f.env, ZOLTBOT_PRIVATE_CONTEXT_KEY: "not-a-task-key" }),
+  ).toThrow(/^worker_environment_invalid$/);
+});
+it("boots without an initial Cell token only with the task-bound refresh capability and required secrets", () => {
+  const f = fixture();
+  const config = readWorkerEnvironment({ ...f.env, ZOLTBOT_RUNNER_TOKEN: undefined });
+  expect(config.read("ZOLTBOT_RUNNER_TOKEN")).toBeUndefined();
+  expect(config.runnerId).toBe(f.claims.device);
+  config.clear();
+  expect(() =>
+    readWorkerEnvironment({
+      ...f.env,
+      ZOLTBOT_RUNNER_TOKEN: undefined,
+      ZOLTBOT_WORKER_REFRESH: undefined,
+    }),
   ).toThrow(/^worker_environment_invalid$/);
 });
 it("rejects a client, another task/member/runner and changed lifetime before dialing a Cell", () => {

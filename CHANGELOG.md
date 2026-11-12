@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Fix: Cloud workers resume interrupted turns after restarting when no question or Mac command is pending.
+
 - Fix: Mac command results remain available after reconnecting when the approval has expired.
 
 - Improvement: Cloud sandbox workers preserve task history and setup state across restarts.

@@ -135,3 +135,18 @@ revocation. These rules also apply to the Mac transport and leave Local tasks al
 A Cell HTTP authentication refusal or an explicit forbidden WebSocket close also
 withdraws authority and stops native work. Protocol/transport outages still use
 the reconnect path. The transport never logs a WebSocket refusal body or reason.
+
+The initial Cell token is optional when the injected task-bound refresh capability
+is present. This avoids dialing the Cell before the account service records the
+new provider resource. A creating sandbox receives retryable 503 responses; the
+worker requests credentials again and dials only after receiving a scoped token.
+An initial token, when supplied, still passes all scope/lifetime checks. Warm-up
+without task credentials remains idle, and the hosted orchestrator must explicitly
+launch the entrypoint after provider creation because the template's warmed
+process does not acquire later environment values.
+
+After process loss during an ordinary active turn, the cache retains its original
+native ID and queues the existing core restart continuation once. An original
+handled input remains handled. An already queued input takes priority, and a
+pending native question or Mac tool is not automatically continued. Their
+recovery remains unfinished, along with W8.

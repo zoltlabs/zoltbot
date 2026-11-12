@@ -3,6 +3,33 @@ import { workerCredentials } from "./credentials.js";
 import { readWorkerEnvironment } from "./environment.js";
 import { workerEnvironmentFixture } from "./test-fixture.js";
 
+it("waits for recorded sandbox startup before minting its first Cell token", async () => {
+  const f = workerEnvironmentFixture(),
+    config = readWorkerEnvironment({ ...f.env, ZOLTBOT_RUNNER_TOKEN: undefined });
+  let attempts = 0;
+  const credentials = workerCredentials(config, async (_url, init) => {
+    attempts++;
+    expect(init?.headers).toMatchObject({
+      authorization: `Worker ${f.env.ZOLTBOT_WORKER_REFRESH}`,
+    });
+    if (attempts === 1) return Response.json({ error: "worker_not_ready" }, { status: 503 });
+    return Response.json({
+      token: f.env.ZOLTBOT_RUNNER_TOKEN,
+      expiresAt: new Date(f.claims.exp * 1000).toISOString(),
+      cellUrl: "https://cell.example.invalid",
+    });
+  });
+  await expect(credentials(new AbortController().signal)).rejects.toThrow(
+    /^worker_credentials_unavailable$/,
+  );
+  expect(config.read("ZOLTBOT_RUNNER_TOKEN")).toBeUndefined();
+  expect(
+    (await credentials(new AbortController().signal)).token === f.env.ZOLTBOT_RUNNER_TOKEN,
+  ).toBe(true);
+  expect(attempts).toBe(2);
+  config.clear();
+});
+
 it("uses the injected current token without exposing any provider secret or contacting accounts", async () => {
   const f = workerEnvironmentFixture(),
     config = readWorkerEnvironment(f.env);

@@ -133,7 +133,8 @@ export function readWorkerEnvironment(
       cloudOrigin: serviceOrigin(source.ZOLTBOT_CLOUD_ORIGIN ?? "", options.allowLoopback),
       sleepKeepsProcesses: source.ZOLTBOT_SLEEP_KEEPS_PROCESSES === "true",
     };
-    injectedClaims(required("ZOLTBOT_RUNNER_TOKEN"), metadata);
+    const initialToken = values.get("ZOLTBOT_RUNNER_TOKEN");
+    if (initialToken) injectedClaims(initialToken, metadata);
     let closed = false;
     const privateValues = new Set(values.values());
     return Object.freeze({

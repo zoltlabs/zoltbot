@@ -384,3 +384,11 @@ private answers cannot become Mac command/stdin fields. The result uses the rich
 tool envelope to preserve the bounded Mac output. Caller tool IDs still need
 recovery across a killed worker, along with W6's pending native tool continuation.
 Cell streaming, reusable prefix approvals and W8 remain open.
+
+For an interrupted ordinary turn, `CloudTaskCache` now queues the existing core
+restart continuation after recovery, before applying the new lease. It retains
+the native conversation and original input delivery state. It does not add a
+second continuation while a queued input exists. Pending native questions and
+Mac tools require their own recovery handling and do not take this automatic
+path. Tests check one continuation across repeated cache reopen and leave an
+uncertain send on hold. Local recovery and Local task startup are unchanged.

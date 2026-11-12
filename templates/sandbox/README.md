@@ -30,9 +30,12 @@ commit and pass the root ignore rules to the SDK's file-context configuration. P
 source has been approved and pushed.
 
 E2B starts template commands during template warm-up, before task secrets exist.
-The entrypoint therefore idles without an injected runner token. The orchestrator
-starts the same entrypoint with the task environment after create and after a wake
-without processes. Docker starts it directly when create supplies the environment.
+The entrypoint therefore idles without an injected task refresh capability. The
+orchestrator starts the same entrypoint with the task environment after create
+and after a wake without processes. The worker can obtain its first Cell token
+through that capability once the account service records the VM; a still-creating
+record returns a retryable 503 instead of causing a premature Cell authentication
+refusal. Docker starts it directly when create supplies the environment.
 Secrets are never baked into the image, readiness command, argv or a startup file.
 This uses the documented [E2B template build/start process](https://e2b-preview.mintlify.app/sandbox-template).
 The private orchestrator wiring and its live verification are still pending.

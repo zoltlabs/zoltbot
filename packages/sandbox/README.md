@@ -23,3 +23,9 @@ its Dockerfile through the pinned E2B SDK, catching unsupported instructions bef
 an account is used. This does not replace Docker build or live provider acceptance.
 The worker requires the target's explicit `sleepKeepsProcesses` value at boot and
 can resume its native session after restarting with preserved task storage.
+
+The fake target's default sleep preserves processes. A fixture that explicitly
+sets `sleepKeepsProcesses: false` instead kills its owned groups, waits for their
+process streams to close, and preserves only files. Wake permits new processes;
+it does not restart an old worker implicitly. This mode exercises orchestration
+and native-resume recovery without pretending that a file-only target pauses RAM.

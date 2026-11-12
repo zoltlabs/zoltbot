@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, realpath } from "node:fs/promises";
 import path from "node:path";
-import { queueHumanInput } from "@zoltbot/core";
+import { queueHumanInput, resumeTask } from "@zoltbot/core";
 import {
   type AgentDefinition,
   AgentDefinitionSchema,
@@ -88,7 +88,33 @@ export class CloudTaskCache {
         throw new Error("runner_cache_scope_conflict");
       if (saved === undefined && store.lastSeq() !== 0)
         throw new Error("runner_cache_scope_conflict");
-      recover(store, `runner-recovery:${randomUUID()}`);
+      const before = store.snapshot(["task", "turn", "interaction", "item"]);
+      const interrupted = before.turn?.some((turn) => turn.status === "running");
+      const waiting =
+        before.interaction?.some((interaction) => interaction.state === "pending") ||
+        before.item?.some(
+          (item) =>
+            item.kind === "tool" &&
+            (item.body as { status?: string; name?: string })?.status === "running" &&
+            /(?:^|__)mac_exec$/.test(String((item.body as { name?: string })?.name)),
+        );
+      const queued = before.item?.some(
+        (item) =>
+          item.kind === "user" && (item.body as { queueState?: string })?.queueState === "queued",
+      );
+      const bootId = `runner-recovery:${randomUUID()}`,
+        at = new Date().toISOString();
+      recover(store, bootId, at);
+      if (interrupted && !waiting && !queued) {
+        const commandId = `${bootId}:continue`;
+        store.dispatch(commandId, (state) =>
+          resumeTask(state, options.lease.taskId, bootId, {
+            commandId,
+            at,
+            actor: { kind: "system", id: "cloud-runner" },
+          }),
+        );
+      }
       cache.update(options.lease);
       return cache;
     } catch (error) {

@@ -160,6 +160,72 @@ it("holds an uncertain send after restart instead of queuing it twice", async ()
   expect(reopened.store.snapshot().item?.filter((row) => row.kind === "user")).toHaveLength(1);
 });
 
+it("queues one native-resume continuation after an interrupted active turn without replaying its input", async () => {
+  const f = await fixture(),
+    cache = await f.open();
+  const item = cache.store.record("item", "task:r1:input");
+  if (!item) throw new Error("fixture_input_missing");
+  const at = new Date().toISOString();
+  cache.store.dispatch("active", () => ({
+    events: [
+      {
+        kind: "session",
+        value: {
+          id: "session",
+          threadId: "thread",
+          nativeId: "original-native",
+          provider: f.options.definition.adapter,
+          cwd: f.options.workspace.cwd,
+          state: "running",
+          capabilities: {},
+          startedAt: at,
+        },
+      },
+      {
+        kind: "turn",
+        value: {
+          id: "turn",
+          threadId: "thread",
+          sessionId: "session",
+          status: "running",
+          origin: "human",
+          startedAt: at,
+        },
+      },
+      {
+        kind: "item",
+        value: {
+          ...item,
+          body: { ...parse(QueuedInputBodySchema, item.body), queueState: "handled" },
+        },
+      },
+    ].map(({ kind, value }, index) => ({
+      eventId: `active:${index}`,
+      commandId: "active",
+      aggregateType: kind,
+      aggregateId: String(value.id),
+      type: `${kind}.updated`,
+      occurredAt: at,
+      payload: value,
+    })),
+    result: {},
+  }));
+  cache.close();
+  const reopened = await f.open();
+  expect(previousForThread(reopened.store.snapshot(), "thread")?.nativeId).toBe("original-native");
+  const inputs = reopened.store.snapshot(["item"]).item?.filter((row) => row.kind === "user") ?? [];
+  expect(inputs).toHaveLength(2);
+  expect(reopened.store.record("item", "task:r1:input")?.body).toMatchObject({
+    queueState: "handled",
+  });
+  const continuation = inputs.find((row) => row.id !== "task:r1:input");
+  expect(continuation?.body).toMatchObject({ queueState: "queued" });
+  expect(JSON.stringify(continuation?.body)).toContain("continue from where you stopped");
+  reopened.close();
+  const again = await f.open();
+  expect(again.store.snapshot(["item"]).item?.filter((row) => row.kind === "user")).toHaveLength(2);
+});
+
 it("rejects scope changes, duplicate canonical IDs and known private values before writing", async () => {
   const f = await fixture(),
     secret = randomBytes(32).toString("base64url");

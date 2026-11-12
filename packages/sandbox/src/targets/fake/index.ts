@@ -42,6 +42,7 @@ interface FakeSandbox {
   env: Record<string, string>;
   state: "running" | "sleeping";
   groups: Set<number>;
+  exits: Set<Promise<unknown>>;
 }
 
 const capabilities: SandboxCapabilities = {
@@ -118,6 +119,7 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
         env: { ...spec.env },
         state: "running",
         groups: new Set(),
+        exits: new Set(),
       });
       return { target: id, id: sandboxId, workdir: root };
     },
@@ -125,15 +127,20 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
     async wake(ref) {
       const box = get(ref, false);
       if (box.state === "running") return;
-      signal(box, "SIGCONT");
+      if (target.capabilities.sleepKeepsProcesses) signal(box, "SIGCONT");
       box.state = "running";
     },
 
     async sleep(ref) {
       const box = get(ref, false);
       if (box.state === "sleeping") return;
-      signal(box, "SIGSTOP");
       box.state = "sleeping";
+      if (target.capabilities.sleepKeepsProcesses) signal(box, "SIGSTOP");
+      else {
+        signal(box, "SIGKILL");
+        box.groups.clear();
+        await Promise.allSettled([...box.exits]);
+      }
     },
 
     async destroy(ref) {
@@ -160,6 +167,11 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
           // Already gone.
         }
       });
+      box.exits.add(channel.exit);
+      void channel.exit.then(
+        () => box.exits.delete(channel.exit),
+        () => box.exits.delete(channel.exit),
+      );
       child = spawn(command, args, {
         cwd,
         detached: true,
