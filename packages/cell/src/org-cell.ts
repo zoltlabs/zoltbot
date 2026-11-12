@@ -9,6 +9,7 @@ import { CloudRpc, safeError } from "./cloud-rpc.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import { CellMacBridge } from "./mac-bridge.js";
+import { CellPublications } from "./publications.js";
 import { CellRunners } from "./runners.js";
 import { CellSandboxes } from "./sandboxes.js";
 import { seedCell } from "./seed.js";
@@ -132,6 +133,19 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       () => Date.now(),
       () => !this.deleted,
       (taskId) => answers.pending(taskId) || commands.pending(taskId),
+    );
+  }
+  private publications(store: Store) {
+    if (this.deleted || !this.service) throw new Error("unauthorized");
+    const identity = store.database
+      .prepare("SELECT org_id,user_id FROM cell_identity WHERE id=1")
+      .get() as { org_id: string; user_id: string };
+    return new CellPublications(
+      store,
+      this.service,
+      identity.org_id,
+      identity.user_id,
+      () => !this.deleted,
     );
   }
   private async broadcast(store: Store) {
@@ -353,6 +367,8 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         });
       });
       if (this.deleted) return;
+      const publicationWork = await this.publications(store).tick();
+      if (this.deleted) return;
       const retry = await new CellLeases(store).checkPresence(
         (taskId, operationId) => sandboxes.wake(taskId, operationId),
         Date.now(),
@@ -362,7 +378,8 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       await this.broadcast(store);
       if (next !== undefined) await this.schedule(Math.max(1, next - Date.now()));
       if (answerAlarm !== undefined) await this.schedule(Math.max(1, answerAlarm - Date.now()));
-      if (retry || pending || this.ctx.getWebSockets().length) await this.schedule();
+      if (retry || pending || publicationWork || this.ctx.getWebSockets().length)
+        await this.schedule();
     } catch {
       for (const socket of this.ctx.getWebSockets()) socket.close(1008, "unauthorized");
       await this.schedule();

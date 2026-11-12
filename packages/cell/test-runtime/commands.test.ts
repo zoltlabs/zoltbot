@@ -230,3 +230,65 @@ it("refuses to persist a private native answer in the command queue", async () =
     expect(commands.pending("task")).toBe(false);
   });
 });
+
+it("fences exact-head publication results and preserves the proof across eviction", async () => {
+  const stub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(crypto.randomUUID()));
+  const result = await runInDurableObject(stub, (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    new CellLeases(store).assign("task", "runner", claims());
+    const commands = new CellCommands(store);
+    const task = store.record("task", "task"),
+      project = store.record("project", String(task?.projectId));
+    const repository = (project?.cloud as { repository: string }).repository;
+    const result = {
+      taskId: "task",
+      revision: 1,
+      head: "b".repeat(40),
+      branch: "zoltbot/task",
+      repository,
+      pushed: true,
+    };
+    commands.enqueue("task", "push", {
+      type: "push_branch",
+      revision: 1,
+      head: result.head,
+      branch: result.branch,
+    });
+    expect(commands.published("task", "push")).toEqual({ state: "pending" });
+    for (const changed of [
+      { taskId: "other" },
+      { revision: 2 },
+      { head: "c".repeat(40) },
+      { branch: "main" },
+      { repository: "other/repository" },
+      { extra: true },
+    ]) {
+      expect(() =>
+        commands.result(claims(), "runner", {
+          id: "runner-command:push",
+          result: { ...result, ...changed },
+        }),
+      ).toThrow();
+    }
+    expect(() =>
+      commands.result({ ...claims(), device: "other" }, "other", {
+        id: "runner-command:push",
+        result,
+      }),
+    ).toThrow("forbidden");
+    commands.result(claims(), "runner", { id: "runner-command:push", result });
+    commands.result(claims(), "runner", { id: "runner-command:push", result });
+    expect(() => commands.published("other", "push")).toThrow("forbidden");
+    expect(commands.pending("task")).toBe(false);
+    return result;
+  });
+  await evictDurableObject(stub);
+  await runInDurableObject(stub, (_instance, state) => {
+    const store = new Store(new CellSqlDriver(state.storage)),
+      commands = new CellCommands(store);
+    expect(commands.published("task", "push")).toEqual({ state: "complete", result });
+    expect(
+      store.database.prepare("SELECT count(*) AS n FROM cell_runner_publications").get(),
+    ).toEqual({ n: 1 });
+  });
+});

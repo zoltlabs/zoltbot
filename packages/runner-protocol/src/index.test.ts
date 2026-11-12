@@ -72,3 +72,22 @@ it("accepts RPC results and errors without treating them as runner commands", ()
     parseRunnerMessage({ jsonrpc: "2.0", id: "collect", result: {}, method: "runner.stop" }),
   ).toThrow();
 });
+
+it("requires an exact commit and task revision for branch publication", () => {
+  const params = {
+    taskId: "task",
+    leaseId: "lease",
+    commandId: "publish",
+    command: { type: "push_branch", branch: "zoltbot/task", head: "a".repeat(40), revision: 1 },
+  };
+  const message = { jsonrpc: "2.0", id: 1, method: "runner.command", params };
+  expect(() => parseRunnerMessage(message)).not.toThrow();
+  for (const command of [
+    { type: "push_branch", branch: "zoltbot/task" },
+    { ...params.command, head: "HEAD" },
+    { ...params.command, revision: 0 },
+    { ...params.command, previousHead: "main" },
+  ]) {
+    expect(() => parseRunnerMessage({ ...message, params: { ...params, command } })).toThrow();
+  }
+});

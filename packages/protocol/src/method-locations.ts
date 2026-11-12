@@ -75,6 +75,8 @@ const cloudSharedMethods: readonly MethodName[] = [
   "task.retry",
   "task.review",
   "task.changes",
+  "shipping.get",
+  "shipping.refresh",
   "audit.list",
 ];
 

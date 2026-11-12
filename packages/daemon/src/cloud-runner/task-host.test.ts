@@ -101,6 +101,7 @@ async function fixture() {
     modes: string[] = [],
     statuses: string[] = [];
   const vault = new Map<string, unknown>();
+  let assertPublic: (value: unknown) => Promise<void> = async () => {};
   let currentStore: Store | undefined;
   let currentCwd = "";
   let closes = 0,
@@ -121,7 +122,7 @@ async function fixture() {
       currentStore = store;
       currentCwd = cwd;
       return {
-        async assertPublic() {},
+        assertPublic: (value) => assertPublic(value),
         secrets: {
           async put(value) {
             const reference = `keychain:zoltbot:${randomUUID()}`;
@@ -169,6 +170,10 @@ async function fixture() {
   };
   return {
     root,
+    remote,
+    setPrivacyGuard(guard: (value: unknown) => Promise<void>) {
+      assertPublic = guard;
+    },
     lease,
     execution,
     get store() {
@@ -461,4 +466,70 @@ it("keeps one native runtime and replays its journal through a disconnect from a
   expect(f.natives).toHaveLength(1);
   expect(f.natives[0]?.sends).toBe(1);
   expect(applied.size).toBe(cursor);
+});
+
+it("publishes the current reviewed task commit through its pinned repository and refuses stale or private history", async () => {
+  const f = await fixture(),
+    task = await f.start();
+  await expect.poll(() => done(f)).toBe(1);
+  const git = (args: string[]) =>
+    execFileSync("git", args, {
+      cwd: f.cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  await writeFile(path.join(f.cwd, "README.md"), "Reviewed result\n");
+  git(["add", "."]);
+  git([
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "Reviewed change",
+  ]);
+  const head = git(["rev-parse", "HEAD"]),
+    revision = Number(f.store.record("task", "task")?.revision);
+  const frame = {
+    taskId: "task",
+    leaseId: "lease",
+    commandId: "publish",
+    command: { type: "push_branch" as const, head, revision, branch: "zoltbot/review" },
+  };
+  await expect(
+    task.command(
+      { ...frame, command: { ...frame.command, revision: revision + 1 } },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("stale_revision");
+  f.setPrivacyGuard(async (value) => {
+    if (typeof value === "string" && value.includes("Reviewed result\n"))
+      throw new Error("private_context");
+  });
+  await expect(task.command(frame, f.controller.signal)).rejects.toThrow(
+    "managed_publication_unavailable",
+  );
+  expect(
+    execFileSync("git", ["ls-remote", "--heads", f.remote, "refs/heads/zoltbot/review"], {
+      encoding: "utf8",
+    }),
+  ).toBe("");
+  f.setPrivacyGuard(async () => {});
+  expect(await task.command(frame, f.controller.signal)).toEqual({
+    taskId: "task",
+    revision,
+    head,
+    branch: "zoltbot/review",
+    repository: f.execution.project.cloud?.repository,
+    pushed: true,
+  });
+  expect(await task.command(frame, f.controller.signal)).toEqual({
+    taskId: "task",
+    revision,
+    head,
+    branch: "zoltbot/review",
+    repository: f.execution.project.cloud?.repository,
+    pushed: true,
+  });
 });

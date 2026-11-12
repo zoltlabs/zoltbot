@@ -20,6 +20,12 @@ interface Binding extends ManagedWorkspaceInput {
   stage: "prepared" | "ready";
   baseCommit: string;
 }
+export interface ManagedPublication {
+  head: string;
+  branch: string;
+  /** Omit on first publication; later updates pin the previously published commit. */
+  previousHead?: string;
+}
 
 /** Each task owns a clone. Control files live beside it, never inside an agent's worktree. */
 export class ManagedWorkspaces {
@@ -34,6 +40,183 @@ export class ManagedWorkspaces {
       sandbox?: { orgId: string; taskId: string; workDirectory: string };
     },
   ) {}
+  /** Publishes one reviewed commit to the task's pinned repository; never an implicit HEAD or force push. */
+  async publish(
+    input: ManagedWorkspaceInput,
+    proposal: ManagedPublication,
+    signal: AbortSignal,
+    authorize: (content?: string) => Promise<void>,
+  ) {
+    const scope = {
+      orgId: input.orgId,
+      taskId: input.taskId,
+      repository: input.repository,
+      defaultBranch: input.defaultBranch,
+    };
+    const sha = (value: unknown) =>
+      typeof value === "string" && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
+    try {
+      const frozen = structuredClone(proposal);
+      if (
+        !sha(frozen.head) ||
+        (frozen.previousHead !== undefined && !sha(frozen.previousHead)) ||
+        typeof authorize !== "function" ||
+        !frozen.branch ||
+        frozen.branch.length > 200 ||
+        frozen.branch.startsWith("-") ||
+        /[\0\r\n]/.test(frozen.branch) ||
+        ["main", "master", "HEAD", scope.defaultBranch].includes(frozen.branch) ||
+        Object.keys(frozen).some((key) => !["head", "branch", "previousHead"].includes(key))
+      )
+        throw new Error();
+      const workspace = await this.prepare(scope, signal),
+        destination = this.remote(scope);
+      const check = async () => {
+        if (signal.aborted) throw new Error();
+        const current = await this.prepare(scope, signal);
+        if (current.cwd !== workspace.cwd || current.baseCommit !== workspace.baseCommit)
+          throw new Error();
+        let shallow = false;
+        try {
+          await lstat(path.join(workspace.cwd, ".git", "shallow"));
+          shallow = true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        if (shallow) throw new Error();
+        const keys = (
+          await this.git(
+            workspace.cwd,
+            ["config", "--local", "--name-only", "--list"],
+            undefined,
+            signal,
+          )
+        ).split("\n");
+        // Local networking/filter configuration cannot redirect the credential-bearing operation.
+        if (
+          keys.some(
+            (key) =>
+              (/^remote\./i.test(key) &&
+                !["remote.origin.url", "remote.origin.fetch"].includes(key.toLowerCase())) ||
+              /^(?:https?\.|url\.|include(?:if)?\.|credential\.|filter\.|protocol\.|core\.(?:sshcommand|gitproxy)$)/i.test(
+                key,
+              ),
+          )
+        )
+          throw new Error();
+        await this.git(
+          workspace.cwd,
+          ["check-ref-format", `refs/heads/${frozen.branch}`],
+          undefined,
+          signal,
+        );
+        if (
+          (await this.git(workspace.cwd, ["rev-parse", "--verify", "HEAD"], undefined, signal)) !==
+            frozen.head ||
+          (await this.git(
+            workspace.cwd,
+            ["status", "--porcelain=v1", "--untracked-files=all"],
+            undefined,
+            signal,
+          ))
+        )
+          throw new Error();
+        await this.git(
+          workspace.cwd,
+          ["merge-base", "--is-ancestor", workspace.baseCommit, frozen.head],
+          undefined,
+          signal,
+        );
+        await authorize();
+        if (signal.aborted) throw new Error();
+      };
+      await check();
+      // Scan every new reachable object, including content deleted in later commits.
+      // A net diff alone cannot protect credentials hidden in intermediate history.
+      const objects = (
+        await this.git(
+          workspace.cwd,
+          ["rev-list", "--objects", "--no-object-names", frozen.head, `^${workspace.baseCommit}`],
+          undefined,
+          signal,
+        )
+      )
+        .split("\n")
+        .filter(Boolean);
+      if (objects.length > 1024 || objects.some((id) => !sha(id))) throw new Error();
+      let inspected = 0;
+      for (const id of objects) {
+        const content = await this.git(
+          workspace.cwd,
+          ["cat-file", "-p", id],
+          undefined,
+          signal,
+          1048576,
+          true,
+        );
+        inspected += Buffer.byteLength(content);
+        if (inspected > 8 * 1024 * 1024) throw new Error();
+        await authorize(content);
+        if (signal.aborted) throw new Error();
+      }
+      await check();
+      const token = await this.credentials(signal);
+      if (!this.options.localRepository && !token) throw new Error();
+      await check();
+      const remoteHead = async () => {
+        const output = await this.git(
+          workspace.cwd,
+          ["ls-remote", "--refs", destination, `refs/heads/${frozen.branch}`],
+          token,
+          signal,
+        );
+        if (!output) return "";
+        const fields = output.split(/\s+/);
+        if (fields.length !== 2 || !sha(fields[0]) || fields[1] !== `refs/heads/${frozen.branch}`)
+          throw new Error();
+        return fields[0] as string;
+      };
+      const previous = await remoteHead();
+      if (previous === frozen.head)
+        return {
+          head: frozen.head,
+          branch: frozen.branch,
+          repository: scope.repository,
+          pushed: true as const,
+        };
+      if (previous !== (frozen.previousHead ?? "")) throw new Error();
+      await check();
+      try {
+        await this.git(
+          workspace.cwd,
+          [
+            "-c",
+            "push.followTags=false",
+            "push",
+            "--porcelain",
+            destination,
+            `${frozen.head}:refs/heads/${frozen.branch}`,
+          ],
+          token,
+          signal,
+        );
+      } catch {
+        // A lost reply can be reconciled, but never triggers a second push here.
+        if (signal.aborted || (await remoteHead()) !== frozen.head) throw new Error();
+      }
+      if ((await remoteHead()) !== frozen.head) throw new Error();
+      return {
+        head: frozen.head,
+        branch: frozen.branch,
+        repository: scope.repository,
+        pushed: true as const,
+      };
+    } catch {
+      throw new Error(
+        signal.aborted ? "managed_workspace_canceled" : "managed_publication_unavailable",
+      );
+    }
+  }
   prepare(input: ManagedWorkspaceInput, signal: AbortSignal): Promise<ManagedWorkspaceResult> {
     const frozen = structuredClone(input);
     const sandbox = this.options.sandbox;
@@ -297,6 +480,8 @@ export class ManagedWorkspaces {
     args: readonly string[],
     token: string | undefined,
     signal: AbortSignal,
+    maxBytes = 65536,
+    raw = false,
   ): Promise<string> {
     const config: Record<string, string> = {
       "credential.helper": "",
@@ -317,6 +502,8 @@ export class ManagedWorkspaces {
       GIT_CONFIG_NOSYSTEM: "1",
       GIT_CONFIG_GLOBAL: "/dev/null",
       GIT_TERMINAL_PROMPT: "0",
+      GIT_NO_REPLACE_OBJECTS: "1",
+      GIT_GRAFT_FILE: "/dev/null",
       GIT_ASKPASS: "/usr/bin/false",
       GIT_CONFIG_COUNT: String(Object.keys(config).length),
     };
@@ -348,8 +535,8 @@ export class ManagedWorkspaces {
         }
         (child.stdio[3] as NodeJS.ReadableStream & { destroy?(): void })?.destroy?.();
       });
+      const output: Buffer[] = [];
       let bytes = 0,
-        output = "",
         stopped = false;
       const stop = () => {
         stopped = true;
@@ -363,12 +550,12 @@ export class ManagedWorkspaces {
       const timer = setTimeout(stop, 120000);
       child.stdout.on("data", (data: Buffer) => {
         bytes += data.length;
-        if (bytes > 65536) stop();
-        else output += data.toString("utf8");
+        if (bytes > maxBytes) stop();
+        else output.push(data);
       });
       child.stderr.on("data", (data: Buffer) => {
         bytes += data.length;
-        if (bytes > 65536) stop();
+        if (bytes > maxBytes) stop();
       });
       const finish = () => {
         clearTimeout(timer);
@@ -382,7 +569,10 @@ export class ManagedWorkspaces {
         finish();
         if (signal.aborted) reject(new Error("managed_workspace_canceled"));
         else if (stopped || code !== 0) reject(new Error("managed_workspace_unavailable"));
-        else resolve(output.trimEnd());
+        else {
+          const text = Buffer.concat(output).toString("utf8");
+          resolve(raw ? text : text.trimEnd());
+        }
       });
     });
   }

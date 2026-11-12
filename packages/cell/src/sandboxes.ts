@@ -312,7 +312,8 @@ export class CellSandboxes {
           task.state === "queued" ||
           (["running", "blocked"].includes(task.state) && queuedInput) ||
           (task.state === "blocked" && task.holdReason === "daemon_restarted") ||
-          (["running", "review", "blocked"].includes(task.state) && this.pendingWork(task.id))
+          (["running", "review", "blocked", "completed"].includes(task.state) &&
+            this.pendingWork(task.id))
         ) {
           await this.ensure(task.id);
           schedule(now + 15000);

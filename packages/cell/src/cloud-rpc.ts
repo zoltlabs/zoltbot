@@ -30,6 +30,7 @@ import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import { CellMacRecords } from "./mac-records.js";
 import { CellMacStreams } from "./mac-streams.js";
+import { CellPublications } from "./publications.js";
 import type { CellService } from "./service.js";
 
 const metadata: readonly EntityKind[] = [
@@ -73,6 +74,8 @@ const publicErrors = new Set([
   "invalid_attachment",
   "view_context_required",
   "mac_output_unavailable",
+  "review_changes_unavailable",
+  "publication_pending",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -241,6 +244,15 @@ export class CloudRpc {
     const p = request.params as Record<string, unknown>;
     let result: unknown;
     switch (request.method) {
+      case "shipping.get":
+      case "shipping.refresh": {
+        this.owner("task", p.id);
+        result =
+          new CellPublications(this.store, this.service, this.claims.org, this.claims.sub).get(
+            String(p.id),
+          ) ?? null;
+        break;
+      }
       case "task.changes": {
         const value = parse(methodCatalog["task.changes"].params, p);
         const owned = this.owner("task", value.id);
@@ -550,8 +562,14 @@ export class CloudRpc {
         const value = parse(methodCatalog["task.review"].params, p);
         if (!value.confirmed) throw new Error("confirmation_required");
         const owned = this.owner("task", value.id);
-        result = this.mutate(request, owned.scope, (state, context) =>
-          handle(
+        const publications = new CellPublications(
+          this.store,
+          this.service,
+          this.claims.org,
+          this.claims.sub,
+        );
+        result = this.mutate(request, owned.scope, (state, context) => {
+          const outcome = handle(
             state,
             {
               type: "review",
@@ -561,8 +579,19 @@ export class CloudRpc {
               ...(value.feedback ? { feedback: value.feedback } : {}),
             },
             context,
-          ),
-        );
+          );
+          if (value.decision === "accept") {
+            if (!value.reviewedCommit) throw new Error("review_changes_unavailable");
+            publications.enqueue(
+              value.id,
+              value.revision,
+              value.reviewedCommit,
+              `zoltbot/task-${request.commandId?.slice(0, 24)}`,
+              `publish:${context.commandId}`,
+            );
+          }
+          return outcome;
+        });
         break;
       }
       case "task.update": {

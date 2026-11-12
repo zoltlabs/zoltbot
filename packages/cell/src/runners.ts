@@ -6,6 +6,7 @@ import {
   ProfileSchema,
   ProjectSchema,
   parse,
+  type Task,
   TaskSchema,
   ThreadSchema,
 } from "@zoltbot/protocol";
@@ -72,6 +73,13 @@ export class CellRunners {
       .get(data.runnerId) as { connection_id: string } | undefined;
     return row?.connection_id === data.connectionId;
   }
+  private canFinishPublication(task: Task) {
+    return (
+      task.state === "completed" &&
+      task.reviewState === "accept" &&
+      new CellCommands(this.store).reviewPending(task.id)
+    );
+  }
   private async lease(taskId: string, claims: CellTokenClaims): Promise<RunnerLease> {
     let task = parse(TaskSchema, this.store.record("task", taskId));
     if (task.state === "queued") {
@@ -99,7 +107,10 @@ export class CellRunners {
     const assigned = this.leases.get(taskId);
     if (!assigned || assigned.runnerId !== claims.device) throw new Error("forbidden");
     this.leases.require(taskId, assigned.leaseId, claims.device, claims);
-    if (["completed", "cancelled", "failed"].includes(task.state))
+    if (
+      ["completed", "cancelled", "failed"].includes(task.state) &&
+      !this.canFinishPublication(task)
+    )
       throw new Error("task_not_running");
     const project = parse(ProjectSchema, this.store.record("project", String(task.projectId)));
     if (!project.cloud) throw new Error("forbidden");
@@ -127,15 +138,21 @@ export class CellRunners {
         .run(task.id, task.revision, JSON.stringify(configuration));
     const hash = await digest(configuration);
     const fresh = parse(TaskSchema, this.store.record("task", task.id));
-    if (["completed", "cancelled", "failed"].includes(fresh.state))
+    if (
+      ["completed", "cancelled", "failed"].includes(fresh.state) &&
+      !this.canFinishPublication(fresh)
+    )
       throw new Error("task_not_running");
-    const queued = (
-      this.store.database
-        .prepare(
-          "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 8",
-        )
-        .all(thread.id) as { id: string }[]
-    ).map((row) => parse(ItemSchema, this.store.record("item", row.id)));
+    const queued =
+      fresh.state === "completed"
+        ? []
+        : (
+            this.store.database
+              .prepare(
+                "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 8",
+              )
+              .all(thread.id) as { id: string }[]
+          ).map((row) => parse(ItemSchema, this.store.record("item", row.id)));
     const sessions = this.store.read({ taskId }, ["session"]).session ?? [];
     const native = sessions
       .filter((row) => row.threadId === thread.id && typeof row.nativeId === "string")
@@ -201,7 +218,11 @@ export class CellRunners {
           : [];
     for (const taskId of new Set([...existing, ...queued])) {
       const task = parse(TaskSchema, this.store.record("task", taskId));
-      if (!["queued", "running", "review", "blocked"].includes(task.state)) continue;
+      if (
+        !["queued", "running", "review", "blocked"].includes(task.state) &&
+        !this.canFinishPublication(task)
+      )
+        continue;
       const currentLease = this.leases.get(taskId);
       if (currentLease && currentLease.runnerId !== hello.runnerId) continue;
       if (

@@ -280,7 +280,57 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
               revision,
             });
           }
-          // Diff/publication needs the bounded result protocol before results can cross the socket.
+          if (command.type === "push_branch") {
+            const publicationRunner = runtime.runner,
+              publicationResources = resources;
+            const revision = Number(cache.store.record("task", initial.taskId)?.revision);
+            if (command.revision !== revision) throw new Error("stale_revision");
+            const currentRevision = () => {
+              check();
+              if (
+                signal.aborted ||
+                Number(cache?.store.record("task", initial.taskId)?.revision) !== revision
+              )
+                throw new Error("stale_revision");
+            };
+            options.guard(command);
+            await resources.assertPublic(command);
+            currentRevision();
+            const result = await options.workspaces.publish(
+              {
+                orgId: options.orgId,
+                taskId: initial.taskId,
+                repository: cloud.repository,
+                defaultBranch: cloud.defaultBranch,
+              },
+              {
+                head: command.head,
+                branch: command.branch,
+                ...(command.previousHead ? { previousHead: command.previousHead } : {}),
+              },
+              signal,
+              async (content) => {
+                currentRevision();
+                // The managed publisher also supplies intermediate Git objects. Never persist them.
+                const value =
+                  content ??
+                  (await publicationRunner.collectResult({
+                    cwd: workspace.cwd,
+                    baseRef: workspace.baseCommit,
+                  }));
+                options.guard(value);
+                await publicationResources.assertPublic(value);
+                currentRevision();
+              },
+            );
+            currentRevision();
+            return parseRunnerCommandResult("push_branch", {
+              ...result,
+              taskId: initial.taskId,
+              revision,
+            });
+          }
+          // Unknown commands never reach a native process or credential-bearing Git operation.
           throw new Error("runner_command_unavailable");
         },
         close,

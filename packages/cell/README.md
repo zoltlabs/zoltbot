@@ -324,4 +324,36 @@ Only four snapshots per task remain; older command IDs report failure rather tha
 queueing another collection. A fresh command ID requests a new snapshot.
 Pending runner commands wake sleeping review tasks and prevent idle sleep while
 the request is unfinished. Lifetime limits still apply. Full view-presence tracking,
-review commits, exact-head push/PR handling and client polling remain unfinished.
+review commits and client polling remain unfinished.
+
+Branch-publication acknowledgements now require the queued command's exact head,
+branch and revision and the task project's repository. They use a separate durable
+proof table, so refreshing diffs cannot remove a publication acknowledgement.
+Only the current authenticated lease can complete the command. Wrong fields and
+extra result properties are refused, duplicate replies save one proof, and the
+proof survives object eviction. Review commits and client presentation remain unfinished; this is not W4 sign-off.
+
+
+Cloud `task.review` acceptance requires `reviewedCommit` from a completed,
+current-revision, clean and complete diff snapshot. Local callers retain the
+existing optional-free call shape. The review receipt, accepted head and push
+command commit in the same transaction. A failed review rolls all three back.
+The destination branch is derived from the first acceptance command identity;
+subsequent accepted revisions retain it and pin the previously published head.
+
+Alarms wait for the exact runner push proof, then request the PR through the
+configured Global service. The journal retains uncertain PR work for retry;
+the Global service reconciles existing PRs by branch/base/commit. Deletion and
+task/repository changes fence late replies before persistence. `shipping.get`
+and `shipping.refresh` expose the durable publication state and PR link; refresh
+reads state while alarms own retries. These existing JSON methods are now shared
+with cloud cells. There is no cloud merge operation.
+
+PRs use the fixed title `Zoltbot task changes` and an empty body. This package
+choice keeps task briefs, transcripts and private answers out of GitHub metadata.
+Sleeping accepted tasks wake for pending publication before their existing
+24-hour retention expires. A reconnect can obtain the original lease for pending
+review work, with no queued agent inputs; completion withdraws that maintenance
+offer. Tests cover RPC receipts, rollback, scoped proofs, eviction, uncertain PR
+replies, invalid URLs, deletion fences, wake and runner reconnect. Uncommitted
+changes still require the unfinished review-commit path. W4 and W8 remain open.

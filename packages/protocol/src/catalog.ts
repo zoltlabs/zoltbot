@@ -473,6 +473,7 @@ const rawMethodCatalog = {
       id: Id,
       revision: Type.Integer({ minimum: 1 }),
       decision: values(["accept", "changes", "reject"]),
+      reviewedCommit: Type.Optional(Type.String({ pattern: "^[a-f0-9]{40}$" })),
       feedback: OptionalText,
       confirmed: Type.Boolean(),
     }),

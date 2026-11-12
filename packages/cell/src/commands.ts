@@ -1,5 +1,11 @@
 import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
-import { InteractionSchema, parse, privateAnswerValues, TaskSchema } from "@zoltbot/protocol";
+import {
+  InteractionSchema,
+  ProjectSchema,
+  parse,
+  privateAnswerValues,
+  TaskSchema,
+} from "@zoltbot/protocol";
 import {
   parseRunnerCommandResult,
   type RunnerCommand,
@@ -28,6 +34,28 @@ export class CellCommands {
     store.database.exec(
       "CREATE TABLE IF NOT EXISTS cell_runner_command_results(command_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL)",
     );
+    store.database.exec(
+      "CREATE TABLE IF NOT EXISTS cell_runner_publications(command_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL)",
+    );
+  }
+  published(taskId: string, commandId: string) {
+    const row = this.store.database
+      .prepare("SELECT task_id,state,body FROM cell_runner_commands WHERE id=?")
+      .get(commandId) as { task_id: string; state: string; body: string } | undefined;
+    if (!row) return undefined;
+    if (row.task_id !== taskId) throw new Error("forbidden");
+    if (parse(RunnerCommandSchema, JSON.parse(row.body)).command.type !== "push_branch")
+      throw new Error("command_conflict");
+    if (row.state === "failed") return { state: "failed" as const };
+    const result = this.store.database
+      .prepare("SELECT body FROM cell_runner_publications WHERE command_id=? AND task_id=?")
+      .get(commandId, taskId) as { body: string } | undefined;
+    return result
+      ? {
+          state: "complete" as const,
+          result: parseRunnerCommandResult("push_branch", JSON.parse(result.body)),
+        }
+      : { state: row.state === "complete" ? ("failed" as const) : ("pending" as const) };
   }
   collected(taskId: string, commandId: string) {
     const row = this.store.database
@@ -80,6 +108,13 @@ export class CellCommands {
       )
       .run(commandId, taskId, lease.leaseId, lease.runnerId, body);
     return value;
+  }
+  reviewPending(taskId: string): boolean {
+    return !!this.store.database
+      .prepare(
+        "SELECT id FROM cell_runner_commands WHERE task_id=? AND state='pending' AND json_extract(body,'$.command.type') IN ('collect_diff','push_branch') LIMIT 1",
+      )
+      .get(taskId);
   }
   pending(taskId: string): boolean {
     return !!this.store.database
@@ -165,8 +200,37 @@ export class CellCommands {
         .immediate();
       return;
     }
-    // Publication results need the expected reviewed commit before they can be accepted.
-    if (command.type === "push_branch") throw new Error("method_unavailable");
+    if (command.type === "push_branch" && response.result !== undefined) {
+      if (response.error !== undefined) throw new Error("forbidden");
+      const value = parseRunnerCommandResult("push_branch", response.result);
+      const task = parse(TaskSchema, this.store.record("task", row.task_id));
+      if (!task.projectId) throw new Error("forbidden");
+      const project = parse(ProjectSchema, this.store.record("project", task.projectId));
+      if (
+        value.taskId !== row.task_id ||
+        value.revision !== task.revision ||
+        value.revision !== command.revision ||
+        value.head !== command.head ||
+        value.branch !== command.branch ||
+        value.repository !== project.cloud?.repository
+      )
+        throw new Error("forbidden");
+      this.store.database
+        .transaction(() => {
+          this.store.database
+            .prepare(
+              "INSERT INTO cell_runner_publications(command_id,task_id,revision,body) VALUES(?,?,?,?)",
+            )
+            .run(id, row.task_id, value.revision, JSON.stringify(value));
+          this.store.database
+            .prepare(
+              "UPDATE cell_runner_commands SET state='complete' WHERE id=? AND state='pending'",
+            )
+            .run(id);
+        })
+        .immediate();
+      return;
+    }
     const value = response.result;
     if (
       !(

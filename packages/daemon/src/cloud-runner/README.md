@@ -168,8 +168,8 @@ An exception from a host's readiness check also withdraws it.
 Turn commands, interaction answers, interrupts and stop use the existing runner
 and interaction engine. The command input ID is canonical when supplied; older
 frames without it use a stable command-derived ID. Only the Cell drives interaction
-timers. Diff collection and branch publication remain refused until their bounded
-wire results are implemented. Native assembly is available below; daemon opt-in
+timers. Diff collection and branch publication use bounded wire results; the
+acceptance and PR flow remains unfinished. Native assembly is available below; daemon opt-in
 and signed Mac execution are not connected yet.
 
 Tests drive real `InProcessRunner` instances with synthetic native sessions and
@@ -424,4 +424,31 @@ The host refuses a changed binding or task revision, checks injected credentials
 and private human answers through the task vault, then validates the bounded
 result before sending it. Missing private context fails closed. Large results that exceed the
 wire budget fail rather than sending an incomplete unmarked payload. Local diff
-collection is unchanged. Review commits and branch publication remain unfinished.
+collection is unchanged. Review commits and the acceptance/PR flow remain unfinished.
+
+## Reviewed branch publication (in progress)
+
+The runner's `push_branch` command now requires a task revision and exact commit.
+It publishes only from the task's pinned managed checkout to its pinned repository.
+A clean worktree and unchanged HEAD are required before credential lookup and
+again before the push. Protected/default branches, unsafe local Git transport
+configuration, branch collisions and non-fast-forward updates fail closed. A later
+publication names the previously published head. Git receives an explicit commit
+and destination ref, without force, hooks, redirects or credential helpers.
+Credentials live only in the child environment. A lost reply is reconciled by
+reading that exact remote ref, without a second push in the same attempt.
+
+The native host checks the command, current diff and every newly reachable Git
+object against its credential guard and encrypted private context. This includes
+intermediate commits and deleted content that the final diff cannot reveal.
+Inspection is bounded to 1,024 objects, 1 MiB per object and 8 MiB total; exceeding
+any bound refuses publication. Object contents stay in memory and never enter the
+outbox, event log or result. Inspection ignores replacement refs and grafts and refuses shallow history.
+The published head must retain the pinned task base as an ancestor.
+These conservative limits are implementation choices for this package.
+
+Headless tests use disposable bare repositories and synthetic native sessions.
+They cover stale revisions, private intermediate history, retries, branch
+collisions and a simulated lost push reply. The Cell saves an authenticated,
+revision-bound exact-head acknowledgement; cloud acceptance now queues this command and alarms request the PR after proof. No real repository is pushed
+by these tests. This does not complete W4 or W8.

@@ -137,6 +137,9 @@ export const RunnerCommandSchema = object({
     object({ type: Type.Literal("collect_diff"), revision: Type.Optional(seq) }),
     object({
       type: Type.Literal("push_branch"),
+      revision: seq,
+      head: Type.String({ pattern: "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }),
+      previousHead: Type.Optional(Type.String({ pattern: "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" })),
       branch: Type.String({ minLength: 1, maxLength: 200 }),
     }),
   ]),
