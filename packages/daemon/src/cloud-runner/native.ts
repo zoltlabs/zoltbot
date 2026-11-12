@@ -29,6 +29,8 @@ export interface NativeCloudTasksOptions
     taskId: string,
     signal: AbortSignal,
   ): Promise<string | undefined>;
+  /** Memory-only host credentials to redact before native frames or observations can be logged. */
+  privateValues?(): readonly string[];
   /** Trusted native discovery ports, also used by the headless protocol fixtures. */
   native?: Omit<Parameters<typeof providerHosts>[0], "directory" | "overrides">;
 }
@@ -184,6 +186,8 @@ export function nativeCloudTasks(options: NativeCloudTasksOptions) {
           host: {
             async prepare(request, redactor) {
               check(signal);
+              for (const value of options.privateValues?.() ?? []) redactor.register(value);
+              if (options.privateValues) redactor.hideFrames();
               const provider = request.definition.adapter;
               const env = environmentName(provider);
               if (!env || (provider !== "claude" && provider !== "codex"))

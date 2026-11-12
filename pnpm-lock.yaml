@@ -151,6 +151,70 @@ importers:
         specifier: ~19.3.0
         version: 19.3.0
 
+  apps/worker:
+    dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 2.0.2
+        version: 2.0.2(zod@4.6.7)
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: 0.3.319
+        version: 0.3.319(@anthropic-ai/sdk@1.6.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(zod@4.6.7)
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.2
+        version: 1.32.2(supports-color@10.2.2)(zod@4.6.7)
+      '@sinclair/typebox':
+        specifier: 0.34.48
+        version: 0.34.48
+      '@zoltbot/adapters-claude':
+        specifier: workspace:*
+        version: link:../../packages/adapters/claude
+      '@zoltbot/adapters-codex':
+        specifier: workspace:*
+        version: link:../../packages/adapters/codex
+      '@zoltbot/cloud-contracts':
+        specifier: workspace:*
+        version: link:../../packages/cloud-contracts
+      '@zoltbot/daemon':
+        specifier: workspace:*
+        version: link:../../packages/daemon
+      '@zoltbot/detect':
+        specifier: workspace:*
+        version: link:../../packages/detect
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@zoltbot/runner-protocol':
+        specifier: workspace:*
+        version: link:../../packages/runner-protocol
+      '@zoltbot/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      ajv:
+        specifier: 8.18.0
+        version: 8.18.0
+      better-sqlite3:
+        specifier: 12.6.2
+        version: 12.6.2
+      js-tiktoken:
+        specifier: 1.0.21
+        version: 1.0.21
+      jsonc-parser:
+        specifier: 3.3.1
+        version: 3.3.1
+      semver:
+        specifier: 7.8.5
+        version: 7.8.5
+      smol-toml:
+        specifier: 1.9.1
+        version: 1.9.1
+      ws:
+        specifier: 8.19.0
+        version: 8.19.0
+    devDependencies:
+      '@zoltbot/tools-fakes':
+        specifier: workspace:*
+        version: link:../../tools/fakes
+
   packages/adapters/acp:
     dependencies:
       '@agentclientprotocol/sdk':

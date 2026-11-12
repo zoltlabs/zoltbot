@@ -1,11 +1,57 @@
 [
-  {"value":"/api/cloud/runner-token","module":false,"allowed":true},
-  {"value":"/api/cloud/runner-grants","module":false,"allowed":true},
-  {"value":"/api/cloud/runner-token","module":true,"allowed":false},
-  {"value":"/api/cloud/runner-grants","module":true,"allowed":false},
-  {"value":"../services/example/src/index.js","module":true,"allowed":false},
-  {"value":"../cloud/src/index.js","module":true,"allowed":false},
-  {"value":"cloud","module":true,"allowed":false},
-  {"value":"cloud","module":false,"allowed":true},
-  {"value":"../services/relay/src/index.js","module":true,"allowed":true}
+  {
+    "value": "/api/cloud/runner-token",
+    "module": false,
+    "allowed": true
+  },
+  {
+    "value": "/api/cloud/runner-grants",
+    "module": false,
+    "allowed": true
+  },
+  {
+    "value": "/api/cloud/runner-token",
+    "module": true,
+    "allowed": false
+  },
+  {
+    "value": "/api/cloud/runner-grants",
+    "module": true,
+    "allowed": false
+  },
+  {
+    "value": "../services/example/src/index.js",
+    "module": true,
+    "allowed": false
+  },
+  {
+    "value": "../cloud/src/index.js",
+    "module": true,
+    "allowed": false
+  },
+  {
+    "value": "cloud",
+    "module": true,
+    "allowed": false
+  },
+  {
+    "value": "cloud",
+    "module": false,
+    "allowed": true
+  },
+  {
+    "value": "../services/relay/src/index.js",
+    "module": true,
+    "allowed": true
+  },
+  {
+    "value": "/api/cloud/worker-token",
+    "module": false,
+    "allowed": true
+  },
+  {
+    "value": "/api/cloud/worker-token",
+    "module": true,
+    "allowed": false
+  }
 ]

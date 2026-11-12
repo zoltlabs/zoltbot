@@ -62,12 +62,12 @@ function item(threadId: string, turnId: string, value: Record<string, unknown>, 
     ...(completed ? { completedAtMs: 0 } : { startedAtMs: 0 }),
   });
 }
-function finish(threadId: string, turnId: string, status = "completed") {
+function finish(threadId: string, turnId: string, status = "completed", reply = "ok") {
   if (status === "completed")
     item(threadId, turnId, {
       type: "agentMessage",
       id: `message-${turnId}`,
-      text: "ok",
+      text: reply,
       phase: "final_answer",
     });
   active.delete(threadId);
@@ -186,7 +186,13 @@ async function run(threadId: string, turnId: string, text: string) {
         },
       },
     });
-  if (text === "host_tools" || text === "delegate" || text in workspaceRequests) {
+  let reply = "ok";
+  if (
+    text === "host_tools" ||
+    text === "host_tools_echo" ||
+    text === "delegate" ||
+    text in workspaceRequests
+  ) {
     const host = hosts.get(threadId);
     if (!host) throw new Error("host_missing");
     const result = await callFixtureHost(
@@ -214,9 +220,15 @@ async function run(threadId: string, turnId: string, text: string) {
       status: "completed",
       result: { content: [{ type: "text", text: result }] },
     });
+    if (text === "host_tools_echo") reply = result;
   }
-  notify("item/agentMessage/delta", { threadId, turnId, itemId: `message-${turnId}`, delta: "ok" });
-  finish(threadId, turnId);
+  notify("item/agentMessage/delta", {
+    threadId,
+    turnId,
+    itemId: `message-${turnId}`,
+    delta: reply,
+  });
+  finish(threadId, turnId, "completed", reply);
 }
 process.stderr.write("ZOLTBOT_FAKE_READY\n");
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {

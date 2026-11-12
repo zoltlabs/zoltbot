@@ -116,3 +116,6 @@ export const CloudRunnerGrantResultSchema = object({
 });
 export const CloudRunnerGrantListSchema = object({ grants: Type.Array(CloudRunnerGrantSchema) });
 export type CloudRunnerGrant = Static<typeof CloudRunnerGrantSchema>;
+
+/** The opaque worker refresh capability belongs only in its authorization header. */
+export const WorkerTokenRequestSchema = object({ orgId: Id, taskId: Id, runnerId: Id });

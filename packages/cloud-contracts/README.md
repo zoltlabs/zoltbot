@@ -39,3 +39,9 @@ that input. Result/list schemas expose only grant metadata; no account or runner
 credential belongs there. A null result means the session has no enabled grant.
 Creation is an explicit owner action. Reconnects request tokens against the existing
 grant and must never recreate a grant that another owned device revoked.
+
+The worker-token request contains only org, task and logical runner IDs. Its opaque
+refresh capability belongs in the authorization header, and provider/vault keys
+never enter this request. The worker validates the returned token's injected scope;
+the Cell still verifies its signature and current resource authorization. The
+private hosted refresh route is not implemented by these wire types.

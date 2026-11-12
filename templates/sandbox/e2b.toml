@@ -1,0 +1,8 @@
+# Build/publish from an operator-owned temporary config. Keep generated IDs out of this file.
+template_id = "REPLACE_WITH_TEMPLATE_ID"
+template_name = "zoltbot-base"
+dockerfile = "templates/sandbox/Dockerfile"
+cpu_count = 4
+memory_mb = 8192
+start_cmd = "/usr/local/bin/zolt-worker"
+ready_cmd = "test -r /opt/zoltbot/apps/worker/dist/main.mjs"

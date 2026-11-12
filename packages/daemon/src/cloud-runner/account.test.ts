@@ -133,7 +133,9 @@ it("bounds response bytes and returns fixed errors without account/provider resp
     [{ error: f.runnerToken }, 200, "text/plain"],
   ] as const) {
     f.response(value, status, media);
-    await expect(f.client.credentials(signal())).rejects.toThrow(/^runner_account_unavailable$/);
+    await expect(f.client.credentials(signal())).rejects.toThrow(
+      status === 403 ? /^runner_access_revoked$/ : /^runner_account_unavailable$/,
+    );
   }
   const broken = runnerAccount({
     ...f.options,
@@ -154,4 +156,14 @@ it("cancels a blocked keychain read without ever starting a network request", as
   controller.abort();
   await expect(pending).rejects.toThrow(/^runner_account_unavailable$/);
   expect(f.requests).toEqual([]);
+});
+
+it("treats explicit authentication or grant refusal as revoked authority without exposing response bodies", async () => {
+  const f = fixture();
+  for (const status of [401, 403, 410]) {
+    f.response({ error: f.accessToken }, status);
+    await expect(f.client.credentials(signal())).rejects.toThrow(/^runner_access_revoked$/);
+  }
+  f.response({ error: f.accessToken }, 503);
+  await expect(f.client.credentials(signal())).rejects.toThrow(/^runner_account_unavailable$/);
 });

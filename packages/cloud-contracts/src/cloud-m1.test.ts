@@ -6,6 +6,7 @@ import {
   CloudRunnerGrantInputSchema,
   CloudRunnerGrantResultSchema,
   SandboxCreateSchema,
+  WorkerTokenRequestSchema,
 } from "./cloud-m1.js";
 
 it("keeps client and runner claims org-bound and refuses an orchestrator audience", () => {
@@ -72,4 +73,13 @@ it("requires explicit runner capabilities without accepting client-supplied auth
   expect(() =>
     parse(CloudRunnerGrantResultSchema, { grant: { ...grant, accessToken: "forbidden" } }),
   ).toThrow();
+});
+
+it("keeps the worker refresh capability outside its scoped token request body", () => {
+  const input = { orgId: "org", taskId: "task", runnerId: "runner" };
+  expect(parse(WorkerTokenRequestSchema, input)).toEqual(input);
+  expect(() =>
+    parse(WorkerTokenRequestSchema, { ...input, refreshCredential: "forbidden" }),
+  ).toThrow();
+  expect(() => parse(WorkerTokenRequestSchema, { ...input, providerKey: "forbidden" })).toThrow();
 });

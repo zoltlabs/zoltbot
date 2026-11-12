@@ -58,6 +58,7 @@ export function startMacRunner(options: MacRunnerOptions) {
     }),
     vault: options.vault,
     tools: options.tools,
+    privateValues: () => [...privateValues, ...(options.privateValues?.() ?? [])],
     ...(options.native ? { native: options.native } : {}),
     ...(options.providerKey
       ? {

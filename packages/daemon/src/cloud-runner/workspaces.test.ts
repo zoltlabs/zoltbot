@@ -1,6 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -209,4 +218,40 @@ it("refuses another checkout owner while preparation is waiting and releases own
   expect((await new ManagedWorkspaces(f.options).prepare(f.input, f.signal)).baseCommit).toBe(
     f.head,
   );
+});
+
+it("uses the sandbox's named repository folder with control metadata outside it and refuses another task", async () => {
+  const f = await fixture(),
+    workDirectory = path.join(f.root, "work");
+  const options = {
+    ...f.options,
+    sandbox: { orgId: f.input.orgId, taskId: f.input.taskId, workDirectory },
+  };
+  const managed = new ManagedWorkspaces(options);
+  const [first, repeated] = await Promise.all([
+    managed.prepare(f.input, f.signal),
+    managed.prepare(f.input, f.signal),
+  ]);
+  expect(first).toEqual(repeated);
+  expect(first.cwd).toBe(path.join(await realpath(workDirectory), "repository"));
+  expect(first.baseCommit).toBe(f.head);
+  await writeFile(path.join(first.cwd, "test.txt"), "Sandbox edit\n");
+  expect(await new ManagedWorkspaces(options).prepare(f.input, f.signal)).toEqual(first);
+  expect(await readFile(path.join(first.cwd, "test.txt"), "utf8")).toBe("Sandbox edit\n");
+  await expect(readFile(path.join(first.cwd, "binding.json"))).rejects.toMatchObject({
+    code: "ENOENT",
+  });
+  for (const other of [
+    { ...f.input, taskId: "other" },
+    { ...f.input, orgId: "other" },
+  ])
+    await expect(managed.prepare(other, f.signal)).rejects.toThrow(
+      "managed_workspace_scope_conflict",
+    );
+  await expect(
+    new ManagedWorkspaces({
+      ...options,
+      sandbox: { ...options.sandbox, workDirectory: "relative" },
+    }).prepare(f.input, f.signal),
+  ).rejects.toThrow("managed_workspace_scope_conflict");
 });

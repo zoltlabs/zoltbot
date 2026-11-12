@@ -104,6 +104,7 @@ function toolResult(id: string, output: unknown, isError = false) {
 }
 async function run(text: string) {
   text = artifactFixturePrompt([text]);
+  let reply = "ok";
   turn++;
   total++;
   busy = true;
@@ -337,6 +338,7 @@ async function run(text: string) {
     out({ type: "future_event", token: "unregistered-private-value", value: "seeded-secret" });
   if (
     text === "host_tools" ||
+    text === "host_tools_echo" ||
     text === "delegate" ||
     text === "delegate_codex" ||
     text in workspaceRequests
@@ -367,12 +369,13 @@ async function run(text: string) {
       },
     });
     toolResult("host", result);
+    if (text === "host_tools_echo") reply = result;
   }
   out({
     type: "stream_event",
-    event: { type: "content_block_delta", delta: { type: "text_delta", text: "ok" } },
+    event: { type: "content_block_delta", delta: { type: "text_delta", text: reply } },
   });
-  finish();
+  finish(false, reply);
 }
 process.stderr.write("ZOLTBOT_FAKE_READY\n");
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {

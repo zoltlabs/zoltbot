@@ -15,6 +15,12 @@ import {
 import WebSocket from "ws";
 import { RunnerOutbox } from "./outbox.js";
 
+/** An explicit credential-service refusal, never a transient network failure. */
+export class RunnerAccessRevokedError extends Error {
+  constructor() {
+    super("runner_access_revoked");
+  }
+}
 export interface RunnerCredentials {
   url: string;
   token: string;
@@ -71,6 +77,7 @@ export class RunnerConnection {
   private chain = Promise.resolve();
   private stopped = false;
   private loop: Promise<void> | undefined;
+  private closing: Promise<void> | undefined;
   private controller: AbortController | undefined;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private retryResolve: (() => void) | undefined;
@@ -130,7 +137,12 @@ export class RunnerConnection {
         const started = Date.now();
         await this.connect(credentials);
         failures = Date.now() - started >= 30000 ? 0 : failures + 1;
-      } catch {
+      } catch (error) {
+        if (error instanceof RunnerAccessRevokedError) {
+          this.status("runner_access_revoked");
+          void this.close().catch(() => this.status("runner_cleanup_required"));
+          return;
+        }
         failures++;
         if (!this.stopped) this.status("runner_connection_unavailable");
       } finally {
@@ -149,7 +161,7 @@ export class RunnerConnection {
   }
   private connect(credentials: RunnerCredentials) {
     const endpoint = this.endpoint(credentials);
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(endpoint, {
         headers: { Authorization: `Bearer ${credentials.token}` },
         maxPayload: maximumFrame,
@@ -191,16 +203,28 @@ export class RunnerConnection {
           socket.close(1008, "refused");
         }
       });
+      socket.on("unexpected-response", (_request, response) => {
+        const revoked = [401, 403, 410].includes(response.statusCode ?? 0);
+        response.destroy();
+        if (revoked) reject(new RunnerAccessRevokedError());
+        else resolve();
+        socket.terminate();
+      });
       socket.on("error", () => {
         this.status("runner_connection_unavailable");
         socket.terminate();
       });
-      socket.on("close", () => {
+      socket.on("close", (code, reason) => {
         clearTimeout(helloDeadline);
         clearInterval(heartbeat);
         clearTimeout(renewal);
         if (this.session === session) this.session = undefined;
-        resolve();
+        if (
+          code === 1008 &&
+          ["forbidden", "unauthorized", "access_revoked"].includes(reason.toString())
+        )
+          reject(new RunnerAccessRevokedError());
+        else resolve();
       });
     });
   }
@@ -403,17 +427,24 @@ export class RunnerConnection {
       if (task.ready !== this.ready(task)) this.heartbeat(this.session);
     }
   }
-  async close() {
+  close(): Promise<void> {
     this.stopped = true;
     this.lifetime.abort();
     this.controller?.abort();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryResolve?.();
     this.session?.socket.terminate();
-    await this.loop;
-    await this.chain;
-    await Promise.allSettled([...this.tasks.values()].map((task) => task.runtime?.close()));
-    for (const task of this.tasks.values()) task.outbox.close();
-    this.tasks.clear();
+    this.closing ??= (async () => {
+      await this.loop;
+      await this.chain;
+      const cleanup = await Promise.allSettled(
+        [...this.tasks.values()].map((task) => task.runtime?.close()),
+      );
+      for (const task of this.tasks.values()) task.outbox.close();
+      this.tasks.clear();
+      if (cleanup.some((result) => result.status === "rejected"))
+        throw new Error("runner_cleanup_required");
+    })();
+    return this.closing;
   }
 }

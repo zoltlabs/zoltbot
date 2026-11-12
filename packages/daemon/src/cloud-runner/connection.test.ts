@@ -14,7 +14,11 @@ import {
 } from "@zoltbot/runner-protocol";
 import { afterEach, expect, it } from "vitest";
 import { WebSocket, WebSocketServer } from "ws";
-import { RunnerConnection, type RunnerConnectionOptions } from "./connection.js";
+import {
+  RunnerAccessRevokedError,
+  RunnerConnection,
+  type RunnerConnectionOptions,
+} from "./connection.js";
 import type { RunnerOutbox } from "./outbox.js";
 
 const cleanup: (() => Promise<void>)[] = [];
@@ -82,8 +86,13 @@ async function fixture(
   receive: (socket: WebSocket, message: Record<string, unknown>) => void,
   overrides: Partial<RunnerConnectionOptions> = {},
   lifetimeMs = 600000,
+  refuseUpgrade = false,
 ) {
-  const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
+  const server = new WebSocketServer({
+    host: "127.0.0.1",
+    port: 0,
+    verifyClient: () => !refuseUpgrade,
+  });
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("test_server_missing");
@@ -105,6 +114,7 @@ async function fixture(
     closes = 0;
   let outbox: RunnerOutbox | undefined, publish: (() => void) | undefined;
   const statuses: string[] = [];
+  let credentialsError: Error | undefined;
   const connection = new RunnerConnection({
     orgId: "org",
     hello: {
@@ -120,11 +130,14 @@ async function fixture(
     guard(value) {
       if (JSON.stringify(value).includes(token)) throw new Error("private_value");
     },
-    credentials: async () => ({
-      url: `ws://127.0.0.1:${address.port}/v1/orgs/org/connect`,
-      token,
-      expiresAt: Date.now() + lifetimeMs,
-    }),
+    credentials: async () => {
+      if (credentialsError) throw credentialsError;
+      return {
+        url: `ws://127.0.0.1:${address.port}/v1/orgs/org/connect`,
+        token,
+        expiresAt: Date.now() + lifetimeMs,
+      };
+    },
     status: (code) => statuses.push(code),
     allowLoopback: true,
     retryBaseMs: 10,
@@ -154,6 +167,9 @@ async function fixture(
     connection,
     server,
     statuses,
+    credentialsError(error: Error | undefined) {
+      credentialsError = error;
+    },
     get opens() {
       return opens;
     },
@@ -480,4 +496,86 @@ it("advertises a native lease only after the task runtime has finished starting"
   } finally {
     release();
   }
+});
+
+it("stops native tasks once after explicit credential revocation instead of retrying authority", async () => {
+  let hellos = 0;
+  const f = await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") {
+        hellos++;
+        hello(socket);
+      }
+    },
+    {},
+    1500,
+  );
+  await expect.poll(() => f.opens).toBe(1);
+  f.credentialsError(new RunnerAccessRevokedError());
+  await expect.poll(() => f.closes, { timeout: 5000 }).toBe(1);
+  expect(f.statuses).toContain("runner_access_revoked");
+  expect(hellos).toBe(1);
+  expect(() => f.connection.start()).toThrow("runner_connection_closed");
+  await f.connection.close();
+  expect(f.closes).toBe(1);
+});
+it("keeps the native task through a transient credential outage and reconnects without another runtime", async () => {
+  let hellos = 0;
+  const f = await fixture((socket, message) => {
+    if (message.method === "runner.hello") {
+      hellos++;
+      hello(socket);
+    }
+  });
+  await expect.poll(() => f.opens).toBe(1);
+  f.credentialsError(new Error("fixture_network_unavailable"));
+  for (const socket of f.server.clients) socket.close();
+  await expect.poll(() => f.statuses.includes("runner_connection_unavailable")).toBe(true);
+  expect(f.closes).toBe(0);
+  f.credentialsError(undefined);
+  await expect.poll(() => hellos, { timeout: 5000 }).toBe(2);
+  expect(f.opens).toBe(1);
+  await f.connection.close();
+  expect(f.closes).toBe(1);
+});
+
+it("reports native cleanup failure and closes the journal instead of claiming successful shutdown", async () => {
+  const f = await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") hello(socket);
+    },
+    {
+      task: async () => ({
+        async update() {},
+        async command() {
+          return {};
+        },
+        async close() {
+          throw new Error("fixture_cleanup_failed");
+        },
+      }),
+    },
+  );
+  await expect.poll(() => f.opens).toBe(1);
+  await expect(f.connection.close()).rejects.toThrow("runner_cleanup_required");
+  expect(() => f.append()).toThrow("runner_outbox_closed");
+  // The expected failing close already settled; retain the server/directory cleanup hooks.
+  cleanup.pop();
+});
+
+it("stops an active native task when the Cell explicitly closes access as forbidden", async () => {
+  const f = await fixture((socket, message) => {
+    if (message.method === "runner.hello") hello(socket);
+  });
+  await expect.poll(() => f.opens).toBe(1);
+  for (const socket of f.server.clients) socket.close(1008, "forbidden");
+  await expect.poll(() => f.closes).toBe(1);
+  expect(f.statuses).toContain("runner_access_revoked");
+  expect(() => f.connection.start()).toThrow("runner_connection_closed");
+});
+it("treats a refused authenticated WebSocket upgrade as lost authority rather than an outage", async () => {
+  const f = await fixture(() => {}, {}, 600000, true);
+  await expect.poll(() => f.statuses.includes("runner_access_revoked")).toBe(true);
+  expect(f.opens).toBe(0);
+  expect(() => f.connection.start()).toThrow("runner_connection_closed");
 });

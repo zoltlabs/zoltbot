@@ -261,3 +261,27 @@ The public dependency scanner permits the two account HTTP route strings used by
 this client as values. Those same strings still fail when used as module imports,
 as do private service/filesystem paths. A headless scanner test checks both cases.
 The allowlist grants no access to service implementation code or hosted values.
+
+## Sandbox host options
+
+The sandbox layout binds a workspace preparer to one injected org/task and places
+its clone at the supplied work directory's repository name. The default Mac
+layout remains hashed. Control metadata stays outside the clone in both layouts.
+The worker's setup helper runs before native resources open and retains its own
+completed/interrupted checkpoint beside the task cache.
+
+Native hosts may supply memory-only `privateValues` for redaction before any
+process frames or observations can be logged. The Mac host supplies known account,
+runner and repository credentials; the worker supplies its injected values.
+Transport credentials do not become cached definitions or private-context inputs.
+The callback also selects private-frame mode. Local callers omit it and keep their
+existing behavior. Provider API keys and private answers retain their existing
+encrypted private-context resume path.
+
+Explicit account-service authentication/grant refusal (401, 403 or 410) produces a
+typed `runner_access_revoked` error. The connection stops its native tasks and
+queued work once and does not retry that authority. Transient network/service
+failures retain the runtime and reconnect for replay. The account callback must
+provide a current native account token, including refresh before issuance.
+Transport close is idempotent and reports native cleanup failure after closing
+its journals. Tests distinguish revocation from an outage and assert both outcomes.

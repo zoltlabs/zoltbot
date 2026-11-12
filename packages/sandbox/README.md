@@ -17,3 +17,9 @@ Slice S1 of the cloud sandbox plan (docs/cloud/sandboxes.md §2, D134). One inte
 - E2B: opt-in. `E2B_API_KEY=… pnpm vitest run packages/sandbox/src/targets/e2b` runs the conformance suite against the hosted service (`E2B_TEMPLATE` picks a template). The key is read from the environment, passed to the SDK only and redacted from errors (I7). Never commit it or put it in a file in this repository.
 
 The E2B acceptance checks from §2 are scripted in `acceptance/e2b.ts`; see `docs/cloud/sandbox-s1-implementation.md` for how to run them and which have run.
+
+The base worker image is defined in `templates/sandbox/`. An offline test converts
+its Dockerfile through the pinned E2B SDK, catching unsupported instructions before
+an account is used. This does not replace Docker build or live provider acceptance.
+The worker requires the target's explicit `sleepKeepsProcesses` value at boot and
+can resume its native session after restarting with preserved task storage.

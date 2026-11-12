@@ -6,7 +6,11 @@ const root = path.resolve(process.argv[2] ?? ".");
 const forbidden =
   /(?:^|\/)(?:cloud|zoltbot\.ai)(?:\/|$)|(?:^|\/)services(?:\/(?!relay(?:\/|$))|$)|(?:^|\/)spikes\/do-cell(?:\/|$)/;
 // Public clients call these account endpoints; they are not filesystem dependencies.
-const publicAccountRoutes = new Set(["/api/cloud/runner-grants", "/api/cloud/runner-token"]);
+const publicAccountRoutes = new Set([
+  "/api/cloud/runner-grants",
+  "/api/cloud/runner-token",
+  "/api/cloud/worker-token",
+]);
 const errors = [];
 async function walk(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

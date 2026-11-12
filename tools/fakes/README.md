@@ -28,3 +28,8 @@ acceptance.
 Local task execution must complete without an HTTP request, including when an
 explicit cloud-host factory fails during daemon startup. The cloud lifecycle tests
 use separate host resources and never pass the Local store into that factory.
+
+`host_tools_echo` calls the same synthetic host tool as `host_tools`, then echoes
+its result in assistant output. Worker tests use a generated repository credential
+as that result to verify redaction before frames, task projections or outbox events
+can retain it. Both protocol fakes preserve their existing `host_tools` behavior.

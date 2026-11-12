@@ -30,10 +30,20 @@ export class ManagedWorkspaces {
       githubToken?(signal: AbortSignal): Promise<string | undefined>;
       /** A local bare repository for headless tests; production uses only github.com. */
       localRepository?(repository: string): string;
+      /** A sandbox owns one task and exposes its clone as workDirectory/<repo>. */
+      sandbox?: { orgId: string; taskId: string; workDirectory: string };
     },
   ) {}
   prepare(input: ManagedWorkspaceInput, signal: AbortSignal): Promise<ManagedWorkspaceResult> {
     const frozen = structuredClone(input);
+    const sandbox = this.options.sandbox;
+    if (
+      sandbox &&
+      (sandbox.orgId !== frozen.orgId ||
+        sandbox.taskId !== frozen.taskId ||
+        !path.isAbsolute(sandbox.workDirectory))
+    )
+      return Promise.reject(new Error("managed_workspace_scope_conflict"));
     if (
       !/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9_.-]+$/.test(frozen.repository) ||
       frozen.repository.length > 256 ||
@@ -50,7 +60,10 @@ export class ManagedWorkspaces {
       .update(JSON.stringify([frozen.orgId, frozen.taskId]))
       .digest("hex");
     const existing = this.pending.get(id);
-    if (existing) return existing.then((result) => this.validateBinding(frozen, result));
+    if (existing)
+      return existing.then(async (result) =>
+        this.validateBinding(frozen, result, path.join(await realpath(this.options.directory), id)),
+      );
     const work = this.open(frozen, id, signal);
     this.pending.set(id, work);
     void work
@@ -87,8 +100,12 @@ export class ManagedWorkspaces {
       await fd.close();
     }
   }
-  private async validateBinding(input: ManagedWorkspaceInput, result: ManagedWorkspaceResult) {
-    const binding = await this.binding(path.join(path.dirname(result.cwd), "binding.json"));
+  private async validateBinding(
+    input: ManagedWorkspaceInput,
+    result: ManagedWorkspaceResult,
+    control: string,
+  ) {
+    const binding = await this.binding(path.join(control, "binding.json"));
     if (
       binding.version !== 1 ||
       Object.entries(input).some(([key, value]) => binding[key as keyof Binding] !== value)
@@ -107,7 +124,12 @@ export class ManagedWorkspaces {
       const root = await this.directory(this.options.directory);
       const control = await this.directory(path.join(root, id));
       owner = acquireOwnerLock(path.join(control, "checkout.lock"));
-      const cwd = path.join(control, "repo"),
+      const cwd = this.options.sandbox
+          ? path.join(
+              await this.directory(this.options.sandbox.workDirectory),
+              input.repository.split("/")[1] as string,
+            )
+          : path.join(control, "repo"),
         file = path.join(control, "binding.json"),
         remote = this.remote(input);
       let info: Stats | undefined;

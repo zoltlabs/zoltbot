@@ -11,14 +11,18 @@ const builtins = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]
  * With `base`, sources resolve relative to the bundle as if it sat at `base`, so a packaged copy
  * of the bundle, its resources and node_modules can move to another machine.
  */
-export async function bundleRuntime(entry, outfile, { base, metafile = false } = {}) {
+export async function bundleRuntime(
+  entry,
+  outfile,
+  { base, metafile = false, target = "node24" } = {},
+) {
   return await build({
     entryPoints: [entry],
     outfile,
     bundle: true,
     platform: "node",
     format: "esm",
-    target: "node24",
+    target,
     metafile,
     plugins: [
       {
@@ -58,7 +62,7 @@ export async function bundleRuntime(entry, outfile, { base, metafile = false } =
             const result = await transform(source, {
               loader: args.path.endsWith(".tsx") ? "tsx" : "ts",
               format: "esm",
-              target: "node24",
+              target,
               define: {
                 "import.meta.url": sourceUrl,
                 ...(source.includes("import.meta.resolve")

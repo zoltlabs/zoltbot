@@ -4,7 +4,7 @@ import {
   CloudRunnerGrantResultSchema,
 } from "@zoltbot/cloud-contracts";
 import { parse } from "@zoltbot/protocol";
-import type { RunnerCredentials } from "./connection.js";
+import { RunnerAccessRevokedError, type RunnerCredentials } from "./connection.js";
 
 export interface RunnerAccountOptions {
   origin: string;
@@ -69,6 +69,10 @@ export function runnerAccount(options: RunnerAccountOptions) {
         redirect: "error",
         signal: combined,
       });
+      if ([401, 403, 410].includes(response.status)) {
+        await response.body?.cancel().catch(() => {});
+        throw new RunnerAccessRevokedError();
+      }
       if (
         !response.ok ||
         !response.body ||
@@ -93,7 +97,8 @@ export function runnerAccount(options: RunnerAccountOptions) {
         reader.releaseLock();
       }
       return JSON.parse(Buffer.concat(parts).toString("utf8")) as unknown;
-    } catch {
+    } catch (error) {
+      if (error instanceof RunnerAccessRevokedError) throw error;
       throw new Error("runner_account_unavailable");
     }
   };
@@ -132,7 +137,8 @@ export function runnerAccount(options: RunnerAccountOptions) {
         if ((capabilities.canRunTasks || capabilities.canMacExec) !== (result.grant !== null))
           throw new Error();
         return result;
-      } catch {
+      } catch (error) {
+        if (error instanceof RunnerAccessRevokedError) throw error;
         throw new Error("runner_account_unavailable");
       }
     },
@@ -156,7 +162,8 @@ export function runnerAccount(options: RunnerAccountOptions) {
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
         url.pathname = `/v1/orgs/${encodeURIComponent(orgId)}/connect`;
         return { url: url.href, token: result.token, expiresAt };
-      } catch {
+      } catch (error) {
+        if (error instanceof RunnerAccessRevokedError) throw error;
         throw new Error("runner_account_unavailable");
       }
     },

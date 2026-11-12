@@ -23,6 +23,7 @@
     "schema:generate": "TSX_DISABLE_CACHE=1 node --import tsx packages/protocol/generate.ts && TSX_DISABLE_CACHE=1 node --import tsx packages/runner-protocol/generate.ts",
     "dev:daemon": "TSX_DISABLE_CACHE=1 node --import tsx packages/daemon/src/main.ts",
     "build:desktop": "node scripts/build-desktop.mjs",
+    "build:worker": "pnpm --filter @zoltbot/worker build",
     "package:desktop": "node scripts/package-desktop.mjs",
     "dev:ui": "vite --config packages/ui/vite.config.ts",
     "build:ui": "vite build --config packages/ui/vite.config.ts",
