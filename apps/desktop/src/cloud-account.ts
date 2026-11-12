@@ -1,8 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { type Credentials, parseCredentials as credentials } from "@zoltbot/cloud-contracts";
+import { parseCredentials as credentials } from "@zoltbot/cloud-contracts";
+import { accountSession } from "../../../packages/daemon/src/account-session/index.js";
 import { possibleSecret } from "../../../packages/daemon/src/artifacts/intake.js";
 import { validateManifest } from "../../../packages/daemon/src/artifacts/model.js";
 import {
@@ -33,102 +33,14 @@ export interface CloudAccountOptions {
 export function cloudAccount(options: CloudAccountOptions) {
   const send = options.fetch ?? fetch;
   const origin = options.origin;
-  if (origin) {
-    const url = new URL(origin);
-    if (
-      url.origin !== origin ||
-      (url.protocol !== "https:" && !(url.protocol === "http:" && url.hostname === "127.0.0.1"))
-    )
-      throw new Error("invalid_account_origin");
-  }
-  let reference: string | undefined;
-  let tokens: Credentials | undefined;
+  const session = accountSession(options);
+  const { load, save, clear, request, endpoint } = session;
   let pending: { server: Server; cancel(): void } | undefined;
   let queue: Promise<unknown> = Promise.resolve();
   function serialized<T>(action: () => Promise<T>): Promise<T> {
     const next = queue.then(action, action);
     queue = next.catch(() => {});
     return next;
-  }
-  const endpoint = (path: string) => {
-    if (!origin) throw new Error("accounts_not_configured");
-    return `${origin}/api/account${path}`;
-  };
-  async function load() {
-    if (tokens) return tokens;
-    try {
-      reference = (await readFile(options.referenceFile, "utf8")).trim();
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      throw error;
-    }
-    tokens = credentials(await options.secrets.read(reference));
-    return tokens;
-  }
-  async function save(value: Credentials) {
-    if (reference) await options.secrets.replace(reference, value);
-    else {
-      const next = await options.secrets.put(value);
-      const temporary = `${options.referenceFile}.tmp`;
-      try {
-        await writeFile(temporary, next.reference, { mode: 0o600 });
-        await rename(temporary, options.referenceFile);
-      } catch (error) {
-        await options.secrets.remove(next.reference);
-        throw error;
-      }
-      reference = next.reference;
-    }
-    tokens = value;
-  }
-  async function clear() {
-    if (reference) await options.secrets.remove(reference);
-    await rm(options.referenceFile, { force: true });
-    reference = undefined;
-    tokens = undefined;
-  }
-  async function request(path: string, method = "GET", payload?: string | Buffer) {
-    const current = await load();
-    if (!current) throw new Error("sign_in_required");
-    const perform = () =>
-      send(endpoint(path), {
-        method,
-        headers: {
-          Authorization: `Bearer ${tokens?.accessToken}`,
-          ...(payload === undefined
-            ? {}
-            : {
-                "Content-Type": Buffer.isBuffer(payload)
-                  ? "application/octet-stream"
-                  : "application/json",
-              }),
-        },
-        ...(payload === undefined
-          ? {}
-          : { body: Buffer.isBuffer(payload) ? Uint8Array.from(payload) : payload }),
-        redirect: "error",
-        signal: AbortSignal.timeout(15000),
-      });
-    let response = await perform();
-    if (response.status === 401) {
-      const rotated = await send(endpoint("/session/refresh"), {
-        method: "POST",
-        headers: { Authorization: `Refresh ${current.refreshToken}` },
-        redirect: "error",
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!rotated.ok) {
-        if (rotated.status === 401) await clear();
-        throw new Error(
-          rotated.status === 401 ? "sign_in_required" : "account_service_unavailable",
-        );
-      }
-      // Persist rotation before issuing another request. A crash cannot reuse an old in-memory token.
-      await save(credentials(await rotated.json()));
-      response = await perform();
-    }
-    if (!response.ok) throw new Error("account_service_unavailable");
-    return response.json();
   }
   function artifactId(id: string) {
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(id))
@@ -340,7 +252,7 @@ export function cloudAccount(options: CloudAccountOptions) {
       serialized(async () => {
         if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error("invalid_session_id");
         await request(`/sessions/${id}`, "DELETE");
-        if (id === tokens?.sessionId) await clear();
+        if (id === session.sessionId()) await clear();
         return status();
       }),
     revokeAll: () =>

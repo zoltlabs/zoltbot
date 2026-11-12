@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Fix: Signing out after a restart removes saved account credentials.
+
 - Improvement: Cloud task diffs stay scoped to their task and current revision.
 
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
