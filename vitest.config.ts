@@ -1,8 +1,9 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   cacheDir: ".cache/vitest",
   test: {
+    exclude: [...configDefaults.exclude, "packages/cell/**"],
     include: [
       "apps/**/*.test.ts",
       "packages/**/*.test.ts",

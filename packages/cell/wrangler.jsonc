@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zoltbot-cell",
+  "main": "src/worker.ts",
+  "account_id": "YOUR_CLOUDFLARE_ACCOUNT_ID",
+  "compatibility_date": "2026-11-11",
+  "durable_objects": { "bindings": [{ "name": "ORG_CELLS", "class_name": "OrgCell" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgCell"] }],
+  "vars": {
+    "CELL_JWKS_URL": "https://accounts.example.invalid/api/cloud/jwks.json",
+    "CELL_JWT_ISSUER": "https://accounts.example.invalid",
+    "ORCHESTRATOR_URL": "https://accounts.example.invalid/api/cloud"
+  },
+  "secrets": { "required": ["ORCHESTRATOR_SIGNING_KEY"] },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
+}

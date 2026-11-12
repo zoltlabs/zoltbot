@@ -21,6 +21,7 @@ export const CellTokenClaimsSchema = object({
   kind: values(["client", "mac_runner", "sandbox_runner"]),
   task: Type.Optional(Id),
   grant: Type.Optional(Id),
+  session: Type.Optional(Id),
   iat: timestamp,
   exp: timestamp,
   jti: Id,

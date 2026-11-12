@@ -1,5 +1,6 @@
 import type { EntityKind } from "@zoltbot/protocol";
 import type { SqlDriver } from "./driver.js";
+import { tableMap } from "./projections.js";
 import type { Snapshot } from "./store.js";
 
 export type ReadScope =
@@ -7,7 +8,15 @@ export type ReadScope =
   | { taskId: string; projectId?: never };
 
 /** Load owned rows through indexed lookups, then add only their referenced parent records. */
-export function scopedRead(database: SqlDriver, scope: ReadScope): Snapshot {
+export function scopedRead(
+  database: SqlDriver,
+  scope: ReadScope,
+  kinds?: readonly EntityKind[],
+): Snapshot {
+  const selected = [...new Set(kinds ?? Object.keys(tableMap))];
+  if (selected.some((kind) => !Object.hasOwn(tableMap, kind)))
+    throw new Error("invalid_read_kinds");
+  if (!selected.length) return {};
   const project = "projectId" in scope && scope.projectId !== undefined;
   const id = project ? scope.projectId : scope.taskId;
   if (!id || typeof id !== "string" || (scope.projectId && scope.taskId))
@@ -17,31 +26,39 @@ export function scopedRead(database: SqlDriver, scope: ReadScope): Snapshot {
     ? "SELECT id FROM threads WHERE project_id=?"
     : "SELECT id FROM threads WHERE task_id=? UNION SELECT thread_id FROM tasks WHERE id=?";
   const threadBindings = project ? [id] : [id, id];
-  const rows = database
-    .prepare(`
-    WITH scoped_threads AS (${threads}), scoped_messages AS (
+  // The platform restricts compound SELECTs more tightly than desktop SQLite.
+  // Separate indexed ID lookups avoid that limit without loading any message bodies.
+  const common = `WITH requested_kinds(kind) AS (SELECT value FROM json_each(?)),
+    scoped_threads AS (${threads}), scoped_messages AS (
       SELECT id FROM messages WHERE thread_id IN (SELECT id FROM scoped_threads)
       UNION SELECT id FROM messages WHERE task_id IN (SELECT id FROM tasks WHERE ${project ? "project_id" : "id"}=?)
-    )
-    SELECT kind,id FROM projection_rows WHERE kind=? AND id=?
-    UNION SELECT kind,id FROM projection_rows WHERE json_extract(body,'$.${column}')=?
-    UNION SELECT kind,id FROM projection_rows WHERE kind='thread' AND id IN (SELECT id FROM scoped_threads)
-    UNION SELECT kind,id FROM projection_rows WHERE json_extract(body,'$.threadId') IN (SELECT id FROM scoped_threads)
-    UNION SELECT kind,id FROM projection_rows WHERE kind='message' AND id IN (SELECT id FROM scoped_messages)
-    UNION SELECT p.kind,p.id FROM projection_rows p WHERE p.kind='delivery'
-      AND p.id IN (SELECT id FROM deliveries WHERE message_id IN (SELECT id FROM scoped_messages))
-    UNION SELECT kind,id FROM projection_rows WHERE json_extract(body,'$.scope.type')=? AND json_extract(body,'$.scope.id')=?
-    ORDER BY kind,id
-  `)
-    .all(
-      ...threadBindings,
-      id,
-      project ? "project" : "task",
-      id,
-      id,
-      project ? "project" : "task",
-      id,
-    ) as { kind: EntityKind; id: string; body: string }[];
+    )`;
+  const lookups: [string, unknown[]][] = [
+    ["kind=? AND id=?", [project ? "project" : "task", id]],
+    [`json_extract(body,'$.${column}')=?`, [id]],
+    ["kind='thread' AND id IN (SELECT id FROM scoped_threads)", []],
+    ["json_extract(body,'$.threadId') IN (SELECT id FROM scoped_threads)", []],
+    ["kind='message' AND id IN (SELECT id FROM scoped_messages)", []],
+    [
+      "kind='delivery' AND id IN (SELECT id FROM deliveries WHERE message_id IN (SELECT id FROM scoped_messages))",
+      [],
+    ],
+    [
+      "json_extract(body,'$.scope.type')=? AND json_extract(body,'$.scope.id')=?",
+      [project ? "project" : "task", id],
+    ],
+  ];
+  const rows = lookups.flatMap(
+    ([predicate, bindings]) =>
+      database
+        .prepare(`${common} SELECT kind,id FROM projection_rows
+      WHERE kind IN (SELECT kind FROM requested_kinds) AND ${predicate} ORDER BY kind,id`)
+        .all(JSON.stringify(selected), ...threadBindings, id, ...bindings) as {
+        kind: EntityKind;
+        id: string;
+      }[],
+  );
+  rows.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
   const state: Snapshot = {};
   const seen = new Set<string>();
   const add = (kind: EntityKind, recordId: unknown) => {

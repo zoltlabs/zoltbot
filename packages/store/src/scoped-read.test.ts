@@ -70,6 +70,10 @@ it("reads just one project or task, including transcript and referenced configur
     expect(project.task?.map((r) => r.id)).toEqual(["one-a", "one-b"]);
     expect(project.item?.map((r) => r.id)).toEqual(["one-a:item", "one-b:item"]);
     expect(project.session).toBeUndefined();
+    const metadata = f.store.read({ projectId: "one" }, ["task"]);
+    expect(metadata.item).toBeUndefined();
+    expect(metadata.task).toHaveLength(2);
+    expect(f.store.read({ projectId: "one" }, [])).toEqual({});
     const task = f.store.read({ taskId: "one-a" });
     expect(task.task?.map((r) => r.id)).toEqual(["one-a"]);
     expect(task.item?.map((r) => r.id)).toEqual(["one-a:item"]);

@@ -14,9 +14,9 @@
     "check:native": "node scripts/build-keychain.mjs --check && node scripts/build-speech.mjs --check",
     "build:keychain": "node scripts/build-keychain.mjs",
     "build:speech": "node scripts/build-speech.mjs",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile && pnpm --filter @zoltbot/cell typecheck",
     "lint": "biome check . && node scripts/quality.mjs && node scripts/fixture-hygiene.mjs && pnpm check:boundary",
-    "test": "vitest run",
+    "test": "vitest run && pnpm --filter @zoltbot/cell test",
     "format": "biome check --write .",
     "view:dev": "TSX_DISABLE_CACHE=1 node --import tsx scripts/view-dev.mjs",
     "view:schema": "TSX_DISABLE_CACHE=1 node --import tsx packages/view-api/generate.ts",
@@ -33,7 +33,8 @@
     "test:shipping": "playwright test --config playwright.shipping.config.ts",
     "test:compare": "playwright test --config playwright.compare.config.ts",
     "postinstall": "node scripts/postinstall.mjs",
-    "check:boundary": "node scripts/public-boundary.mjs"
+    "check:boundary": "node scripts/public-boundary.mjs",
+    "test:cell": "pnpm --filter @zoltbot/cell test"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.11.1",

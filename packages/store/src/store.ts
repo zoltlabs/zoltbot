@@ -28,7 +28,12 @@ export class Store {
   dispatch<T>(
     commandId: string,
     produce: (state: Snapshot) => { events: DomainEvent[]; result: T },
-    options: { killPoint?: KillPoint; items?: ItemScope; scope?: ReadScope } = {},
+    options: {
+      killPoint?: KillPoint;
+      items?: ItemScope;
+      scope?: ReadScope;
+      kinds?: readonly EntityKind[];
+    } = {},
   ): Receipt<T> {
     if (!commandId) throw new Error("command id required");
     this.assertReadable();
@@ -42,7 +47,9 @@ export class Store {
           const previous = this.receipt<T>(commandId);
           if (previous) return previous;
           const output = produce(
-            options.scope ? this.read(options.scope) : this.commandSnapshot(options.items),
+            options.scope
+              ? this.read(options.scope, options.kinds)
+              : this.commandSnapshot(options.items),
           );
           const events = output.events.map((e) => parseEvent({ ...e, commandId }));
           const start = this.lastSeq();
@@ -116,9 +123,9 @@ export class Store {
       payload: JSON.parse(r.payload),
     }));
   }
-  read(scope: ReadScope): Snapshot {
+  read(scope: ReadScope, kinds?: readonly EntityKind[]): Snapshot {
     this.assertReadable();
-    return scopedRead(this.database, scope);
+    return scopedRead(this.database, scope, kinds);
   }
   snapshot(kinds?: readonly EntityKind[]): Snapshot {
     this.assertReadable();

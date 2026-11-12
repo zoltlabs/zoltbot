@@ -18,6 +18,7 @@
       "!packages/views/command-map/vendor/three-0.187.0.bundle.min.js",
       "!packages/protocol/schema",
       "!packages/runner-protocol/schema",
+      "!packages/cell/worker-configuration.d.ts",
       "!packages/view-api/schema",
       "!output",
       "!dist",

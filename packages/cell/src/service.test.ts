@@ -1,0 +1,69 @@
+import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
+import { expect, it, vi } from "vitest";
+import { base64url } from "./auth.js";
+import { CellService, serviceToken, verifyServiceToken } from "./service.js";
+
+const issuer = "https://accounts.example.invalid";
+const now = 1800000000000;
+function secret() {
+  return base64url(crypto.getRandomValues(new Uint8Array(32)));
+}
+it("separates the cell service token from client and orchestrator audiences", async () => {
+  const key = secret();
+  const token = await serviceToken(key, issuer, "cell-service", "org", now);
+  await verifyServiceToken(token, key, issuer, "cell-service", "org", now);
+  for (const [aud, org, at, signingKey] of [
+    ["orchestrator", "org", now, key],
+    ["cell-service", "other", now, key],
+    ["cell-service", "org", now + 120000, key],
+    ["cell-service", "org", now, secret()],
+  ] as const)
+    await expect(verifyServiceToken(token, signingKey, issuer, aud, org, at)).rejects.toThrow(
+      "unauthorized",
+    );
+});
+it("checks revocation within thirty seconds, sends the session and fails closed", async () => {
+  const key = secret();
+  let active = true;
+  const fetcher = vi.fn(async (_url, init) => {
+    const headers = new Headers(init?.headers);
+    await verifyServiceToken(
+      (headers.get("Authorization") ?? "").slice(7),
+      key,
+      issuer,
+      "orchestrator",
+      "org",
+    );
+    expect(JSON.parse(String(init?.body)).sessionId).toBe("session");
+    return Response.json({ active });
+  });
+  const service = new CellService(
+    { origin: "https://accounts.example.invalid/api/cloud", signingKey: key, issuer },
+    "org",
+    fetcher,
+  );
+  const claims: CellTokenClaims = {
+    iss: issuer,
+    aud: "cell",
+    sub: "user",
+    org: "org",
+    device: "device",
+    session: "session",
+    surface: "desktop",
+    kind: "client",
+    iat: now / 1000,
+    exp: now / 1000 + 600,
+    jti: "token-id",
+  };
+  await service.authorize(claims, now);
+  active = false;
+  await service.authorize(claims, now + 29999);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await expect(service.authorize(claims, now + 30000)).rejects.toThrow("unauthorized");
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  active = true;
+  await service.authorize(claims, now + 31000);
+  service.invalidate();
+  fetcher.mockRejectedValueOnce(new Error("service_unavailable"));
+  await expect(service.authorize(claims, now + 32000)).rejects.toThrow("service_unavailable");
+});

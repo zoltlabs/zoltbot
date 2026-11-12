@@ -5,9 +5,27 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./sql-driver": "./src/sql-driver.ts"
+    "./sql-driver": "./src/sql-driver.ts",
+    "./worker": "./src/worker.ts"
   },
   "dependencies": {
+    "@zoltbot/cloud-contracts": "workspace:*",
+    "@zoltbot/core": "workspace:*",
+    "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/runner-protocol": "workspace:*",
     "@zoltbot/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "npm:@cloudflare/vitest-plugin@1.8.0",
+    "@cloudflare/workers-types": "5.20261112.1",
+    "vitest": "4.1.12",
+    "wrangler": "4.160.1"
+  },
+  "scripts": {
+    "test": "pnpm test:unit && pnpm test:runtime",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:runtime": "WRANGLER_SEND_METRICS=false vitest run --config vitest.runtime.config.ts",
+    "types": "WRANGLER_SEND_METRICS=false wrangler types --include-runtime false worker-configuration.d.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }

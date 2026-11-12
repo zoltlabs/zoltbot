@@ -34,6 +34,32 @@ async function walk(directory) {
       if (relative === "scripts/public-boundary.mjs" || relative.startsWith("scripts/split/"))
         continue;
       const text = await readFile(file, "utf8");
+      if (relative.startsWith("packages/cell/src/") && !relative.endsWith(".test.ts")) {
+        for (const match of text.matchAll(
+          /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']([^"']+)["']/g,
+        )) {
+          const specifier = match[1];
+          if (
+            /^(?:node:|@zoltbot\/(?:daemon|adapters)(?:\/|$)|better-sqlite3$)/.test(specifier) ||
+            /(?:^|\/)daemon(?:\/|$)/.test(specifier) ||
+            [
+              "fs",
+              "path",
+              "os",
+              "child_process",
+              "net",
+              "tls",
+              "http",
+              "https",
+              "worker_threads",
+              "crypto",
+            ].includes(specifier)
+          )
+            errors.push(`${relative}: Node-only cell import ${specifier}`);
+        }
+        if (/\.snapshot\s*\(/.test(text)) errors.push(`${relative}: unscoped cell snapshot`);
+      }
+
       for (const match of text.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
         const value = match[1];
         // "cloud" is also a public routing enum. A bare module import still violates the boundary.
