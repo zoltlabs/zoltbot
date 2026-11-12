@@ -1,8 +1,8 @@
 # Cloud runner
 
 This package is in progress. It contains the durable event journal for the Mac
-runner and sandbox worker. Connection/reconnect handling, managed checkouts,
-native command execution and Mac bridge integration are not complete. W5 is not
+runner and sandbox worker, plus their reconnecting transport. Managed checkouts,
+native command execution and signed Mac bridge integration are not complete. W5 is not
 signed off, and this code does not connect a Local project to a cell.
 
 ## Event journal
@@ -40,3 +40,42 @@ cell cursor seeding, scope refusal, known-private-value refusal and symlink safe
 The runtime test also checks durable observations without a reader and redaction
 before persistence. The worker/daemon end-to-end replay gate still needs the
 connection driver and W8 harness.
+
+## Connection transport
+
+`RunnerConnection` gets short-lived credentials from an injected account client.
+Credentials remain in memory and the WebSocket authorization header. Production
+connections require WSS; the explicit test option admits only numeric loopback
+addresses over WS. URL credentials, query parameters, redirects and oversized
+frames are refused. The transport reconnects with exponential backoff capped at
+thirty seconds and renews credentials before expiry. Closing cancels credential
+requests, reconnect timers and the host's lifetime signal. Hosts must honor that
+signal during startup and command execution.
+
+The first Cell acknowledgement reconciles each outbox before native startup.
+Acknowledgements run separately from serialized lease/command work, so a blocked
+native command cannot stall delivery receipts. Each task sends at most eight
+unacknowledged frames. Incoming queued work and the socket buffer have byte caps.
+Task sessions stay alive across reconnects. A later lease updates the existing
+runtime; it cannot replace its task, thread, org, member or lease binding.
+
+Mac task execution requires an explicit `acceptTasks: true` on the receiving
+runner, even if a forged Cell sends a lease. Sandbox runners require their injected
+task ID. Execution metadata must agree with the manifest, profile, definition and
+cloud project. The bridge callback remains available when Mac task execution is
+off; its host must apply W7 policy, signature verification and output redaction.
+Transport dispatch alone grants no shell execution permission.
+
+Tests use a localhost fake Cell and synthetic credentials. They cover lost-ack
+replay without duplicate application, bounded sends while a command blocks,
+credential renewal without a second native runtime, cancellation, insecure-URL
+refusal, missing cursors, wrong-task sandbox leases and mismatched metadata.
+The transport is not yet wired into `zoltd` or a sandbox worker. The fake bridge
+callback is not the W7 signature or host-command gate.
+
+The full-suite run exposed timing assumptions in existing daemon integration tests.
+The real PTY shutdown check now waits up to five seconds for OS PID removal after
+shutdown requests complete. The detached-shell check waits for its spawn event
+before inspecting its process group. Real Git publishing cases have a forty-five
+second test budget for repeated clone/commit/push work. These changes preserve
+all cleanup and publishing assertions and alter no Local runtime behavior.

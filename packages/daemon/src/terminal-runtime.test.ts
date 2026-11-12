@@ -254,6 +254,18 @@ it("reaps a running real PTY on graceful daemon runtime shutdown", async () => {
   const pid = f.pid();
   expect(pid).toBeGreaterThan(1);
   await f.runtime.close();
-  expect(() => process.kill(pid, 0)).toThrow();
+  await expect
+    .poll(
+      () => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 5000 },
+    )
+    .toBe(false);
   await expect(f.call("terminal.list")).rejects.toThrow("terminal_runtime_closed");
 });

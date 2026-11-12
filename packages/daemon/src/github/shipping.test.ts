@@ -1,9 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { finishTaskTurn, handle, startTask } from "@zoltbot/core";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { git } from "../../../gitkit/src/git.js";
 import { shippingFixture, testContext } from "./test-fixture.js";
+
+// These cases clone, commit and push real disposable Git repositories repeatedly.
+vi.setConfig({ testTimeout: 45_000 });
 
 const input = {
   id: "task",
