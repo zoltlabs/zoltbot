@@ -72,10 +72,13 @@ export class InProcessRunner implements Runner {
 export function createInProcessRuntime(
   options: Omit<SessionManagerOptions, "observe"> & {
     persistObservation?(observation: RuntimeObservation): Promise<void>;
+    recordObservation?(observation: RuntimeObservation): void;
+    recordTransientObservation?(observation: RuntimeObservation): void;
   },
 ) {
   const observations = new RunnerEvents();
-  const { persistObservation, ...runtimeOptions } = options;
+  const { persistObservation, recordObservation, recordTransientObservation, ...runtimeOptions } =
+    options;
   const manager = new SessionManager({
     ...runtimeOptions,
     observe: (threadId, sessionId) => {
@@ -83,6 +86,25 @@ export function createInProcessRuntime(
       if (!persistObservation) return scope;
       return {
         active: () => true,
+        ...(recordObservation
+          ? {
+              record: (
+                event: RuntimeObservation["event"],
+                context: import("../runtime-observer.js").RuntimeObservationContext,
+              ) => recordObservation(structuredClone({ threadId, sessionId, event, ...context })),
+            }
+          : {}),
+        ...(recordTransientObservation
+          ? {
+              recordTransient: (
+                event: RuntimeObservation["event"],
+                context: import("../runtime-observer.js").RuntimeObservationContext,
+              ) =>
+                recordTransientObservation(
+                  structuredClone({ threadId, sessionId, event, ...context }),
+                ),
+            }
+          : {}),
         emit: async (event, context) => {
           await persistObservation(structuredClone({ threadId, sessionId, event, ...context }));
           await scope.emit(event, context);

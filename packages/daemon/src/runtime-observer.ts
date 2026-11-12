@@ -12,6 +12,8 @@ export interface RuntimeObservation extends RuntimeObservationContext {
 }
 export interface RuntimeObservationSink {
   active(): boolean;
+  record?(event: AgentEvent, context: RuntimeObservationContext): void;
+  recordTransient?(event: AgentEvent, context: RuntimeObservationContext): void;
   emit(event: AgentEvent, context: RuntimeObservationContext): Promise<void>;
 }
 /** Optional runner consumers see the same normalized identities and redacted output as the store. */
@@ -23,6 +25,9 @@ export class RuntimeObserver {
   ) {}
   get active(): boolean {
     return this.sink?.active() ?? false;
+  }
+  record(event: AgentEvent, context: RuntimeObservationContext = {}) {
+    this.sink?.record?.(structuredClone(event), context);
   }
   async emit(event: AgentEvent, context: RuntimeObservationContext = {}) {
     if (!this.sink?.active()) return;
@@ -41,6 +46,11 @@ export class RuntimeObserver {
     const previous = this.streamed.get(itemId) ?? "";
     const delta = safe.startsWith(previous) ? safe.slice(previous.length) : "";
     this.streamed.set(itemId, safe);
-    if (delta) await this.sink.emit({ ...event, text: delta }, { itemId, turnId: event.turnId });
+    if (delta) {
+      const observation = { ...event, text: delta },
+        context = { itemId, turnId: event.turnId };
+      this.sink.recordTransient?.(observation, context);
+      await this.sink.emit(observation, context);
+    }
   }
 }

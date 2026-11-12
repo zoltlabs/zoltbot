@@ -7,6 +7,7 @@ import { createInProcessRuntime } from "../runner/in-process.js";
 import type { RuntimeHost } from "../runtime-host.js";
 import { CloudTaskCache } from "./cache.js";
 import type { RunnerConnectionOptions } from "./connection.js";
+import { ObservationJournal } from "./observation-journal.js";
 import type { ManagedWorkspaces } from "./workspaces.js";
 
 export interface CloudTaskResources {
@@ -25,6 +26,7 @@ export interface CloudTasksOptions {
   resources(input: {
     store: Store;
     cwd: string;
+    baseCommit: string;
     lease: RunnerLease;
     signal: AbortSignal;
   }): Promise<CloudTaskResources>;
@@ -40,6 +42,7 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
     let cache: CloudTaskCache | undefined, resources: CloudTaskResources | undefined;
     let runtime: ReturnType<typeof createInProcessRuntime> | undefined;
     let engine: InteractionEngine | undefined;
+    let journal: ObservationJournal | undefined;
     let readySessionId: string | undefined,
       faulted = false;
     let closed = false,
@@ -59,7 +62,11 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
           Promise.resolve().then(() => runtime?.runner.close()),
           Promise.resolve().then(() => engine?.stopTimers()),
         ]);
-        cache?.close();
+        try {
+          journal?.flush();
+        } finally {
+          cache?.close();
+        }
         if (cleanup.some((result) => result.status === "rejected"))
           throw new Error("runner_task_cleanup_required");
       })());
@@ -121,10 +128,19 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
         definition,
         guard: options.guard,
       });
+      journal = new ObservationJournal({
+        store: cache.store,
+        outbox,
+        threadId: execution.thread.id,
+        guard: options.guard,
+      });
+      journal.flush();
+      publish();
       check();
       resources = await options.resources({
         store: cache.store,
         cwd: workspace.cwd,
+        baseCommit: workspace.baseCommit,
         lease: structuredClone(initial),
         signal: lifetime.signal,
       });
@@ -145,9 +161,10 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
           }
           return engine;
         },
+        recordObservation: (observation) => journal?.record(observation),
+        recordTransientObservation: (observation) => journal?.recordTransient(observation),
         persistObservation: async (observation) => {
-          check();
-          outbox.append(observation);
+          journal?.flush();
           if (observation.event.t === "session.ready") {
             readySessionId = observation.sessionId;
             faulted = false;
@@ -193,6 +210,7 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
           if (command.type === "answer_interaction") {
             const interaction = cache.store.record("interaction", command.interactionId);
             if (
+              !ready() ||
               !interaction ||
               interaction.threadId !== threadId ||
               (command.nativeRef && interaction.nativeRef !== command.nativeRef)

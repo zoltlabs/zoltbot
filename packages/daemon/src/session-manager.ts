@@ -198,12 +198,15 @@ export class SessionManager {
     if (this.stopped) throw new Error("runtime_closed");
     if (!engine) throw new Error("runtime_interaction_host_required");
     this.engine = engine;
+    const observe = this.options.observe?.(threadId, sessionId);
+    const record = observe?.record ? () => observe.record?.(event, {}) : undefined;
     if (event.t === "interaction.requested")
       engine.request(
         event.interaction,
         `native-request:${event.interaction.id}`,
         { kind: "system", id: "runtime" },
         approvalSourcePaths,
+        record,
       );
     else {
       const state = this.options.store.snapshot();
@@ -224,6 +227,7 @@ export class SessionManager {
             ? "turn_ended"
             : "provider_cleared",
         `native-clear:${randomUUID()}`,
+        record,
       );
     }
   }

@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Fix: Cloud task observations survive a runner exit between saving task state and sending events.
+
 - Fix: Cloud tasks report unconfirmed answer delivery.
 - Fix: Private cloud answers require a ready task runner after reconnecting.
 

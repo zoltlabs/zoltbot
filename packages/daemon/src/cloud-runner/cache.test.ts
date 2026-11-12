@@ -224,3 +224,31 @@ it("requires opaque vault references for provider credentials in its pinned defi
     env: {},
   });
 });
+
+it("refuses Cell-supplied filesystem attachments and accepts portable inline image data", async () => {
+  const f = await fixture(),
+    cache = await f.open();
+  const before = cache.store.lastSeq();
+  for (const input of [
+    [{ type: "file" as const, path: "/private/Local-only.txt" }],
+    [{ type: "image" as const, path: "/private/Local-only.png" }],
+  ]) {
+    expect(() => cache.queue("path-input", "path-input", input, "queue")).toThrow(
+      "runner_input_requires_upload",
+    );
+    const changed = structuredClone(f.lease),
+      item = changed.execution?.queuedItems[0];
+    if (!item) throw new Error("fixture_input_missing");
+    item.body = { ...parse(QueuedInputBodySchema, item.body), input };
+    expect(() => cache.update(changed)).toThrow("runner_input_requires_upload");
+    expect(cache.store.lastSeq()).toBe(before);
+  }
+  expect(
+    cache.queue(
+      "inline-image",
+      "inline-image",
+      [{ type: "image", mimeType: "image/png", base64: "c3ludGhldGlj" }],
+      "queue",
+    ),
+  ).toMatchObject({ id: "inline-image" });
+});

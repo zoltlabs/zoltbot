@@ -1,8 +1,8 @@
 # Cloud runner
 
 This package is in progress. It contains the durable event journal for the Mac
-runner and sandbox worker, plus their reconnecting transport. Managed checkout integration,
-native command execution and signed Mac bridge integration are not complete. W5 is not
+runner and sandbox worker, plus their reconnecting transport, managed checkouts and
+native Claude/Codex task hosts. Daemon opt-in and the signed Mac bridge are not complete. W5 is not
 signed off, and this code does not connect a Local project to a cell.
 
 ## Event journal
@@ -15,10 +15,23 @@ bearer tokens out of journal inputs. New files use owner-only permissions and
 refuse symlinks.
 
 The journal appends and fsyncs an event before returning its runner sequence.
-The runtime's optional `persistObservation` hook awaits that write before passing
-the normalized, redacted event to other readers. It stays active without a stream
+`ObservationJournal` first saves the normalized, redacted observation in the task
+cache's SQLite transaction with its projection. Streaming deltas use a separate
+SQLite transaction. This cache explicitly uses synchronous FULL. Pending rows flush
+to JSONL before startup, after each runtime observation and before cache shutdown.
+The runtime's optional record hooks write inside the projection transaction;
+`persistObservation` then flushes the queue before notifying other readers. It stays active without a stream
 reader, so startup observations are not dropped. Local callers omit the hook and
 retain the existing reader behavior and execution path.
+
+The cache has a persistent random source ID and monotonically increasing source
+sequence. Each JSONL copy includes that source sequence and an observation digest.
+If the process dies after fsync but before deleting the SQLite row, retrying the
+last identical copy returns its original wire sequence. Compaction retains this
+last source cursor even after acknowledgement. Changed payloads, skipped or older
+source sequences, lost cache identity and regressed cache history fail closed.
+Only one pending SQLite row is loaded at a time. Tests kill a child process after
+its cache commit and before flush, and inject failure after fsync and compaction.
 
 Acknowledgements also fsync before releasing retained entries. A new connection
 reconciles the cell's cursor before processing its lease, including when a recreated
@@ -156,8 +169,8 @@ Turn commands, interaction answers, interrupts and stop use the existing runner
 and interaction engine. The command input ID is canonical when supplied; older
 frames without it use a stable command-derived ID. Only the Cell drives interaction
 timers. Diff collection and branch publication remain refused until their bounded
-wire results are implemented. No production Mac host, daemon opt-in or signed Mac
-execution is connected yet.
+wire results are implemented. Native assembly is available below; daemon opt-in
+and signed Mac execution are not connected yet.
 
 Tests drive real `InProcessRunner` instances with synthetic native sessions and
 disposable local Git repositories. They cover native resume, one-time input and
@@ -166,3 +179,41 @@ cross-member refusal and cleanup. The localhost fake Cell disconnects after its
 first persisted event; the same native runtime replays the remaining journal and
 finishes once. These are composition tests, not the W6 CLI/template or W8 whole-flow
 gates. Local task wiring is unchanged.
+
+## Native task resources and private context
+
+`nativeCloudTasks` supplies the production task resource assembly for the Mac and
+worker. It accepts only the built-in Claude and Codex definitions, discovers their
+locally pinned binaries and clones each definition before use. Its injected native
+ports support headless fixtures; Cell recipes never select executables. The host
+creates a task-owned localhost MCP server with environment-only bearer credentials.
+Every tool call checks the task profile, thread, running session and current turn
+before applying the supplied tool policy. No Local runtime or desktop controller
+is an input. The caller supplies the tool set; the W7 bridge tools remain pending.
+
+Provider keys enter only through an injected keychain/environment callback and
+the native process environment. They stay out of cached definitions and discovery
+probes. The host registers them with the redactor and private context before the
+native session opens. Mac tasks can use the provider's existing native login when
+no API key is supplied. Worker assembly must require its injected API key instead.
+Cloud inputs refuse file paths: a Cell path cannot grant access to the receiving
+machine's filesystem. Inline images and text remain valid. Client attachment
+serialization is part of the later client work.
+
+`taskVault` wraps private-context references with org/task metadata and rejects
+other tasks' and unwrapped Local references. The Mac caller supplies its keychain.
+`EncryptedTaskVault` supplies sandbox persistence with AES-256-GCM, a fresh nonce,
+and org/task/reference authenticated data. Its 32-byte key arrives through the
+worker environment; files contain only bounded authenticated ciphertext, use
+owner-only permissions and atomic fsynced replacement, and refuse symlinks. Reads
+validate metadata and value bounds. Key and plaintext buffers are cleared where
+possible; JavaScript strings cannot be erased reliably. The caller closes the
+vault only after task shutdown and private-context writes settle, then clears its
+key buffer. It must retain the same injected key across a sandbox wake.
+
+Headless native tests use disposable Git repositories, synthetic environment keys
+and the protocol fake executables. Both adapters call a scoped host tool and
+resume the original native ID after reopening the factory. Tests scan fixture
+files for secret bytes and cover scoped-vault refusal, authenticated ciphertext
+recovery, tampering and missing keys. No installed agent CLI, real keychain,
+provider service or visible app is used. These tests do not complete W6 or W8.

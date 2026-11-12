@@ -131,3 +131,39 @@ it("compacts an acknowledged prefix without loading retained event bodies togeth
   expect([...outbox.pending()].map((frame) => frame.runnerSeq)).toEqual([2]);
   outbox.close();
 });
+
+it("reconciles the last SQLite copy after ack and compaction without allocating another wire sequence", () => {
+  const options = fixture(),
+    id = "12345678-1234-1234-1234-123456789abc";
+  let outbox = new RunnerOutbox(options);
+  outbox.bindSource(id, 0);
+  expect(outbox.appendSource(id, 1, observation("First"))).toBe(1);
+  outbox.acknowledge(1);
+  outbox.compact();
+  outbox.close();
+  outbox = new RunnerOutbox(options);
+  outbox.bindSource(id, 1);
+  expect(outbox.appendSource(id, 1, observation("First"))).toBe(1);
+  expect(outbox.nextSequence).toBe(2);
+  expect(() => outbox.appendSource(id, 1, observation("Changed"))).toThrow(
+    "runner_outbox_source_conflict",
+  );
+  expect(() => outbox.bindSource(id, 0)).toThrow("runner_outbox_source_conflict");
+  expect(outbox.appendSource(id, 2, observation("Second"))).toBe(2);
+  outbox.close();
+  outbox = new RunnerOutbox(options);
+  outbox.bindSource(id, 2);
+  expect([...outbox.pending()].map((frame) => frame.runnerSeq)).toEqual([2]);
+  outbox.compact();
+  outbox.close();
+  outbox = new RunnerOutbox(options);
+  expect([...outbox.pending()].map((frame) => frame.runnerSeq)).toEqual([2]);
+  expect(outbox.appendSource(id, 2, observation("Second"))).toBe(2);
+  expect(() => outbox.appendSource(id, 1, observation("First"))).toThrow(
+    "runner_outbox_source_conflict",
+  );
+  expect(() => outbox.appendSource(id, 4, observation("Skipped"))).toThrow(
+    "runner_outbox_source_conflict",
+  );
+  outbox.close();
+});

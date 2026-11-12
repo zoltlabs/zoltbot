@@ -141,6 +141,7 @@ it("awaits durable observations without a stream reader and preserves redaction 
     ),
   );
   const persisted: RuntimeObservation[] = [];
+  const recorded: RuntimeObservation[] = [];
   let release!: () => void;
   const barrier = new Promise<void>((resolve) => {
     release = resolve;
@@ -148,7 +149,16 @@ it("awaits durable observations without a stream reader and preserves redaction 
   const runtime = createInProcessRuntime({
     store: f.store,
     publish() {},
+    recordObservation: (observation) => {
+      expect(f.store.database.inTransaction).toBe(true);
+      recorded.push(observation);
+    },
+    recordTransientObservation: (observation) => {
+      expect(f.store.database.inTransaction).toBe(false);
+      recorded.push(observation);
+    },
     persistObservation: async (observation) => {
+      expect(recorded.at(-1)).toEqual(observation);
       persisted.push(observation);
       if (observation.event.t === "session.ready") await barrier;
     },
@@ -181,6 +191,7 @@ it("awaits durable observations without a stream reader and preserves redaction 
     });
     await expect.poll(() => persisted.some((value) => value.event.t === "turn.done")).toBe(true);
     expect(JSON.stringify(persisted).includes("seeded-secret")).toBe(false);
+    expect(recorded).toEqual(persisted);
   } finally {
     release();
     await runtime.runner.close();

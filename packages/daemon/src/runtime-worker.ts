@@ -89,6 +89,7 @@ export class RuntimeWorker {
   private commit(
     produce: (state: DomainState, context: CommandContext) => Outcome,
     items?: ItemScope,
+    record?: () => void,
   ) {
     const commandId = `runtime:${randomUUID()}`,
       before = this.options.store.lastSeq();
@@ -97,7 +98,9 @@ export class RuntimeWorker {
       commandId,
       (state) => {
         produced = true;
-        return produce(state, this.context(commandId));
+        const output = produce(state, this.context(commandId));
+        if (!output.result.ignored) record?.();
+        return output;
       },
       items ? { items } : {},
     );
@@ -156,6 +159,7 @@ export class RuntimeWorker {
     if (event.t === "status" && ["error", "auth_required"].includes(event.state)) {
       await this.stopNative(
         event.state === "auth_required" ? "auth_required" : "runtime_process_error",
+        redactRuntimeEvent(event, this.options.redactor),
       );
       if (this.observer.active)
         await this.observer.emit(redactRuntimeEvent(event, this.options.redactor));
@@ -261,18 +265,21 @@ export class RuntimeWorker {
       if (owner?.sessionId !== this.options.sessionId || owner.threadId !== this.options.threadId)
         return;
       const sample = event.usage;
-      this.commit((state, context) =>
-        recordUsage(
-          state,
-          {
-            sessionId: this.options.sessionId,
-            turnId,
-            sample,
-            ...(this.options.baseline ? { baseline: this.options.baseline } : {}),
-            injectedTokens: this.injected.get(turnId) ?? 0,
-          },
-          context,
-        ),
+      this.commit(
+        (state, context) =>
+          recordUsage(
+            state,
+            {
+              sessionId: this.options.sessionId,
+              turnId,
+              sample,
+              ...(this.options.baseline ? { baseline: this.options.baseline } : {}),
+              injectedTokens: this.injected.get(turnId) ?? 0,
+            },
+            context,
+          ),
+        undefined,
+        () => this.observer.record(event, { turnId }),
       );
       if (this.observer.active) await this.observer.emit(event, { turnId });
       return;
@@ -286,6 +293,14 @@ export class RuntimeWorker {
             ? this.identity("compaction", randomUUID())
             : undefined;
     const pending = event.t === "turn.started" ? this.pending : undefined;
+    const observationContext = {
+      ...(itemId ? { itemId } : {}),
+      ...("turnId" in event && event.turnId
+        ? { turnId: event.turnId }
+        : this.currentTurn
+          ? { turnId: this.currentTurn }
+          : {}),
+    };
     const written = this.commit(
       (state, context) => {
         if (event.t === "session.ready")
@@ -348,6 +363,7 @@ export class RuntimeWorker {
         };
       },
       event.t === "turn.started" && pending ? { ids: [pending.id] } : undefined,
+      () => this.observer.record(event, observationContext),
     );
     if (written.result.ignored) return;
     if (event.t === "turn.started") {
@@ -385,15 +401,7 @@ export class RuntimeWorker {
       (event.t === "compaction" && event.state === "done")
     )
       void this.wake();
-    if (this.observer.active)
-      await this.observer.emit(event, {
-        ...(itemId ? { itemId } : {}),
-        ...("turnId" in event && event.turnId
-          ? { turnId: event.turnId }
-          : this.currentTurn
-            ? { turnId: this.currentTurn }
-            : {}),
-      });
+    if (this.observer.active) await this.observer.emit(event, observationContext);
   }
   holdDispatch(): () => void {
     this.dispatchHolds++;
@@ -686,7 +694,7 @@ export class RuntimeWorker {
       this.dirty = true;
     }
   }
-  private async stopNative(code: SessionEndReason) {
+  private async stopNative(code: SessionEndReason, observation?: AgentEvent) {
     if (this.stopped) return;
     this.stopped = true;
     try {
@@ -696,56 +704,65 @@ export class RuntimeWorker {
       this.options.onCleanupFailure?.();
       this.options.onError?.("runtime_cleanup_failed");
     } finally {
-      this.commit((state, context) => {
-        const session = state.session?.find((row) => row.id === this.options.sessionId);
-        if (!session || ["closed", "failed"].includes(String(session.state)))
-          return { events: [], result: {} };
-        const turn = state.turn?.find(
-          (row) => row.sessionId === session.id && row.status === "running",
-        );
-        const output = turn
-          ? observeRuntimeEvent(
-              state,
-              {
-                sessionId: this.options.sessionId,
-                threadId: this.options.threadId,
-                event: { t: "turn.done", turnId: turn.id, status: "interrupted", stopReason: code },
-                synthetic: true,
-                ...(this.options.heldInteractionIds
-                  ? { heldInteractionIds: this.options.heldInteractionIds() }
-                  : {}),
-              },
-              context,
-            )
-          : { events: [], result: {} };
-        const next = handle(
-          applyEvents(state, output.events),
-          {
-            type: "transition",
-            kind: "session",
-            id: this.options.sessionId,
-            to: "closed",
-          },
-          context,
-        );
-        return {
-          events: [
-            ...output.events,
-            ...next.events.map((row) => ({
+      this.commit(
+        (state, context) => {
+          const session = state.session?.find((row) => row.id === this.options.sessionId);
+          if (!session || ["closed", "failed"].includes(String(session.state)))
+            return { events: [], result: {} };
+          const turn = state.turn?.find(
+            (row) => row.sessionId === session.id && row.status === "running",
+          );
+          const output = turn
+            ? observeRuntimeEvent(
+                state,
+                {
+                  sessionId: this.options.sessionId,
+                  threadId: this.options.threadId,
+                  event: {
+                    t: "turn.done",
+                    turnId: turn.id,
+                    status: "interrupted",
+                    stopReason: code,
+                  },
+                  synthetic: true,
+                  ...(this.options.heldInteractionIds
+                    ? { heldInteractionIds: this.options.heldInteractionIds() }
+                    : {}),
+                },
+                context,
+              )
+            : { events: [], result: {} };
+          const next = handle(
+            applyEvents(state, output.events),
+            {
+              type: "transition",
+              kind: "session",
+              id: this.options.sessionId,
+              to: "closed",
+            },
+            context,
+          );
+          return {
+            events: [
+              ...output.events,
+              ...next.events.map((row) => ({
+                ...row,
+                payload: {
+                  ...(row.payload as Record<string, unknown>),
+                  endedAt: context.at,
+                  endReason: this.cleanupFailed ? "runtime_cleanup_required" : code,
+                },
+              })),
+            ].map((row, index) => ({
               ...row,
-              payload: {
-                ...(row.payload as Record<string, unknown>),
-                endedAt: context.at,
-                endReason: this.cleanupFailed ? "runtime_cleanup_required" : code,
-              },
+              eventId: `${context.commandId}:${index}`,
             })),
-          ].map((row, index) => ({
-            ...row,
-            eventId: `${context.commandId}:${index}`,
-          })),
-          result: {},
-        };
-      });
+            result: {},
+          };
+        },
+        undefined,
+        observation ? () => this.observer.record(observation) : undefined,
+      );
       this.text.clear();
       this.partial.clear();
     }

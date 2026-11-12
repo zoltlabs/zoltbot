@@ -1,4 +1,7 @@
 export * from "./connection.js";
+export * from "./encrypted-vault.js";
+export * from "./native.js";
 export * from "./outbox.js";
 export * from "./task-host.js";
+export * from "./vault.js";
 export * from "./workspaces.js";

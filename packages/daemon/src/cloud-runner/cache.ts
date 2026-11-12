@@ -17,6 +17,7 @@ import { acquireOwnerLock, openStore, type Store } from "@zoltbot/store";
 import { assertPublicDefinition } from "../definition-configuration.js";
 import { recover } from "../recovery.js";
 import { previousForThread } from "../runtime-configuration.js";
+import { assertPortableCloudInput } from "./input.js";
 import type { ManagedWorkspaceResult } from "./workspaces.js";
 
 interface CacheOptions {
@@ -213,6 +214,7 @@ export class CloudTaskCache {
       const seen = new Set<string>();
       for (const item of execution.queuedItems) {
         const body = parse(QueuedInputBodySchema, item.body);
+        assertPortableCloudInput(body.input);
         if (
           seen.has(item.id) ||
           item.kind !== "user" ||
@@ -241,6 +243,7 @@ export class CloudTaskCache {
   queue(commandId: string, inputId: string, input: UserInput, mode: "queue" | "steer") {
     if (this.closed) throw new Error("runner_cache_closed");
     this.options.guard(input);
+    assertPortableCloudInput(input);
     const execution = this.lease.execution;
     if (!execution) throw new Error("runner_cache_scope_conflict");
     const digest = createHash("sha256")

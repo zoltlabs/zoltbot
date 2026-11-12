@@ -93,11 +93,14 @@ export class InteractionEngine {
     commandId: string,
     actor: ActorRef = { kind: "system", id: "runtime" },
     approvalSourcePaths?: readonly string[],
+    record?: () => void,
   ) {
     const draft = parse(InteractionDraftSchema, input);
-    const output = this.commit(commandId, (state) =>
-      requestInteraction(state, draft, randomUUID(), this.context(commandId, actor)),
-    );
+    const output = this.commit(commandId, (state) => {
+      const result = requestInteraction(state, draft, randomUUID(), this.context(commandId, actor));
+      record?.();
+      return result;
+    });
     const interaction = parse(InteractionSchema, output.result);
     if (interaction.id !== draft.id) throw new Error("command_receipt_conflict");
     if (output.produced && interaction.type === "approval" && this.options.host) {
@@ -185,18 +188,21 @@ export class InteractionEngine {
     ids: readonly string[],
     reason: "process_died" | "turn_ended" | "provider_cleared",
     commandId: string,
+    record?: () => void,
   ) {
     const selected = new Set(ids);
     return this.commit(commandId, (state) => {
       const interaction = (state.interaction ?? []).filter(
         (row) => selected.has(String(row.id)) && !this.active.has(String(row.id)),
       );
-      return expireInteractions(
+      const result = expireInteractions(
         { ...state, interaction },
         [...new Set(interaction.map((row) => String(row.threadId)))],
         reason,
         this.context(commandId, { kind: "system", id: "runtime" }),
       );
+      record?.();
+      return result;
     }).result;
   }
   async answer(

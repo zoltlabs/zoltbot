@@ -23,6 +23,12 @@ export interface OutboxBinding {
   threadId: string;
   leaseId: string;
 }
+interface SourceCursor {
+  id: string;
+  sequence: number;
+  digest: string;
+  runnerSeq: number;
+}
 interface Pointer {
   offset: number;
   length: number;
@@ -62,6 +68,7 @@ export class RunnerOutbox {
   private pendingBytes = 0;
   private acknowledged = 0;
   private initialized = false;
+  private source: SourceCursor | undefined;
   constructor(
     private readonly options: {
       directory: string;
@@ -102,7 +109,13 @@ export class RunnerOutbox {
     return this.highest + 1;
   }
   private header() {
-    return { t: "header", version: 1, ...this.binding, lastAck: this.acknowledged };
+    return {
+      t: "header",
+      version: 1,
+      ...this.binding,
+      lastAck: this.acknowledged,
+      ...(this.source ? { source: this.source } : {}),
+    };
   }
   private guard(value: unknown) {
     try {
@@ -163,7 +176,14 @@ export class RunnerOutbox {
         throw new OutboxError("runner_outbox_scope_conflict");
       this.guard(row);
       this.acceptAck(this.sequence(row.lastAck));
+      if (row.source !== undefined) this.source = this.sourceCursor(row.source);
       this.initialized = true;
+      return;
+    }
+    if (row.t === "source") {
+      if (this.source || this.highest) throw new OutboxError("runner_outbox_source_conflict");
+      this.source = this.sourceCursor(row.source);
+      if (this.source.sequence !== 0) throw new OutboxError("runner_outbox_corrupt");
       return;
     }
     if (row.t === "ack") {
@@ -174,6 +194,19 @@ export class RunnerOutbox {
     const frame = this.frame(row.frame);
     if (row.hash !== hash(JSON.stringify(frame)) || frame.runnerSeq !== this.highest + 1)
       throw new OutboxError("runner_outbox_corrupt");
+    if (row.source !== undefined) {
+      const source = this.sourceCursor(row.source);
+      if (
+        !this.source ||
+        source.id !== this.source.id ||
+        source.sequence !== this.source.sequence + 1 ||
+        source.runnerSeq !== frame.runnerSeq
+      )
+        throw new OutboxError("runner_outbox_source_conflict");
+      this.source = source;
+    } else if (this.source && frame.runnerSeq > this.source.runnerSeq) {
+      throw new OutboxError("runner_outbox_source_conflict");
+    }
     this.highest = frame.runnerSeq;
     this.index.set(frame.runnerSeq, { offset, length });
     this.pendingBytes += length;
@@ -212,7 +245,60 @@ export class RunnerOutbox {
     this.size += bytes.length;
     return pointer;
   }
+  private sourceCursor(value: unknown): SourceCursor {
+    if (!value || typeof value !== "object") throw new OutboxError("runner_outbox_corrupt");
+    const row = value as Record<string, unknown>;
+    if (
+      typeof row.id !== "string" ||
+      !/^[0-9a-f-]{36}$/.test(row.id) ||
+      typeof row.digest !== "string" ||
+      !/^(?:[0-9a-f]{64})?$/.test(row.digest)
+    )
+      throw new OutboxError("runner_outbox_corrupt");
+    const sequence = this.sequence(row.sequence),
+      runnerSeq = this.sequence(row.runnerSeq);
+    if ((sequence === 0) !== (row.digest === "") || (sequence === 0 && runnerSeq !== 0))
+      throw new OutboxError("runner_outbox_corrupt");
+    return { id: row.id, sequence, digest: row.digest, runnerSeq };
+  }
+  /** Bind the cache journal before execution. Losing or rolling back that cache fails closed. */
+  bindSource(id: string, highest: number) {
+    this.ensureOpen();
+    this.sequence(highest);
+    const initial = this.sourceCursor({ id, sequence: 0, digest: "", runnerSeq: 0 });
+    if (this.source) {
+      if (this.source.id !== id || highest < this.source.sequence)
+        throw new OutboxError("runner_outbox_source_conflict");
+      return;
+    }
+    if (this.highest !== 0 || highest !== 0) throw new OutboxError("runner_outbox_source_conflict");
+    try {
+      this.write({ t: "source", source: initial });
+      this.source = initial;
+    } catch (error) {
+      this.fail(error);
+    }
+  }
+  /** The SQLite row remains pending until this fsynced copy succeeds. Retry the last copy once. */
+  appendSource(id: string, sequence: number, observation: RuntimeObservation): number {
+    this.ensureOpen();
+    this.sequence(sequence);
+    this.guard(observation);
+    const digest = hash(JSON.stringify(observation));
+    if (!this.source || this.source.id !== id)
+      throw new OutboxError("runner_outbox_source_conflict");
+    if (sequence === this.source.sequence && digest === this.source.digest)
+      return this.source.runnerSeq;
+    if (sequence !== this.source.sequence + 1)
+      throw new OutboxError("runner_outbox_source_conflict");
+    const source = { id, sequence, digest, runnerSeq: this.nextSequence };
+    return this.appendFrame(observation, source).runnerSeq;
+  }
   append(observation: RuntimeObservation): RunnerEvent {
+    if (this.source) throw new OutboxError("runner_outbox_source_conflict");
+    return this.appendFrame(observation);
+  }
+  private appendFrame(observation: RuntimeObservation, source?: SourceCursor): RunnerEvent {
     this.ensureOpen();
     if (observation.threadId !== this.binding.threadId)
       throw new OutboxError("runner_outbox_scope_conflict");
@@ -228,8 +314,14 @@ export class RunnerOutbox {
     if (Buffer.byteLength(JSON.stringify(frame)) > maximumLine - 1024)
       throw new OutboxError("runner_event_too_large");
     try {
-      const pointer = this.write({ t: "event", hash: hash(JSON.stringify(frame)), frame });
+      const pointer = this.write({
+        t: "event",
+        hash: hash(JSON.stringify(frame)),
+        frame,
+        ...(source ? { source } : {}),
+      });
       this.highest = frame.runnerSeq;
+      if (source) this.source = source;
       this.index.set(frame.runnerSeq, pointer);
       this.pendingBytes += pointer.length;
       return frame;
