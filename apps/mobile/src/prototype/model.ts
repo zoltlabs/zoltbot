@@ -1,6 +1,15 @@
 import type { Interaction } from "@zoltbot/protocol";
 
 export type State = "working" | "needs_you" | "review" | "idle" | "later" | "problem";
+export const statePaths: Record<State, string> = {
+  working: "M8 1.5 13.6 4.7v6.6L8 14.5l-5.6-3.2V4.7Z M8 5v6M5 8h6",
+  needs_you: "M8 1 14 8l-6 7-6-7Z M8 5v4M8 11v.5",
+  review: "M4 14V2h1l8 3.5L5 9",
+  idle: "M3 8h10v3H3Z",
+  later: "M3 8h10v3H3Z",
+  problem: "M8 1.5 15 14H1Z M8 5v4M8 11v1",
+};
+
 export const marks = {
   working: { shape: "⬡", label: "Working", tone: "accent-text" },
   needs_you: { shape: "◆", label: "Needs you", tone: "attention" },
@@ -63,8 +72,13 @@ export const waited = (request: Interaction, now: number) => {
   const minutes = Math.max(0, Math.floor((now - Date.parse(request.createdAt)) / 60000));
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 };
-export const columns = (fontScale: number, layout: "board" | "stacked") =>
-  fontScale > 1.2 || layout === "stacked" ? 1 : 2;
+/** Keep an explicit focus stable while simulation changes other squads. */
+export function focusedInitiative(project: Project, preferred?: string): Initiative | undefined {
+  const chosen = project.initiatives.find((i) => i.id === preferred);
+  if (chosen) return chosen;
+  return [...sorted(project)].sort((a, b) => waiting(b) - waiting(a))[0];
+}
+export const unitWidth = (fontScale: number) => (fontScale > 1.4 ? 80 : 44);
 export function updateAgent(project: Project, id: string, update: (a: Agent) => Agent): Project {
   return {
     ...project,

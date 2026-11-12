@@ -2,9 +2,9 @@ import type { Interaction } from "@zoltbot/protocol";
 import { type Agent, type Project, providers, type State, updateAgent } from "./model";
 
 /** Relative times and normalized interactions follow data/sample.ts. No live client is used. */
-export function requestFor(id: string, index: number, now: number): Interaction {
+export function requestFor(id: string, index: number, now: number, topic = "billing"): Interaction {
   const type = (["approval", "question", "plan"] as const)[index % 3] ?? "approval";
-  return {
+  const request: Interaction = {
     id: `request-${id}`,
     agentId: id,
     threadId: id,
@@ -63,6 +63,51 @@ export function requestFor(id: string, index: number, now: number): Interaction 
             },
           ],
   };
+  if (topic !== "billing") {
+    if (type === "question") {
+      const reminders = topic === "reminders";
+      request.title = reminders
+        ? "When should we remind renters?"
+        : "Which payment methods ship first?";
+      request.context = {
+        markdown: reminders
+          ? "The delivery worker is ready. Choose the first reminder window."
+          : "Card payments are ready. Choose whether this release also includes Apple Pay.",
+      };
+      request.items = [
+        {
+          id: "scope",
+          prompt: reminders
+            ? "Send return reminders 24 or 48 hours ahead?"
+            : "Which payment methods should checkout offer?",
+          options: reminders
+            ? [
+                { id: "24", label: "24 hours" },
+                { id: "48", label: "48 hours" },
+              ]
+            : [
+                { id: "cards", label: "Cards only" },
+                { id: "both", label: "Cards and Apple Pay" },
+              ],
+          allowOther: true,
+        },
+      ];
+    } else {
+      request.title = "Run the checkout regression suite?";
+      request.context = {
+        command: "pnpm checkout:test --sandbox",
+        markdown: "Run the regression suite with synthetic rental orders.",
+      };
+      request.items = [
+        {
+          id: "approve",
+          prompt: "Run the checkout regression suite?",
+          choices: [{ id: "allow_once" }, { id: "allow_session" }, { id: "reject_once" }],
+        },
+      ];
+    }
+  }
+  return request;
 }
 const specs = [
   [
@@ -172,7 +217,7 @@ export function sampleProject(size: "full" | "tiny" | "empty" = "full", now = Da
           state,
           activity:
             state === "working"
-              ? `Checking ${s[0].toLowerCase()} edge cases`
+              ? `${["Implementing", "Testing", "Reviewing", "Comparing records for", "Checking accessibility for", "Running release checks for"][n]} ${s[0].toLowerCase()}`
               : state === "problem"
                 ? "Session stopped: required check failed"
                 : state === "needs_you"
@@ -187,7 +232,16 @@ export function sampleProject(size: "full" | "tiny" | "empty" = "full", now = Da
               ? "Added regression coverage for the previous change."
               : "Reviewed the current behavior and recorded remaining risks.",
           messages: ["Keep the change scoped to the rental workflow."],
-          ...(state === "needs_you" ? { request: requestFor(id, i * 6 + n, now) } : {}),
+          ...(state === "needs_you"
+            ? {
+                request: requestFor(
+                  id,
+                  i * 6 + n,
+                  now,
+                  i === 5 ? "reminders" : i === 0 ? "checkout" : "billing",
+                ),
+              }
+            : {}),
         };
       }),
     })),
@@ -205,7 +259,7 @@ export function simulate(project: Project, tick: number, now: number): Project {
           ...a,
           state: "needs_you",
           activity: "Waiting for a rehearsal approval",
-          request: requestFor(a.id, 0, now),
+          request: requestFor(a.id, 0, now, "checkout"),
         }
       : tick === 2
         ? {

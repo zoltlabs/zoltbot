@@ -1,4 +1,5 @@
 import type { Interaction } from "@zoltbot/protocol";
+import { permissionExpansion } from "@zoltbot/ui/interactions/request-presentation";
 import { Alert, View } from "react-native";
 import type { AnswerDraft } from "../data/interactions";
 import { ApprovalCard } from "../ui/interactions/ApprovalCard";
@@ -15,17 +16,20 @@ export function Request({
   answer: (draft: AnswerDraft) => void;
 }) {
   const submit = async (draft: AnswerDraft) => {
+    const expansion = permissionExpansion(request, draft.choice);
     if (widens(draft.choice)) {
       Alert.alert(
-        "Allow more than this action?",
-        draft.choice === "allow_session"
-          ? "The agent may run further commands in this session without asking again."
-          : "The agent may apply further edits in this session without asking again.",
+        expansion?.title ?? "Allow more than this action?",
+        expansion?.description ??
+          (draft.choice === "allow_session"
+            ? "The agent may run further commands in this session without asking again."
+            : "The agent may apply further edits in this session without asking again."),
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Confirm", onPress: () => answer(draft) },
+          { text: expansion?.action ?? "Confirm", onPress: () => answer(draft) },
         ],
       );
+      return false;
     } else answer(draft);
     return true;
   };

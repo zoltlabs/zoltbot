@@ -5,7 +5,17 @@ import { build } from "esbuild";
 import type { ComponentType, ReactNode } from "react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { dark, light } from "../theme/tokens.generated";
-import { answerRequest, columns, marks, queue, sorted, widens } from "./model";
+import {
+  answerRequest,
+  focusedInitiative,
+  marks,
+  type Project,
+  queue,
+  sorted,
+  statePaths,
+  unitWidth,
+  widens,
+} from "./model";
 import { sampleProject, simulate, stressProject } from "./sample";
 
 // Bundle the actual components with native host shims. This checks rendered content and
@@ -16,7 +26,7 @@ const { renderToStaticMarkup } = uiRequire("react-dom/server") as {
   renderToStaticMarkup: (element: ReactNode) => string;
 };
 let fontScale = 1;
-let Command: ComponentType<{ initialLayout?: "board" | "stacked" }>;
+let Command: ComponentType<{ initialProject?: Project }>;
 beforeAll(async () => {
   const result = await build({
     entryPoints: [fileURLToPath(new URL("./Command.tsx", import.meta.url))],
@@ -58,6 +68,7 @@ beforeAll(async () => {
       );
   const native = {
     View: component("div"),
+    KeyboardAvoidingView: component("div"),
     Text: component("span"),
     Pressable: component("button"),
     ScrollView: component("section"),
@@ -70,7 +81,7 @@ beforeAll(async () => {
   };
   const theme = { mono: "monospace", touch: 44, useTheme: () => ({ c: dark }), type: {} };
   const module = {
-    exports: {} as { Command: ComponentType<{ initialLayout?: "board" | "stacked" }> },
+    exports: {} as { Command: ComponentType<{ initialProject?: Project }> },
   };
   const require = (id: string) =>
     id === "react-native"
@@ -80,7 +91,12 @@ beforeAll(async () => {
         : id === "react-native-safe-area-context"
           ? { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }
           : id === "react-native-svg"
-            ? { default: component("svg"), Path: component("path"), Rect: component("rect") }
+            ? {
+                __esModule: true,
+                default: component("svg"),
+                Path: component("path"),
+                Rect: component("rect"),
+              }
             : uiRequire(id);
   const output = result.outputFiles[0];
   if (!output) throw new Error("Component bundle missing");
@@ -120,6 +136,8 @@ describe("project command", () => {
     expect(new Set(Object.values(marks).map((mark) => mark.shape)).size).toBe(5);
     expect(Object.values(marks).every((mark) => mark.label.length)).toBe(true);
     expect(marks.later.shape).toBe(marks.idle.shape);
+    expect(new Set(Object.values(statePaths)).size).toBe(5);
+    expect(statePaths.later).toBe(statePaths.idle);
     expect(marks.needs_you.label).toBe("Needs you");
   });
   it("answers oldest first and advances without dropping another request", () => {
@@ -152,18 +170,35 @@ describe("project command", () => {
   });
   it("renders every initiative and control at the largest accessibility text scale", () => {
     fontScale = 3.2;
-    expect(columns(fontScale, "board")).toBe(1);
+    expect(unitWidth(fontScale)).toBe(80);
     const html = renderToStaticMarkup(createElement(Command));
     for (const initiative of sampleProject().initiatives) expect(html).toContain(initiative.name);
-    expect(html).toContain("Unblock 8");
-    expect(html).toContain("Pause live sample");
+    expect(html).toContain("8 agents need you");
+    expect(html).toContain("Prototype options");
     expect(html).not.toContain("numberOfLines");
-    expect(html).toContain("100%");
     fontScale = 1;
-    expect(columns(fontScale, "board")).toBe(2);
-    const stacked = renderToStaticMarkup(createElement(Command, { initialLayout: "stacked" }));
-    expect(stacked).toContain("Try compact board");
-    expect(stacked).not.toContain("48%");
+    expect(unitWidth(fontScale)).toBe(44);
+    expect(html).not.toContain("Try stacked");
+  });
+  it("keeps an explicit squad focus while requests change", () => {
+    const project = sampleProject("full", now);
+    expect(focusedInitiative(project)?.id).toBe("initiative-3");
+    expect(focusedInitiative(project, "initiative-1")?.id).toBe("initiative-1");
+    expect(focusedInitiative(simulate(project, 1, now), "initiative-1")?.id).toBe("initiative-1");
+    expect(focusedInitiative(project, "gone")?.id).toBe("initiative-3");
+    expect(focusedInitiative(sampleProject("empty"))).toBeUndefined();
+  });
+  it("renders tiny and empty states without phantom units", () => {
+    const tiny = renderToStaticMarkup(
+      createElement(Command, { initialProject: sampleProject("tiny", now) }),
+    );
+    expect(tiny).toContain("Depot pilot");
+    expect(tiny).not.toContain("Billing migration");
+    const empty = renderToStaticMarkup(
+      createElement(Command, { initialProject: sampleProject("empty", now) }),
+    );
+    expect(empty).toContain("No initiatives yet");
+    expect(empty).toContain("No requests waiting");
   });
 });
 
@@ -192,5 +227,6 @@ it("measures every semantic text and meaningful boundary pair in both themes", (
           `${token} on ${surface}`,
         ).toBeGreaterThanOrEqual(4.5);
       expect(ratio(palette["border-control"], palette[surface])).toBeGreaterThanOrEqual(3);
+      expect(ratio(palette["bg-frame"], palette.attention)).toBeGreaterThanOrEqual(4.5);
     }
 });

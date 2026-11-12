@@ -1,94 +1,55 @@
-import { useEffect, useRef, useState } from "react";
+import { type ComponentRef, useEffect, useRef, useState } from "react";
 import {
   Alert,
-  Modal,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { mono, touch, useTheme } from "../theme";
-import { Button, Txt } from "../ui/kit";
-import {
-  type Agent,
-  answerRequest,
-  columns,
-  type Initiative,
-  marks,
-  type Project,
-  queue,
-  sorted,
-  updateAgent,
-  waited,
-  waiting,
-} from "./model";
+import { answerSummary } from "../data/interactions";
+import { touch, useTheme } from "../theme";
+import { Txt } from "../ui/kit";
+import { OrderButton, Panel } from "./controls";
+import { AgentChat, InitiativeDetail, Orders } from "./Detail";
+import { StateLabel, StateMark } from "./graphics";
+import { answerRequest, type Project, queue, updateAgent, waited } from "./model";
+import { Overview } from "./Overview";
 import { Request } from "./Request";
+import { AgentSheet, Sheet } from "./Sheets";
 import { sampleProject, simulate, stressProject } from "./sample";
 
-function Mark({ agent, compact = false }: { agent: Agent; compact?: boolean }) {
-  const { c } = useTheme();
-  const mark = marks[agent.state];
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${agent.id}, ${agent.provider}, ${mark.label}`}
-      style={s.mark}
-    >
-      <View style={{ borderTopWidth: 3, borderColor: c[`provider-${agent.provider}`] }}>
-        <Txt v="code" style={{ color: c[mark.tone] }}>
-          {mark.shape} {agent.id.replace("unit-", "")}
-        </Txt>
-      </View>
-      <Txt v="meta">{compact ? mark.label : `${agent.provider} · ${mark.label}`}</Txt>
-    </View>
-  );
-}
-function Progress({ initiative }: { initiative: Initiative }) {
-  const { c } = useTheme();
-  return (
-    <View accessible accessibilityLabel={`${initiative.done} of ${initiative.total} tasks done`}>
-      <View style={[s.track, { backgroundColor: c["bg-sunken"] }]}>
-        <View
-          style={{
-            height: 4,
-            width: `${(100 * initiative.done) / initiative.total}%`,
-            backgroundColor: c["accent-text"],
-          }}
-        />
-      </View>
-      <Txt v="code">
-        {initiative.done}/{initiative.total} tasks
-      </Txt>
-    </View>
-  );
-}
 export function Command({
-  initialLayout = "board",
   onClose,
+  initialProject,
 }: {
-  initialLayout?: "board" | "stacked";
   onClose?: () => void;
+  initialProject?: Project;
 } = {}) {
   const { c } = useTheme();
+  const largeType = useWindowDimensions().fontScale > 1.4;
   const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
-  const [project, setProject] = useState<Project>(() => sampleProject());
+  const [project, setProject] = useState<Project>(() => initialProject ?? sampleProject());
   const latestProject = useRef(project);
   latestProject.current = project;
-  const [layout, setLayout] = useState<"board" | "stacked">(initialLayout);
+  const [focusId, setFocus] = useState<string>();
   const [detailId, setDetail] = useState<string>();
   const [sheetId, setSheet] = useState<string>();
   const [chatId, setChat] = useState<string>();
   const [requestId, setRequest] = useState<string>();
+  const [unblocking, setUnblocking] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const [options, setOptions] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [order, setOrder] = useState("Report progress and the next risk.");
+  const [message, setMessage] = useState("");
   const [running, setRunning] = useState(true);
   const [notice, setNotice] = useState("");
   const [now, setNow] = useState(Date.now());
   const tick = useRef(0);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => {
@@ -101,18 +62,39 @@ export function Command({
   const all = project.initiatives.flatMap((i) => i.agents);
   const detail = project.initiatives.find((i) => i.id === detailId);
   const sheet = all.find((a) => a.id === sheetId);
+  const sheetInitiative = project.initiatives.find((i) => i.agents.some((a) => a.id === sheetId));
   const chat = all.find((a) => a.id === chatId);
   const pending = queue(project);
   const current = pending.find((e) => e.request.id === requestId);
   const oldest = pending[0];
-  const openRequest = () => {
-    if (oldest) {
-      setSheet(undefined);
-      setRequest(oldest.request.id);
-    }
+  const overview = !unblocking && !chat && !detail && !ordering;
+  const home = () => {
+    setNotice("");
+    setUnblocking(false);
+    setRequest(undefined);
+    setChat(undefined);
+    setDetail(undefined);
+    setOrdering(false);
+    setSelected([]);
+    setSheet(undefined);
   };
-  const applyOrder = (ids: string[], stop = false) => {
-    if (!stop && !order.trim()) return;
+  const openRequest = (id?: string) => {
+    if (!id) return;
+    setNotice("");
+    setSheet(undefined);
+    setUnblocking(true);
+    setOrdering(false);
+    setRequest(id);
+  };
+  const openDetail = (id: string) => {
+    setNotice("");
+    setFocus(id);
+    setDetail(id);
+    setSelected([]);
+    setSheet(undefined);
+  };
+  const applyOrder = (ids: string[], stop = false, text = order) => {
+    if (!stop && !text.trim()) return;
     setProject((p) =>
       ids.reduce(
         (next, id) =>
@@ -121,347 +103,395 @@ export function Command({
             ...(stop
               ? { state: "idle" as const, request: undefined, activity: "Stopped by you" }
               : {}),
-            messages: [
-              ...a.messages,
-              stop ? "Stop requested; sample agent stopped." : order.trim(),
-            ],
+            messages: [...a.messages, stop ? "Stopped by you." : text.trim()],
           })),
         p,
       ),
     );
-    setNotice(stop ? `${ids.length} agents stopped` : `Order sent to ${ids.length} agents`);
+    setNotice(stop ? `${ids.length} agents stopped` : `Sent to ${ids.length} agents`);
     setSelected([]);
+    setOrdering(false);
   };
-  const sendOrder = (ids: string[], stop = false) => {
-    if (!stop) return applyOrder(ids);
+  const stop = (ids: string[]) =>
     Alert.alert(
       `Stop ${ids.length === 1 ? "this agent" : `${ids.length} agents`}?`,
-      "The selected agents stop now. Pending requests are cancelled in this sample.",
+      "They stop now. Pending sample requests are cancelled.",
       [
         { text: "Keep running", style: "cancel" },
         { text: "Stop", style: "destructive", onPress: () => applyOrder(ids, true) },
       ],
     );
-  };
   const reset = (size: "full" | "tiny" | "empty" | "forty") => {
     setProject(size === "forty" ? stressProject() : sampleProject(size));
     tick.current = 0;
-    setDetail(undefined);
-    setSelected([]);
+    home();
+    setFocus(undefined);
     setNotice("");
+    setOptions(false);
   };
-  const panel = { backgroundColor: c["bg-raised"], borderColor: c["border-control"] };
-  const unblockButton = (
-    <Button
-      label={
-        oldest
-          ? `◆ Unblock ${pending.length} · oldest ${waited(oldest.request, now)}`
-          : "No requests waiting"
-      }
-      disabled={!oldest}
-      onPress={openRequest}
-      kind="primary"
-    />
+  const unblock = (
+    <View style={[s.dock, { backgroundColor: c["bg-frame"], borderTopColor: c.border }]}>
+      <View style={[s.signal, { borderColor: oldest ? c.attention : c["text-secondary"] }]}>
+        <StateMark state={oldest ? "needs_you" : "review"} size={23} />
+      </View>
+      <View style={s.flex}>
+        <Txt v="section">{oldest ? `${pending.length} agents need you` : "All clear"}</Txt>
+        <Txt v="meta" tone="secondary">
+          {oldest ? `Oldest · ${waited(oldest.request, now)}` : "No requests waiting"}
+        </Txt>
+      </View>
+      <OrderButton
+        label="Unblock →"
+        attention
+        disabled={!oldest}
+        onPress={() => openRequest(oldest?.request.id)}
+      />
+    </View>
   );
+  const title = unblocking
+    ? "Needs you"
+    : ordering
+      ? "Orders"
+      : chat
+        ? "Sample chat"
+        : (detail?.name ?? project.name.split(" · ").at(-1) ?? "Project command");
+  const header = (
+    <View style={[s.header, largeType && { paddingHorizontal: 0 }]}>
+      {overview ? (
+        <Txt v="meta" tone="secondary">
+          Bracken Supply
+        </Txt>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={ordering ? "Back to initiative" : "Back to project"}
+          onPress={() => (ordering ? setOrdering(false) : home())}
+          style={s.back}
+        >
+          <Txt v="meta" tone="secondary">
+            ← {ordering ? "Initiative" : "Project"}
+          </Txt>
+        </Pressable>
+      )}
+      <View style={s.titleRow}>
+        <Txt v="largeTitle" accessibilityRole="header" style={s.flex}>
+          {title}
+        </Txt>
+        {overview ? (
+          <StateLabel state={running ? "working" : "idle"} label={running ? "Live" : "Paused"} />
+        ) : null}
+      </View>
+      {overview ? (
+        <View style={[s.stats, { borderColor: c.border }]}>
+          {[
+            [String(all.filter((a) => a.state === "working").length), "working", c.text],
+            [String(pending.length), "need you", c.attention],
+            [`$${project.spend.toFixed(2)}`, "today", c.text],
+            [
+              String(project.initiatives.reduce((n, i) => n + i.checks.length, 0)),
+              "checks",
+              c.danger,
+            ],
+          ].map(([value, label, color]) => (
+            <View key={label} accessible accessibilityLabel={`${value} ${label}`} style={s.stat}>
+              <Txt v="code" style={{ color }}>
+                {value}
+              </Txt>
+              <Txt v="meta" style={{ color }}>
+                {label}
+              </Txt>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+  const navigation = (
+    <View style={[s.nav, { backgroundColor: c["bg-frame"], paddingBottom: insets.bottom }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Project overview"
+        accessibilityState={{ selected: overview }}
+        style={[s.navButton, overview && { borderTopWidth: 2, borderTopColor: c["accent-text"] }]}
+        onPress={home}
+      >
+        <Txt v="meta" tone={overview ? "text" : "muted"}>
+          Project
+        </Txt>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Requests, ${pending.length} waiting`}
+        accessibilityState={{ selected: unblocking, disabled: !oldest && !unblocking }}
+        disabled={!oldest && !unblocking}
+        style={s.navButton}
+        onPress={() => !unblocking && openRequest(oldest?.request.id)}
+      >
+        <Txt v="meta" tone={pending.length ? "attention" : "muted"}>
+          Requests {pending.length}
+        </Txt>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Prototype options"
+        style={s.navButton}
+        onPress={() => setOptions(true)}
+      >
+        <Txt v="meta" tone="muted">
+          Prototype
+        </Txt>
+      </Pressable>
+    </View>
+  );
+  const selection =
+    detail && selected.length && !ordering && !unblocking && !chat ? (
+      <View
+        style={[s.selection, { borderColor: c["accent-text"], backgroundColor: c["bg-raised"] }]}
+      >
+        <Txt v="section">{selected.length} selected</Txt>
+        <OrderButton label="Orders →" onPress={() => setOrdering(true)} />
+        <OrderButton label="Stop" onPress={() => stop(selected)} />
+      </View>
+    ) : null;
   return (
-    <View style={[s.page, { backgroundColor: c["bg-page"], paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      behavior="padding"
+      style={[s.page, { backgroundColor: c["bg-page"], paddingTop: insets.top }]}
+    >
+      {!largeType ? header : null}
       <ScrollView
-        key={requestId ?? chatId ?? detailId ?? "overview"}
+        ref={scroll}
+        key={
+          unblocking
+            ? (requestId ?? "clear")
+            : ordering
+              ? "orders"
+              : (chatId ?? detailId ?? "overview")
+        }
         contentContainerStyle={s.body}
         keyboardShouldPersistTaps="handled"
       >
-        <Txt v="largeTitle" accessibilityRole="header">
-          {current ? "Needs you" : chat ? "Sample chat" : (detail?.name ?? "Project command")}
-        </Txt>
-        <Txt v="meta">Prototype · Local sample only</Txt>
-        <View accessibilityLiveRegion="polite">
-          <Txt>{notice}</Txt>
+        {largeType ? header : null}
+        <View
+          accessibilityLiveRegion="polite"
+          style={notice ? { paddingHorizontal: 0 } : { position: "absolute", height: 0 }}
+        >
+          {notice ? (
+            <Txt v="meta" tone="accent">
+              {notice}
+            </Txt>
+          ) : null}
         </View>
-        {current ? (
-          <View key={current.request.id} style={[s.panel, panel]}>
-            <Txt v="section">{current.agent.title}</Txt>
-            <Txt v="code">Needs you · waiting {waited(current.request, now)}</Txt>
-            <Request
-              request={current.request}
-              answer={(draft) => {
-                const next = answerRequest(
-                  latestProject.current,
-                  current.request.id,
-                  JSON.stringify(draft),
-                );
-                setProject(next);
-                setRequest(queue(next)[0]?.request.id);
-                setNotice("Answer recorded in sample");
-              }}
-            />
-            <Txt v="meta">{pending.length} requests remaining</Txt>
-            <Button label="Back to project" onPress={() => setRequest(undefined)} />
-          </View>
+        {unblocking ? (
+          current ? (
+            <Panel attention>
+              <View style={s.requestIdentity}>
+                <StateLabel state="needs_you" label={`Waiting ${waited(current.request, now)}`} />
+                <Txt v="code" tone="secondary">
+                  {pending.length} remaining
+                </Txt>
+              </View>
+              <Txt v="meta" tone="secondary">
+                {current.initiative.name} · Unit {current.agent.id.replace("unit-", "")}
+              </Txt>
+              <Request
+                key={current.request.id}
+                request={current.request}
+                answer={(draft) => {
+                  const next = answerRequest(
+                    latestProject.current,
+                    current.request.id,
+                    draft.answers
+                      ? current.request.items
+                          .map((item) => answerSummary(item, draft.answers?.[item.id]))
+                          .join("; ")
+                      : [
+                          draft.action === "accept" ? "Approved" : "Declined",
+                          draft.choice === "allow_session"
+                            ? "Commands allowed for this session"
+                            : draft.choice === "allow_accept_edits"
+                              ? "Edits allowed for this session"
+                              : "",
+                          draft.feedback,
+                        ]
+                          .filter(Boolean)
+                          .join(". "),
+                  );
+                  setProject(next);
+                  setRequest(queue(next)[0]?.request.id);
+                  setNotice("Answer recorded");
+                }}
+              />
+            </Panel>
+          ) : (
+            <Panel>
+              <StateMark state="review" size={30} />
+              <Txt v="cardTitle">All requests answered</Txt>
+              <Txt tone="secondary">Your agents can carry on.</Txt>
+              <OrderButton label="Back to project" onPress={home} />
+            </Panel>
+          )
+        ) : ordering ? (
+          <Orders
+            selected={selected}
+            agents={all}
+            order={order}
+            setOrder={setOrder}
+            send={() => applyOrder(selected)}
+            stop={() => stop(selected)}
+          />
         ) : chat ? (
-          <>
-            <Txt v="cardTitle">{chat.title}</Txt>
-            <Mark agent={chat} />
-            <Txt>{chat.result}</Txt>
-            {chat.messages.map((message, index) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: sample messages are append-only
-              <View key={`${index}-${message}`} style={[s.panel, panel]}>
-                <Txt>{message}</Txt>
-              </View>
-            ))}
-            <Txt v="section">Message</Txt>
-            <TextInput
-              accessibilityLabel="Message to sample agent"
-              multiline
-              value={order}
-              onChangeText={setOrder}
-              style={[s.input, panel, { color: c.text }]}
-            />
-            <Button
-              label="Send message"
-              disabled={!order.trim()}
-              onPress={() => sendOrder([chat.id])}
-            />
-            <Button label="Back to project" onPress={() => setChat(undefined)} />
-          </>
+          <AgentChat
+            agent={chat}
+            message={message}
+            setMessage={setMessage}
+            send={() => {
+              applyOrder([chat.id], false, message);
+              setMessage("");
+            }}
+          />
         ) : detail ? (
-          <>
-            <Txt>{detail.goal}</Txt>
-            <Progress initiative={detail} />
-            <Txt v="section" accessibilityRole="header">
-              Last 24 hours
-            </Txt>
-            <Txt>{detail.changes}</Txt>
-            <Txt v="section" accessibilityRole="header">
-              Open pull requests
-            </Txt>
-            {detail.prs.map((pr) => (
-              <Txt key={pr} v="code">
-                {pr}
-              </Txt>
-            ))}
-            <Txt v="section" accessibilityRole="header">
-              Required checks
-            </Txt>
-            <Txt>
-              {detail.checks.length ? detail.checks.join(" · ") : "No failing required checks"}
-            </Txt>
-            {detail.agents.map((agent) => (
-              <View key={agent.id} style={[s.panel, panel]}>
-                <Mark agent={agent} />
-                <Txt v="section">{agent.title}</Txt>
-                <Txt>{agent.activity}</Txt>
-                {agent.request ? <Txt>Needs you · waiting {waited(agent.request, now)}</Txt> : null}
-                <View style={s.actions}>
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityLabel={`Select ${agent.title}`}
-                    accessibilityState={{ checked: selected.includes(agent.id) }}
-                    onPress={() =>
-                      setSelected((ids) =>
-                        ids.includes(agent.id)
-                          ? ids.filter((id) => id !== agent.id)
-                          : [...ids, agent.id],
-                      )
-                    }
-                    style={[s.select, panel]}
-                  >
-                    <Txt>{selected.includes(agent.id) ? "☑ Selected" : "☐ Select"}</Txt>
-                  </Pressable>
-                  <Button label="Agent details" onPress={() => setSheet(agent.id)} />
-                </View>
-              </View>
-            ))}
-            <View style={[s.panel, panel]}>
-              <Txt v="section" accessibilityRole="header">
-                Orders · {selected.length} selected
-              </Txt>
-              <View style={s.actions}>
-                <Button
-                  label="Report progress"
-                  onPress={() => setOrder("Report progress and the next risk.")}
-                />
-                <Button
-                  label="Focus on checks"
-                  onPress={() => setOrder("Fix failing required checks before new work.")}
-                />
-              </View>
-              <Txt>Order</Txt>
-              <TextInput
-                accessibilityLabel="Order for selected agents"
-                multiline
-                value={order}
-                onChangeText={setOrder}
-                style={[s.input, panel, { color: c.text }]}
-              />
-              <Button
-                label="Send order"
-                disabled={!selected.length || !order.trim()}
-                onPress={() => sendOrder(selected)}
-              />
-              <Button
-                label="Stop selected agents"
-                disabled={!selected.length}
-                onPress={() => sendOrder(selected, true)}
-              />
-            </View>
-            <Button
-              label="Back to project"
-              onPress={() => {
-                setDetail(undefined);
-                setSelected([]);
-              }}
-            />
-          </>
+          <InitiativeDetail
+            initiative={detail}
+            selected={selected}
+            now={now}
+            toggle={(id) =>
+              setSelected((ids) =>
+                ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id],
+              )
+            }
+            openAgent={setSheet}
+          />
         ) : (
-          <>
-            <Txt v="cardTitle">{project.name}</Txt>
-            <Txt v="code">
-              {all.filter((a) => a.state === "working").length} working · {pending.length} waiting ·
-              ${project.spend.toFixed(2)} today ·{" "}
-              {project.initiatives.reduce((n, i) => n + i.checks.length, 0)} failing checks
-            </Txt>
-            <View style={s.grid}>
-              {sorted(project).map((initiative) => (
-                <Pressable
-                  key={initiative.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${initiative.name}. ${initiative.goal} ${initiative.done} of ${initiative.total} tasks done. ${waiting(initiative)} need you. ${initiative.agents.map((a) => `${a.id}, ${a.provider}, ${marks[a.state].label}`).join(". ")}. Open initiative.`}
-                  onPress={() => {
-                    setDetail(initiative.id);
-                    setSelected([]);
-                  }}
-                  style={[
-                    s.tile,
-                    panel,
-                    {
-                      width: columns(fontScale, layout) === 2 ? "48%" : "100%",
-                      borderColor: waiting(initiative) ? c.attention : c["border-control"],
-                    },
-                  ]}
-                >
-                  <Txt v="section" accessibilityRole="header">
-                    {initiative.name}
-                  </Txt>
-                  <Txt v="meta">{initiative.goal}</Txt>
-                  <Progress initiative={initiative} />
-                  <View style={s.marks}>
-                    {initiative.agents.map((agent) => (
-                      <Mark key={agent.id} agent={agent} compact />
-                    ))}
-                  </View>
-                  <Txt v="meta" style={{ color: waiting(initiative) ? c.attention : c.text }}>
-                    {waiting(initiative)
-                      ? `◆ ${waiting(initiative)} need you`
-                      : "No requests waiting"}
-                  </Txt>
-                </Pressable>
-              ))}
-            </View>
-            {!project.initiatives.length ? (
-              <Txt>No initiatives yet. Choose the full sample below to explore a project.</Txt>
-            ) : null}
-            <Txt v="meta">
-              ⬡ Working · ◆ Needs you · ⚑ Done, unread · ▬ Idle / Later · ▲ Warning
-            </Txt>
-            <Button
-              label={layout === "board" ? "Try stacked sections" : "Try compact board"}
-              onPress={() => setLayout(layout === "board" ? "stacked" : "board")}
-            />
-            <View style={s.actions}>
-              <Button label="Full sample" onPress={() => reset("full")} />
-              <Button label="40-agent sample" onPress={() => reset("forty")} />
-              <Button label="Tiny sample" onPress={() => reset("tiny")} />
-              <Button label="Empty sample" onPress={() => reset("empty")} />
-            </View>
-          </>
+          <Overview
+            project={project}
+            focusId={focusId}
+            now={now}
+            onFocus={(id) => {
+              setFocus(id);
+              scroll.current?.scrollTo({ y: 0, animated: false });
+            }}
+            onDetail={openDetail}
+            onAgent={setSheet}
+            onRequest={openRequest}
+          />
         )}
-        <Button
+        {largeType ? (
+          <>
+            {selection}
+            {!unblocking ? unblock : null}
+            {navigation}
+          </>
+        ) : null}
+      </ScrollView>
+      {!largeType ? (
+        <>
+          {selection}
+          {!unblocking ? unblock : null}
+          {navigation}
+        </>
+      ) : (
+        <View
+          style={{
+            paddingHorizontal: 14,
+            paddingTop: 8,
+            paddingBottom: insets.bottom + 8,
+            backgroundColor: c["bg-frame"],
+          }}
+        >
+          <OrderButton
+            label={unblocking ? "Project" : oldest ? "Unblock" : "All clear"}
+            attention={!unblocking && !!oldest}
+            onPress={() => (unblocking ? home() : openRequest(oldest?.request.id))}
+            disabled={!unblocking && !oldest}
+          />
+        </View>
+      )}
+      <AgentSheet
+        agent={sheet}
+        initiativeName={sheetInitiative?.name}
+        now={now}
+        close={() => setSheet(undefined)}
+        answer={() => openRequest(sheet?.request?.id)}
+        message={() => {
+          setChat(sheet?.id);
+          setSheet(undefined);
+        }}
+        stop={() => sheet && stop([sheet.id])}
+        unblock={unblock}
+        openInitiative={() => sheetInitiative && openDetail(sheetInitiative.id)}
+      />
+      <Sheet visible={options} close={() => setOptions(false)} title="Prototype">
+        <Txt tone="secondary">Fictional sample data. Orders and answers stay on this phone.</Txt>
+        <OrderButton
           label={running ? "Pause live sample" : "Resume live sample"}
           onPress={() => setRunning(!running)}
         />
-      </ScrollView>
-      <View style={[s.footer, { paddingBottom: insets.bottom + 8 }]}>
-        {!current ? unblockButton : null}
-        {onClose ? <Button label="Close prototype" onPress={onClose} /> : null}
-      </View>
-      <Modal
-        visible={!!sheet}
-        transparent
-        animationType="none"
-        onRequestClose={() => setSheet(undefined)}
-      >
-        <View style={s.overlay}>
-          <View
-            accessibilityViewIsModal
-            style={[s.sheet, panel, { paddingBottom: insets.bottom + 16 }]}
-          >
-            <ScrollView contentContainerStyle={s.body}>
-              {sheet ? (
-                <>
-                  <Txt v="cardTitle" accessibilityRole="header">
-                    {sheet.title}
-                  </Txt>
-                  <Mark agent={sheet} />
-                  <Txt>{sheet.activity}</Txt>
-                  {sheet.request ? <Txt>Waiting {waited(sheet.request, now)}</Txt> : null}
-                  <Txt v="section">Last result</Txt>
-                  <Txt>{sheet.result}</Txt>
-                  <Txt>
-                    {project.initiatives.find((i) => i.agents.some((a) => a.id === sheet.id))?.name}
-                  </Txt>
-                  <Button
-                    label="Answer request"
-                    disabled={!sheet.request}
-                    onPress={() => {
-                      setSheet(undefined);
-                      setRequest(sheet.request?.id);
-                    }}
-                  />
-                  <Button
-                    label="Send a message"
-                    onPress={() => {
-                      setSheet(undefined);
-                      setChat(sheet.id);
-                    }}
-                  />
-                  <Button label="Stop agent" onPress={() => sendOrder([sheet.id], true)} />
-                  <Button
-                    label="Open chat"
-                    onPress={() => {
-                      setSheet(undefined);
-                      setChat(sheet.id);
-                    }}
-                  />
-                  {unblockButton}
-                </>
-              ) : null}
-              <Button label="Close agent details" onPress={() => setSheet(undefined)} />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </View>
+        <OrderButton label="Full sample" onPress={() => reset("full")} />
+        <OrderButton label="40-agent sample" onPress={() => reset("forty")} />
+        <OrderButton label="Tiny sample" onPress={() => reset("tiny")} />
+        <OrderButton label="Empty sample" onPress={() => reset("empty")} />
+        {onClose ? <OrderButton label="Close prototype" onPress={onClose} /> : null}
+      </Sheet>
+    </KeyboardAvoidingView>
   );
 }
 const s = StyleSheet.create({
   page: { flex: 1 },
-  body: { padding: 12, gap: 8 },
-  panel: { padding: 12, borderWidth: 1, gap: 8 },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
-  tile: { minHeight: touch, padding: 8, borderWidth: 1, gap: 4 },
-  marks: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  mark: { gap: 4 },
-  track: { height: 4, marginVertical: 4 },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  input: { fontFamily: mono, fontSize: 15, minHeight: touch, padding: 12, borderWidth: 1 },
-  select: {
-    minHeight: touch,
-    minWidth: touch,
-    padding: 12,
+  header: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 8, gap: 4 },
+  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  flex: { flex: 1, minWidth: 0 },
+  stats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  stat: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 4 },
+  body: { paddingHorizontal: 14, paddingBottom: 8, gap: 10 },
+  back: { minHeight: touch, alignSelf: "flex-start", justifyContent: "center", paddingEnd: 16 },
+  dock: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+    borderTopWidth: 1,
+  },
+  signal: {
+    minWidth: 36,
+    minHeight: 36,
     borderWidth: 1,
+    alignItems: "center",
     justifyContent: "center",
   },
-  footer: { paddingHorizontal: 12, paddingTop: 8, gap: 8 },
-  overlay: { flex: 1, justifyContent: "flex-end" },
-  sheet: { maxHeight: "85%", borderWidth: 1 },
+  nav: { flexDirection: "row", justifyContent: "space-around", flexWrap: "wrap", gap: 4 },
+  navButton: {
+    minHeight: touch,
+    minWidth: touch,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  selection: {
+    padding: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    borderTopWidth: 1,
+  },
+  requestIdentity: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
+  },
 });
