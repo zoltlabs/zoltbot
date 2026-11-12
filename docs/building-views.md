@@ -8,7 +8,7 @@ Copy the example folder, keeping its name `hello-view`, then run:
 pnpm view:dev packages/view-api/examples/hello-view
 ```
 
-Open the loopback URL the command prints. The client starts mock mode after 300 ms without a host connection. `await zolt.ready` returns `mock: true`; chats change state, requests appear, and spending rises using sample data. Valid calls change those samples. Mock grants follow the manifest. Reload the browser after editing files. The development server serves `_host` resources virtually and does not change the view folder.
+Open the loopback URL the command prints. The client starts mock mode after 300 ms without a host connection. `await zolt.ready` returns `mock: true`; chats change state, requests appear, and spending rises using sample data. Valid calls change those samples. Mock grants follow the manifest. Reload the browser after editing files. The development server serves `_host` resources virtually and does not change the view folder. The sample data has six chats, one in each state; add `#chats=200` to the URL for a large case.
 
 ## Manifest and files
 

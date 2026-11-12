@@ -308,7 +308,13 @@
       this.post.setZoom(zoom);
 
       this.renderer.info.reset();
-      this.post.render();
+      try {
+        this.post.render();
+      } catch (error) {
+        // A graphics card that cannot run the effects still gets the plain map.
+        if (this.quality.level === "low") throw error;
+        this.quality.choose("low");
+      }
       this.count = {
         calls: this.renderer.info.render.calls,
         triangles: this.renderer.info.render.triangles,
