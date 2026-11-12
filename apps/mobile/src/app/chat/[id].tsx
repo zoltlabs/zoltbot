@@ -1,5 +1,4 @@
 import type { ArtifactTarget } from "@zoltbot/protocol";
-import { chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import {
@@ -14,7 +13,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { artifactReference } from "../../data/artifacts";
 import { type Attachment, composeInput } from "../../data/attachments";
-import { threadChanges } from "../../data/changes";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
@@ -30,7 +28,7 @@ import {
 } from "../../data/view";
 import { useAction } from "../../state/actions";
 import { useChatDraft } from "../../state/chat-draft";
-import { useClient, useLink, useSnapshot } from "../../state/link";
+import { useClient, useSnapshot } from "../../state/link";
 import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
@@ -41,7 +39,7 @@ import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Avatar, Button, Chip, Segmented, Txt } from "../../ui/kit";
-import { BackgroundChip, ModeChip, ModelChip, PlanChecklist } from "../../ui/SessionControls";
+import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { ShippingContext } from "../../ui/ShippingContext";
 import { Message } from "../../ui/Transcript";
 import { WakeStatus } from "../../ui/WakeStatus";
@@ -77,37 +75,11 @@ export default function Chat() {
     (g) => g.id === compareMember?.compareId || g.summaryThreadId === id,
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
-  const activeWake = snapshot.entities.wake?.find(
-    (w) =>
-      w.threadId === id &&
-      ["draft", "waiting", "ready", "needs_attention"].includes(text(w.status)),
-  );
   const pending = pendingFor(snapshot, id);
   const request = pending[0];
   const { height } = useWindowDimensions();
-  const chief = chiefThreadId(snapshot.entities) === id;
   const fork = forkInfo(snapshot, id);
   const edits = editsOf(snapshot, id);
-  const changed = new Set(
-    threadChanges(snapshot, id).flatMap((turn) => turn.files.map((f) => f.path)),
-  ).size;
-  // Terminals live on the Mac, not in the snapshot; any open one (any device's) gets a link.
-  const [terminals, setTerminals] = useState(0);
-  useEffect(() => {
-    const client = useLink.getState().client?.getState();
-    if (!client || !online) return;
-    let live = true;
-    client
-      .call("terminal.list", { threadId: id, readOnly: true })
-      .then(
-        (value) =>
-          live && setTerminals((((value ?? {}) as { items?: unknown[] }).items ?? []).length),
-      )
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [id, online]);
   // Steering reaches the running turn only where the agent supports it; otherwise it waits.
   const canSteer =
     !artifactTarget && !!turn && (session?.capabilities as Row | undefined)?.steer === "native";
@@ -159,85 +131,16 @@ export default function Chat() {
             </Txt>
           </View>
         </Pressable>
-        <BackgroundChip session={session} />
-        {changed ? (
-          <Pressable
-            onPress={() => router.push(`/chat/changes?id=${encodeURIComponent(id)}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Changes: ${changed} ${changed === 1 ? "file" : "files"}`}
-            hitSlop={6}
-          >
-            <Chip label={`${changed} ${changed === 1 ? "file" : "files"}`} />
-          </Pressable>
-        ) : null}
-        {terminals ? (
-          <Pressable
-            onPress={() => router.push(`/chat/terminal?id=${encodeURIComponent(id)}`)}
-            accessibilityRole="button"
-            accessibilityLabel="Terminal"
-            hitSlop={6}
-          >
-            <Chip label="Terminal" />
-          </Pressable>
-        ) : null}
-        {compareReadOnly || chief ? null : (
-          <Pressable
-            onPress={() => router.push(`/chat/fork?id=${encodeURIComponent(id)}`)}
-            disabled={!online}
-            accessibilityRole="button"
-            accessibilityLabel="Fork chat"
-            hitSlop={6}
-            style={[styles.bell, !online && { opacity: 0.45 }]}
-          >
-            <Icon name="fork" color={c["accent-text"]} size={20} stroke={1.8} />
-          </Pressable>
-        )}
-        {chief ? (
-          <Pressable
-            onPress={() => router.push("/zolt-settings")}
-            accessibilityRole="button"
-            accessibilityLabel="Brief and notifications"
-            hitSlop={6}
-            style={styles.bell}
-          >
-            <Icon name="bell" color={c["accent-text"]} size={22} stroke={1.8} />
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() => router.push(`/chat/options?id=${encodeURIComponent(id)}`)}
+          accessibilityRole="button"
+          accessibilityLabel="Chat options"
+          style={styles.bell}
+        >
+          <Icon name="settings" color={c["text-secondary"]} size={22} />
+        </Pressable>
       </View>
       <PlanChecklist plan={latestPlan(snapshot, id)} />
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          gap: 8,
-        }}
-      >
-        <Button
-          label="Results"
-          style={{ flexGrow: 1 }}
-          onPress={() => router.push(`/chat/results?id=${encodeURIComponent(id)}`)}
-        />
-        {!compareReadOnly && !chief ? (
-          <Button
-            label={
-              activeWake
-                ? activeWake.status === "draft"
-                  ? "Review wait"
-                  : "Edit wait"
-                : "Wake when…"
-            }
-            style={{ flexGrow: 1 }}
-            disabled={!online}
-            onPress={() =>
-              router.push(
-                `/chat/wake?id=${encodeURIComponent(id)}${activeWake ? `&wakeId=${encodeURIComponent(text(activeWake.id))}` : ""}`,
-              )
-            }
-          />
-        ) : null}
-      </View>
       <ChatWaiting threadId={id} />
 
       <ScrollView
@@ -360,19 +263,16 @@ export default function Chat() {
           {compareReadOnly ? (
             <Chip label="Read only · Compare" />
           ) : (
-            <>
-              <ModeChip session={session} online={online} />
-              <ModelChip state={modelState(snapshot, session)} online={online} />
-            </>
+            <ModelChip state={modelState(snapshot, session)} online={online} />
           )}
           {canSteer && !compareReadOnly ? (
             <Segmented<"steer" | "queue">
-              label="While it works"
+              label="Send while the agent works"
               value={delivery}
               onChange={setDelivery}
               options={[
-                { value: "steer", label: "Steer" },
-                { value: "queue", label: "Queue" },
+                { value: "steer", label: "Send now" },
+                { value: "queue", label: "Queue next" },
               ]}
             />
           ) : null}

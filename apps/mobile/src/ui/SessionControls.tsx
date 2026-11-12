@@ -13,7 +13,7 @@ import {
 import type { Row } from "../data/transport";
 import { useAction } from "../state/actions";
 import { useLink } from "../state/link";
-import { useTheme } from "../theme";
+import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Chip, Txt } from "./kit";
 
@@ -322,11 +322,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
+    minHeight: touch,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
   },
   plan: { borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16 },
-  planHead: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 40 },
+  planHead: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: touch },
   track: { width: 56, height: 6, borderRadius: 3, overflow: "hidden" },
   fill: { height: 6, borderRadius: 3 },
   steps: { gap: 6, paddingBottom: 12 },
