@@ -14,6 +14,15 @@ import {
   placeName,
   stateLabels,
 } from "@zoltbot/ui/tasks/view";
+import {
+  type DispatchGroup,
+  type DispatchPlace,
+  defaultProfileForPlace,
+  deriveTaskTitle,
+  dispatchGroups,
+  resolvePlace,
+  scopeRows,
+} from "./dispatch.js";
 import { diffTotals, interactionType, typeLabels } from "./interactions.js";
 import { toolTitle } from "./timeline.js";
 import type { Row, Snapshot } from "./transport.js";
@@ -21,7 +30,18 @@ import type { Row, Snapshot } from "./transport.js";
 // Pure selectors from the snapshot to what the screens show. No React here, so tests cover them.
 
 export { groupTitles, stateLabels } from "@zoltbot/ui/tasks/view";
-export { currentResult, holdText, text };
+export {
+  currentResult,
+  type DispatchGroup,
+  type DispatchPlace,
+  defaultProfileForPlace,
+  deriveTaskTitle,
+  dispatchGroups,
+  holdText,
+  resolvePlace,
+  scopeRows,
+  text,
+};
 export {
   childSummary,
   interactionLine,
@@ -390,16 +410,7 @@ export const taskStateLabel = (task: Row) => stateLabels[text(task.state)] ?? te
 
 /** Tasks and chats in one direction, newest first, for the project detail screen. */
 export function directionRows(snapshot: Snapshot, directionId: string) {
-  const inside = (row: Row) => {
-    const node = (row.node ?? {}) as Row;
-    return node.type === "subproject" && node.id === directionId && live(row);
-  };
-  const tasks = rows(snapshot, "task").filter(inside);
-  const chats = rows(snapshot, "thread").filter((thread) => inside(thread) && !thread.taskId);
-  return [
-    ...tasks.map((task) => ({ type: "task" as const, row: task, at: text(task.updatedAt) })),
-    ...chats.map((chat) => ({ type: "chat" as const, row: chat, at: text(chat.lastActivityAt) })),
-  ].sort((a, b) => b.at.localeCompare(a.at));
+  return scopeRows(snapshot, { type: "subproject", id: directionId });
 }
 
 /** Chats newest first, with Zolt's own thread pinned on top. */

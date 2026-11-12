@@ -3,7 +3,9 @@ import { entitySchemas } from "@zoltbot/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { createClient } from "./client.js";
 import { FakeTransport } from "./fake.js";
+import { newProject } from "./projects.js";
 import { sampleSnapshot } from "./sample.js";
+import { deriveTaskTitle, place } from "./view.js";
 
 describe("sample data", () => {
   it("uses the real protocol entity shapes", () => {
@@ -229,6 +231,52 @@ describe("client over the fake transport", () => {
     );
     fake.setMacOnline(true);
     await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+    client.stop();
+  });
+
+  it("creates tasks and chats directly in a teamless project root", async () => {
+    const client = createClient(new FakeTransport());
+    await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+    const call = client.getState().call;
+    const at = new Date().toISOString();
+    await call("project.create", {
+      value: newProject("solo", "Solo app", "/Users/you/Projects/solo-app", at),
+    });
+    const brief = "Fix the empty-state spacing on iPhone SE\n\nCheck both light and dark themes.";
+    const created = (await call("task.create", {
+      title: deriveTaskTitle(brief),
+      brief,
+      profileId: "builder",
+      node: { type: "project", id: "solo" },
+    })) as Record<string, unknown>;
+    expect(created).toMatchObject({
+      projectId: "solo",
+      node: { type: "project", id: "solo" },
+      title: "Fix the empty-state spacing on iPhone SE",
+      ownerAgentId: "builder",
+    });
+    expect(place(client.getState().snapshot, created)).toBe("Solo app");
+
+    await call("thread.create", {
+      value: {
+        id: "thread-solo-chat",
+        agentId: "checker",
+        projectId: "solo",
+        node: { type: "project", id: "solo" },
+        kind: "side",
+        title: "Audit API error codes",
+        titleSource: "auto",
+        pinned: false,
+        archived: false,
+        createdAt: at,
+        lastActivityAt: at,
+      },
+    });
+    for (const [kind, rows] of Object.entries(client.getState().snapshot.entities)) {
+      const schema = entitySchemas[kind as keyof typeof entitySchemas];
+      for (const row of rows)
+        expect(Value.Errors(schema, row).First(), `${kind} ${row.id}`).toBeUndefined();
+    }
     client.stop();
   });
 });

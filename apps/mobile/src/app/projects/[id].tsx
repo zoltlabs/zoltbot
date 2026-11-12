@@ -3,11 +3,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { Snapshot } from "../../data/transport";
 import {
   ago,
   directionRows,
   profileName,
   projectSummaries,
+  scopeRows,
   taskStateLabel,
   text,
 } from "../../data/view";
@@ -23,6 +25,50 @@ const tones: Record<string, ChipTone> = {
   completed: "ok",
   failed: "danger",
 };
+
+function Entries({
+  snapshot,
+  entries,
+}: {
+  snapshot: Snapshot;
+  entries: ReturnType<typeof scopeRows>;
+}) {
+  const { c } = useTheme();
+  return (
+    <Group>
+      {entries.map((entry, index) => {
+        const row = entry.row;
+        const isTask = entry.type === "task";
+        const threadId = isTask ? text(row.threadId) : text(row.id);
+        const who = profileName(snapshot, isTask ? row.ownerAgentId : row.agentId);
+        return (
+          <Row
+            key={`${entry.type}-${text(row.id)}`}
+            title={text(row.title)}
+            meta={`${isTask ? "Task" : "Chat"} · ${who} · ${ago(entry.at)}`}
+            left={
+              <Icon
+                name={isTask ? "task" : "chats"}
+                size={16}
+                stroke={1.8}
+                color={c["text-muted"]}
+              />
+            }
+            right={
+              isTask ? (
+                <Chip label={taskStateLabel(row)} tone={tones[text(row.state)] ?? "neutral"} />
+              ) : undefined
+            }
+            last={index === entries.length - 1}
+            onPress={() =>
+              isTask && !threadId ? router.navigate("/tasks") : router.push(`/chat/${threadId}`)
+            }
+          />
+        );
+      })}
+    </Group>
+  );
+}
 
 export default function Project() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,6 +88,7 @@ export default function Project() {
       </View>
     );
   const { needsYou, running, queued } = project.counts;
+  const rootEntries = scopeRows(snapshot, { type: "project", id: project.id });
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingTop: insets.top }]}>
       <BackBar
@@ -57,9 +104,31 @@ export default function Project() {
       />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.head}>
-          <Txt v="largeTitle" accessibilityRole="header">
-            {project.name}
-          </Txt>
+          <View style={styles.titleRow}>
+            <Txt v="largeTitle" accessibilityRole="header" style={styles.flex}>
+              {project.name}
+            </Txt>
+            <Pressable
+              disabled={!online}
+              onPress={() => router.push(`/new?mode=chat&place=project:${project.id}`)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !online }}
+              accessibilityLabel={`New ${terms.chat.one} in ${project.name}`}
+              style={[styles.icon, !online && styles.disabled]}
+            >
+              <Icon name="newChat" size={20} color={c["accent-text"]} />
+            </Pressable>
+            <Pressable
+              disabled={!online}
+              onPress={() => router.push(`/new?mode=task&place=project:${project.id}`)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !online }}
+              accessibilityLabel={`New ${terms.task.one} in ${project.name}`}
+              style={[styles.icon, !online && styles.disabled]}
+            >
+              <Icon name="newTask" size={20} color={c["accent-text"]} />
+            </Pressable>
+          </View>
           <Txt v="meta" tone="muted" style={styles.mono}>
             {project.path}
           </Txt>
@@ -70,9 +139,11 @@ export default function Project() {
           </View>
         </View>
         <OfflineBanner />
-        {!project.directions.length ? (
-          <Txt v="meta" tone="muted">
-            Add {terms.team.many} on your Mac to start work in this {terms.workspace.one}.
+        {rootEntries.length ? (
+          <Entries snapshot={snapshot} entries={rootEntries} />
+        ) : !project.directions.length ? (
+          <Txt v="meta" tone="muted" style={styles.empty}>
+            Nothing here yet.
           </Txt>
         ) : null}
         {project.directions.map((direction) => {
@@ -97,7 +168,7 @@ export default function Project() {
                 </Pressable>
                 <Pressable
                   disabled={!online}
-                  onPress={() => router.push(`/new?mode=chat&place=${directionId}`)}
+                  onPress={() => router.push(`/new?mode=chat&place=subproject:${directionId}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`New ${terms.chat.one} in ${name}`}
                   style={styles.icon}
@@ -106,7 +177,7 @@ export default function Project() {
                 </Pressable>
                 <Pressable
                   disabled={!online}
-                  onPress={() => router.push(`/new?mode=task&place=${directionId}`)}
+                  onPress={() => router.push(`/new?mode=task&place=subproject:${directionId}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`New ${terms.task.one} in ${name}`}
                   style={styles.icon}
@@ -119,45 +190,7 @@ export default function Project() {
                   Nothing here yet.
                 </Txt>
               ) : null}
-              {open && entries.length ? (
-                <Group>
-                  {entries.map((entry, index) => {
-                    const row = entry.row;
-                    const isTask = entry.type === "task";
-                    const threadId = isTask ? text(row.threadId) : text(row.id);
-                    const who = profileName(snapshot, isTask ? row.ownerAgentId : row.agentId);
-                    return (
-                      <Row
-                        key={`${entry.type}-${text(row.id)}`}
-                        title={text(row.title)}
-                        meta={`${isTask ? "Task" : "Chat"} · ${who} · ${ago(entry.at)}`}
-                        left={
-                          <Icon
-                            name={isTask ? "task" : "chats"}
-                            size={16}
-                            stroke={1.8}
-                            color={c["text-muted"]}
-                          />
-                        }
-                        right={
-                          isTask ? (
-                            <Chip
-                              label={taskStateLabel(row)}
-                              tone={tones[text(row.state)] ?? "neutral"}
-                            />
-                          ) : undefined
-                        }
-                        last={index === entries.length - 1}
-                        onPress={() =>
-                          isTask && !threadId
-                            ? router.navigate("/tasks")
-                            : router.push(`/chat/${threadId}`)
-                        }
-                      />
-                    );
-                  })}
-                </Group>
-              ) : null}
+              {open && entries.length ? <Entries snapshot={snapshot} entries={entries} /> : null}
             </View>
           );
         })}
@@ -171,6 +204,8 @@ const styles = StyleSheet.create({
   pad: { padding: 20 },
   body: { paddingHorizontal: 16, gap: 14 },
   head: { marginHorizontal: 4, gap: 4 },
+  titleRow: { flexDirection: "row", alignItems: "center" },
+  flex: { flex: 1 },
   mono: { fontFamily: mono, fontSize: 12 },
   chips: { flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" },
   section: { gap: 6 },
@@ -184,5 +219,6 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   icon: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
+  disabled: { opacity: 0.45 },
   empty: { marginHorizontal: 4 },
 });

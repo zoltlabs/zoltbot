@@ -1,16 +1,25 @@
+import { terms } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { ActionSheetIOS, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Attachment, composeInput } from "../data/attachments";
-import { place, profiles, text } from "../data/view";
+import {
+  type DispatchPlace,
+  defaultProfileForPlace,
+  deriveTaskTitle,
+  dispatchGroups,
+  profiles,
+  resolvePlace,
+  text,
+} from "../data/view";
 import { newId, useAction } from "../state/actions";
 import { useClient, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
 import { Attachments } from "../ui/Attachments";
 import { OfflineBanner } from "../ui/chrome";
 import { Icon } from "../ui/icons";
-import { Avatar, Button, Segmented, Txt } from "../ui/kit";
+import { Avatar, Button, Row, Segmented, Txt } from "../ui/kit";
 
 type Mode = "chat" | "task";
 
@@ -23,46 +32,56 @@ export default function NewWork() {
   const online = useClient((state) => state.status === "online");
   const kind = useClient((state) => state.kind);
   const { run, busy } = useAction();
-  const directions = (snapshot.entities.subproject ?? []).filter((row) => row.archived !== true);
+  const groups = dispatchGroups(snapshot);
   const people = profiles(snapshot);
   const [mode, setMode] = useState<Mode>(params.mode === "task" ? "task" : "chat");
-  const [where, setWhere] = useState(params.place ?? text(directions[0]?.id));
-  const [who, setWho] = useState(text(people[0]?.id));
-  const [title, setTitle] = useState("");
+  const [whereKey, setWhereKey] = useState(
+    () => resolvePlace(snapshot, groups, params.place)?.key ?? "",
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerProjectId, setPickerProjectId] = useState<string>();
+  const userPickedProfile = useRef(false);
+  const [pickedProfileId, setPickedProfileId] = useState("");
   const [message, setMessage] = useState("");
   const [createdThreadId, setCreatedThreadId] = useState<string>();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showDoneWhen, setShowDoneWhen] = useState(false);
   const [doneWhen, setDoneWhen] = useState("");
+
   const task = mode === "task";
-  const direction = directions.find((row) => row.id === where);
-  const label = (row: (typeof directions)[number]) =>
-    place(snapshot, { projectId: row.projectId, node: { type: "subproject", id: row.id } });
+  const selectedPlace = resolvePlace(snapshot, groups, whereKey || params.place);
+  const who =
+    userPickedProfile.current && people.some((profile) => text(profile.id) === pickedProfileId)
+      ? pickedProfileId
+      : defaultProfileForPlace(snapshot, selectedPlace);
+  const derivedTitle = deriveTaskTitle(message);
+  const locked = !online || busy || Boolean(createdThreadId);
   const ready =
     online &&
-    Boolean(
-      direction &&
-        who &&
-        (message.trim() || (!task && attachments.length)) &&
-        (!task || title.trim()),
-    );
+    Boolean(selectedPlace && who && (task ? derivedTitle : message.trim() || attachments.length));
 
-  const pickPlace = () => {
-    const labels = directions.map(label);
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: [...labels, "Cancel"], cancelButtonIndex: labels.length, title: "Where" },
-      (index) => {
-        const row = directions[index];
-        if (row) setWhere(text(row.id));
-      },
-    );
+  const choosePlace = (place: DispatchPlace) => {
+    setWhereKey(place.key);
+    setPickerOpen(false);
+    setPickerProjectId(undefined);
+  };
+
+  const togglePicker = () => {
+    if (pickerOpen) {
+      setPickerOpen(false);
+      setPickerProjectId(undefined);
+      return;
+    }
+    setPickerProjectId(undefined);
+    setPickerOpen(true);
   };
 
   const start = async () => {
-    if (!ready || !direction) return;
-    const node = { type: "subproject", id: text(direction.id) } as const;
+    if (!ready || !selectedPlace) return;
+    const { node, projectId } = selectedPlace;
     if (task) {
       const created = await run("task.create", {
-        title: title.trim(),
+        title: derivedTitle,
         brief: message.trim(),
         ...(doneWhen.trim() ? { acceptance: doneWhen.trim() } : {}),
         profileId: who,
@@ -89,10 +108,10 @@ export default function NewWork() {
         value: {
           id,
           agentId: who,
-          projectId: text(direction.projectId),
+          projectId,
           node,
           kind: "side",
-          title: message.trim().split(/\s+/).slice(0, 6).join(" ") || "New chat",
+          title: derivedTitle || "New chat",
           titleSource: "auto",
           pinned: false,
           archived: false,
@@ -110,10 +129,19 @@ export default function NewWork() {
     if (sent) router.replace(`/chat/${id}`);
   };
 
+  const drilledGroup = pickerProjectId
+    ? groups.find((group) => group.projectId === pickerProjectId)
+    : undefined;
   const field = [
     styles.input,
     { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-raised"] },
   ];
+  const whereLabel = selectedPlace
+    ? selectedPlace.fullLabel
+    : groups.length
+      ? "Choose"
+      : `No ${terms.workspace.many}`;
+
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingBottom: insets.bottom }]}>
       <View style={styles.bar}>
@@ -134,11 +162,15 @@ export default function NewWork() {
           style={styles.barButton}
         />
       </View>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+      >
         <OfflineBanner />
         <Segmented
           label="Kind"
-          disabled={!online || busy || Boolean(createdThreadId)}
+          disabled={locked}
           value={mode}
           onChange={setMode}
           options={[
@@ -153,10 +185,14 @@ export default function NewWork() {
         </Txt>
         <View style={[styles.group, { backgroundColor: c["bg-raised"], borderColor: c.border }]}>
           <Pressable
-            disabled={!online || busy || Boolean(createdThreadId)}
-            onPress={pickPlace}
+            disabled={locked || !groups.length}
+            onPress={togglePicker}
             accessibilityRole="button"
-            accessibilityLabel={`Where: ${direction ? label(direction) : "choose"}`}
+            accessibilityState={{
+              expanded: pickerOpen,
+              disabled: locked || !groups.length,
+            }}
+            accessibilityLabel={`Where: ${whereLabel}`}
             style={[
               styles.line,
               { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -165,23 +201,113 @@ export default function NewWork() {
             <Txt tone="muted" style={styles.key}>
               Where
             </Txt>
-            <Txt style={styles.flex}>{direction ? label(direction) : "Choose"}</Txt>
-            <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
+            <Txt style={styles.flex}>{whereLabel}</Txt>
+            <View style={{ transform: [{ rotate: pickerOpen ? "90deg" : "0deg" }] }}>
+              <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
+            </View>
           </Pressable>
+          {pickerOpen && groups.length ? (
+            <View
+              style={{
+                backgroundColor: c["bg-sunken"],
+                borderBottomColor: c.border,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+              }}
+            >
+              {drilledGroup ? (
+                <>
+                  <Row
+                    title={terms.workspace.Many}
+                    left={<Icon name="back" size={16} stroke={2} color={c["accent-text"]} />}
+                    label={`Back to ${terms.workspace.many}`}
+                    onPress={() => setPickerProjectId(undefined)}
+                  />
+                  <Row
+                    title={`All of ${drilledGroup.name}`}
+                    {...(drilledGroup.path ? { meta: drilledGroup.path, mono: true } : {})}
+                    checked={selectedPlace?.key === drilledGroup.root.key}
+                    right={
+                      selectedPlace?.key === drilledGroup.root.key ? (
+                        <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
+                      ) : undefined
+                    }
+                    last={!drilledGroup.teams.length}
+                    onPress={() => choosePlace(drilledGroup.root)}
+                  />
+                  {drilledGroup.teams.map((team, index) => {
+                    const on = selectedPlace?.key === team.key;
+                    return (
+                      <Row
+                        key={team.key}
+                        title={team.label}
+                        checked={on}
+                        right={
+                          on ? (
+                            <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
+                          ) : undefined
+                        }
+                        last={index === drilledGroup.teams.length - 1}
+                        onPress={() => choosePlace(team)}
+                      />
+                    );
+                  })}
+                </>
+              ) : (
+                groups.map((group, index) => {
+                  const meta = group.teams.length
+                    ? [
+                        group.path,
+                        `${group.teams.length} ${group.teams.length === 1 ? terms.team.one : terms.team.many}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : group.path;
+                  const on = group.directSelect && selectedPlace?.key === group.root.key;
+                  return (
+                    <Row
+                      key={group.projectId}
+                      title={group.name}
+                      {...(meta ? { meta, mono: !group.teams.length } : {})}
+                      {...(group.directSelect ? { checked: on } : {})}
+                      right={
+                        group.directSelect ? (
+                          on ? (
+                            <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
+                          ) : undefined
+                        ) : (
+                          <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
+                        )
+                      }
+                      last={index === groups.length - 1}
+                      onPress={() =>
+                        group.directSelect
+                          ? choosePlace(group.root)
+                          : setPickerProjectId(group.projectId)
+                      }
+                    />
+                  );
+                })
+              )}
+            </View>
+          ) : null}
           <View style={styles.line}>
             <Txt tone="muted" style={styles.key}>
               Profile
             </Txt>
             <View accessibilityRole="radiogroup" accessibilityLabel="Profile" style={styles.people}>
               {people.map((profile) => {
-                const on = profile.id === who;
+                const id = text(profile.id);
+                const on = id === who;
                 return (
                   <Pressable
-                    key={text(profile.id)}
-                    disabled={!online || busy || Boolean(createdThreadId)}
-                    onPress={() => setWho(text(profile.id))}
+                    key={id}
+                    disabled={locked}
+                    onPress={() => {
+                      userPickedProfile.current = true;
+                      setPickedProfileId(id);
+                    }}
                     accessibilityRole="radio"
-                    accessibilityState={{ checked: on }}
+                    accessibilityState={{ checked: on, disabled: locked }}
                     accessibilityLabel={text(profile.name)}
                     hitSlop={4}
                     style={[
@@ -192,7 +318,7 @@ export default function NewWork() {
                       },
                     ]}
                   >
-                    <Avatar id={text(profile.id)} size={24} />
+                    <Avatar id={id} size={24} />
                     <Txt tone={on ? "accent" : "text"}>{text(profile.name)}</Txt>
                   </Pressable>
                 );
@@ -200,27 +326,11 @@ export default function NewWork() {
             </View>
           </View>
         </View>
-        {task ? (
-          <View style={styles.labelled}>
-            <Txt v="meta" tone="secondary">
-              Title
-            </Txt>
-            <TextInput
-              editable={online && !busy}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Short name for the task"
-              placeholderTextColor={c["text-dim"]}
-              accessibilityLabel="Title"
-              style={field}
-            />
-          </View>
+
+        {!task || kind === "fake" ? (
+          <Attachments value={attachments} onChange={setAttachments} disabled={busy} />
         ) : null}
-        <Attachments
-          value={attachments}
-          onChange={setAttachments}
-          disabled={busy || (task && kind !== "fake")}
-        />
+
         <View style={styles.labelled}>
           <Txt v="meta" tone="secondary">
             {task ? "Goal" : "Message"}
@@ -229,6 +339,7 @@ export default function NewWork() {
             editable={online && !busy}
             value={message}
             onChangeText={setMessage}
+            maxLength={task ? 4000 : undefined}
             placeholder={task ? "What should the agent do?" : "What do you want to work on?"}
             placeholderTextColor={c["text-dim"]}
             multiline
@@ -236,26 +347,36 @@ export default function NewWork() {
             style={[...field, styles.area]}
           />
         </View>
+
         {task ? (
-          <Txt v="meta" tone="muted">
-            Task attachments use sample data only.
-          </Txt>
-        ) : null}
-        {task ? (
-          <View style={styles.labelled}>
-            <Txt v="meta" tone="secondary">
-              Done when (optional)
-            </Txt>
-            <TextInput
-              editable={online && !busy}
-              value={doneWhen}
-              onChangeText={setDoneWhen}
-              placeholder="How you will judge the result"
-              placeholderTextColor={c["text-dim"]}
-              accessibilityLabel="Done when"
-              style={field}
-            />
-          </View>
+          showDoneWhen || Boolean(doneWhen) ? (
+            <View style={styles.labelled}>
+              <Txt v="meta" tone="secondary">
+                Done when (optional)
+              </Txt>
+              <TextInput
+                editable={online && !busy}
+                value={doneWhen}
+                onChangeText={setDoneWhen}
+                maxLength={2000}
+                placeholder="How you will judge the result"
+                placeholderTextColor={c["text-dim"]}
+                accessibilityLabel="Done when"
+                style={field}
+              />
+            </View>
+          ) : (
+            <View style={styles.optionalRow}>
+              <Button
+                kind="plain"
+                label="+ Done when"
+                a11y="Add done when criteria"
+                disabled={!online || busy}
+                onPress={() => setShowDoneWhen(true)}
+                style={styles.optionalButton}
+              />
+            </View>
+          )
         ) : null}
       </ScrollView>
     </View>
@@ -274,7 +395,7 @@ const styles = StyleSheet.create({
   barButton: { paddingHorizontal: 12 },
   body: { padding: 20, paddingTop: 8, gap: 16 },
   note: { marginTop: -6, marginHorizontal: 4 },
-  group: { borderRadius: 14, borderWidth: 1 },
+  group: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
   line: {
     minHeight: 52,
     paddingHorizontal: 16,
@@ -306,4 +427,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   area: { minHeight: 140, paddingTop: 12, textAlignVertical: "top", lineHeight: 22 },
+  optionalRow: { alignItems: "flex-start", marginTop: -8 },
+  optionalButton: { paddingHorizontal: 4 },
 });

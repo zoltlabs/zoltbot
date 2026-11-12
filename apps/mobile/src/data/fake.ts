@@ -355,8 +355,10 @@ export class FakeTransport implements Transport {
   private createTask(p: Row, now: string) {
     const id = `task-${this.snapshot.seq + 1}`;
     const node = p.node as Row;
-    const direction = this.rows("subproject").find((row) => row.id === node.id);
-    const projectId = String(direction?.projectId ?? node.id);
+    const projectId =
+      node.type === "project"
+        ? String(this.find("project", node.id).id)
+        : String(this.find("subproject", node.id).projectId);
     const threadId = `thread-${id}`;
     this.put(
       "thread",

@@ -6,10 +6,16 @@ import {
   ago,
   chats,
   countsText,
+  defaultProfileForPlace,
+  deriveTaskTitle,
   directionRows,
+  dispatchGroups,
   needsYou,
+  place,
   projectSummaries,
   recentlyDone,
+  resolvePlace,
+  scopeRows,
   since,
   taskGroups,
   transcript,
@@ -304,4 +310,151 @@ it("preserves wake history and evidence links on the phone", () => {
       kind: "other",
     }),
   ]);
+});
+
+describe("mobile task dispatch helpers", () => {
+  it("groups workspaces project-first and marks teamless single-repo projects for direct selection", () => {
+    const custom = structuredClone(snapshot);
+    const soloProject = {
+      ...custom.entities.project?.[0],
+      id: "solo",
+      name: "Solo repo",
+      roots: [{ path: "/Users/you/Projects/solo", label: "Solo repo" }],
+    };
+    custom.entities.project = [
+      ...(custom.entities.project ?? []),
+      soloProject,
+      {
+        ...custom.entities.project?.[0],
+        id: "multi",
+        name: "Multi repo",
+        roots: [
+          { path: "/Users/you/Projects/web", label: "Web" },
+          { path: "/Users/you/Projects/api", label: "API" },
+        ],
+      },
+    ];
+    custom.entities.subproject = [
+      ...(custom.entities.subproject ?? []),
+      {
+        id: "ios",
+        projectId: "zolt",
+        parentId: "app",
+        name: "iOS",
+        label: "Team",
+        goal: "",
+        instructions: "",
+        depth: 2,
+        archived: false,
+        createdAt: "2026-10-10T00:00:00.000Z",
+      },
+    ];
+    const groups = dispatchGroups(custom);
+    expect(groups.map((g) => [g.projectId, g.directSelect])).toEqual([
+      ["zolt", false],
+      ["site", false],
+      ["solo", true],
+      ["multi", false],
+    ]);
+    expect(groups[0]?.teams.map((t) => t.label)).toEqual([
+      "App",
+      "App › iOS",
+      "Backend",
+      "Marketing site",
+    ]);
+    expect(groups[2]?.root).toEqual({
+      key: "project:solo",
+      projectId: "solo",
+      node: { type: "project", id: "solo" },
+      label: "Solo repo",
+      fullLabel: "Solo repo",
+    });
+    expect(resolvePlace(custom, groups, "project:solo")?.node).toEqual({
+      type: "project",
+      id: "solo",
+    });
+    expect(resolvePlace(custom, groups, "solo")?.key).toBe("project:solo");
+    expect(resolvePlace(custom, groups, "backend")?.key).toBe("subproject:backend");
+    expect(resolvePlace(custom, groups)?.key).toBe("subproject:app");
+
+    const freshSolo = {
+      seq: 1,
+      counters: {},
+      entities: { project: [soloProject] },
+    };
+    const soloGroups = dispatchGroups(freshSolo);
+    expect(resolvePlace(freshSolo, soloGroups)?.node).toEqual({ type: "project", id: "solo" });
+  });
+
+  it("picks the last-used profile per scope or project, then project default, skipping designers", () => {
+    const groups = dispatchGroups(snapshot);
+    const app = resolvePlace(snapshot, groups, "subproject:app");
+    const backend = resolvePlace(snapshot, groups, "subproject:backend");
+    const zoltRoot = resolvePlace(snapshot, groups, "project:zolt");
+    expect(defaultProfileForPlace(snapshot, app)).toBe("builder");
+    expect(defaultProfileForPlace(snapshot, backend)).toBe("checker");
+    expect(defaultProfileForPlace(snapshot, zoltRoot)).toBe("builder");
+
+    const configured = structuredClone(snapshot);
+    configured.entities.project = (configured.entities.project ?? []).map((row) =>
+      row.id === "site" ? { ...row, defaultAgentId: "checker" } : row,
+    );
+    const siteRoot = resolvePlace(configured, dispatchGroups(configured), "project:site");
+    expect(defaultProfileForPlace(configured, siteRoot)).toBe("checker");
+
+    const withDesigner = structuredClone(snapshot);
+    withDesigner.entities.agent = [
+      {
+        ...withDesigner.entities.agent?.[0],
+        id: "designer",
+        name: "Designer",
+        template: "artifact_designer",
+      },
+      ...(withDesigner.entities.agent ?? []),
+    ];
+    const unconfiguredSite = resolvePlace(
+      withDesigner,
+      dispatchGroups(withDesigner),
+      "project:site",
+    );
+    expect(defaultProfileForPlace(withDesigner, unconfiguredSite)).toBe("builder");
+  });
+
+  it("derives clean task titles from single-line, multiline, markdown and long prompts", () => {
+    expect(deriveTaskTitle("")).toBe("");
+    expect(deriveTaskTitle("   \n\t  ")).toBe("");
+    expect(deriveTaskTitle("Fix login redirect\n\nKeep query params after sign-in.")).toBe(
+      "Fix login redirect",
+    );
+    expect(deriveTaskTitle("\n  ##   Add   dark mode toggle \nMore details")).toBe(
+      "Add dark mode toggle",
+    );
+    expect(deriveTaskTitle("- Update rate limit headers")).toBe("Update rate limit headers");
+    expect(deriveTaskTitle("#128 crashes when offline")).toBe("#128 crashes when offline");
+    const long =
+      "Refactor the mobile task dispatch flow so picking a single-repo workspace selects it right away without an extra team prompt";
+    const title = deriveTaskTitle(long);
+    expect(title.endsWith("…")).toBe(true);
+    expect(title.length).toBeLessThanOrEqual(80);
+    expect(deriveTaskTitle("x".repeat(250), 200).length).toBeLessThanOrEqual(150);
+  });
+
+  it("lists tasks and chats scoped directly to a project root", () => {
+    const custom = structuredClone(snapshot);
+    custom.entities.task = [
+      ...(custom.entities.task ?? []),
+      {
+        ...custom.entities.task?.[0],
+        id: "root-task",
+        projectId: "site",
+        node: { type: "project", id: "site" },
+        title: "Refresh homepage hero",
+        updatedAt: "2026-11-03T11:59:30.000Z",
+      },
+    ];
+    expect(place(custom, custom.entities.task.at(-1))).toBe("Zoltbot site");
+    expect(scopeRows(custom, { type: "project", id: "site" }).map((r) => r.row.id)).toEqual([
+      "root-task",
+    ]);
+  });
 });
