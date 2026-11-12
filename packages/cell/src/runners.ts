@@ -185,7 +185,7 @@ export class CellRunners {
     const queued =
       claims.kind === "sandbox_runner" && claims.task
         ? [claims.task]
-        : hello.acceptTasks
+        : hello.acceptTasks && attachment(socket).permissions?.canRunTasks
           ? (
               this.store.database
                 .prepare(
@@ -199,6 +199,12 @@ export class CellRunners {
       if (!["queued", "running", "review", "blocked"].includes(task.state)) continue;
       const currentLease = this.leases.get(taskId);
       if (currentLease && currentLease.runnerId !== hello.runnerId) continue;
+      if (
+        hello.kind === "mac" &&
+        !hello.acceptTasks &&
+        currentLease?.connectionId !== attachment(socket).connectionId
+      )
+        continue;
       if (!includeExisting && task.state !== "queued") {
         const inputs = this.store.database
           .prepare(
@@ -315,7 +321,13 @@ export class CellRunners {
     if (request.method === "runner.heartbeat") {
       const heartbeat = parse(RunnerHeartbeatSchema, request.params);
       if (heartbeat.runnerId !== data.runnerId) throw new Error("forbidden");
-      this.leases.heartbeat(data.runnerId, heartbeat.leaseIds, claims);
+      this.leases.heartbeat(
+        data.runnerId,
+        heartbeat.leaseIds,
+        claims,
+        Date.now(),
+        data.connectionId,
+      );
       return { jsonrpc: "2.0", id: request.id, result: { ok: true } };
     }
     if (request.method === "runner.event") {

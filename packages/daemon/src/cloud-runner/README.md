@@ -38,8 +38,8 @@ codes rather than logging paths or content.
 Tests cover reopening, acknowledgement replay, compaction, partial-tail recovery,
 cell cursor seeding, scope refusal, known-private-value refusal and symlink safety.
 The runtime test also checks durable observations without a reader and redaction
-before persistence. The worker/daemon end-to-end replay gate still needs the
-connection driver and W8 harness.
+before persistence. The worker/daemon end-to-end replay gate still needs managed execution and the
+W8 harness.
 
 ## Connection transport
 
@@ -79,3 +79,9 @@ shutdown requests complete. The detached-shell check waits for its spawn event
 before inspecting its process group. Real Git publishing cases have a forty-five
 second test budget for repeated clone/commit/push work. These changes preserve
 all cleanup and publishing assertions and alter no Local runtime behavior.
+
+The transport advertises only task runtimes that finished startup. It sends an
+immediate heartbeat after startup and hello, then every fifteen seconds. A clone
+or native startup still in progress therefore cannot receive a private handoff
+through a stale lease-presence marker. The fake-Cell test holds startup behind a
+barrier and verifies that the lease appears only after the task host is ready.

@@ -49,6 +49,7 @@ it("checks revocation within thirty seconds, sends the session and fails closed"
       "org",
     );
     expect(JSON.parse(String(init?.body)).sessionId).toBe("session");
+    expect(JSON.parse(String(init?.body)).tokenId).toBe("token-id");
     return Response.json({ active });
   });
   const service = new CellService(
@@ -85,4 +86,42 @@ it("checks revocation within thirty seconds, sends the session and fails closed"
   service.invalidate();
   fetcher.mockRejectedValueOnce(new Error("service_unavailable"));
   await expect(service.authorize(claims, now + 35000)).rejects.toThrow("service_unavailable");
+});
+it("requires explicit Mac grant capabilities, refreshes them and does not expose its cached object", async () => {
+  let response: Record<string, unknown> = { active: true, canRunTasks: false, canMacExec: true };
+  const fetcher = vi.fn(async () => Response.json(response));
+  const service = new CellService(
+    { origin: "https://accounts.example.invalid/api/cloud", signingKey: secret(), issuer },
+    "org",
+    fetcher,
+  );
+  const claims: CellTokenClaims = {
+    iss: issuer,
+    aud: "cell",
+    sub: "user",
+    org: "org",
+    device: "mac",
+    session: "session",
+    grant: "grant",
+    surface: "runner",
+    kind: "mac_runner",
+    iat: now / 1000,
+    exp: now / 1000 + 600,
+    jti: "token",
+  };
+  const first = await service.authorize(claims, now);
+  expect(first).toEqual({ canRunTasks: false, canMacExec: true });
+  if (!first) throw new Error("permissions_missing");
+  first.canRunTasks = true;
+  expect((await service.authorize(claims, now + 1))?.canRunTasks).toBe(false);
+  response = { active: true, canRunTasks: true, canMacExec: false };
+  expect(await service.authorize(claims, now + 2, true)).toEqual({
+    canRunTasks: true,
+    canMacExec: false,
+  });
+  response = { active: true };
+  await expect(service.authorize(claims, now + 3, true)).rejects.toThrow("unauthorized");
+  await expect(service.authorize(claims, now + 4)).rejects.toThrow("unauthorized");
+  response = { active: true, canRunTasks: false, canMacExec: false };
+  await expect(service.authorize(claims, now + 5)).rejects.toThrow("unauthorized");
 });

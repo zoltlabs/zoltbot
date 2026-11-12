@@ -54,6 +54,7 @@ export class CellAnswers {
         data.runnerId === lease.runnerId &&
         data.claims.device === lease.runnerId &&
         data.claims.sub === owner &&
+        lease.connectionId === data.connectionId &&
         data.claims.exp * 1000 > this.now()
       );
     });

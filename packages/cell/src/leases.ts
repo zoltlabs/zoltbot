@@ -13,6 +13,7 @@ export interface LeaseRecord extends LeaseState {
   kind: "mac" | "sandbox";
   lastSeq: number;
   wakePending?: boolean;
+  connectionId?: string;
 }
 /** SQLite owns the lease fence. Neither expiry nor reconnect grants another writer. */
 export class CellLeases {
@@ -86,15 +87,23 @@ export class CellLeases {
     leaseIds: readonly string[],
     claims: CellTokenClaims,
     now = Date.now(),
+    connectionId?: string,
   ) {
     for (const lease of this.all().filter((lease) => lease.runnerId === runnerId)) {
-      if (!leaseIds.includes(lease.leaseId)) continue;
+      if (!leaseIds.includes(lease.leaseId)) {
+        if (connectionId && lease.connectionId === connectionId) {
+          const { connectionId: _connection, ...inactive } = lease;
+          this.save(inactive);
+        }
+        continue;
+      }
       this.require(lease.taskId, lease.leaseId, runnerId, claims);
       const { wakePending: _pending, ...current } = lease;
       this.save({
         ...heartbeatRunnerLease(current, runnerId, lease.leaseId, now),
         kind: lease.kind,
         lastSeq: lease.lastSeq,
+        ...(connectionId ? { connectionId } : {}),
       });
     }
   }

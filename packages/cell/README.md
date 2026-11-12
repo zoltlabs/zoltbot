@@ -224,3 +224,28 @@ test captures the old facade, deletes the org and verifies queue creation fails
 with no tables or alarm remaining. It does not claim to reproduce every HTTP
 timing. Copy review covered the existing saved-resolution component and the note
 text; cloud client rendering remains part of W10/W11 verification.
+
+## Grant capabilities and native presence
+
+Access checks send the JWT ID to the account service, so a sandbox must match its
+current token record. Mac access must return explicit task and Mac-command
+capabilities; missing, malformed or empty capabilities fail closed. The positive
+cache retains those capabilities for at most thirty seconds and returns copies.
+Connect, messages, broadcasts and fresh alarm checks update the socket's saved
+permissions. A new Mac task requires both local task opt-in and the grant's task
+capability. A runner's hello cannot widen that grant.
+
+Heartbeats bind advertised task leases to the current socket's connection ID in
+SQLite. A private answer requires that exact connection as well as a fresh lease
+heartbeat. An idle bridge connection cannot inherit a previous connection's
+private handoffs. Omitting a lease from the current heartbeat removes its presence
+marker. These markers contain IDs only and do not enlarge WebSocket attachments.
+
+Draining stops new assignments while an already advertised native task can still
+receive its queued continuation. A new bridge-only connection receives no old
+lease until it advertises an owned native task. Signed Mac execution remains W7;
+these capabilities alone authorize no command.
+
+Tests cover capability refusal and refresh, immutable cached verdicts, grant-gated
+Mac assignment, drained-task continuation, and refusal of private handoffs before
+a current connection advertises the task or after it withdraws that heartbeat.

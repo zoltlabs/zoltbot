@@ -6,6 +6,7 @@ The website publishes released entries only; Unreleased stays in this repository
 ## Unreleased
 
 - Fix: Cloud tasks report unconfirmed answer delivery.
+- Fix: Private cloud answers require a ready task runner after reconnecting.
 
 - Improvement: Chat history uses less disk space by sharing message text across its search index and projections.
 - Fix: A full database reports a clear error and rolls back the command.

@@ -1,4 +1,4 @@
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { Store } from "@zoltbot/store/portable";
 import { afterEach, expect, it, vi } from "vitest";
@@ -13,9 +13,11 @@ import { signer } from "./identity.js";
 afterEach(() => vi.restoreAllMocks());
 it("delivers a frozen lease and projects replayed events over the runner socket", async () => {
   const identity = await signer();
+  let canRunTasks = false;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
     if (String(url) === env.CELL_JWKS_URL) return Response.json({ keys: [identity.jwk] });
-    if (String(url).endsWith("/access")) return Response.json({ active: true });
+    if (String(url).endsWith("/access"))
+      return Response.json({ active: true, canRunTasks, canMacExec: true });
     if (!String(url).endsWith("/sandboxes")) throw new Error("unexpected_network");
     const body = JSON.parse(String(init?.body));
     const at = new Date().toISOString();
@@ -214,6 +216,10 @@ it("delivers a frozen lease and projects replayed events over the runner socket"
       params: { ...hello, acceptTasks: true },
     }),
   );
+  await vi.waitFor(() => expect(macMessages.some((message) => message.id === 2)).toBe(true));
+  expect(macMessages.filter((message) => message.method === "runner.lease")).toHaveLength(0);
+  canRunTasks = true;
+  expect(await runDurableObjectAlarm(stub)).toBe(true);
   await vi.waitFor(() =>
     expect(macMessages.filter((message) => message.method === "runner.lease")).toHaveLength(1),
   );
@@ -255,6 +261,32 @@ it("delivers a frozen lease and projects replayed events over the runner socket"
       (message) => message.method === "runner.lease" && message.params?.taskId === held.id,
     ),
   ).toBe(false);
+  const macLease = macMessages.find((message) => message.method === "runner.lease")?.params;
+  if (!macLease) throw new Error("mac_lease_missing");
+  mac.send(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "runner.heartbeat",
+      params: { runnerId: "mac", leaseIds: [macLease.leaseId], at: new Date().toISOString() },
+    }),
+  );
+  await vi.waitFor(() => expect(macMessages.some((message) => message.id === 4)).toBe(true));
+  const beforeContinuation = macMessages.filter(
+    (message) => message.method === "runner.lease" && message.params?.taskId === macTask.id,
+  ).length;
+  await rpc("turn.send", {
+    threadId: macTask.threadId,
+    input: [{ type: "text", text: "Continue" }],
+    mode: "queue",
+  });
+  await vi.waitFor(() =>
+    expect(
+      macMessages.filter(
+        (message) => message.method === "runner.lease" && message.params?.taskId === macTask.id,
+      ),
+    ).toHaveLength(beforeContinuation + 1),
+  );
   mac.send(
     JSON.stringify({
       jsonrpc: "2.0",

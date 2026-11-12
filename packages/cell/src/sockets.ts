@@ -1,5 +1,6 @@
 import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
 import type { Store } from "@zoltbot/store/portable";
+import type { RunnerPermissions } from "./service.js";
 
 export interface SocketAttachment {
   connectionId: string;
@@ -9,6 +10,7 @@ export interface SocketAttachment {
   runnerId?: string;
   acceptTasks?: boolean;
   clis?: string[];
+  permissions?: RunnerPermissions;
 }
 export function attachment(socket: WebSocket): SocketAttachment {
   const value = socket.deserializeAttachment() as SocketAttachment | null;
@@ -17,7 +19,12 @@ export function attachment(socket: WebSocket): SocketAttachment {
 }
 export class CellSockets {
   constructor(private readonly ctx: DurableObjectState) {}
-  connect(request: Request, claims: CellTokenClaims, store: Store): Response {
+  connect(
+    request: Request,
+    claims: CellTokenClaims,
+    store: Store,
+    permissions?: RunnerPermissions,
+  ): Response {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket")
       return new Response(null, { status: 426 });
     if (this.ctx.getWebSockets().length >= 32) return new Response(null, { status: 429 });
@@ -32,6 +39,7 @@ export class CellSockets {
       claims,
       lastSeq,
       subscribed: claims.kind === "client",
+      ...(permissions ? { permissions } : {}),
     } satisfies SocketAttachment);
     return new Response(null, { status: 101, webSocket: client });
   }

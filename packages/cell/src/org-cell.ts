@@ -76,7 +76,9 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       );
       const store = await this.open(claims);
       if (new URL(request.url).pathname.endsWith("/connect")) {
-        const response = new CellSockets(this.ctx).connect(request, claims, store);
+        const permissions = await this.service?.authorize(claims);
+        if (this.deleted) throw new Error("unauthorized");
+        const response = new CellSockets(this.ctx).connect(request, claims, store, permissions);
         if (response.status === 101) await this.schedule();
         return response;
       }
@@ -133,8 +135,11 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     for (const runner of this.ctx.getWebSockets("runner")) {
       if (this.deleted) return;
       try {
+        await this.authorizeSocket(runner);
         await new CellRunners(this.ctx, store).offer(runner);
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message === "unauthorized")
+          runner.close(1008, "unauthorized");
         await this.schedule();
       }
     }
@@ -165,6 +170,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         throw new Error("forbidden");
       const store = await this.open(data.claims);
       if (!this.service) throw new Error("unauthorized");
+      await this.authorizeSocket(socket);
       const input: unknown = JSON.parse(message);
       if (
         input &&
@@ -228,6 +234,18 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
   override async webSocketError(socket: WebSocket) {
     socket.close(1011, "reconnect");
   }
+  private async authorizeSocket(socket: WebSocket, fresh = false) {
+    if (this.deleted || !this.service) throw new Error("unauthorized");
+    const data = attachment(socket);
+    const permissions = await this.service.authorize(data.claims, Date.now(), fresh);
+    if (this.deleted || socket.readyState !== WebSocket.OPEN) throw new Error("unauthorized");
+    if (data.claims.kind === "mac_runner") {
+      if (!permissions) throw new Error("unauthorized");
+      const current = attachment(socket);
+      current.permissions = permissions;
+      socket.serializeAttachment(current);
+    }
+  }
   private async alarmStore(): Promise<Store | undefined> {
     if (this.deleted) return;
     const driver = new CellSqlDriver(this.ctx.storage);
@@ -271,7 +289,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       for (const socket of this.ctx.getWebSockets()) {
         try {
           const data = attachment(socket);
-          await this.service?.authorize(data.claims, Date.now(), true);
+          await this.authorizeSocket(socket, true);
           if (data.claims.kind === "client" && new CellSockets(this.ctx).replay(socket, store))
             await this.schedule(1);
         } catch {

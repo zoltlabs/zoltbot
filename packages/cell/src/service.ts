@@ -91,8 +91,12 @@ export interface ServiceConfig {
   signingKey: string;
   issuer: string;
 }
+export interface RunnerPermissions {
+  canRunTasks: boolean;
+  canMacExec: boolean;
+}
 export class CellService {
-  private readonly access = new Map<string, number>();
+  private readonly access = new Map<string, { until: number; permissions?: RunnerPermissions }>();
   constructor(
     private readonly config: ServiceConfig,
     private readonly orgId: string,
@@ -138,7 +142,11 @@ export class CellService {
       clearTimeout(timeout);
     }
   }
-  async authorize(claims: CellTokenClaims, now = Date.now(), fresh = false): Promise<void> {
+  async authorize(
+    claims: CellTokenClaims,
+    now = Date.now(),
+    fresh = false,
+  ): Promise<RunnerPermissions | undefined> {
     if (claims.org !== this.orgId || claims.exp <= Math.floor(now / 1000))
       throw new Error("unauthorized");
     const id = JSON.stringify([
@@ -150,12 +158,15 @@ export class CellService {
       claims.jti,
       claims.session,
     ]);
-    if (!fresh && (this.access.get(id) ?? 0) > now) return;
+    const cached = this.access.get(id);
+    if (!fresh && cached && cached.until > now)
+      return cached.permissions && { ...cached.permissions };
     const response = await this.request("access", "POST", {
       orgId: claims.org,
       userId: claims.sub,
       deviceId: claims.device,
       kind: claims.kind,
+      tokenId: claims.jti,
       ...(claims.session ? { sessionId: claims.session } : {}),
       surface: claims.surface,
       ...(claims.grant ? { grantId: claims.grant } : {}),
@@ -170,12 +181,33 @@ export class CellService {
       this.access.delete(id);
       throw new Error("unauthorized");
     }
-    for (const [key, expiry] of this.access) if (expiry <= now) this.access.delete(key);
+    let permissions: RunnerPermissions | undefined;
+    if (claims.kind === "mac_runner") {
+      if (
+        !("canRunTasks" in response) ||
+        typeof response.canRunTasks !== "boolean" ||
+        !("canMacExec" in response) ||
+        typeof response.canMacExec !== "boolean"
+      ) {
+        this.access.delete(id);
+        throw new Error("unauthorized");
+      }
+      permissions = { canRunTasks: response.canRunTasks, canMacExec: response.canMacExec };
+      if (!permissions.canRunTasks && !permissions.canMacExec) {
+        this.access.delete(id);
+        throw new Error("unauthorized");
+      }
+    }
+    for (const [key, entry] of this.access) if (entry.until <= now) this.access.delete(key);
     if (this.access.size >= 128) {
       const oldest = this.access.keys().next().value;
       if (oldest !== undefined) this.access.delete(oldest);
     }
-    this.access.set(id, Math.min(now + 30000, claims.exp * 1000));
+    this.access.set(id, {
+      until: Math.min(now + 30000, claims.exp * 1000),
+      ...(permissions ? { permissions } : {}),
+    });
+    return permissions && { ...permissions };
   }
   invalidate() {
     this.access.clear();

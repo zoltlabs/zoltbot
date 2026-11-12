@@ -175,7 +175,7 @@ it("opens only after the active membership check and deletes storage only with a
     );
   });
   const privateAnswer = crypto.randomUUID();
-  await runInDurableObject(memberStub, (_instance, state) => {
+  const nativeLeaseId = await runInDurableObject(memberStub, (_instance, state) => {
     const store = new Store(new CellSqlDriver(state.storage));
     const seconds = Math.floor(Date.now() / 1000);
     const claims: CellTokenClaims = {
@@ -191,7 +191,7 @@ it("opens only after the active membership check and deletes storage only with a
       exp: seconds + 600,
       jti: "test",
     };
-    new CellLeases(store).assign(taskId, "runner", claims);
+    return new CellLeases(store).assign(taskId, "runner", claims).leaseId;
   });
   const nativeResponse = await worker.fetch(
     new Request(`https://cell.example.invalid/v1/orgs/${org}/connect`, {
@@ -207,9 +207,11 @@ it("opens only after the active membership check and deletes storage only with a
   native.accept();
   let receivedPrivate = false;
   let hello = false;
+  let heartbeated = false;
   native.addEventListener("message", (event) => {
     const message = JSON.parse(String(event.data));
     if (message.id === "private-test-hello") hello = true;
+    if (message.id === "private-test-heartbeat") heartbeated = true;
     if (message.method !== "runner.command") return;
     receivedPrivate = JSON.stringify(message.params).includes(privateAnswer);
     native.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { ok: true } }));
@@ -230,6 +232,15 @@ it("opens only after the active membership check and deletes storage only with a
     }),
   );
   await vi.waitFor(() => expect(hello).toBe(true));
+  native.send(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "private-test-heartbeat",
+      method: "runner.heartbeat",
+      params: { runnerId: "runner", leaseIds: [nativeLeaseId], at: new Date().toISOString() },
+    }),
+  );
+  await vi.waitFor(() => expect(heartbeated).toBe(true));
   const answered = await rpc("interaction.answer", {
     id: "question",
     version: 1,

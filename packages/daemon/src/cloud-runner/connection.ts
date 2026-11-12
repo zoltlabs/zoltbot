@@ -162,11 +162,7 @@ export class RunnerConnection {
       this.session = session;
       const helloDeadline = setTimeout(() => socket.terminate(), 10000);
       const heartbeat = setInterval(() => {
-        this.request(session, "runner.heartbeat", {
-          runnerId: this.hello.runnerId,
-          leaseIds: [...this.tasks.values()].map(({ lease }) => lease.leaseId),
-          at: new Date().toISOString(),
-        });
+        this.heartbeat(session);
       }, 15000);
       const renewal = setTimeout(
         () => socket.close(1012, "renew"),
@@ -230,7 +226,10 @@ export class RunnerConnection {
   private receive(session: Session, message: ReturnType<typeof parseRunnerMessage>, bytes: number) {
     if (!("method" in message)) {
       if ("error" in message) throw new Error("runner_request_refused");
-      if (message.id === "hello") this.status("runner_connected");
+      if (message.id === "hello") {
+        this.status("runner_connected");
+        this.heartbeat(session);
+      }
       return;
     }
     if (message.method === "runner.ack") {
@@ -364,6 +363,16 @@ export class RunnerConnection {
       }
     }
     this.pump(session, task);
+    if (this.session) this.heartbeat(this.session);
+  }
+  private heartbeat(session: Session) {
+    this.request(session, "runner.heartbeat", {
+      runnerId: this.hello.runnerId,
+      leaseIds: [...this.tasks.values()]
+        .filter((task) => task.runtime !== undefined)
+        .map(({ lease }) => lease.leaseId),
+      at: new Date().toISOString(),
+    });
   }
   private pump(session: Session, task: TaskEntry) {
     if (!session.initialized.has(task.lease.taskId)) return;

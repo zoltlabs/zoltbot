@@ -28,6 +28,12 @@ function identity(): CellTokenClaims {
     jti: "test",
   };
 }
+function liveLease(store: Store, now = Date.now(), connectionId = "test") {
+  const leases = new CellLeases(store);
+  const lease = leases.assign("task", "runner", identity(), now);
+  leases.heartbeat("runner", [lease.leaseId], identity(), now, connectionId);
+  return lease;
+}
 function question(store: Store, id: string, secret = false) {
   const task = parse(TaskSchema, store.record("task", "task"));
   store.dispatch(
@@ -157,7 +163,7 @@ it("replays an ordinary answer after eviction and accepts only its assigned runn
 it("sends a private value live once while keeping it out of events, receipts and delivery rows", async () => {
   await runInDurableObject(stub(), async (_instance, state) => {
     const store = sandboxFixture(state.storage, true);
-    new CellLeases(store).assign("task", "runner", identity());
+    liveLease(store);
     question(store, "private", true);
     const sent: unknown[] = [];
     const native = socket(sent);
@@ -212,7 +218,7 @@ it("reports a private handoff lost across eviction and reconciles a late acknowl
   let now = Date.now();
   const id = await runInDurableObject(cell, async (_instance, state) => {
     const store = sandboxFixture(state.storage, true);
-    new CellLeases(store).assign("task", "runner", identity(), now);
+    liveLease(store, now);
     question(store, "private", true);
     const answers = new CellAnswers(store, { getWebSockets: () => [socket([])] }, () => now);
     await rpc(store, answers).call(request("private", crypto.randomUUID()));
@@ -239,5 +245,28 @@ it("reports a private handoff lost across eviction and reconciles a late acknowl
     expect((store.record("item", noteId)?.body as { code: string }).code).toBe(
       "interaction_reply_confirmed",
     );
+  });
+});
+it("refuses a private handoff until the current connection advertises the leased native task", async () => {
+  await runInDurableObject(stub(), async (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    const lease = liveLease(store, Date.now(), "old-connection");
+    question(store, "private", true);
+    const sent: unknown[] = [];
+    const answers = new CellAnswers(store, { getWebSockets: () => [socket(sent)] });
+    const api = rpc(store, answers);
+    const input = request("private", crypto.randomUUID());
+    await expect(api.call(input)).rejects.toThrow("runner_unavailable");
+    expect(store.record("interaction", "private")?.state).toBe("pending");
+    const leases = new CellLeases(store);
+    leases.heartbeat("runner", [lease.leaseId], identity(), Date.now(), "test");
+    await api.call(input);
+    expect(sent).toHaveLength(1);
+    leases.heartbeat("runner", [], identity(), Date.now(), "test");
+    question(store, "second-private", true);
+    await expect(api.call(request("second-private", crypto.randomUUID()))).rejects.toThrow(
+      "runner_unavailable",
+    );
+    expect(store.record("interaction", "second-private")?.state).toBe("pending");
   });
 });

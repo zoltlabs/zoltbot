@@ -8,6 +8,7 @@ import { At, parse } from "@zoltbot/protocol";
 import {
   RunnerEventSchema,
   RunnerExecutionSchema,
+  RunnerHeartbeatSchema,
   type RunnerLease,
   RunnerLeaseSchema,
 } from "@zoltbot/runner-protocol";
@@ -410,4 +411,39 @@ it("refuses mismatched execution metadata before opening a native runtime", asyn
   await expect.poll(() => f.statuses.includes("runner_lease_refused")).toBe(true);
   await f.connection.close();
   expect(f.opens).toBe(0);
+});
+it("advertises a native lease only after the task runtime has finished starting", async () => {
+  const advertised: string[][] = [];
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const f = await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") hello(socket);
+      if (message.method === "runner.heartbeat")
+        advertised.push(parse(RunnerHeartbeatSchema, message.params).leaseIds);
+    },
+    {
+      task: async () => {
+        await ready;
+        return {
+          async update() {},
+          async command() {
+            return { ok: true };
+          },
+          async close() {},
+        };
+      },
+    },
+  );
+  try {
+    await expect.poll(() => f.opens).toBe(1);
+    await expect.poll(() => advertised.length).toBeGreaterThan(0);
+    expect(advertised.every((ids) => !ids.length)).toBe(true);
+    release();
+    await expect.poll(() => advertised.some((ids) => ids.includes("lease"))).toBe(true);
+  } finally {
+    release();
+  }
 });
