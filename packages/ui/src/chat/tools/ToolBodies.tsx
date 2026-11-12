@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { type Row, text } from "../types.js";
 import { DiffList } from "./DiffView.js";
 import { type FileDiff, fileDiffs } from "./diff-data.js";
+import { executionResult, resultLinks } from "./result-data.js";
 import {
   collapseLines,
   images,
@@ -103,7 +104,8 @@ const outputOf = (value: Row) =>
   outputText(value.output !== undefined ? value.output : value.content);
 
 export function ExecuteBody({ value }: { value: Row }) {
-  const command = text(value.title);
+  const command = toolSummary(value);
+  const { exitCode } = executionResult(value);
   return (
     <div className="tool-terminal">
       {command ? (
@@ -112,6 +114,7 @@ export function ExecuteBody({ value }: { value: Row }) {
           {command}
         </div>
       ) : null}
+      {exitCode !== undefined ? <p className="tool-empty">Exit code {exitCode}</p> : null}
       <CollapsedOutput value={outputOf(value)} className="chat-terminal" />
       {value.status === "running" && !outputOf(value) ? (
         <p className="tool-empty">Waiting for output…</p>
@@ -205,6 +208,13 @@ export function GenericBody({ value }: { value: Row }) {
   const diffs = useMemo(() => fileDiffs(raw), [raw]);
   return (
     <>
+      {resultLinks(value).map((link) => (
+        <div className="tool-result-link" key={link.url}>
+          <ExternalLink href={link.url}>{link.label}</ExternalLink>
+          <span className="dim sm">{new URL(link.url).hostname}</span>
+          {link.description ? <p>{link.description}</p> : null}
+        </div>
+      ))}
       {value.input !== undefined ? (
         <>
           <div className="sec">Input</div>

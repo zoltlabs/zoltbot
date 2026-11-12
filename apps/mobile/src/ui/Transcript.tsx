@@ -7,17 +7,34 @@ import { Icon } from "./icons";
 import { Button, Txt } from "./kit";
 import { Markdown } from "./Markdown";
 
-function ToolRow({ row }: { row: TranscriptRow }) {
+function ToolRow({ row, threadId }: { row: TranscriptRow; threadId?: string }) {
   const { c } = useTheme();
-  const label = row.status === "running" ? "running" : row.status === "ok" ? "done" : "failed";
+  const label =
+    row.activityItem && (row.activityItem.body as Record<string, unknown>)?.recovered === true
+      ? "fixed on retry"
+      : row.status === "running"
+        ? "running"
+        : row.status === "ok"
+          ? "done"
+          : "failed";
   return (
-    <View
-      accessible
+    <Pressable
+      onPress={
+        threadId
+          ? () =>
+              router.push(
+                `/chat/tool?id=${encodeURIComponent(threadId)}&item=${encodeURIComponent(row.id)}`,
+              )
+          : undefined
+      }
+      disabled={!threadId}
+      accessibilityRole={threadId ? "button" : "text"}
+      accessibilityHint={threadId ? "Opens the full tool result" : undefined}
       accessibilityLabel={`${row.text}, ${label}${row.added ? `, ${row.added} lines added, ${row.removed} removed` : ""}`}
       style={[styles.tool, { backgroundColor: c["bg-sunken"], borderColor: c.border }]}
     >
       <Icon
-        name={row.status === "running" ? "spinner" : row.status === "ok" ? "check" : "plus"}
+        name={row.status === "running" ? "spinner" : row.status === "ok" ? "check" : "warning"}
         size={14}
         stroke={2.4}
         color={row.status === "running" ? c["accent-text"] : row.status === "ok" ? c.ok : c.danger}
@@ -31,18 +48,18 @@ function ToolRow({ row }: { row: TranscriptRow }) {
       {row.removed !== undefined ? (
         <Txt v="meta" style={{ fontFamily: mono, color: c.danger }}>{`−${row.removed}`}</Txt>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
 /** A tool that started a subagent, with the subagent's steps folded underneath. */
-function ToolGroup({ row }: { row: TranscriptRow }) {
+function ToolGroup({ row, threadId }: { row: TranscriptRow; threadId?: string }) {
   const { c } = useTheme();
   const children = row.children ?? [];
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.group}>
-      <ToolRow row={row} />
+      <ToolRow row={row} threadId={threadId} />
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
@@ -60,7 +77,7 @@ function ToolGroup({ row }: { row: TranscriptRow }) {
       {open ? (
         <View style={[styles.children, { borderLeftColor: c.border }]}>
           {children.map((child) => (
-            <Message key={child.id} row={child} compact />
+            <Message key={child.id} row={child} threadId={threadId} compact />
           ))}
         </View>
       ) : null}
@@ -220,7 +237,11 @@ export function Message({
     );
   }
   if (row.kind === "tool")
-    return row.children?.length ? <ToolGroup row={row} /> : <ToolRow row={row} />;
+    return row.children?.length ? (
+      <ToolGroup row={row} threadId={threadId} />
+    ) : (
+      <ToolRow row={row} threadId={threadId} />
+    );
   if (row.kind === "interaction")
     return (
       <View style={styles.asked} accessible accessibilityLabel={row.text}>

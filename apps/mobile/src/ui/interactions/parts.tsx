@@ -54,7 +54,7 @@ export function Field({
         style={[
           styles.input,
           multiline && !secure && styles.multiline,
-          { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-page"] },
+          { color: c.text, borderColor: c["border-control"], backgroundColor: c["bg-page"] },
           disabled && { opacity: 0.6 },
         ]}
       />
@@ -79,6 +79,7 @@ export function DiffBlock({
   const { c } = useTheme();
   const [open, setOpen] = useState(Boolean(initiallyOpen));
   const view = diffView(diff);
+  const [limit, setLimit] = useState(maxLines);
   const colors = {
     add: { color: c.ok, backgroundColor: c["ok-soft"] },
     del: { color: c.danger, backgroundColor: c["danger-soft"] },
@@ -98,7 +99,7 @@ export function DiffBlock({
         <View style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}>
           <Icon name="chevron" size={14} color={c["text-muted"]} stroke={2} />
         </View>
-        <Txt v="meta" lines={1} style={[styles.flex, { fontFamily: mono }]}>
+        <Txt v="meta" style={[styles.flex, { fontFamily: mono }]}>
           {view.path}
         </Txt>
         <Txt v="meta" style={{ fontFamily: mono, color: c.ok }}>{`+${view.added}`}</Txt>
@@ -107,7 +108,7 @@ export function DiffBlock({
       {open ? (
         <ScrollView horizontal style={styles.diffBody} contentContainerStyle={styles.diffLines}>
           <View>
-            {view.lines.slice(0, maxLines).map((line, index) => (
+            {view.lines.slice(0, limit).map((line, index) => (
               <Text
                 // biome-ignore lint/suspicious/noArrayIndexKey: diff lines repeat, order is identity
                 key={index}
@@ -117,10 +118,18 @@ export function DiffBlock({
                 {line.text || " "}
               </Text>
             ))}
-            {view.lines.length > maxLines ? (
-              <Txt v="meta" tone="muted" style={styles.more}>
-                {`${view.lines.length - maxLines} more lines. Open the change on your Mac to see all of it.`}
-              </Txt>
+            {view.lines.length > limit ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Show more diff lines, ${view.lines.length - limit} remaining`}
+                onPress={() => setLimit((current) => current + maxLines)}
+                style={{ minHeight: touch, justifyContent: "center", paddingHorizontal: 10 }}
+              >
+                <Txt
+                  v="meta"
+                  tone="secondary"
+                >{`Show more lines (${view.lines.length - limit} remaining)`}</Txt>
+              </Pressable>
             ) : null}
           </View>
         </ScrollView>

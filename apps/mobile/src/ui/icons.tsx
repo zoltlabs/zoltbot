@@ -6,6 +6,7 @@ export const icons = {
   tasks: "m3 17 2 2 4-4 M3 7l2 2 4-4 M13 6h8 M13 12h8 M13 18h8",
   plus: "M12 5v14 M5 12h14",
   chats: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z",
+  warning: "M12 3 2 21h20L12 3Z M12 9v5 M12 18h.01",
   settings: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M2 14h4 M10 8h4 M18 16h4",
   back: "m15 18-6-6 6-6",
   chevron: "m9 18 6-6-6-6",

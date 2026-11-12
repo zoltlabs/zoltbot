@@ -84,7 +84,15 @@ function Progress({ label }: { label: string }) {
   );
 }
 
-function Activity({ rows, active }: { rows: TranscriptRow[]; active: boolean }) {
+function Activity({
+  rows,
+  active,
+  threadId,
+}: {
+  rows: TranscriptRow[];
+  active: boolean;
+  threadId: string;
+}) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
   const working = active && rows.some((row) => row.status === "running" || row.streaming);
@@ -115,7 +123,7 @@ function Activity({ rows, active }: { rows: TranscriptRow[]; active: boolean }) 
       {open ? (
         <View style={styles.details}>
           {rows.map((row) => (
-            <Message key={row.id} row={row} />
+            <Message key={row.id} row={row} threadId={threadId} />
           ))}
         </View>
       ) : null}
@@ -146,6 +154,7 @@ export function AssistantTurn({
           <Activity
             key={segment.id}
             rows={segment.rows}
+            threadId={threadId}
             active={active && !paused && segment === segments.at(-1)}
           />
         ) : (

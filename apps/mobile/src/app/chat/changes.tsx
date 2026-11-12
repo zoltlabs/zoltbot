@@ -1,3 +1,5 @@
+import { fileDiffs } from "@zoltbot/ui/chat/tools/diff-data";
+import { body } from "@zoltbot/ui/chat/types";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
@@ -7,8 +9,9 @@ import { threadSession } from "../../data/session";
 import { ago, text } from "../../data/view";
 import { useAction } from "../../state/actions";
 import { useClient, useLink, useSnapshot } from "../../state/link";
-import { mono, useTheme } from "../../theme";
+import { useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
+import { DiffBlock } from "../../ui/interactions/parts";
 import { Button, Card, Chip, Txt } from "../../ui/kit";
 
 /** Whether the Mac can put files back to before a turn, from a dry run; unknown until it answers. */
@@ -19,13 +22,15 @@ type Restore = { files: string[] } | "read_only" | undefined;
  * rewind says it can restore files to before it (D-5); everything else is Read only.
  */
 export default function Changes() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, turnId: selectedTurn } = useLocalSearchParams<{ id: string; turnId?: string }>();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const snapshot = useSnapshot();
   const online = useClient((state) => state.status === "online");
   const { run, busy } = useAction();
-  const turns = threadChanges(snapshot, id);
+  const turns = threadChanges(snapshot, id).filter(
+    (turn) => !selectedTurn || turn.turnId === selectedTurn,
+  );
   const sessionId = text(threadSession(snapshot, id)?.id);
   const [restore, setRestore] = useState<Record<string, Restore>>({});
   const key = turns.map((turn) => turn.turnId).join(",");
@@ -101,27 +106,22 @@ export default function Changes() {
                   <Chip label="Revertible" tone="ok" />
                 )}
               </View>
-              {turn.files.map((file) => (
-                <View
-                  key={file.path}
-                  style={styles.file}
-                  accessible
-                  accessibilityLabel={`${file.path}, ${file.added} added, ${file.removed} removed`}
-                >
-                  <Txt
-                    v="meta"
-                    tone="secondary"
-                    lines={1}
-                    style={[styles.flex, { fontFamily: mono }]}
-                  >
-                    {file.path}
-                  </Txt>
-                  <Txt v="meta" style={{ fontFamily: mono, color: c.ok }}>{`+${file.added}`}</Txt>
-                  <Txt v="meta" style={{ fontFamily: mono, color: c.danger }}>
-                    {`−${file.removed}`}
-                  </Txt>
-                </View>
-              ))}
+              {(snapshot.entities.item ?? [])
+                .filter(
+                  (item) =>
+                    item.threadId === id && item.turnId === turn.turnId && item.kind === "tool",
+                )
+                .sort((a, b) => Number(a.seq) - Number(b.seq))
+                .flatMap((item) =>
+                  fileDiffs(body(item).diffs).map((diff, index) => (
+                    <DiffBlock
+                      // biome-ignore lint/suspicious/noArrayIndexKey: stable diff order within this tool
+                      key={`${item.id}:${index}`}
+                      diff={diff}
+                      initiallyOpen={!!selectedTurn}
+                    />
+                  )),
+                )}
               {state && state !== "read_only" ? (
                 <Button
                   label="Restore to before this"
