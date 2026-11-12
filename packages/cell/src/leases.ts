@@ -108,21 +108,30 @@ export class CellLeases {
   async checkPresence(
     wake: (taskId: string, operationId: string) => Promise<void>,
     now = Date.now(),
+    sleeping: (taskId: string) => boolean = () => false,
   ) {
+    let retry = false;
     for (const lease of this.all()) {
       if (!["running", "queued"].includes(String(this.store.record("task", lease.taskId)?.state)))
         continue;
+      if (lease.kind === "sandbox" && sleeping(lease.taskId)) continue;
       const next = requestRunnerWake(lease, lease.kind, now);
       if (next || lease.wakePending) {
         const pending = { ...lease, ...next, wakePending: true };
         this.save(pending);
-        await wake(lease.taskId, `wake:${lease.leaseId}:${lease.heartbeatAt}`);
+        try {
+          await wake(lease.taskId, `wake:${lease.leaseId}:${lease.heartbeatAt}`);
+        } catch {
+          retry = true;
+          continue;
+        }
         // Do not overwrite a concurrent heartbeat while the network request was in flight.
         const current = this.get(lease.taskId);
         if (current?.heartbeatAt === lease.heartbeatAt)
           this.save({ ...current, wakePending: false });
       }
     }
+    return retry;
   }
   offline(taskId: string, now = Date.now()) {
     const lease = this.get(taskId);

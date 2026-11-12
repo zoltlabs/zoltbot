@@ -2,6 +2,9 @@ import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { Store } from "@zoltbot/store/portable";
 import { afterEach, expect, it, vi } from "vitest";
+import { CellCommands } from "../src/commands.js";
+import { CellRunners } from "../src/runners.js";
+import { CellSandboxes } from "../src/sandboxes.js";
 import { CellSqlDriver } from "../src/sql-driver.js";
 import worker from "../src/worker.js";
 import { caps } from "./capabilities.js";
@@ -10,11 +13,24 @@ import { signer } from "./identity.js";
 afterEach(() => vi.restoreAllMocks());
 it("delivers a frozen lease and projects replayed events over the runner socket", async () => {
   const identity = await signer();
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (url) =>
-    String(url) === env.CELL_JWKS_URL
-      ? Response.json({ keys: [identity.jwk] })
-      : Response.json({ active: true }),
-  );
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+    if (String(url) === env.CELL_JWKS_URL) return Response.json({ keys: [identity.jwk] });
+    if (String(url).endsWith("/access")) return Response.json({ active: true });
+    if (!String(url).endsWith("/sandboxes")) throw new Error("unexpected_network");
+    const body = JSON.parse(String(init?.body));
+    const at = new Date().toISOString();
+    return Response.json({
+      orgId: body.orgId,
+      userId: body.userId,
+      taskId: body.taskId,
+      sandboxId: "sandbox",
+      target: "e2b",
+      state: "running",
+      sleepKeepsProcesses: false,
+      createdAt: at,
+      updatedAt: at,
+    });
+  });
   const org = crypto.randomUUID();
   const rpc = async (method: string, params: unknown) => {
     const response = await worker.fetch(
@@ -255,6 +271,66 @@ it("delivers a frozen lease and projects replayed events over the runner socket"
   );
   await vi.waitFor(() =>
     expect(macMessages.find((message) => message.id === 9)?.error?.message).toBe("forbidden"),
+  );
+  await rpc("task.review", {
+    id: task.id,
+    revision: 1,
+    decision: "changes",
+    feedback: "Revise",
+    confirmed: true,
+  });
+  await vi.waitFor(() =>
+    expect(messages.filter((message) => message.method === "runner.lease")).toHaveLength(2),
+  );
+  await runInDurableObject(stub, async (_instance, state) => {
+    const store = new Store(new CellSqlDriver(state.storage));
+    const at = new Date().toISOString();
+    const sandbox = {
+      orgId: org,
+      userId: "member",
+      taskId: String(task.id),
+      sandboxId: "sandbox",
+      target: "e2b",
+      state: "running",
+      sleepKeepsProcesses: false,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const lifecycle = new CellSandboxes(store, { request: async () => sandbox }, org, "member");
+    lifecycle.checkpoint(String(task.id));
+    store.database
+      .prepare(
+        "INSERT INTO cell_sandboxes VALUES(?,?) ON CONFLICT(task_id) DO UPDATE SET body=excluded.body",
+      )
+      .run(String(task.id), JSON.stringify({ ...sandbox, state: "sleeping" }));
+    await lifecycle.ensure(String(task.id));
+    new CellCommands(store).enqueue(String(task.id), "interrupt-test", { type: "interrupt" });
+    const runner = state
+      .getWebSockets("runner")
+      .find((candidate) => candidate.deserializeAttachment().runnerId === "sandbox");
+    if (!runner) throw new Error("runner_missing");
+    await new CellRunners(state, store).offer(runner);
+    await new CellRunners(state, store).offer(runner);
+  });
+  await vi.waitFor(() =>
+    expect(messages.filter((message) => message.method === "runner.lease")).toHaveLength(3),
+  );
+  const resumed = messages.filter((message) => message.method === "runner.lease").at(-1)?.params
+    ?.execution as { previousNativeId?: string; queuedItems: unknown[] };
+  expect(resumed.previousNativeId).toBe("native");
+  expect(resumed.queuedItems).toHaveLength(2);
+  await vi.waitFor(() =>
+    expect(messages.some((message) => message.method === "runner.command")).toBe(true),
+  );
+  socket.send(
+    JSON.stringify({ jsonrpc: "2.0", id: "runner-command:interrupt-test", result: { ok: true } }),
+  );
+  await vi.waitFor(async () =>
+    expect(
+      await runInDurableObject(stub, (_instance, state) =>
+        new CellCommands(new Store(new CellSqlDriver(state.storage))).pending(String(task.id)),
+      ),
+    ).toBe(false),
   );
   mac.close();
   socket.close();

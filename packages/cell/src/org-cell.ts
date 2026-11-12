@@ -5,7 +5,10 @@ import { migrateDriver, Store } from "@zoltbot/store/portable";
 import { interactionAlarms, rebuildAlarm } from "./alarm-work.js";
 import { boundedJson } from "./auth.js";
 import { CloudRpc, safeError } from "./cloud-rpc.js";
+import { CellCommands } from "./commands.js";
+import { CellLeases } from "./leases.js";
 import { CellRunners } from "./runners.js";
+import { CellSandboxes } from "./sandboxes.js";
 import { seedCell } from "./seed.js";
 import { CellService } from "./service.js";
 import { attachment, CellSockets } from "./sockets.js";
@@ -58,6 +61,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     if (request.method === "DELETE" && request.headers.get("x-zolt-service") === "delete") {
       this.deleted = true;
       this.service?.invalidate();
+      await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
       for (const socket of this.ctx.getWebSockets()) socket.close(1008, "deleted");
       this.store = undefined;
@@ -78,7 +82,9 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       try {
         if (!this.service) throw new Error("service_unavailable");
         const response = await new CloudRpc(store, claims, this.service).call(input);
+        if (this.deleted) throw new Error("unauthorized");
         await this.broadcast(store);
+        await this.schedule(1);
         return Response.json(response);
       } catch (error) {
         const id = input && typeof input === "object" && "id" in input ? input.id : null;
@@ -98,6 +104,20 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     const alarm = await this.ctx.storage.getAlarm();
     if (this.deleted) return;
     if (alarm === null || alarm > next) await this.ctx.storage.setAlarm(next);
+  }
+  private sandboxes(store: Store) {
+    if (this.deleted || !this.service) throw new Error("unauthorized");
+    const identity = store.database
+      .prepare("SELECT org_id,user_id FROM cell_identity WHERE id=1")
+      .get() as { org_id: string; user_id: string };
+    return new CellSandboxes(
+      store,
+      this.service,
+      identity.org_id,
+      identity.user_id,
+      () => Date.now(),
+      () => !this.deleted,
+    );
   }
   private async broadcast(store: Store) {
     if (this.deleted) return;
@@ -162,13 +182,13 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
           const params = "params" in input ? (input.params as { fromSeq?: number }) : {};
           const from = params.fromSeq ?? store.lastSeq();
           subscription.lastSeq = Math.min(from, store.lastSeq());
-          if ("result" in response && (response.result as { resync?: boolean }).resync)
+          if (response && "result" in response && (response.result as { resync?: boolean }).resync)
             subscription.lastSeq = store.lastSeq();
         }
         socket.serializeAttachment(subscription);
       }
       if (this.deleted) return;
-      socket.send(JSON.stringify(response));
+      if (response) socket.send(JSON.stringify(response));
       await this.broadcast(store);
       await this.schedule();
     } catch (error) {
@@ -244,7 +264,28 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
           socket.close(1008, "unauthorized");
         }
       }
-      if (pending || this.ctx.getWebSockets().length) await this.schedule();
+      if (this.deleted) return;
+      const sandboxes = this.sandboxes(store);
+      const commands = new CellCommands(store);
+      const next = await sandboxes.tick(async (taskId) => {
+        if (this.deleted) throw new Error("unauthorized");
+        const task = store.record("task", taskId);
+        sandboxes.checkpoint(taskId, () => {
+          commands.enqueue(taskId, `checkpoint:${taskId}:r${task?.revision}`, {
+            type: "interrupt",
+          });
+        });
+      });
+      if (this.deleted) return;
+      const retry = await new CellLeases(store).checkPresence(
+        (taskId, operationId) => sandboxes.wake(taskId, operationId),
+        Date.now(),
+        (taskId) => sandboxes.get(taskId)?.state === "sleeping",
+      );
+      if (this.deleted) return;
+      await this.broadcast(store);
+      if (next !== undefined) await this.schedule(Math.max(1, next - Date.now()));
+      if (retry || pending || this.ctx.getWebSockets().length) await this.schedule();
     } catch {
       for (const socket of this.ctx.getWebSockets()) socket.close(1008, "unauthorized");
       await this.schedule();

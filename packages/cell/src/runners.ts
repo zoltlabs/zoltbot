@@ -19,6 +19,7 @@ import {
   type RunnerLease,
 } from "@zoltbot/runner-protocol";
 import type { Store } from "@zoltbot/store/portable";
+import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import { runnerEvent } from "./runner-events.js";
 import { attachment } from "./sockets.js";
@@ -54,7 +55,7 @@ export class CellRunners {
   ) {
     this.leases = new CellLeases(store);
     store.database.exec(
-      "CREATE TABLE IF NOT EXISTS cell_manifests(task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(task_id,revision))",
+      "CREATE TABLE IF NOT EXISTS cell_manifests(task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(task_id,revision)); CREATE TABLE IF NOT EXISTS cell_lease_offers(task_id TEXT PRIMARY KEY,runner_id TEXT NOT NULL,last_input_id TEXT)",
     );
   }
   private async lease(taskId: string, claims: CellTokenClaims): Promise<RunnerLease> {
@@ -186,13 +187,20 @@ export class CellRunners {
           : [];
     for (const taskId of new Set([...existing, ...queued])) {
       const task = parse(TaskSchema, this.store.record("task", taskId));
-      if (
-        !["queued", "running", "review", "blocked"].includes(task.state) ||
-        (!includeExisting && task.state !== "queued")
-      )
-        continue;
+      if (!["queued", "running", "review", "blocked"].includes(task.state)) continue;
       const currentLease = this.leases.get(taskId);
       if (currentLease && currentLease.runnerId !== hello.runnerId) continue;
+      if (!includeExisting && task.state !== "queued") {
+        const inputs = this.store.database
+          .prepare(
+            "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 8",
+          )
+          .all(String(task.threadId)) as { id: string }[];
+        const offered = this.store.database
+          .prepare("SELECT last_input_id FROM cell_lease_offers WHERE task_id=? AND runner_id=?")
+          .get(taskId, hello.runnerId) as { last_input_id: string | null } | undefined;
+        if (!inputs.length || offered?.last_input_id === inputs.at(-1)?.id) continue;
+      }
       const profile = this.store.record("agent", String(task.ownerAgentId));
       if (!hello.clis.some((cli) => cli.id === profile?.definitionId)) continue;
       let lease: RunnerLease;
@@ -218,6 +226,11 @@ export class CellRunners {
           params: lease,
         }),
       );
+      this.store.database
+        .prepare(
+          "INSERT INTO cell_lease_offers(task_id,runner_id,last_input_id) VALUES(?,?,?) ON CONFLICT(task_id) DO UPDATE SET runner_id=excluded.runner_id,last_input_id=excluded.last_input_id",
+        )
+        .run(taskId, hello.runnerId, lease.execution?.queuedItems.at(-1)?.id ?? null);
     }
   }
   async offer(socket: WebSocket) {
@@ -238,13 +251,18 @@ export class CellRunners {
       data.claims,
       false,
     );
+    new CellCommands(this.store).deliver(socket);
   }
   async message(socket: WebSocket, input: unknown) {
     const data = attachment(socket);
     const claims = data.claims;
     if (claims.kind === "client") throw new Error("forbidden");
     const request = parseRunnerMessage(input);
-    if (!("method" in request)) throw new Error("method_unavailable");
+    if (!("method" in request)) {
+      if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");
+      new CellCommands(this.store).result(claims, data.runnerId, request);
+      return undefined;
+    }
     if (request.method === "runner.hello") {
       const hello = parse(RunnerHelloSchema, request.params);
       if (
@@ -263,6 +281,7 @@ export class CellRunners {
         )
           other.close(1012, "reconnect");
       await this.deliver(socket, hello, claims);
+      new CellCommands(this.store).deliver(socket, true);
       return { jsonrpc: "2.0", id: request.id, result: { ok: true, heartbeatMs: 15000 } };
     }
     if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");

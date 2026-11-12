@@ -136,7 +136,25 @@ it("fences one writer, commits runner sequence with receipts, and wakes an offli
     if (!lease) throw new Error("lease_missing");
     leases.heartbeat("runner", [lease.leaseId], claims, 100000);
     expect(leases.offline("task", 100000)).toBe(false);
+    await leases.checkPresence(wake, 160000, () => true);
+    expect(requests).toEqual(["task"]);
     await leases.checkPresence(wake, 160000);
     expect(requests).toEqual(["task", "task"]);
+    leases.heartbeat("runner", [lease.leaseId], claims, 220000);
+    const ids: string[] = [];
+    expect(
+      await leases.checkPresence(async (_task, id) => {
+        ids.push(id);
+        throw new Error("orchestrator_unavailable");
+      }, 280000),
+    ).toBe(true);
+    expect(
+      await leases.checkPresence(async (_task, id) => {
+        ids.push(id);
+      }, 281000),
+    ).toBe(false);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(leases.get("task")?.wakePending).toBe(false);
   });
 });

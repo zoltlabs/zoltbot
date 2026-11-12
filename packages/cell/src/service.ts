@@ -108,29 +108,35 @@ export class CellService {
     const url = new URL(path.replace(/^\//, ""), base);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && url.hostname === "127.0.0.1"))
       throw new Error("service_unavailable");
-    const response = await this.fetcher(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${await serviceToken(this.config.signingKey, this.config.issuer, "orchestrator", this.orgId)}`,
-        "Content-Type": "application/json",
-        ...(options.operationId ? { "Idempotency-Key": options.operationId } : {}),
-      },
-      body: JSON.stringify(body),
-      redirect: "error",
-      signal: AbortSignal.timeout(options.timeoutMs ?? 5000),
-    });
-    const result = await boundedJson(response, 262144);
-    if (!response.ok) {
-      if (
-        result &&
-        typeof result === "object" &&
-        "error" in result &&
-        result.error === "limit_reached"
-      )
-        throw new Error("limit_reached");
-      throw new Error("service_unavailable");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 5000);
+    try {
+      const response = await this.fetcher(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${await serviceToken(this.config.signingKey, this.config.issuer, "orchestrator", this.orgId)}`,
+          "Content-Type": "application/json",
+          ...(options.operationId ? { "Idempotency-Key": options.operationId } : {}),
+        },
+        body: JSON.stringify(body),
+        redirect: "error",
+        signal: controller.signal,
+      });
+      const result = await boundedJson(response, 262144);
+      if (!response.ok) {
+        if (
+          result &&
+          typeof result === "object" &&
+          "error" in result &&
+          result.error === "limit_reached"
+        )
+          throw new Error("limit_reached");
+        throw new Error("service_unavailable");
+      }
+      return result;
+    } finally {
+      clearTimeout(timeout);
     }
-    return result;
   }
   async authorize(claims: CellTokenClaims, now = Date.now(), fresh = false): Promise<void> {
     if (claims.org !== this.orgId || claims.exp <= Math.floor(now / 1000))

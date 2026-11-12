@@ -4,7 +4,7 @@ import {
   type SandboxRecord,
   SandboxRecordSchema,
 } from "@zoltbot/cloud-contracts";
-import { handle, holdTask, resumeTask } from "@zoltbot/core";
+import { applyEvents, handle, holdTask, resumeTask } from "@zoltbot/core";
 import { ProjectSchema, parse, type Task, TaskSchema } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store/portable";
 import type { CellService } from "./service.js";
@@ -132,23 +132,54 @@ export class CellSandboxes {
               : "running")
       )
         throw new Error("forbidden");
-      this.store.database.transaction(() => {
-        // An older response must not rewind a later completed lifecycle operation.
-        if (this.pending(op.task_id)?.id !== op.id) return;
-        this.store.database
-          .prepare(
-            "INSERT INTO cell_sandboxes(task_id,body) VALUES(?,?) ON CONFLICT(task_id) DO UPDATE SET body=excluded.body",
-          )
-          .run(op.task_id, JSON.stringify(result));
-        this.store.database
-          .prepare(
-            "UPDATE cell_sandbox_operations SET state='complete',error_code=NULL,result=? WHERE id=?",
-          )
-          .run(JSON.stringify(result), op.id);
-      })();
-      this.hold(op.task_id, undefined);
+      const commandId = `sandbox-effect:${op.id}`;
+      this.store.dispatch(
+        commandId,
+        (initial) => {
+          // An older response must not rewind a later completed lifecycle operation.
+          if (this.pending(op.task_id)?.id !== op.id) return { events: [], result: null };
+          this.store.database
+            .prepare(
+              "INSERT INTO cell_sandboxes(task_id,body) VALUES(?,?) ON CONFLICT(task_id) DO UPDATE SET body=excluded.body",
+            )
+            .run(op.task_id, JSON.stringify(result));
+          this.store.database
+            .prepare(
+              "UPDATE cell_sandbox_operations SET state='complete',error_code=NULL,result=? WHERE id=?",
+            )
+            .run(JSON.stringify(result), op.id);
+          const context = {
+            commandId,
+            at: new Date(this.now()).toISOString(),
+            actor: { kind: "system" as const, id: "cell" },
+          };
+          let state = initial;
+          const task = this.task(op.task_id);
+          const held =
+            task.state === "queued"
+              ? holdTask(state, task.id, undefined, context)
+              : { events: [], result: task };
+          state = applyEvents(state, held.events);
+          if (
+            result.state === "running" &&
+            op.operation === "wake" &&
+            task.state === "blocked" &&
+            task.holdReason === "daemon_restarted"
+          ) {
+            const latest = this.store.database
+              .prepare(
+                "SELECT id,seq,kind FROM item_records WHERE thread_id=? ORDER BY seq DESC LIMIT 1",
+              )
+              .get(String(task.threadId)) as { id: string; seq: number; kind: string } | undefined;
+            if (latest) state.item = [{ ...latest, threadId: task.threadId, body: {} }];
+            const resumed = resumeTask(state, task.id, commandId, context);
+            return { events: [...held.events, ...resumed.events], result: null };
+          }
+          return { events: held.events, result: null };
+        },
+        { scope: { taskId: op.task_id }, kinds: ["task", "thread", "session", "turn"] },
+      );
       const current = this.get(op.task_id);
-      if (current?.state === "running" && op.operation === "wake") this.resume(op.task_id);
       return current;
     } catch (error) {
       if (!this.isActive()) throw new Error("unauthorized");
@@ -161,29 +192,6 @@ export class CellSandboxes {
         .run(code, op.id);
       this.hold(op.task_id, code);
       return undefined;
-    }
-  }
-  private resume(taskId: string) {
-    const task = this.task(taskId);
-    if (task.state === "blocked" && task.holdReason === "daemon_restarted") {
-      const commandId = `sandbox-resume:${crypto.randomUUID()}`;
-      this.store.dispatch(
-        commandId,
-        (state) => {
-          const latest = this.store.database
-            .prepare(
-              "SELECT id,seq,kind FROM item_records WHERE thread_id=? ORDER BY seq DESC LIMIT 1",
-            )
-            .get(String(task.threadId)) as { id: string; seq: number; kind: string } | undefined;
-          if (latest) state.item = [{ ...latest, threadId: task.threadId, body: {} }];
-          return resumeTask(state, task.id, commandId, {
-            commandId,
-            at: new Date(this.now()).toISOString(),
-            actor: { kind: "system", id: "cell" },
-          });
-        },
-        { scope: { taskId: task.id }, kinds: ["task", "thread", "session", "turn"] },
-      );
     }
   }
   async ensure(taskId: string): Promise<SandboxRecord | undefined> {
@@ -353,14 +361,15 @@ export class CellSandboxes {
     this.store.database.prepare("DELETE FROM cell_sandbox_maintenance WHERE id=1").run();
     return next;
   }
-  checkpoint(taskId: string) {
+  checkpoint(taskId: string, effect?: () => void) {
     const task = this.task(taskId);
     if (task.state !== "running") return;
     const commandId = `sandbox-checkpoint:${crypto.randomUUID()}`;
     this.store.dispatch(
       commandId,
-      (state) =>
-        handle(
+      (state) => {
+        effect?.();
+        return handle(
           state,
           {
             type: "transition",
@@ -375,7 +384,8 @@ export class CellSandboxes {
             at: new Date(this.now()).toISOString(),
             actor: { kind: "system", id: "cell" },
           },
-        ),
+        );
+      },
       { scope: { taskId }, kinds: ["task"] },
     );
   }

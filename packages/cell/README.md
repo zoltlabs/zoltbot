@@ -37,8 +37,8 @@ Cloud project creation/listing, task creation/update/cancel/retry/review, thread
 metadata/history, interaction answers and usage requests now use scoped core
 handlers. Snapshot responses contain metadata; transcript history is paged by
 thread. Unsupported methods return `method_unavailable`. W4 is still incomplete:
-sandbox creation and lifecycle orchestration are not wired. Runner delivery and
-connected Mac task scheduling are implemented below.
+diff/publication results and private native-answer delivery are pending. Runner
+delivery, connected Mac scheduling and sandbox lifecycle alarms are implemented below.
 
 ## Test runtime
 
@@ -147,7 +147,30 @@ terminal sandboxes are destroyed after twenty-four hours. An injected liveness
 check prevents in-flight responses from writing after org deletion. The cell also
 checks deletion before scheduling alarms or broadcasting to more sockets.
 
-The lifecycle controller is tested against a fake orchestrator on real local
-workerd SQLite. It is not wired into `OrgCell` yet: durable runner commands and
-checkpoint acknowledgements must land before an alarm can safely interrupt an
-active turn. W4 remains incomplete.
+The lifecycle controller now runs from `OrgCell` alarms. HTTP requests schedule
+an alarm even when there are no open sockets. An active turn first commits its
+checkpoint and an interrupt command together; the controller waits for the
+normalized turn completion before pausing. An intentionally sleeping sandbox does
+not count as an offline runner that needs an immediate wake. Failed offline wake
+requests keep their original operation ID and retry without disconnecting clients.
+Deletion explicitly removes the alarm as well as SQL/KV storage.
+
+`CellCommands` saves commands with their task's lease and runner. Hello replays
+unacknowledged commands; connected runners retry after fifteen seconds. Results
+are fenced and accept only the command's bounded result schema. Basic command
+acknowledgements are exactly `{ok: true}`; arbitrary error details never reach
+storage. Diff and publication results remain unsupported until their own bounded
+schemas and review checks land. Private answer values are refused by the durable
+queue; live native-answer delivery remains pending.
+
+A connected runner also receives a refreshed lease when new queued input arrives,
+including a continuation created after wake. A durable input marker prevents
+repeated broadcasts of the same queue. Reconnect still resends the lease and its
+acknowledgement cursor. Runners must merge canonical queued item IDs idempotently.
+The workerd socket test checks continuation in the existing native conversation,
+command delivery and acknowledgement, and no repeated lease for unchanged input.
+
+Lifecycle response storage and core events share one `Store.dispatch`. The store
+forbids nested dispatches. Service requests clear their deadline timer after the
+response body is read, so a completed request does not keep the object alive until
+the deadline. The restart tests cover that cleanup. W4 remains incomplete.
