@@ -10,6 +10,7 @@ allowBuilds:
   better-sqlite3: true
   electron-winstaller: false
   node-pty: true
+  workerd: true
 # Zoltbot always launches the user's own Claude Code; the SDK's bundled binaries are unused.
 ignoredOptionalDependencies:
   - '@anthropic-ai/claude-agent-sdk-darwin-arm64'
