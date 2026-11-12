@@ -249,3 +249,22 @@ these capabilities alone authorize no command.
 Tests cover capability refusal and refresh, immutable cached verdicts, grant-gated
 Mac assignment, drained-task continuation, and refusal of private handoffs before
 a current connection advertises the task or after it withdraws that heartbeat.
+
+## Durable Mac approvals (W7 in progress)
+
+`CellMacRecords` owns task-scoped request, approval and result records. It checks
+the sandbox's task lease and current connection again after asynchronous hashing.
+A stable request ID creates one core approval interaction, including on concurrent
+delivery or after reopening the records service. Changed input under the same ID
+fails. Reads load only that task's metadata and the latest item sequence.
+
+Core interaction resolution and the signed approval commit in one transaction.
+The approving device must match the authenticated client device; all signed fields
+must match the saved request. The Mac independently verifies the signature with
+its account registry. A result must come from the selected member's target Mac;
+the audit stores exit code, duration and output size, without command output.
+
+These records are not yet connected to runner sockets or client answers. Routing,
+streaming, restart-safe pending approvals and prefix rules remain unfinished.
+The records tests cover scoped reads, concurrent replay, connection fences,
+transaction rollback, signing-device refusal and idempotent result storage.

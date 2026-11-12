@@ -348,3 +348,11 @@ signed uname succeeds, replay does not repeat its temporary marker write, Cell
 loss leaves the command alive and its result replays once, and Off refuses work.
 It opens no desktop window or keychain and starts no native agent. This is still
 package evidence; the W8 whole-flow harness and live outcome remain open.
+
+The process host redacts known account, runner and environment credentials before
+writing output files, sending chunks or building the result. Separate stdout and
+stderr buffers retain incomplete credential prefixes across process reads. Complete
+matches are replaced before retaining prefixes, keeping repeated overlapping
+matches bounded. Redaction can expand text, so serialized chunks are split again
+at UTF-8 boundaries to stay within the runner protocol's 64-KiB byte bound.
+Tests cover a credential split across reads and output expanded by replacement.

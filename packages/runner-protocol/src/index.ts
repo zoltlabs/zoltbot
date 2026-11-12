@@ -167,6 +167,38 @@ export const MacExecResultSchema = object({
   durationMs: nonnegative,
   mac: Text,
 });
+export const MacStatusRequestSchema = object({
+  requestId: Id,
+  taskId: Id,
+  turnId: Id,
+  userId: Id,
+  targetDeviceId: Type.Optional(Id),
+  cwd: Type.Optional(Type.String({ maxLength: 4096 })),
+});
+export const MacStatusResultSchema = Type.Union([
+  object({
+    available: Type.Literal(false),
+    reason: values(["offline", "off", "unavailable", "choose_mac"]),
+  }),
+  object({
+    available: Type.Literal(true),
+    targetDeviceId: Id,
+    mac: Text,
+    osVersion: Text,
+    cwd: Type.String({ minLength: 1, maxLength: 4096, pattern: "^/" }),
+  }),
+]);
+/** A repeated exec request reads durable progress; it never grants a second execution. */
+export const MacExecProgressSchema = Type.Union([
+  object({ state: Type.Literal("pending"), requestId: Id, interactionId: Id }),
+  object({ state: Type.Literal("running"), requestId: Id }),
+  object({ state: Type.Literal("complete"), requestId: Id, result: MacExecResultSchema }),
+  object({
+    state: Type.Literal("denied"),
+    requestId: Id,
+    reason: values(["declined", "expired", "offline", "failed"]),
+  }),
+]);
 export const runnerMethods = {
   "runner.hello": RunnerHelloSchema,
   "runner.lease": RunnerLeaseSchema,
@@ -178,6 +210,7 @@ export const runnerMethods = {
   "mac.exec.request": MacExecRequestSchema,
   "mac.exec.chunk": MacExecChunkSchema,
   "mac.exec.result": MacExecResultSchema,
+  "mac.status.request": MacStatusRequestSchema,
 };
 const message = <M extends string, P extends TSchema>(method: M, params: P) =>
   object({
@@ -212,6 +245,9 @@ export type RunnerEvent = Static<typeof RunnerEventSchema>;
 export type RunnerCommand = Static<typeof RunnerCommandSchema>;
 export type MacExecRequest = Static<typeof MacExecRequestSchema>;
 export type MacExecResult = Static<typeof MacExecResultSchema>;
+export type MacStatusRequest = Static<typeof MacStatusRequestSchema>;
+export type MacStatusResult = Static<typeof MacStatusResultSchema>;
+export type MacExecProgress = Static<typeof MacExecProgressSchema>;
 export function parseRunnerMessage(input: unknown) {
   return parse(RunnerMessageSchema, input);
 }

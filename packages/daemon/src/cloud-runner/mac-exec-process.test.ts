@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -88,6 +89,7 @@ it("caps UTF-8 result bytes while retaining all output in a durable ordered loca
   expect(result.stdout.includes("�")).toBe(false);
   expect(result.stderr.endsWith("ERR")).toBe(true);
   const frames = f.logs()[0]?.frames ?? [];
+  expect(frames.every((frame) => Buffer.byteLength(frame.data) <= 65536)).toBe(true);
   expect(frames.map((frame) => frame.chunkSeq)).toEqual(frames.map((_, i) => i + 1));
   expect(
     Buffer.byteLength(
@@ -139,4 +141,34 @@ it("kills its owned process group on cancellation and refuses oversized stdin be
     ),
   ).rejects.toThrow(/^mac_exec_unavailable$/);
   expect(f.logs()).toHaveLength(1);
+});
+it("redacts configured credentials across output chunks before any file, result or delivery", async () => {
+  const f = fixture(),
+    value = randomBytes(32).toString("base64url"),
+    delivered: string[] = [];
+  f.options.environment.GITHUB_TOKEN = value;
+  f.options.chunk = (frame) => {
+    delivered.push(frame.data);
+  };
+  const source =
+    "const k=process.env.GITHUB_TOKEN;process.stdout.write('before '+k.slice(0,13));setTimeout(()=>process.stdout.write(k.slice(13)+' after'),30)";
+  const result = await f.execute(
+    f.input(`${quote(process.execPath)} -e ${quote(source)}`),
+    new AbortController().signal,
+  );
+  expect(result.stdout).toBe("before [redacted] after");
+  expect(delivered.join("").includes(value)).toBe(false);
+  expect(f.logs().every((entry) => !readFileSync(entry.file, "utf8").includes(value))).toBe(true);
+});
+it("keeps chunks bounded when redaction expands a short credential", async () => {
+  const f = fixture();
+  f.options.privateValues = () => ["aa"];
+  const result = await f.execute(
+    f.input(`${quote(process.execPath)} -e ${quote("process.stdout.write('a'.repeat(70000))")}`),
+    new AbortController().signal,
+  );
+  expect(result.exitCode).toBe(0);
+  const frames = f.logs()[0]?.frames ?? [];
+  expect(frames.every((frame) => Buffer.byteLength(frame.data) <= 65536)).toBe(true);
+  expect(frames.map((frame) => frame.data).join("")).toBe("[redacted]".repeat(35000));
 });

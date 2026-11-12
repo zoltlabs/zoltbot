@@ -12,6 +12,7 @@ import {
   ToolKindSchema,
   values,
 } from "./common.js";
+import { MacApprovalDraftSchema, SignedMacApprovalSchema } from "./mac-approval.js";
 
 export const RuleMatcherSchema = object({
   tool: Text,
@@ -60,6 +61,7 @@ export const InteractionItemSchema = object({
   default: OptionalText,
 });
 export const ResolutionSchema = object({
+  signedApproval: Type.Optional(SignedMacApprovalSchema),
   action: values(["accept", "decline", "cancel", "timeout", "expire"]),
   answers: Type.Optional(
     Type.Record(
@@ -77,6 +79,7 @@ export const ResolutionSchema = object({
 });
 export type InteractionAnswer = Static<typeof ResolutionSchema>;
 export const InteractionContextSchema = object({
+  macExec: Type.Optional(MacApprovalDraftSchema),
   markdown: OptionalText,
   toolName: OptionalText,
   toolKind: Type.Optional(ToolKindSchema),

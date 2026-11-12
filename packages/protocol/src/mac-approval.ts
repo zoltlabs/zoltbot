@@ -23,5 +23,11 @@ export const SignedMacApprovalSchema = object({
   payload: MacApprovalPayloadSchema,
   signature: Type.String({ pattern: "^[A-Za-z0-9_-]{86}$" }),
 });
+export const MacApprovalDraftSchema = Type.Omit(MacApprovalPayloadSchema, [
+  "signerDeviceId",
+  "issuedAt",
+  "expiresAt",
+]);
 export type MacApprovalPayload = Static<typeof MacApprovalPayloadSchema>;
 export type SignedMacApproval = Static<typeof SignedMacApprovalSchema>;
+export type MacApprovalDraft = Static<typeof MacApprovalDraftSchema>;

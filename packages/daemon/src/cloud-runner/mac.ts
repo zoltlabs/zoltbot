@@ -78,6 +78,7 @@ export function startMacRunner(options: MacRunnerOptions) {
             directory: path.join(options.directory, "mac-output"),
             mac: bridgeOptions.mac,
             environment: bridgeOptions.environment,
+            privateValues: () => [...privateValues, ...(options.privateValues?.() ?? [])],
             ...(bridgeOptions.shell ? { shell: bridgeOptions.shell } : {}),
             ...(bridgeOptions.chunk ? { chunk: bridgeOptions.chunk } : {}),
           }),

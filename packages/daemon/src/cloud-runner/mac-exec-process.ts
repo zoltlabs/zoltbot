@@ -15,6 +15,7 @@ import { StringDecoder } from "node:string_decoder";
 import type { Static } from "@sinclair/typebox";
 import type { MacExecChunkSchema, MacExecResult } from "@zoltbot/runner-protocol";
 import type { MacExecution, MacExecutionOptions } from "./mac-exec.js";
+import { privateOutput } from "./private-output.js";
 
 type Chunk = Static<typeof MacExecChunkSchema>;
 export interface MacProcessOptions {
@@ -26,6 +27,7 @@ export interface MacProcessOptions {
   shell?: string;
   /** Fast local delivery only. The durable chunk log is authoritative during a disconnect. */
   chunk?(chunk: Chunk): void;
+  privateValues?(): readonly string[];
 }
 const stdoutLimit = 256 * 1024,
   stderrLimit = 64 * 1024;
@@ -78,6 +80,15 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
       throw new Error("mac_exec_unavailable");
     }
     const started = performance.now();
+    const output = privateOutput();
+    for (const [name, value] of Object.entries(options.environment))
+      if (
+        value &&
+        /(?:token|password|secret|authorization|api[_-]?key|credential|private[_-]?key|(?:^|_)key(?:$|_))/i.test(
+          name,
+        )
+      )
+        output.register(value);
     let result: MacExecResult | undefined,
       fault = false;
     try {
@@ -113,7 +124,9 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
             } catch {}
           }
         };
-        const append = (stream: "stdout" | "stderr", data: string) => {
+        const append = (stream: "stdout" | "stderr", raw: string, complete = false) => {
+          for (const value of options.privateValues?.() ?? []) output.register(value);
+          const data = output.text(stream, raw, complete);
           if (!data) return;
           const encoded = Buffer.from(data);
           if (stream === "stdout") {
@@ -123,26 +136,31 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
             stderrBytes += encoded.length;
             stderr = tail(stderr, encoded, stderrLimit);
           }
-          const frame: Chunk = {
-            requestId: input.requestId,
-            taskId: input.taskId,
-            chunkSeq: ++seq,
-            stream,
-            data,
-          };
           try {
-            const bytes = Buffer.from(`${JSON.stringify(frame)}\n`);
-            let offset = 0;
-            while (offset < bytes.length) {
-              const written = writeSync(file, bytes, offset);
-              if (!written) throw new Error();
-              offset += written;
+            for (let start = 0; start < encoded.length; ) {
+              let end = Math.min(start + 65536, encoded.length);
+              while (end < encoded.length && ((encoded[end] ?? 0) & 0xc0) === 0x80) end--;
+              const frame: Chunk = {
+                requestId: input.requestId,
+                taskId: input.taskId,
+                chunkSeq: ++seq,
+                stream,
+                data: encoded.subarray(start, end).toString("utf8"),
+              };
+              const bytes = Buffer.from(`${JSON.stringify(frame)}\n`);
+              let offset = 0;
+              while (offset < bytes.length) {
+                const written = writeSync(file, bytes, offset);
+                if (!written) throw new Error();
+                offset += written;
+              }
+              fsyncSync(file);
+              // A network outage cannot cancel an already approved local command.
+              try {
+                void Promise.resolve(options.chunk?.(frame)).catch(() => {});
+              } catch {}
+              start = end;
             }
-            fsyncSync(file);
-            // A network outage cannot cancel an already approved local command.
-            try {
-              void Promise.resolve(options.chunk?.(frame)).catch(() => {});
-            } catch {}
           } catch {
             failed = true;
             kill();
@@ -177,8 +195,8 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
         });
         child.once("close", (code) => {
           finish();
-          append("stdout", decoders.stdout.end());
-          append("stderr", decoders.stderr.end());
+          append("stdout", decoders.stdout.end(), true);
+          append("stderr", decoders.stderr.end(), true);
           if (failed || signal.aborted) {
             reject(new Error("mac_exec_unavailable"));
             return;
@@ -208,6 +226,7 @@ export function macCommandProcess(options: MacProcessOptions): MacExecutionOptio
     } catch {
       fault = true;
     }
+    output.clear();
     if (fault || !result) throw new Error("mac_exec_unavailable");
     return result;
   };

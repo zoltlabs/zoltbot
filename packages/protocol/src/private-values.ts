@@ -30,6 +30,7 @@ export function publicAnswerData(request: PrivateFields, answer: InteractionAnsw
   return [
     answer.feedback,
     answer.device,
+    answer.signedApproval,
     ...Object.entries(answer.answers ?? {})
       .filter(([id]) => !privateIds.has(id))
       .flatMap(([, value]) => [value.other, value.value]),
