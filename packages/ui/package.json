@@ -16,7 +16,8 @@
     "./inbox/letters": "./src/inbox/letters.ts",
     "./chat/results-data": "./src/chat/results-data.ts",
     "./chat/waiting-state": "./src/chat/waiting-state.ts",
-    "./chat/activity-data": "./src/chat/activity-data.ts"
+    "./chat/activity-data": "./src/chat/activity-data.ts",
+    "./chat/completion-data": "./src/chat/completion-data.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

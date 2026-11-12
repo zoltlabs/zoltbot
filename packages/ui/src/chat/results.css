@@ -115,3 +115,13 @@
   height: auto;
   min-height: var(--zb-control-sm);
 }
+
+.completion-actions > summary {
+  padding: var(--zb-space-2);
+  color: var(--zb-text-secondary);
+  cursor: pointer;
+}
+.completion-actions[open] {
+  display: flex;
+  gap: var(--zb-space-2);
+}

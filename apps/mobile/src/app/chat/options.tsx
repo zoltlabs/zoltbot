@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { modelState, threadSession } from "../../data/session";
 import { text } from "../../data/view";
+import { useAction } from "../../state/actions";
 import { useClient, useSnapshot } from "../../state/link";
 import { DetailScreen } from "../../ui/DetailScreen";
 import { Button, Txt } from "../../ui/kit";
@@ -12,6 +13,7 @@ import { BackgroundChip, ModeChip, ModelChip } from "../../ui/SessionControls";
 export default function ChatOptions() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const snapshot = useSnapshot();
+  const { run, busy } = useAction();
   const online = useClient((state) => state.status === "online");
   const session = threadSession(snapshot, id);
   const compareMember = snapshot.entities.compareMember?.find((member) => member.threadId === id);
@@ -61,6 +63,16 @@ export default function ChatOptions() {
       {chief ? (
         <Button label="Brief and notifications" onPress={() => router.replace("/zolt-settings")} />
       ) : null}
+      <Button
+        kind="plain"
+        label={busy ? "Archiving…" : "Archive chat"}
+        disabled={!online || busy}
+        onPress={() => {
+          void run("thread.settle", { id }).then((result) => {
+            if (result) router.replace("/(tabs)/chats");
+          });
+        }}
+      />
     </DetailScreen>
   );
 }
