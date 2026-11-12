@@ -77,7 +77,7 @@ function Progress({ label }: { label: string }) {
         </Svg>
       </Animated.View>
       <Icon name="spark" size={14} color={c["text-secondary"]} />
-      <Txt v="meta" tone="secondary" style={styles.label}>
+      <Txt v="meta" tone="secondary" style={styles.progressLabel}>
         {label}
       </Txt>
     </View>
@@ -185,6 +185,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   label: { flex: 1, minWidth: 0 },
+  progressLabel: { flexShrink: 1, minWidth: 0 },
   details: { gap: 8, paddingTop: 8 },
   progress: {
     alignSelf: "flex-start",
