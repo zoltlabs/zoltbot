@@ -217,3 +217,47 @@ resume the original native ID after reopening the factory. Tests scan fixture
 files for secret bytes and cover scoped-vault refusal, authenticated ciphertext
 recovery, tampering and missing keys. No installed agent CLI, real keychain,
 provider service or visible app is used. These tests do not complete W6 or W8.
+
+## Account client and Mac lifecycle
+
+`runnerAccount` reads the current native account bearer through an injected
+keychain/memory callback. It accepts only an HTTPS account origin; the explicit
+headless test option admits numeric loopback HTTP. Requests refuse redirects,
+time out after ten seconds, bound response bytes and return fixed errors without
+response content. Credential results use the public cloud contracts, validate the
+short expiry and Cell origin, and construct the org's WSS connection path. Account
+bearers never become Cell credentials or native process environment values.
+Grant creation takes both capability booleans explicitly and verifies the result.
+
+`startMacRunner` composes that client, managed checkouts, native task resources,
+outboxes and the reconnect transport. Constructing it requires explicit local
+capabilities; a bridge capability additionally requires a W7 execution host. It
+accepts no Local store. Its known account/runner/GitHub/provider values are guarded
+before persistence. It does not create grants during startup or reconnect: the
+settings action must first enroll the registered Mac session explicitly. A grant
+revoked on another owned device therefore stays revoked. Disabling closes local
+execution while requesting server revocation, and reports any unconfirmed cleanup
+or revocation. Ordinary process shutdown preserves the owner's grant preference.
+
+`startDaemon` has an optional cloud-host factory, absent by default. The factory
+gets only a separate cloud data directory and status callback. Cloud startup
+failure logs a fixed code and leaves Local startup intact. Daemon shutdown owns
+the separate host's cleanup exactly once. The packaged daemon entry point and
+desktop account broker still need to supply this factory through W10's settings
+flow; no default cloud connection has been added. CLI discovery for hello metadata
+is the caller's responsibility. W5 remains incomplete until that wiring and the
+W7 signed bridge are connected and the whole-flow harness passes.
+
+Focused tests use synthetic account responses and a localhost Cell to check bridge
+transport while task acceptance is off, explicit grant use, revocation on reconnect
+and disable cleanup. The injected bridge returns `approval_required`; it runs no
+command and does not establish W7. Daemon tests verify isolated lifecycle cleanup.
+C1 tests first authenticate to the fake account, then run a real Local task through
+the daemon with the cloud host off or forced to fail startup. They fail on any HTTP
+request during task execution and verify the Local result. No real keychain,
+provider, account, desktop window or command approval is used.
+
+The public dependency scanner permits the two account HTTP route strings used by
+this client as values. Those same strings still fail when used as module imports,
+as do private service/filesystem paths. A headless scanner test checks both cases.
+The allowlist grants no access to service implementation code or hosted values.

@@ -32,3 +32,10 @@ Secret names are `anthropic`, `openai` and `github`. Sandbox create calls carry 
 and provider metadata, not credentials or task transcripts. The orchestrator loads and
 injects the member's credentials at create time. Usage operation ids support idempotent
 accounting when a cell retries a lifecycle call.
+
+Runner-grant input requires both task-execution and Mac-command capabilities.
+Org, member, session, expiry and grant identity are server-derived and cannot enter
+that input. Result/list schemas expose only grant metadata; no account or runner
+credential belongs there. A null result means the session has no enabled grant.
+Creation is an explicit owner action. Reconnects request tokens against the existing
+grant and must never recreate a grant that another owned device revoked.

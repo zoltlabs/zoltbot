@@ -5,6 +5,8 @@ const root = path.resolve(process.argv[2] ?? ".");
 // The relay is public; every other service stays in the private repository.
 const forbidden =
   /(?:^|\/)(?:cloud|zoltbot\.ai)(?:\/|$)|(?:^|\/)services(?:\/(?!relay(?:\/|$))|$)|(?:^|\/)spikes\/do-cell(?:\/|$)/;
+// Public clients call these account endpoints; they are not filesystem dependencies.
+const publicAccountRoutes = new Set(["/api/cloud/runner-grants", "/api/cloud/runner-token"]);
 const errors = [];
 async function walk(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -62,12 +64,12 @@ async function walk(directory) {
 
       for (const match of text.matchAll(/["'`]([^"'`\n]+)["'`]/g)) {
         const value = match[1];
-        // "cloud" is also a public routing enum. A bare module import still violates the boundary.
-        if (
-          value === "cloud" &&
-          !/\b(?:from|import|require(?:\.resolve)?)\s*(?:\(\s*)?$/.test(text.slice(0, match.index))
-        )
-          continue;
+        const moduleReference =
+          /\b(?:from\s*|import\s*(?:\(\s*)?|require(?:\.resolve)?\s*\(\s*)$/.test(
+            text.slice(0, match.index),
+          );
+        // Routing enums and known HTTP routes grant no permission to import private modules.
+        if (!moduleReference && (value === "cloud" || publicAccountRoutes.has(value))) continue;
         if (/^https?:\/\//.test(value) || value.startsWith(".cache/spikes/")) continue;
         if (forbidden.test(value) && !value.startsWith("!"))
           errors.push(`${relative}: private reference ${value}`);

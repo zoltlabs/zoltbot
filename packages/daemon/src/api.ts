@@ -94,6 +94,18 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  if (options.cloudRunner) {
+    try {
+      const cloud = options.cloudRunner({
+        dataDir: path.join(options.dataDir, "cloud"),
+        status: (code) =>
+          logger.write("warn", /^[a-z_]{1,100}$/.test(code) ? code : "cloud_runner_unavailable"),
+      });
+      resources.push(() => cloud.close());
+    } catch {
+      logger.write("warn", "cloud_runner_unavailable");
+    }
+  }
   const bootId = `boot:${randomBytes(12).toString("hex")}`;
   recover(store, bootId);
   const origins = new Set(options.origins ?? ["zoltbot://desktop"]);

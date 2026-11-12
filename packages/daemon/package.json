@@ -22,6 +22,7 @@
     "@zoltbot/adapters-pi": "workspace:*",
     "@zoltbot/adapters-sdk": "workspace:*",
     "@zoltbot/artifact-validation": "workspace:*",
+    "@zoltbot/cloud-contracts": "workspace:*",
     "@zoltbot/core": "workspace:*",
     "@zoltbot/detect": "workspace:*",
     "@zoltbot/hostmcp": "workspace:*",

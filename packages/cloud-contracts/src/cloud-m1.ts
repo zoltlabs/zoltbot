@@ -99,3 +99,20 @@ export const CloudTaskLocationSchema = TaskLocationSchema;
 export type SandboxCreate = Static<typeof SandboxCreateSchema>;
 export type SandboxRecord = Static<typeof SandboxRecordSchema>;
 export type CloudDevice = Static<typeof CloudDeviceSchema>;
+
+export const CloudRunnerGrantInputSchema = object({
+  deviceId: Id,
+  canRunTasks: Type.Boolean(),
+  canMacExec: Type.Boolean(),
+});
+export const CloudRunnerGrantSchema = object({
+  ...CloudRunnerGrantInputSchema.properties,
+  id: Id,
+  sessionId: Id,
+  expiresAt: At,
+});
+export const CloudRunnerGrantResultSchema = object({
+  grant: Type.Union([CloudRunnerGrantSchema, Type.Null()]),
+});
+export const CloudRunnerGrantListSchema = object({ grants: Type.Array(CloudRunnerGrantSchema) });
+export type CloudRunnerGrant = Static<typeof CloudRunnerGrantSchema>;

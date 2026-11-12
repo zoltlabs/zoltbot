@@ -37,6 +37,8 @@ export interface OwnedRuntime extends RuntimeHost {
 }
 export interface DaemonOptions {
   dataDir: string;
+  /** Absent by default. A separate cloud host receives no Local store or runtime context. */
+  cloudRunner?(input: { dataDir: string; status(code: string): void }): { close(): Promise<void> };
   githubClient?: GitHubClient;
   githubPublishing?: import("./github/state.js").ShippingContext["publishing"];
   routineClock?: () => string;

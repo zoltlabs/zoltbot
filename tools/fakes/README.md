@@ -23,3 +23,8 @@ server. They scan their disposable files for the issued credential and check tha
 the runner's ambient credential did not enter the child environment. Environment
 receipts record variable names only. These fakes do not establish real CLI or E2B
 acceptance.
+
+`task-runs.test.ts` also checks C1 with an authenticated fake account. After sign-in,
+Local task execution must complete without an HTTP request, including when an
+explicit cloud-host factory fails during daemon startup. The cloud lifecycle tests
+use separate host resources and never pass the Local store into that factory.

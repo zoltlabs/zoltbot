@@ -300,6 +300,9 @@ importers:
       '@zoltbot/artifact-validation':
         specifier: workspace:*
         version: link:../artifact-validation
+      '@zoltbot/cloud-contracts':
+        specifier: workspace:*
+        version: link:../cloud-contracts
       '@zoltbot/core':
         specifier: workspace:*
         version: link:../core
