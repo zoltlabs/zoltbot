@@ -43,6 +43,7 @@ function fixture() {
     userId: "member",
     deviceId: "target",
     mac: "Test Mac",
+    osVersion: "15.0",
     mode: () => mode,
     async deviceKeys() {
       return keys;
@@ -123,6 +124,87 @@ it("refuses a forged Cell approval and unsigned requests before starting any pro
   delete unsigned.approval;
   await expect(host.request(unsigned, signal())).rejects.toThrow("mac_approval_required");
   expect(f.execute).not.toHaveBeenCalled();
+});
+it("retrieves a completed result after approval expiry without authorizing another execution", async () => {
+  const f = fixture(),
+    host = f.open(),
+    request = f.request();
+  const first = await host.request(request, signal());
+  await host.close();
+  f.options.now = () => f.now + 600000;
+  const reopened = f.open();
+  expect(await reopened.request(request, signal())).toEqual(first);
+  const other = { ...request, requestId: "other" };
+  await expect(reopened.request(other, signal())).rejects.toThrow("mac_approval_refused");
+  if (!request.approval) throw new Error("fixture_approval_missing");
+  const changedProof = {
+    ...request,
+    approval: signApproval(f.identity, {
+      ...request.approval.payload,
+      issuedAt: f.now + 1,
+      expiresAt: f.now + 300001,
+    }),
+  };
+  await expect(reopened.request(changedProof, signal())).rejects.toThrow("mac_approval_refused");
+  const device = f.keys[0];
+  if (!device) throw new Error("fixture_device_missing");
+  device.revokedAt = new Date(f.now).toISOString();
+  await expect(reopened.request(request, signal())).rejects.toThrow("mac_approval_refused");
+  expect(f.execute).toHaveBeenCalledTimes(1);
+});
+it("reports the configured Mac and canonical folder without executing a command", async () => {
+  const f = fixture(),
+    host = f.open();
+  const request = { requestId: "status", taskId: "task", turnId: "turn", userId: "member" };
+  expect(await host.status(request, signal())).toEqual({
+    available: true,
+    targetDeviceId: "target",
+    mac: "Test Mac",
+    osVersion: "15.0",
+    cwd: f.root,
+  });
+  expect(await host.status({ ...request, userId: "other" }, signal())).toEqual({
+    available: false,
+    reason: "unavailable",
+  });
+  expect(await host.status({ ...request, targetDeviceId: "other" }, signal())).toEqual({
+    available: false,
+    reason: "unavailable",
+  });
+  expect(await host.status({ ...request, cwd: ".." }, signal())).toEqual({
+    available: false,
+    reason: "unavailable",
+  });
+  f.mode("off");
+  expect(await host.status(request, signal())).toEqual({ available: false, reason: "off" });
+  expect(f.execute).not.toHaveBeenCalled();
+});
+it("bounds a stalled status lookup and cancels its task port", async () => {
+  const f = fixture(),
+    host = f.open();
+  let cancelled = false;
+  f.options.task = async (_task, _turn, signal) => {
+    signal.addEventListener(
+      "abort",
+      () => {
+        cancelled = true;
+      },
+      { once: true },
+    );
+    return new Promise(() => {});
+  };
+  vi.useFakeTimers();
+  try {
+    const pending = host.status(
+      { requestId: "status", taskId: "task", turnId: "turn", userId: "member" },
+      signal(),
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(await pending).toEqual({ available: false, reason: "unavailable" });
+    expect(cancelled).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 it.each([
   ["command", "false"],

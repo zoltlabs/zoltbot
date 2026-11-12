@@ -356,3 +356,17 @@ matches are replaced before retaining prefixes, keeping repeated overlapping
 matches bounded. Redaction can expand text, so serialized chunks are split again
 at UTF-8 boundaries to stay within the runner protocol's 64-KiB byte bound.
 Tests cover a credential split across reads and output expanded by replacement.
+
+`MacExecutionHost.status` checks the member, target, mode and canonical project
+folder without starting a command. Its task port has a 1.5-second deadline. The
+Mac host supplies the macOS product version; an absent version reports unavailable
+rather than substituting the Darwin kernel version. Status and approved execution
+use separate bounded transport jobs, so a long shell does not block task commands
+or status. Reconnect joins the same in-flight request and sends its result to the
+new connection. Changed bodies and excess concurrent work are refused.
+
+After a one-command approval expires, the host can retrieve its existing result
+or join its already-running command. This read requires the exact original proof,
+binding and current account/device authority. It cannot claim a missing request
+or start another process. A revoked signing device and Off still refuse retrieval.
+The normal signature verifier continues to reject expired approvals for new work.

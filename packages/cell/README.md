@@ -264,7 +264,13 @@ must match the saved request. The Mac independently verifies the signature with
 its account registry. A result must come from the selected member's target Mac;
 the audit stores exit code, duration and output size, without command output.
 
-These records are not yet connected to runner sockets or client answers. Routing,
-streaming, restart-safe pending approvals and prefix rules remain unfinished.
+Single and batch client answers resolve Cell-owned approvals instead of queuing
+native-agent answers. A native clear cannot expire a Cell-owned request, and an
+interrupted native turn retains it. New native sessions preserve the request's
+original scope. A real workerd test evicts the object before session replacement
+and again after approval; the request and signed resolution remain durable.
+This does not establish worker-process continuation while awaiting a tool result.
+
+Runner socket routing, streaming and prefix rules remain unfinished.
 The records tests cover scoped reads, concurrent replay, connection fences,
 transaction rollback, signing-device refusal and idempotent result storage.

@@ -66,6 +66,20 @@ it("keeps an unfinished command uncertain after reopening instead of permitting 
     "mac_request_conflict",
   );
 });
+it("reads only the original proof and binding without claiming a missing request", () => {
+  const journal = fixture().open(),
+    signed = signature();
+  expect(journal.existing(scope(), binding, signed)).toBeUndefined();
+  expect(journal.begin(scope(), binding, signed).state).toBe("new");
+  expect(journal.existing(scope(), binding, signed)).toEqual({ state: "executing" });
+  expect(journal.existing(scope(), binding, signature())).toBeUndefined();
+  expect(journal.existing(scope(), "b".repeat(64), signed)).toBeUndefined();
+  journal.complete(scope(), binding, result());
+  expect(journal.existing(scope(), binding, signed)).toEqual({
+    state: "completed",
+    result: result(),
+  });
+});
 it("refuses reuse of a consumed approval for a second request or organization", () => {
   const journal = fixture().open(),
     signed = signature();

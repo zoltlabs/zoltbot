@@ -70,6 +70,7 @@ export function startMacRunner(options: MacRunnerOptions) {
           userId: options.memberId,
           deviceId: options.account.deviceId,
           mac: bridgeOptions.mac,
+          ...(bridgeOptions.osVersion ? { osVersion: bridgeOptions.osVersion } : {}),
           mode: bridgeOptions.mode,
           task: bridgeOptions.task,
           deviceKeys: (signal) => account.deviceKeys(signal),
@@ -119,7 +120,12 @@ export function startMacRunner(options: MacRunnerOptions) {
       return credentials;
     },
     task: native.task,
-    ...(bridge ? { macExec: (request, signal) => bridge.request(request, signal) } : {}),
+    ...(bridge
+      ? {
+          macExec: (request, signal) => bridge.request(request, signal),
+          macStatus: (request, signal) => bridge.status(request, signal),
+        }
+      : {}),
     ...(options.account.allowLoopback ? { allowLoopback: true } : {}),
     status(code) {
       try {

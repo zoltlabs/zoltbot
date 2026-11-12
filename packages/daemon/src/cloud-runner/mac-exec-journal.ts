@@ -106,6 +106,19 @@ export class MacExecJournal {
       })
       .immediate();
   }
+  /** Read only: an expired approval can retrieve only the exact claim it originally authorized. */
+  existing(scope: MacRequestScope, binding: string, signature: string) {
+    this.check();
+    const row = this.database
+      .prepare(
+        "SELECT r.binding,r.state,r.result FROM mac_requests r JOIN mac_approvals a ON a.request_key=r.request_key WHERE r.request_key=? AND a.signature_hash=?",
+      )
+      .get(requestKey(scope), digest(signature)) as Row | undefined;
+    if (!row || row.binding !== binding) return undefined;
+    return row.state === "completed"
+      ? { state: "completed" as const, result: this.result(scope, row.result) }
+      : { state: row.state };
+  }
   complete(scope: MacRequestScope, binding: string, result: MacExecResult) {
     this.check();
     const value = this.result(scope, JSON.stringify(result));

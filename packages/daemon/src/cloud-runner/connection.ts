@@ -3,6 +3,8 @@ import { parse } from "@zoltbot/protocol";
 import {
   type MacExecRequest,
   MacExecRequestSchema,
+  type MacStatusRequest,
+  MacStatusRequestSchema,
   parseRunnerMessage,
   RunnerAckSchema,
   type RunnerCommand,
@@ -62,6 +64,7 @@ export interface RunnerConnectionOptions {
     signal: AbortSignal,
   ): Promise<ConnectedTask>;
   macExec?(request: MacExecRequest, signal: AbortSignal): Promise<unknown>;
+  macStatus?(request: MacStatusRequest, signal: AbortSignal): Promise<unknown>;
   status?(code: string): void;
   /** Localhost-only test servers; production connections always use TLS. */
   allowLoopback?: boolean;
@@ -75,6 +78,16 @@ export class RunnerConnection {
   private readonly lifetime = new AbortController();
   private session: Session | undefined;
   private chain = Promise.resolve();
+  private readonly bridgeJobs = new Map<
+    string,
+    {
+      body: string;
+      bytes: number;
+      replies: Map<string, { session: Session; id: string | number }>;
+      work: Promise<void>;
+    }
+  >();
+  private readonly statusJobs = new Set<Promise<void>>();
   private stopped = false;
   private loop: Promise<void> | undefined;
   private closing: Promise<void> | undefined;
@@ -278,7 +291,11 @@ export class RunnerConnection {
       }
       return;
     }
-    if (!["runner.lease", "runner.command", "mac.exec.request"].includes(message.method))
+    if (["mac.exec.request", "mac.status.request"].includes(message.method)) {
+      this.bridge(session, message, bytes);
+      return;
+    }
+    if (!["runner.lease", "runner.command"].includes(message.method))
       throw new Error("runner_method_refused");
     if (session.queuedBytes + bytes > maximumFrame * 2) throw new Error("runner_queue_full");
     session.queuedBytes += bytes;
@@ -297,13 +314,6 @@ export class RunnerConnection {
             if (!task?.runtime || command.leaseId !== task.lease.leaseId)
               throw new Error("runner_lease_required");
             result = await task.runtime.command(command, this.lifetime.signal);
-          } else {
-            if (this.hello.kind !== "mac" || !this.options.macExec)
-              throw new Error("runner_bridge_unavailable");
-            result = await this.options.macExec(
-              parse(MacExecRequestSchema, message.params),
-              this.lifetime.signal,
-            );
           }
           this.send(session, { jsonrpc: "2.0", id: message.id, result });
         } catch {
@@ -321,6 +331,90 @@ export class RunnerConnection {
       .finally(() => {
         session.queuedBytes -= bytes;
       });
+  }
+  /** A long approved shell must not block status, task commands or reconnect replay. */
+  private bridge(
+    session: Session,
+    message: Extract<ReturnType<typeof parseRunnerMessage>, { method: string }>,
+    bytes: number,
+  ) {
+    const fail = () =>
+      this.send(session, {
+        jsonrpc: "2.0",
+        id: message.id,
+        error: { code: -32000, message: "runner_command_failed" },
+      });
+    if (this.hello.kind !== "mac") {
+      fail();
+      return;
+    }
+    if (message.method === "mac.status.request") {
+      if (!this.options.macStatus || this.statusJobs.size >= 8) {
+        fail();
+        return;
+      }
+      const input = parse(MacStatusRequestSchema, message.params);
+      const work = (async () => {
+        try {
+          this.send(session, {
+            jsonrpc: "2.0",
+            id: message.id,
+            result: await this.options.macStatus?.(input, this.lifetime.signal),
+          });
+        } catch {
+          fail();
+        }
+      })();
+      this.statusJobs.add(work);
+      void work.finally(() => this.statusJobs.delete(work));
+      return;
+    }
+    if (!this.options.macExec) {
+      fail();
+      return;
+    }
+    const input = parse(MacExecRequestSchema, message.params),
+      key = JSON.stringify([input.taskId, input.requestId]),
+      body = JSON.stringify(input),
+      replyKey = JSON.stringify([typeof message.id, message.id]);
+    const existing = this.bridgeJobs.get(key);
+    if (existing) {
+      if (
+        existing.body !== body ||
+        (existing.replies.size >= 16 && !existing.replies.has(replyKey))
+      ) {
+        fail();
+        return;
+      }
+      existing.replies.set(replyKey, { session, id: message.id });
+      return;
+    }
+    if (
+      this.bridgeJobs.size >= 8 ||
+      [...this.bridgeJobs.values()].reduce((sum, job) => sum + job.bytes, bytes) > maximumFrame * 2
+    ) {
+      fail();
+      return;
+    }
+    const job = {
+      body,
+      bytes,
+      replies: new Map([[replyKey, { session, id: message.id }]]),
+      work: Promise.resolve(),
+    };
+    job.work = Promise.resolve()
+      .then(async () => {
+        let response: { result: unknown } | { error: { code: number; message: string } };
+        try {
+          response = { result: await this.options.macExec?.(input, this.lifetime.signal) };
+        } catch {
+          response = { error: { code: -32000, message: "runner_command_failed" } };
+        }
+        for (const reply of job.replies.values())
+          this.send(reply.session, { jsonrpc: "2.0", id: reply.id, ...response });
+      })
+      .finally(() => this.bridgeJobs.delete(key));
+    this.bridgeJobs.set(key, job);
   }
   private async lease(session: Session, lease: RunnerLease) {
     const execution = lease.execution;
@@ -437,6 +531,8 @@ export class RunnerConnection {
     this.closing ??= (async () => {
       await this.loop;
       await this.chain;
+      await Promise.allSettled([...this.bridgeJobs.values()].map((job) => job.work));
+      await Promise.allSettled([...this.statusJobs]);
       const cleanup = await Promise.allSettled(
         [...this.tasks.values()].map((task) => task.runtime?.close()),
       );

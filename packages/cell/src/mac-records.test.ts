@@ -11,9 +11,13 @@ import type { MacExecRequest } from "@zoltbot/runner-protocol";
 import { migrateDriver, Store } from "@zoltbot/store/portable";
 import { afterEach, expect, it, vi } from "vitest";
 import { SqliteDriver } from "../../store/src/sqlite-driver.js";
+import { CellAnswers } from "./answers.js";
+import { CloudRpc } from "./cloud-rpc.js";
 import { CellLeases } from "./leases.js";
 import { CellMacRecords } from "./mac-records.js";
+import { runnerEvent } from "./runner-events.js";
 import { seedCell } from "./seed.js";
+import { CellService } from "./service.js";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -289,4 +293,67 @@ it("accepts one result only from the target Mac and audits metadata without outp
   expect(() => f.records.finish(macClaims, { ...result, exitCode: 1 })).toThrow("command_conflict");
   const audit = f.store.read({ taskId: "task" }, ["audit"]).audit ?? [];
   expect(JSON.stringify(audit).includes(result.stdout)).toBe(false);
+});
+it.each([
+  "interaction.answer",
+  "interaction.batchAnswer",
+])("routes %s to the Cell-owned approval without a native answer", async (method) => {
+  const f = fixture(),
+    pending = await f.records.request(f.source, f.request, f.mac);
+  if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+  const answers = new CellAnswers(f.store),
+    prepare = vi.spyOn(answers, "prepare");
+  const service = new CellService(
+    {
+      origin: "https://accounts.example.invalid",
+      issuer: "https://accounts.example.invalid",
+      signingKey: btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+        .replaceAll("+", "-")
+        .replaceAll("/", "_")
+        .replace(/=+$/, ""),
+    },
+    "org",
+  );
+  const rpc = new CloudRpc(f.store, f.client, service, answers);
+  const item = { id: pending.interactionId, version: 1, answer: f.answer(pending.interactionId) };
+  const input = {
+    jsonrpc: "2.0",
+    id: 1,
+    method,
+    commandId: "approve",
+    params: method === "interaction.answer" ? item : { items: [item] },
+  };
+  const first = await rpc.call(input);
+  expect(await rpc.call(input)).toEqual(first);
+  expect(prepare).not.toHaveBeenCalled();
+  expect((await f.records.request(f.source, f.request, f.mac)).state).toBe("running");
+  expect(
+    (f.database.prepare("SELECT count(*) AS n FROM cell_answer_deliveries").get() as { n: number })
+      .n,
+  ).toBe(0);
+});
+it("keeps Cell-owned approval pending across native clearing and interrupted turn completion", async () => {
+  const f = fixture(),
+    pending = await f.records.request(f.source, f.request, f.mac);
+  if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+  const interaction = parse(
+    InteractionSchema,
+    f.store.record("interaction", pending.interactionId),
+  );
+  runnerEvent(f.store, f.source.claims, "worker", {
+    taskId: "task",
+    leaseId: new CellLeases(f.store).get("task")?.leaseId,
+    sessionId: "session",
+    runnerSeq: 1,
+    event: { t: "interaction.cleared", nativeRef: interaction.nativeRef, reason: "process_died" },
+  });
+  expect(f.store.record("interaction", pending.interactionId)?.state).toBe("pending");
+  runnerEvent(f.store, f.source.claims, "worker", {
+    taskId: "task",
+    leaseId: new CellLeases(f.store).get("task")?.leaseId,
+    sessionId: "session",
+    runnerSeq: 2,
+    event: { t: "turn.done", turnId: "turn", status: "interrupted" },
+  });
+  expect(f.store.record("interaction", pending.interactionId)?.state).toBe("pending");
 });

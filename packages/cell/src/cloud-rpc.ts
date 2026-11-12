@@ -28,6 +28,7 @@ import type { ReadScope, Snapshot, Store } from "@zoltbot/store/portable";
 import { CellAnswers, type PreparedAnswer } from "./answers.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
+import { CellMacRecords } from "./mac-records.js";
 import type { CellService } from "./service.js";
 
 const metadata: readonly EntityKind[] = [
@@ -88,12 +89,15 @@ function canonical(value: unknown): unknown {
 /** The personal org has one member. All IDs below resolve inside this object's database. */
 export class CloudRpc {
   private fingerprint = "";
+  private readonly mac: CellMacRecords;
   constructor(
     private readonly store: Store,
     private readonly claims: CellTokenClaims,
     private readonly service: CellService,
     private readonly answers: CellAnswers = new CellAnswers(store),
-  ) {}
+  ) {
+    this.mac = new CellMacRecords(store, { orgId: claims.org, userId: claims.sub });
+  }
   private resolution(answer: InteractionAnswer, context: CommandContext): InteractionAnswer {
     if (answer.via) throw new Error("view_context_required");
     const { automatic: _automatic, ...value } = answer;
@@ -381,7 +385,10 @@ export class CloudRpc {
             context,
           );
           const redacted = parse(ResolutionSchema, output.result.resolution);
-          prepared.push(this.answers.prepare(interaction, answer, redacted, context.commandId));
+          if (this.mac.has(interaction.id))
+            output.events.push(...this.mac.resolve(interaction, answer, this.claims, context));
+          else
+            prepared.push(this.answers.prepare(interaction, answer, redacted, context.commandId));
           return output;
         });
         this.answers.sendPrivate(prepared);
@@ -429,9 +436,14 @@ export class CloudRpc {
               ResolutionSchema,
               parse(InteractionSchema, results[index]).resolution,
             );
-            prepared.push(
-              this.answers.prepare(interaction, item.answer, redacted, context.commandId),
-            );
+            if (this.mac.has(interaction.id))
+              output.events.push(
+                ...this.mac.resolve(interaction, item.answer, this.claims, context),
+              );
+            else
+              prepared.push(
+                this.answers.prepare(interaction, item.answer, redacted, context.commandId),
+              );
           }
           return output;
         });

@@ -377,6 +377,107 @@ it("refuses a forged Mac lease when task execution is off, while keeping the bri
   expect(calls).toBeGreaterThan(0);
 });
 
+it("serves status during a long Mac command and coalesces its replay onto a new connection", async () => {
+  let finish = () => {},
+    calls = 0,
+    status = false,
+    connected = 0;
+  const done = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const replies: string[] = [];
+  const input = {
+    requestId: "request",
+    taskId: "task",
+    turnId: "turn",
+    userId: "member",
+    targetDeviceId: "runner",
+    command: "uname",
+  };
+  const f = await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") {
+        connected++;
+        socket.send(JSON.stringify({ jsonrpc: "2.0", id: "hello", result: { ok: true } }));
+        request(socket, "mac.exec.request", input, "exec");
+        request(
+          socket,
+          "mac.status.request",
+          { requestId: "status", taskId: "task", turnId: "turn", userId: "member" },
+          "status",
+        );
+      }
+      if (message.id === "status") status = true;
+      if (message.id === "exec" && "result" in message) replies.push(String(message.result));
+    },
+    {
+      macExec: async (_input, signal) => {
+        calls++;
+        signal.addEventListener("abort", finish, { once: true });
+        await done;
+        return "once";
+      },
+      macStatus: async () => ({ available: false, reason: "off" }),
+    },
+  );
+  try {
+    await expect.poll(() => calls).toBe(1);
+    await expect.poll(() => status).toBe(true);
+    for (const socket of f.server.clients) socket.terminate();
+    await expect.poll(() => connected).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() => f.statuses.filter((code) => code === "runner_connected").length)
+      .toBeGreaterThanOrEqual(2);
+    finish();
+    await expect.poll(() => replies).toEqual(["once"]);
+    expect(calls).toBe(1);
+  } finally {
+    finish();
+  }
+});
+
+it("bounds active bridge work and refuses changed requests while the original is running", async () => {
+  let finish = () => {},
+    calls = 0;
+  const done = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const errors = new Set<string>();
+  const input = {
+    requestId: "request-0",
+    taskId: "task",
+    turnId: "turn",
+    userId: "member",
+    targetDeviceId: "runner",
+    command: "uname",
+  };
+  await fixture(
+    (socket, message) => {
+      if (message.method === "runner.hello") {
+        socket.send(JSON.stringify({ jsonrpc: "2.0", id: "hello", result: { ok: true } }));
+        for (let i = 0; i < 9; i++)
+          request(socket, "mac.exec.request", { ...input, requestId: `request-${i}` }, `exec-${i}`);
+        request(socket, "mac.exec.request", { ...input, command: "false" }, "changed");
+      }
+      if (message.error) errors.add(String(message.id));
+    },
+    {
+      macExec: async (_input, signal) => {
+        calls++;
+        signal.addEventListener("abort", finish, { once: true });
+        await done;
+        return { ok: true };
+      },
+    },
+  );
+  try {
+    await expect.poll(() => errors.has("exec-8") && errors.has("changed")).toBe(true);
+    expect(calls).toBe(8);
+  } finally {
+    finish();
+  }
+});
+
 it("refuses a missing initial cursor and a sandbox lease for another task", async () => {
   for (const missingCursor of [true, false]) {
     const f = await fixture(

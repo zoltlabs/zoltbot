@@ -15,6 +15,10 @@ import {
   MacExecRequestSchema,
   type MacExecResult,
   MacExecResultSchema,
+  type MacStatusRequest,
+  MacStatusRequestSchema,
+  type MacStatusResult,
+  MacStatusResultSchema,
 } from "@zoltbot/runner-protocol";
 import { MacExecJournal } from "./mac-exec-journal.js";
 
@@ -32,6 +36,8 @@ export interface MacExecutionOptions {
   userId: string;
   deviceId: string;
   mac: string;
+  /** Product version supplied by the Mac host; never a Cell-supplied label or Darwin kernel version. */
+  osVersion?: string;
   mode(): "off" | "ask" | "allow_listed";
   /** Read through the Mac's own account session, never through the Cell. */
   deviceKeys(signal: AbortSignal): Promise<readonly CloudDevice[]>;
@@ -65,6 +71,64 @@ export class MacExecutionHost {
   constructor(private readonly options: MacExecutionOptions) {
     this.journal = MacExecJournal.open(options.directory);
   }
+  async status(raw: MacStatusRequest, signal: AbortSignal): Promise<MacStatusResult> {
+    const deadline = new AbortController();
+    const combined = AbortSignal.any([signal, deadline.signal, this.lifetime.signal]);
+    const timer = setTimeout(() => deadline.abort(), 1500);
+    try {
+      if (combined.aborted) return { available: false, reason: "unavailable" };
+      const request = parse(MacStatusRequestSchema, structuredClone(raw));
+      if (
+        request.userId !== this.options.userId ||
+        (request.targetDeviceId && request.targetDeviceId !== this.options.deviceId)
+      )
+        return { available: false, reason: "unavailable" };
+      if (this.options.mode() === "off") return { available: false, reason: "off" };
+      if (!this.options.osVersion) return { available: false, reason: "unavailable" };
+      const folder = this.folder(request.taskId, request.turnId, request.cwd, combined);
+      let abort = () => {};
+      const stopped = new Promise<never>((_resolve, reject) => {
+        abort = () => reject(new Error("mac_unavailable"));
+        combined.addEventListener("abort", abort, { once: true });
+        if (combined.aborted) abort();
+      });
+      let cwd: string;
+      try {
+        cwd = await Promise.race([folder, stopped]);
+      } finally {
+        combined.removeEventListener("abort", abort);
+      }
+      if (combined.aborted || this.options.mode() === "off")
+        return { available: false, reason: "unavailable" };
+      return parse(MacStatusResultSchema, {
+        available: true,
+        targetDeviceId: this.options.deviceId,
+        mac: this.options.mac,
+        osVersion: this.options.osVersion,
+        cwd,
+      });
+    } catch {
+      return { available: false, reason: "unavailable" };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  private async folder(
+    taskId: string,
+    turnId: string,
+    requested: string | undefined,
+    signal: AbortSignal,
+  ) {
+    const task = await this.options.task(taskId, turnId, signal);
+    if (signal.aborted || !task.active || !path.isAbsolute(task.folder))
+      throw new Error("mac_unavailable");
+    const base = await realpath(task.folder),
+      cwd = await realpath(path.resolve(base, requested ?? "."));
+    const relative = path.relative(base, cwd);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
+      throw new Error("mac_approval_refused");
+    return cwd;
+  }
   async request(raw: MacExecRequest, signal: AbortSignal): Promise<MacExecResult> {
     const combined = AbortSignal.any([signal, this.lifetime.signal]);
     try {
@@ -95,13 +159,7 @@ export class MacExecutionHost {
       )
         throw new Error("mac_approval_refused");
       this.pins.set(device.deviceId, device.publicKey);
-      const task = await this.options.task(request.taskId, request.turnId, combined);
-      if (!task.active || !path.isAbsolute(task.folder)) throw new Error("mac_unavailable");
-      const base = await realpath(task.folder),
-        cwd = await realpath(path.resolve(base, request.cwd ?? "."));
-      const relative = path.relative(base, cwd);
-      if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
-        throw new Error("mac_approval_refused");
+      const cwd = await this.folder(request.taskId, request.turnId, request.cwd, combined);
       const expected: ApprovalPayload = {
         ...approval.payload,
         orgId: this.options.orgId,
@@ -116,10 +174,17 @@ export class MacExecutionHost {
         stdinHash: approvalStdinHash(request.stdin ?? ""),
         timeoutSeconds: request.timeoutSeconds ?? 600,
       };
+      const now = this.options.now?.() ?? Date.now();
+      const expired = approval.payload.expiresAt <= now;
       if (
         combined.aborted ||
         !["ask", "allow_listed"].includes(this.options.mode()) ||
-        !verifyApproval(device.publicKey, approval, expected, this.options.now?.() ?? Date.now())
+        !verifyApproval(
+          device.publicKey,
+          approval,
+          expected,
+          expired ? approval.payload.expiresAt - 1 : now,
+        )
       )
         throw new Error("mac_approval_refused");
       const binding = createHash("sha256")
@@ -146,7 +211,10 @@ export class MacExecutionHost {
         requestId: request.requestId,
       };
       const key = JSON.stringify(scope),
-        claimed = this.journal.begin(scope, binding, approval.signature);
+        claimed = expired
+          ? this.journal.existing(scope, binding, approval.signature)
+          : this.journal.begin(scope, binding, approval.signature);
+      if (!claimed) throw new Error("mac_approval_refused");
       if (claimed.state === "completed") return claimed.result;
       const running = this.active.get(key);
       if (claimed.state === "executing" && running) return await running;

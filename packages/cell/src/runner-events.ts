@@ -17,6 +17,7 @@ import { type AgentEvent, type DomainEvent, parse, TaskSchema } from "@zoltbot/p
 import { RunnerEventSchema } from "@zoltbot/runner-protocol";
 import type { Snapshot, Store } from "@zoltbot/store/portable";
 import { CellLeases } from "./leases.js";
+import { CellMacRecords } from "./mac-records.js";
 
 const kinds = ["task", "thread", "session", "turn", "interaction", "usage", "rule"] as const;
 function itemsForEvent(
@@ -97,6 +98,7 @@ export function runnerEvent(store: Store, claims: CellTokenClaims, runnerId: str
   const owner = store.record("agent", String(task.ownerAgentId));
   if (!owner) throw new Error("forbidden");
   const event = input.event;
+  const mac = new CellMacRecords(store, { orgId: claims.org, userId: claims.sub });
   const context: CommandContext = {
     commandId,
     at: new Date().toISOString(),
@@ -171,6 +173,13 @@ export function runnerEvent(store: Store, claims: CellTokenClaims, runnerId: str
         event,
         ...(input.itemId ? { itemId: input.itemId } : {}),
         ...(input.turnId ? { turnId: input.turnId } : {}),
+        ...(event.t === "turn.done" && event.status !== "completed"
+          ? {
+              heldInteractionIds: (state.interaction ?? [])
+                .filter((row) => mac.has(String(row.id)))
+                .map((row) => String(row.id)),
+            }
+          : {}),
       };
       const queued =
         event.t === "turn.started"
@@ -200,6 +209,7 @@ export function runnerEvent(store: Store, claims: CellTokenClaims, runnerId: str
       } else if (event.t === "interaction.cleared") {
         const selected = (state.interaction ?? []).filter(
           (row) =>
+            !mac.has(String(row.id)) &&
             row.nativeRef === event.nativeRef &&
             (!row.turnId ||
               state.turn?.some((turn) => turn.id === row.turnId && turn.sessionId === sessionId)),
