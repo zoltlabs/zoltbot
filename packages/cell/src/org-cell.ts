@@ -200,11 +200,12 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         }
         socket.serializeAttachment(subscription);
       }
-      if (this.deleted) return;
+      if (this.deleted || socket.readyState !== WebSocket.OPEN) return;
       if (response) socket.send(JSON.stringify(response));
       await this.broadcast(store);
       await this.schedule();
     } catch (error) {
+      if (socket.readyState !== WebSocket.OPEN) return;
       if (error instanceof Error && error.message === "unauthorized") {
         socket.close(1008, "unauthorized");
         return;

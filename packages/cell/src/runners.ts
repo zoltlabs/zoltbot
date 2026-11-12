@@ -56,8 +56,16 @@ export class CellRunners {
   ) {
     this.leases = new CellLeases(store);
     store.database.exec(
-      "CREATE TABLE IF NOT EXISTS cell_manifests(task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(task_id,revision)); CREATE TABLE IF NOT EXISTS cell_lease_offers(task_id TEXT PRIMARY KEY,runner_id TEXT NOT NULL,last_input_id TEXT)",
+      "CREATE TABLE IF NOT EXISTS cell_manifests(task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(task_id,revision)); CREATE TABLE IF NOT EXISTS cell_lease_offers(task_id TEXT PRIMARY KEY,runner_id TEXT NOT NULL,last_input_id TEXT); CREATE TABLE IF NOT EXISTS cell_runner_connections(runner_id TEXT PRIMARY KEY,connection_id TEXT NOT NULL)",
     );
+  }
+  private current(socket: WebSocket) {
+    const data = attachment(socket);
+    if (!data.runnerId) return false;
+    const row = this.store.database
+      .prepare("SELECT connection_id FROM cell_runner_connections WHERE runner_id=?")
+      .get(data.runnerId) as { connection_id: string } | undefined;
+    return row?.connection_id === data.connectionId;
   }
   private async lease(taskId: string, claims: CellTokenClaims): Promise<RunnerLease> {
     let task = parse(TaskSchema, this.store.record("task", taskId));
@@ -211,6 +219,7 @@ export class CellRunners {
         if (error instanceof Error && error.message === "task_not_running") continue;
         throw error;
       }
+      if (!this.current(socket) || socket.readyState !== WebSocket.OPEN) return;
       socket.send(
         JSON.stringify({
           jsonrpc: "2.0",
@@ -236,7 +245,12 @@ export class CellRunners {
   }
   async offer(socket: WebSocket) {
     const data = attachment(socket);
-    if (!data.runnerId || data.claims.kind === "client" || socket.readyState !== WebSocket.OPEN)
+    if (
+      !data.runnerId ||
+      data.claims.kind === "client" ||
+      socket.readyState !== WebSocket.OPEN ||
+      !this.current(socket)
+    )
       return;
     await this.deliver(
       socket,
@@ -258,10 +272,12 @@ export class CellRunners {
   async message(socket: WebSocket, input: unknown) {
     const data = attachment(socket);
     const claims = data.claims;
-    if (claims.kind === "client") throw new Error("forbidden");
+    if (claims.kind === "client" || socket.readyState !== WebSocket.OPEN)
+      throw new Error("forbidden");
     const request = parseRunnerMessage(input);
     if (!("method" in request)) {
-      if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");
+      if (!data.runnerId || data.runnerId !== claims.device || !this.current(socket))
+        throw new Error("forbidden");
       if (new CellAnswers(this.store, this.ctx).receive(claims, data.runnerId, request))
         return undefined;
       new CellCommands(this.store).result(claims, data.runnerId, request);
@@ -278,6 +294,11 @@ export class CellRunners {
       data.clis = hello.clis.map((cli) => cli.id).filter((id) => ["claude", "codex"].includes(id));
       data.acceptTasks = hello.kind === "sandbox" || hello.acceptTasks === true;
       socket.serializeAttachment(data);
+      this.store.database
+        .prepare(
+          "INSERT INTO cell_runner_connections(runner_id,connection_id) VALUES(?,?) ON CONFLICT(runner_id) DO UPDATE SET connection_id=excluded.connection_id",
+        )
+        .run(hello.runnerId, data.connectionId);
       for (const other of this.ctx.getWebSockets("runner"))
         if (
           attachment(other).connectionId !== data.connectionId &&
@@ -289,7 +310,8 @@ export class CellRunners {
       new CellAnswers(this.store, this.ctx).deliver(socket, true);
       return { jsonrpc: "2.0", id: request.id, result: { ok: true, heartbeatMs: 15000 } };
     }
-    if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");
+    if (!data.runnerId || data.runnerId !== claims.device || !this.current(socket))
+      throw new Error("forbidden");
     if (request.method === "runner.heartbeat") {
       const heartbeat = parse(RunnerHeartbeatSchema, request.params);
       if (heartbeat.runnerId !== data.runnerId) throw new Error("forbidden");

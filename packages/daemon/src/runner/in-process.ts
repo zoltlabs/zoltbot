@@ -5,6 +5,7 @@ import { changes } from "../../../gitkit/src/index.js";
 import type { InteractionEngine } from "../interaction-engine.js";
 import { runtimeApi } from "../runtime-api.js";
 import type { SessionManagerOptions } from "../runtime-host.js";
+import type { RuntimeObservation } from "../runtime-observer.js";
 import type { RuntimeStream } from "../runtime-worker.js";
 import { SessionManager } from "../session-manager.js";
 import { RunnerEvents } from "./events.js";
@@ -68,11 +69,26 @@ export class InProcessRunner implements Runner {
     }
   }
 }
-export function createInProcessRuntime(options: Omit<SessionManagerOptions, "observe">) {
+export function createInProcessRuntime(
+  options: Omit<SessionManagerOptions, "observe"> & {
+    persistObservation?(observation: RuntimeObservation): Promise<void>;
+  },
+) {
   const observations = new RunnerEvents();
+  const { persistObservation, ...runtimeOptions } = options;
   const manager = new SessionManager({
-    ...options,
-    observe: (threadId, sessionId) => observations.scope(threadId, sessionId),
+    ...runtimeOptions,
+    observe: (threadId, sessionId) => {
+      const scope = observations.scope(threadId, sessionId);
+      if (!persistObservation) return scope;
+      return {
+        active: () => true,
+        emit: async (event, context) => {
+          await persistObservation(structuredClone({ threadId, sessionId, event, ...context }));
+          await scope.emit(event, context);
+        },
+      };
+    },
   });
   const runner = new InProcessRunner({
     manager,

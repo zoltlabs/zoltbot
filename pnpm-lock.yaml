@@ -318,6 +318,9 @@ importers:
       '@zoltbot/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@zoltbot/runner-protocol':
+        specifier: workspace:*
+        version: link:../runner-protocol
       '@zoltbot/store':
         specifier: workspace:*
         version: link:../store

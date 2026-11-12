@@ -100,6 +100,12 @@ true. Drain stops new assignments while retaining existing leases. A sandbox
 receives only the task in its token. A replacement connection closes the old
 socket for that device; it does not transfer the lease to a different runner.
 
+SQLite also binds the runner to its current connection ID. Closing the previous
+socket alone is insufficient: a handler that already passed authentication can
+resume later. Every event, heartbeat, command result and lease offer checks the
+connection binding. A closed socket cannot reclaim it with an old hello. The
+runtime regression exercises old in-flight requests after a replacement hello.
+
 The cell sends the saved acknowledgement cursor before each lease. It starts a
 queued task through the shared core handler in the same transaction that assigns
 its lease. Each task revision saves its selected project/profile/definition and

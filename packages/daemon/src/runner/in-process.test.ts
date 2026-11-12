@@ -129,3 +129,61 @@ it("keeps native opens single-flight, streams normalized redacted events, and se
     f.close();
   }
 });
+
+it("awaits durable observations without a stream reader and preserves redaction before persistence", async () => {
+  const f = await runtimeFixture();
+  const native = new Native();
+  f.store.dispatch("close-seed", (state) =>
+    handle(
+      state,
+      { type: "transition", kind: "session", id: "session", to: "closed" },
+      { commandId: "close-seed", at, actor: { kind: "system", id: "runtime" } },
+    ),
+  );
+  const persisted: RuntimeObservation[] = [];
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const runtime = createInProcessRuntime({
+    store: f.store,
+    publish() {},
+    persistObservation: async (observation) => {
+      persisted.push(observation);
+      if (observation.event.t === "session.ready") await barrier;
+    },
+    host: {
+      async prepare() {
+        return {
+          cwd: f.root,
+          estimate: (text) => text.length,
+          privateValues: ["seeded-secret"],
+          async open() {
+            return native;
+          },
+        };
+      },
+    },
+  });
+  try {
+    const start = runtime.runner.startSession({ threadId: "thread" });
+    await expect.poll(() => persisted.length).toBe(1);
+    await native.queue.push({ t: "status", state: "ready" });
+    expect(persisted).toHaveLength(1);
+    release();
+    await start;
+    await expect.poll(() => persisted.some((value) => value.event.t === "status")).toBe(true);
+    await runtime.runner.sendTurn({
+      threadId: "thread",
+      commandId: "durable-send",
+      mode: "queue",
+      input: [{ type: "text", text: "Synthetic input" }],
+    });
+    await expect.poll(() => persisted.some((value) => value.event.t === "turn.done")).toBe(true);
+    expect(JSON.stringify(persisted).includes("seeded-secret")).toBe(false);
+  } finally {
+    release();
+    await runtime.runner.close();
+    f.close();
+  }
+});

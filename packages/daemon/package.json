@@ -10,7 +10,8 @@
     "./logging": "./src/logging.ts",
     "./transport": "./src/transport.ts",
     "./notifications": "./src/notifications.ts",
-    "./runner": "./src/runner/index.ts"
+    "./runner": "./src/runner/index.ts",
+    "./cloud-runner": "./src/cloud-runner/index.ts"
   },
   "dependencies": {
     "@playwright/cli": "0.1.23",
@@ -20,15 +21,16 @@
     "@zoltbot/adapters-codex": "workspace:*",
     "@zoltbot/adapters-pi": "workspace:*",
     "@zoltbot/adapters-sdk": "workspace:*",
+    "@zoltbot/artifact-validation": "workspace:*",
     "@zoltbot/core": "workspace:*",
     "@zoltbot/detect": "workspace:*",
     "@zoltbot/hostmcp": "workspace:*",
     "@zoltbot/knowledge": "workspace:*",
     "@zoltbot/link": "workspace:*",
     "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/runner-protocol": "workspace:*",
     "@zoltbot/store": "workspace:*",
     "node-pty": "1.1.0",
-    "ws": "8.19.0",
-    "@zoltbot/artifact-validation": "workspace:*"
+    "ws": "8.19.0"
   }
 }
