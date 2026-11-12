@@ -1,7 +1,7 @@
 # Cloud runner
 
 This package is in progress. It contains the durable event journal for the Mac
-runner and sandbox worker, plus their reconnecting transport. Managed checkouts,
+runner and sandbox worker, plus their reconnecting transport. Managed checkout integration,
 native command execution and signed Mac bridge integration are not complete. W5 is not
 signed off, and this code does not connect a Local project to a cell.
 
@@ -85,3 +85,37 @@ immediate heartbeat after startup and hello, then every fifteen seconds. A clone
 or native startup still in progress therefore cannot receive a private handoff
 through a stale lease-presence marker. The fake-Cell test holds startup behind a
 barrier and verifies that the lease appears only after the task host is ready.
+
+## Managed checkouts
+
+`ManagedWorkspaces` prepares a separate clone for each org/task, under a hash-named
+directory supplied by the runner host. It takes no Local store or Local project
+path. A SQLite owner lock excludes another initializer, including another process;
+the OS releases that lock after a crash. Calls within one instance share startup
+work and recheck their scope before returning.
+
+The first clone freezes the base commit and creates its own `zoltbot/task-…`
+branch. Owner-only control metadata lives beside the repository. Initialization
+writes and fsyncs a prepared binding before renaming the clone, then writes a ready
+binding and fsyncs the directory before a caller can start a native session. A
+prepared clone can recover at its frozen base even if the default branch advanced.
+A missing ready checkout fails explicitly: restarting cannot replace lost edits
+with a fresh clone. Reopening preserves tracked edits, untracked files and HEAD.
+Scope, Git directory, top-level path, binding symlinks and remote changes are checked.
+
+Production remotes are HTTPS GitHub owner/repo URLs. The explicit local-repository
+callback exists for the headless bare-repository fixture. Git gets an allowlisted
+environment, disabled global/system configuration, hooks and credential helpers,
+no redirects or prompts, and bounded output and runtime. An optional GitHub
+credential callback receives the runner lifetime signal; cancellation does not
+wait for a blocked credential lookup. Authentication enters Git through temporary
+environment configuration, never its argv, remote URL or on-disk configuration.
+Git's stderr is discarded and failures use fixed codes. On Unix a pipe watcher
+stops Git's process group if its runner parent dies, including SIGKILL.
+
+Tests use disposable bare repositories to check edits/base preservation, interrupted
+initialization, task/org isolation, scope and symlink refusal, cancellation and
+exclusive ownership. Separate synthetic Git child tests verify cleanup after
+both cancellation and a killed parent. No network or desktop input is involved.
+The task cache, native runtime factory and `zoltd` settings wiring still need to
+connect this preparer to leases. These tests do not complete W5 or W8.
