@@ -14,6 +14,8 @@ export interface TranscriptRow {
   text: string;
   streaming: boolean;
   artifact?: ArtifactCard;
+  /** Normalized source item, attached by the conversation projection for shared activity policy. */
+  activityItem?: Row;
   compareId?: string;
   wake?: boolean;
   wakeEvidence?: string;

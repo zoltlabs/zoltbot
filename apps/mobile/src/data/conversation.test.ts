@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activityLabel, conversation } from "./conversation.js";
+import { activityLabel, assistantSegments, conversation } from "./conversation.js";
 import { inline } from "./markdown.js";
 import { toolTitle, transcript } from "./timeline.js";
 import type { Snapshot } from "./transport.js";
@@ -91,7 +91,7 @@ describe("mobile assistant turns", () => {
         [{ id: "x", kind: "tool", text: "Search", streaming: false, status: "running" }],
         true,
       ),
-    ).toBe("Using tools…");
+    ).toBe("Working…");
   });
 });
 
@@ -115,4 +115,45 @@ it("keeps answer links actionable and unsafe schemes as plain text", () => {
     { text: "Source", href: "https://example.com" },
   ]);
   expect(inline("[Unsafe](javascript:alert)")).toEqual([{ text: "[Unsafe](javascript:alert)" }]);
+});
+
+it("keeps unresolved failures outside disclosures and folds only a matching recovered retry", () => {
+  const snapshot = fixture();
+  snapshot.entities.item = [
+    {
+      id: "bad",
+      kind: "tool",
+      turnId: "t",
+      threadId: "chat",
+      seq: 1,
+      body: { kind: "execute", title: "test", status: "error" },
+    },
+    {
+      id: "ok",
+      kind: "tool",
+      turnId: "t",
+      threadId: "chat",
+      seq: 2,
+      body: { kind: "execute", title: "test", status: "ok" },
+    },
+    {
+      id: "unfixed",
+      kind: "tool",
+      turnId: "t",
+      threadId: "chat",
+      seq: 3,
+      body: { kind: "read", title: "missing", status: "error" },
+    },
+  ];
+  const entry = conversation(transcript(snapshot, "chat"), snapshot)[0];
+  if (entry?.kind !== "assistant") throw new Error("Expected assistant turn");
+  expect(
+    assistantSegments(entry.rows).map((segment) => ({
+      activity: segment.activity,
+      ids: segment.rows.map((row) => row.id),
+    })),
+  ).toEqual([
+    { activity: true, ids: ["bad", "ok"] },
+    { activity: false, ids: ["unfixed"] },
+  ]);
 });

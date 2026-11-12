@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { activityLabel } from "../data/conversation";
+import { activityLabel, assistantSegments } from "../data/conversation";
 import type { TranscriptRow } from "../data/timeline";
 import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
@@ -136,13 +136,7 @@ export function AssistantTurn({
   threadId: string;
   onForward?: (row: TranscriptRow) => void;
 }) {
-  const segments: { id: string; activity: boolean; rows: TranscriptRow[] }[] = [];
-  for (const row of rows) {
-    const activity = row.kind === "tool" || row.kind === "thought";
-    const previous = segments.at(-1);
-    if (activity && previous?.activity) previous.rows.push(row);
-    else segments.push({ id: row.id, activity, rows: [row] });
-  }
+  const segments = assistantSegments(rows);
   const last = rows.at(-1);
   const tools = rows.some((row) => row.status === "running");
   return (

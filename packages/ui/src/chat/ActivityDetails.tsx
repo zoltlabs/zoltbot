@@ -1,11 +1,8 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Icon } from "../shell/icons.js";
 import "./activity.css";
 
-/**
- * Routine execution is inspectable. Work in progress stays open so each step shows as it happens,
- * then closes to its summary unless you opened or closed it yourself. Failures stay open.
- */
+/** Routine work stays collapsed until opened; unresolved failures stay visible. */
 export function ActivityDetails({
   label,
   running = false,
@@ -19,19 +16,16 @@ export function ActivityDetails({
   waiting?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(failed || running);
-  const chosen = useRef(false);
+  const [open, setOpen] = useState(failed);
   useEffect(() => {
     if (failed) setOpen(true);
-    else if (!chosen.current) setOpen(running);
-  }, [failed, running]);
+  }, [failed]);
   return (
     <details className="activity-details" open={open}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Native summary supports keyboard activation; controlled state survives virtual row remeasurement. */}
       <summary
         onClick={(event) => {
           event.preventDefault();
-          chosen.current = true;
           setOpen((value) => !value);
         }}
       >

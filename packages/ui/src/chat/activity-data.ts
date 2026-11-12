@@ -28,20 +28,24 @@ export function markRecovered(items: Row[]): Row[] {
   return changed ? result : items;
 }
 
+/** Shared desktop/mobile policy: attention and partial content never disappear into activity. */
+export function routineActivity(item: Row): boolean {
+  const value = body(item);
+  return (
+    value.partial !== true &&
+    (item.kind === "thought" ||
+      (item.kind === "tool" &&
+        value.interactive !== true &&
+        (!failedStatus(value.status) || value.recovered === true)))
+  );
+}
+
 /** Group only adjacent routine work. Approvals, failures and artifacts keep their positions. */
 export function groupActivity(rows: TimelineRow[]): ConversationRow[] {
   const result: ConversationRow[] = [];
   for (const row of rows) {
     const item = row.type === "message" ? row.item : undefined;
-    const value = item && body(item);
-    const routine =
-      item &&
-      value &&
-      value.partial !== true &&
-      (item.kind === "thought" ||
-        (item.kind === "tool" &&
-          value.interactive !== true &&
-          (!failedStatus(value.status) || value.recovered === true)));
+    const routine = item && routineActivity(item);
     if (!routine || !item) {
       result.push(row);
       continue;

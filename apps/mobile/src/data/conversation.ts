@@ -1,3 +1,9 @@
+import {
+  markRecovered,
+  routineActivity,
+  activityLabel as sharedActivityLabel,
+} from "@zoltbot/ui/chat/activity-data";
+import { body, type Row } from "@zoltbot/ui/chat/types";
 import type { TranscriptRow } from "./timeline.js";
 import type { Snapshot } from "./transport.js";
 
@@ -13,7 +19,18 @@ export function conversation(
 ): ConversationEntry[] {
   const turns = new Map((snapshot.entities.item ?? []).map((item) => [item.id, item.turnId]));
   const entries: ConversationEntry[] = [];
-  for (const row of rows) {
+  const sources = new Map(
+    markRecovered(
+      [...(snapshot.entities.item ?? [])].sort((a, b) => Number(a.seq) - Number(b.seq)),
+    ).map((item) => [item.id, item]),
+  );
+  const project = (row: TranscriptRow): TranscriptRow => ({
+    ...row,
+    ...(sources.has(row.id) ? { activityItem: sources.get(row.id) } : {}),
+    ...(row.children ? { children: row.children.map(project) } : {}),
+  });
+  for (const original of rows) {
+    const row = project(original);
     const turn = turns.get(row.id);
     const assistant = ["message", "thought", "tool", "interaction"].includes(row.kind);
     const previous = entries.at(-1);
@@ -39,8 +56,44 @@ export function conversation(
 export function activityLabel(rows: readonly TranscriptRow[], active = false): string {
   const failed = rows.filter((row) => row.status === "failed").length;
   if (failed) return `${failed} ${failed === 1 ? "tool failed" : "tools failed"}`;
-  if (active && rows.some((row) => row.kind === "tool" && row.status === "running"))
-    return "Using tools…";
-  const tools = rows.filter((row) => row.kind === "tool").length;
-  return tools ? `Used ${tools} ${tools === 1 ? "tool" : "tools"}` : "Thought process";
+  const items = rows.map(activitySource).map((item) =>
+    active
+      ? item
+      : {
+          ...item,
+          body: {
+            ...body(item),
+            streaming: false,
+            status: body(item).status === "running" ? "ok" : body(item).status,
+          },
+        },
+  );
+  return sharedActivityLabel(items);
+}
+
+function activitySource(row: TranscriptRow): Row {
+  return (
+    row.activityItem ?? {
+      id: row.id,
+      kind: row.kind,
+      body: { status: row.status === "failed" ? "error" : row.status, streaming: row.streaming },
+    }
+  );
+}
+
+export function routineRow(row: TranscriptRow): boolean {
+  // A failed subagent remains discoverable even when its parent tool succeeded.
+  if (row.children?.some((child) => !routineRow(child) && child.kind === "tool")) return false;
+  return routineActivity(activitySource(row));
+}
+
+export function assistantSegments(rows: TranscriptRow[]) {
+  const segments: { id: string; activity: boolean; rows: TranscriptRow[] }[] = [];
+  for (const row of rows) {
+    const activity = routineRow(row);
+    const previous = segments.at(-1);
+    if (activity && previous?.activity) previous.rows.push(row);
+    else segments.push({ id: row.id, activity, rows: [row] });
+  }
+  return segments;
 }

@@ -33,13 +33,13 @@ function rowTurn(row: ConversationRow) {
   return text(row.item.turnId);
 }
 
-/** Work that folds away: tool runs, reasoning, plan updates and commentary before the answer. */
+/** Work that folds away: tool runs, reasoning and plan updates before the answer. */
 function foldable(row: ConversationRow) {
   if (row.type === "activity") return true;
   if (row.type !== "message") return false;
   const { kind } = row.item,
     value = body(row.item);
-  if (kind === "thought" || kind === "plan" || kind === "message") return true;
+  if (kind === "thought" || kind === "plan") return true;
   return (
     kind === "tool" &&
     value.interactive !== true &&
@@ -117,20 +117,22 @@ export function foldTurns(
 export function withWorking<T extends ConversationRow | FoldRow>(
   rows: T[],
   turns: Row[],
+  paused = false,
 ): (T | WorkingRow)[] {
+  if (paused) return rows;
   const turn = turns.find((row) => text(row.status) === "running" && !text(row.endedAt));
   if (!turn) return rows;
   const turnId = text(turn.id);
-  const live = rows.some((row) => {
-    if (row.type === "activity")
-      return row.items.some((item) => {
-        const value = body(item);
-        return item.turnId === turnId && (value.streaming === true || value.status === "running");
-      });
-    return (
-      row.type === "message" && row.item.turnId === turnId && body(row.item).streaming === true
-    );
+  const latest = rows.findLast((row) => {
+    if (row.type === "activity") return row.items[0]?.turnId === turnId;
+    return row.type === "message" && row.item.turnId === turnId;
   });
+  const live =
+    latest?.type === "activity"
+      ? latest.items.some(
+          (item) => body(item).streaming === true || body(item).status === "running",
+        )
+      : latest?.type === "message" && body(latest.item).streaming === true;
   if (live) return rows;
   return [
     ...rows,

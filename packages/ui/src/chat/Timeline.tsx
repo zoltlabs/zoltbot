@@ -65,9 +65,12 @@ export function Timeline({
       ),
     [items, connection?.snapshot.entities.artifact, connection?.snapshot.entities.artifactVersion],
   );
+  const paused =
+    interactions.some((request) => request.state === "pending") ||
+    (!!connection && connection.status !== "online");
   const rows = useMemo(
-    () => withWorking(foldTurns(grouped, turns, openTurns), turns),
-    [grouped, turns, openTurns],
+    () => withWorking(foldTurns(grouped, turns, openTurns), turns, paused),
+    [grouped, turns, openTurns, paused],
   );
   // Every file change a turn's edit steps reported, in order, for its "Changed N files" link.
   const turnDiffs = useMemo(() => {
@@ -251,7 +254,11 @@ export function Timeline({
                         />
                       </section>
                     ) : display.type === "activity" ? (
-                      <ActivityGroup items={display.items} name={name} />
+                      <ActivityGroup
+                        items={display.items}
+                        name={name}
+                        active={!paused && rows.at(-1) === display}
+                      />
                     ) : display.type === "artifact" && connection ? (
                       <InlineArtifact
                         connection={connection}

@@ -63,6 +63,7 @@ it("folds a finished turn to one line above its answer and keeps what needs atte
   const folded = foldTurns(rows, turns, new Set());
   expect(folded.map((row) => (row.type === "fold" ? row.label : row.key))).toEqual([
     "message:u",
+    "message:c",
     "Worked for 2m 14s",
     "message:x",
     "message:a",
@@ -72,8 +73,8 @@ it("folds a finished turn to one line above its answer and keeps what needs atte
   const open = foldTurns(rows, turns, new Set(["t1"]));
   expect(open.map((row) => row.key)).toEqual([
     "message:u",
-    "fold:t1",
     "message:c",
+    "fold:t1",
     "activity:r",
     "message:x",
     "message:a",
