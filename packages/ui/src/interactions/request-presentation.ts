@@ -20,7 +20,7 @@ export function permissionExpansion(request: Interaction, choice?: string) {
       "this action";
     return {
       title: "Allow for this session?",
-      description: `Allows ${scope} without asking again until this coding session ends.`,
+      description: `The agent can repeat “${scope}” without asking again until this coding session ends.`,
       action: "Allow for session",
     };
   }
