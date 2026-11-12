@@ -3,7 +3,7 @@
     "name": "Zoltbot",
     "slug": "zoltbot",
     "scheme": "zoltbot",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#17191b",

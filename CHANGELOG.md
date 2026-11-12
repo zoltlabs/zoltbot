@@ -5,18 +5,21 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
-- Fix: Cloud workers resume interrupted turns after restarting when no question or Mac command is pending.
+## v0.1.6: Custom views and clearer chat activity
 
-- Fix: Mac command results remain available after reconnecting when the approval has expired.
+November 12, 2026
 
-- Improvement: Cloud sandbox workers preserve task history and setup state across restarts.
-
-- Fix: Cloud task observations survive a runner exit between saving task state and sending events.
-
-- Fix: Cloud tasks report unconfirmed answer delivery.
-- Fix: Private cloud answers require a ready task runner after reconnecting.
-
+- New: Open the Command Map to see your workspace chats, review requests and send orders from an interactive map.
+- New: Install and customize desktop views. Review their permissions in Settings, preview views with sample data and reload your edits.
+- Improvement: Desktop chats show completion receipts with supporting results and direct links to review changes.
+- Improvement: On iPhone, assistant replies group related activity, tool results open in full and secondary chat controls live in Chat options.
+- Improvement: Starting a task on iPhone uses project-first choices and remembers useful defaults.
+- Improvement: Request drafts survive navigation, and approvals and browser handoffs explain the next action more clearly.
+- Improvement: Organization plans dispatch approved tasks more reliably and preserve limits during handoffs and recovery.
 - Improvement: Chat history uses less disk space by sharing message text across its search index and projections.
+- Fix: Cloud workers preserve task history and setup state across restarts, and resume interrupted turns when no question or Mac command is pending.
+- Fix: Mac command results remain available after reconnecting when the approval has expired.
+- Fix: Cloud task observations survive a runner exit between saving task state and sending events. Tasks report unconfirmed answer delivery and require a ready runner before delivering private answers after reconnecting.
 - Fix: A full database reports a clear error and rolls back the command.
 
 ## v0.1.5: Organization plans, chat wakes and results
