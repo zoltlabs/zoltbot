@@ -16,3 +16,10 @@ deltas. Attached consumers apply backpressure; closing a consumer releases it.
 
 Runtime option types and observation handling live in separate modules so the
 existing session manager and worker remain below the module size limit.
+
+`NativeRuntimeHost` has an opt-in `hostMcpEnvironment` mode for cloud resources.
+Each binding places its credential only in `ZOLTBOT_HOST_MCP_TOKEN` for that native
+child and gives the adapter the variable name. The token is registered with the
+session redactor and is absent from persisted runtime configuration. Existing
+callers retain their current authentication route. Production cloud resource
+assembly still needs to select this mode; the option alone does not enable Cloud.

@@ -7,7 +7,7 @@ import { expect, it } from "vitest";
 import { Redactor } from "./logging.js";
 import { NativeRuntimeHost } from "./native-runtime.js";
 
-function fixture(provider = "synthetic") {
+function fixture(provider = "synthetic", hostMcpEnvironment = false) {
   mkdirSync(".cache/tests", { recursive: true });
   const root = mkdtempSync(path.resolve(".cache/tests/native-runtime-"));
   const definition: AgentDefinition = {
@@ -77,6 +77,7 @@ function fixture(provider = "synthetic") {
   } as unknown as AgentAdapter;
   const redactor = new Redactor();
   const host = new NativeRuntimeHost({
+    hostMcpEnvironment,
     adapters: new Map([
       [
         adapter.id,
@@ -120,6 +121,19 @@ function fixture(provider = "synthetic") {
     clean: () => rmSync(root, { recursive: true, force: true }),
   };
 }
+it("opts cloud hosts into environment MCP credentials without persisting the token in their configuration", async () => {
+  const f = fixture("synthetic", true);
+  try {
+    const prepared = await f.host.prepare(f, f.redactor);
+    const session = await prepared.open({ sessionId: "session", mode: "new" });
+    expect(f.opened()?.hostMcp.tokenEnv).toBe("ZOLTBOT_HOST_MCP_TOKEN");
+    expect(f.opened()?.env?.ZOLTBOT_HOST_MCP_TOKEN).toBe(f.opened()?.hostMcp.token);
+    expect(JSON.stringify(prepared.configuration).includes("synthetic-session-token")).toBe(false);
+    await session.close();
+  } finally {
+    f.clean();
+  }
+});
 it("prepares without native side effects and opens the exact saved profile with a scoped binding", async () => {
   const f = fixture();
   try {

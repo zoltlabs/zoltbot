@@ -11,6 +11,7 @@ import {
 import {
   type AgentSession,
   AsyncQueue,
+  hostMcpTokenEnvironment,
   materializeImages,
   nativeCommands,
   type OpenOptions,
@@ -133,6 +134,7 @@ export class ClaudeSession implements AgentSession {
     });
   }
   private async connect() {
+    const tokenEnv = hostMcpTokenEnvironment(this.options);
     const connections =
       (await this.options.refreshConnections?.()) ?? this.options.connections ?? [];
     this.config = await this.host.config(
@@ -149,7 +151,9 @@ export class ClaudeSession implements AgentSession {
           zoltbot: {
             type: "http",
             url: this.options.hostMcp.url,
-            headers: { Authorization: `Bearer ${this.options.hostMcp.token}` },
+            headers: {
+              Authorization: `Bearer ${tokenEnv ? `\${${tokenEnv}}` : this.options.hostMcp.token}`,
+            },
           },
         },
       },

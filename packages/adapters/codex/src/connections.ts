@@ -1,4 +1,4 @@
-import type { OpenOptions } from "@zoltbot/adapters-sdk";
+import { hostMcpTokenEnvironment, type OpenOptions } from "@zoltbot/adapters-sdk";
 import { object } from "./schema.js";
 
 /**
@@ -6,6 +6,7 @@ import { object } from "./schema.js";
  * the session keeps the person's own tools.
  */
 export function codexConnections(configuration: unknown, options: OpenOptions) {
+  const tokenEnv = hostMcpTokenEnvironment(options);
   const inherited = object(object(configuration).config).mcp_servers;
   const inheritedServers = object(inherited ?? {});
   if (Object.hasOwn(inheritedServers, "zoltbot")) throw new Error("host_mcp_name_conflict");
@@ -33,7 +34,9 @@ export function codexConnections(configuration: unknown, options: OpenOptions) {
     ),
     zoltbot: {
       url: options.hostMcp.url,
-      http_headers: { Authorization: `Bearer ${options.hostMcp.token}` },
+      ...(tokenEnv
+        ? { bearer_token_env_var: tokenEnv }
+        : { http_headers: { Authorization: `Bearer ${options.hostMcp.token}` } }),
       required: true,
       enabled: true,
     },

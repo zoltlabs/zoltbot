@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { AcpAdapter } from "@zoltbot/adapters-acp";
 import { ClaudeAdapter } from "@zoltbot/adapters-claude";
@@ -8,13 +9,19 @@ import { handle } from "@zoltbot/core";
 import { NativeProcesses, RuntimeFiles, SessionManager } from "@zoltbot/daemon";
 import { SessionTokens, startHostMcp, ToolDispatcher } from "@zoltbot/hostmcp";
 import type { AgentDefinition } from "@zoltbot/protocol";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { Redactor } from "../../../packages/daemon/src/logging.js";
 import { NativeRuntimeHost } from "../../../packages/daemon/src/native-runtime.js";
 import { at, runtimeFixture } from "./runtime-fixture.js";
 
-for (const provider of ["claude", "codex", "acp"] as const)
-  it(`assembles ${provider} through the runtime manager, real native transport and scoped HTTP host`, async () => {
+for (const [provider, environment] of [
+  ["claude", false],
+  ["codex", false],
+  ["acp", false],
+  ["claude", true],
+  ["codex", true],
+] as const)
+  it(`assembles ${provider} through the runtime manager, real native transport and scoped HTTP host${environment ? " with environment credentials" : ""}`, async () => {
     const f = await runtimeFixture();
     const processes = new NativeProcesses(path.join(f.root, "logs")),
       files = new RuntimeFiles(path.join(f.root, "private-runtime"));
@@ -160,6 +167,7 @@ for (const provider of ["claude", "codex", "acp"] as const)
       ),
     );
     const runtime = new NativeRuntimeHost({
+      hostMcpEnvironment: environment,
       adapters: registry,
       workspace: async () => ({ cwd: f.root }),
       estimate: (text) => text.length,
@@ -177,6 +185,7 @@ for (const provider of ["claude", "codex", "acp"] as const)
       },
     });
     const manager = new SessionManager({ store: f.store, host: runtime, publish() {} });
+    vi.stubEnv("ZOLTBOT_RUNNER_TOKEN", randomBytes(32).toString("base64url"));
     try {
       const worker = await manager.ensure("thread");
       f.queue("native-host-call", "host_tools");
@@ -190,6 +199,20 @@ for (const provider of ["claude", "codex", "acp"] as const)
       expect(audits).toEqual(["started", "succeeded"]);
       expect(tokens.authenticate(`Bearer ${issued}`)).not.toHaveProperty("turnId");
       expect(JSON.stringify(f.store.snapshot())).not.toContain(issued);
+      const keys = JSON.parse(readFileSync(path.join(f.root, "environment-keys.json"), "utf8"));
+      expect(keys).not.toHaveProperty("ZOLTBOT_RUNNER_TOKEN");
+      if (environment) {
+        expect(keys.ZOLTBOT_HOST_MCP_TOKEN).toBe("present");
+        const verify = (directory: string) => {
+          for (const entry of readdirSync(directory, { withFileTypes: true })) {
+            const file = path.join(directory, entry.name);
+            if (entry.isDirectory()) verify(file);
+            else if (entry.isFile() && issued)
+              expect(readFileSync(file).includes(Buffer.from(issued))).toBe(false);
+          }
+        };
+        verify(f.root);
+      }
       await manager.close();
       expect(tokens.authenticate(`Bearer ${issued}`)).toBeUndefined();
       expect(
@@ -200,6 +223,7 @@ for (const provider of ["claude", "codex", "acp"] as const)
       await processes.close();
       await files.close();
       await mcp.close();
+      vi.unstubAllEnvs();
       f.close();
     }
   });

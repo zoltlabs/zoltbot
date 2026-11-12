@@ -1,6 +1,30 @@
+import { randomBytes } from "node:crypto";
 import type { OpenOptions } from "@zoltbot/adapters-sdk";
 import { expect, it } from "vitest";
 import { codexConnections } from "./connections.js";
+
+it("keeps the host credential out of persisted MCP configuration when the host binds an environment variable", () => {
+  const token = randomBytes(32).toString("base64url");
+  const options: OpenOptions = {
+    identity: { agentId: "agent", threadId: "thread" },
+    mode: "new",
+    cwd: "/work",
+    permissionProfile: "read_only",
+    hostMcp: { url: "http://127.0.0.1/mcp", token, tokenEnv: "ZOLTBOT_HOST_MCP_TOKEN" },
+    env: { ZOLTBOT_HOST_MCP_TOKEN: token },
+  };
+  const config = codexConnections({ config: {} }, options);
+  expect(config.zoltbot).toEqual({
+    url: options.hostMcp.url,
+    bearer_token_env_var: "ZOLTBOT_HOST_MCP_TOKEN",
+    required: true,
+    enabled: true,
+  });
+  expect(JSON.stringify(config).includes(token)).toBe(false);
+  expect(() => codexConnections({ config: {} }, { ...options, env: {} })).toThrow(
+    "host_mcp_environment_invalid",
+  );
+});
 
 it("disables inherited MCP entries without dropping host tools or selected servers", () => {
   const options = {

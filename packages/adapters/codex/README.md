@@ -7,3 +7,12 @@ The generic daemon supervisor owns process policy. One RPC peer serves threads f
 All 22 shared conformance cases pass against a stateful fake that validates calls and approval replies against the generated schema. Focused tests cover schema contracts, duplicate question text, permission grants, cumulative usage, process sharing, fork ownership, native listing, authentication, overload retry, timeouts, terminal state fencing, broken binaries, and retry after a failed preflight. No tests are skipped.
 
 WP-11 remains unmerged until the real installed CLI canary passes. Binary probing and schema cache provisioning are host services; the Doctor and session manager packages supply them in the product.
+
+Cloud hosts can bind the host credential to an explicit child environment entry
+with `hostMcp.tokenEnv`. Their per-thread MCP configuration uses
+`bearer_token_env_var`, so it contains no credential value. The shared SDK rejects
+missing or mismatched bindings. The existing header-based Local route is unchanged.
+This follows the documented [HTTP MCP configuration](https://developers.openai.com/codex/mcp/).
+Unit tests and the synthetic native HTTP fixture verify authenticated tool calls
+and absence of credential bytes in fixture files. Live sandbox acceptance remains
+unverified.

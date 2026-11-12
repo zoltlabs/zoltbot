@@ -279,7 +279,13 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
       threads[id] = { cwd: params.cwd ?? process.cwd() };
       writeFileSync(nativeFile, JSON.stringify(threads), { mode: 0o600 });
       const host = params.config?.mcp_servers?.zoltbot;
-      if (host) hosts.set(id, host);
+      if (host)
+        hosts.set(id, {
+          url: host.url,
+          http_headers: host.bearer_token_env_var
+            ? { Authorization: `Bearer ${process.env[host.bearer_token_env_var] ?? ""}` }
+            : host.http_headers,
+        });
       const response = structuredClone(template);
       response.thread.id = id;
       response.cwd = threads[id]?.cwd;

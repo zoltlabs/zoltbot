@@ -15,3 +15,11 @@ The test reference provider is a separate wire server that emits normalized even
 Test frame artifacts stay in .cache/test-results/conformance. Failed conformance assertions include a redacted normalized trace and frame tail. The recorder writes version metadata and normalized private paths, and masks credential fields and registered values before capture output is persisted.
 
 The ACP conformance provider is a stateful protocol version 1 wire server. It emits ACP session updates and permission requests, verifies session loading against a local native record, and calls the injected host HTTP endpoint. Its adapter uses the production supervisor transport. All 22 shared scenarios run without skipped tests. Providers that expose context usage without token counts are tested against that capability, and unsupported native question cases remain covered by dedicated form tests.
+
+The Claude fake resolves header environment placeholders in memory. The Codex
+fake reads its configured `bearer_token_env_var` from the child environment. Native
+HTTP tests exercise both environment routes against the real localhost host-MCP
+server. They scan their disposable files for the issued credential and check that
+the runner's ambient credential did not enter the child environment. Environment
+receipts record variable names only. These fakes do not establish real CLI or E2B
+acceptance.

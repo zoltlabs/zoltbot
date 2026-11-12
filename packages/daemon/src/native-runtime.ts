@@ -48,6 +48,8 @@ export interface NativeToolBinding {
   close(): Promise<void>;
 }
 export interface NativeRuntimeOptions {
+  /** Cloud hosts keep their MCP credential out of native configuration files. */
+  hostMcpEnvironment?: boolean;
   adapters: ReadonlyMap<string, (redactor: Redactor) => AgentAdapter>;
   workspace(input: RuntimeInput): Promise<{ cwd: string; instructions?: string }>;
   bind(identity: {
@@ -455,7 +457,14 @@ export class NativeRuntimeHost implements RuntimeHost {
             ...(stable.profile.effort ? { effort: stable.profile.effort } : {}),
             ...(instructions ? { appendInstructions: instructions } : {}),
             ...(stable.previous?.firstPromptPending === true ? { firstPromptPending: true } : {}),
-            hostMcp: { url: binding.url, token: binding.token },
+            hostMcp: {
+              url: binding.url,
+              token: binding.token,
+              ...(this.options.hostMcpEnvironment ? { tokenEnv: "ZOLTBOT_HOST_MCP_TOKEN" } : {}),
+            },
+            ...(this.options.hostMcpEnvironment
+              ? { env: { ZOLTBOT_HOST_MCP_TOKEN: binding.token } }
+              : {}),
           };
           const native = await factory(redactor).open(stable.definition, options);
           // SessionManager also fences persisted configuration after asynchronous open.

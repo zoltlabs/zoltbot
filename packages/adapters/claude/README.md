@@ -9,3 +9,12 @@ After ten idle minutes, the process closes while the logical session keeps its w
 Desktop parity: tool events carry titles, locations, and the interactive flag for AskUserQuestion and ExitPlanMode. Edit approvals carry diffs. Native permission suggestions become a session-only `allow_session` choice and a narrow `ruleSuggestion`. Plan review can switch to acceptEdits. `mode.changed` follows ready, setMode, plan answers, session grants, and native reports. Elicitation maps to forms. `compact`, `stopBackground`, and `rewindFiles` use native control routes.
 
 Only startup controls and HTTP MCP discovery have real Claude 2.1.299 evidence. Some parity shapes were read from the 2.1.42 bundle. Turn protocol fixtures remain synthetic until the real canary. This package is not ready to merge. See quirks.md.
+
+Cloud hosts can set `hostMcp.tokenEnv` and its matching environment entry. The MCP
+file then contains a header placeholder, while the credential reaches the native
+process through its environment. Invalid bindings fail before writing the file.
+The existing Local path is unchanged. This uses Claude's documented
+[environment expansion in MCP headers](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json).
+Tests inspect the file, verify the synthetic child receives the variable, and make
+an authenticated localhost tool call without credential bytes in any fixture file.
+These fake-provider checks do not replace the live sandbox acceptance gate.

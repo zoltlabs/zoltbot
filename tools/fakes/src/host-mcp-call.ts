@@ -7,11 +7,17 @@ export async function callFixtureHost(
   headers: Record<string, string>,
   request = { name: "team_fixture_ping", arguments: {} as Record<string, unknown> },
 ): Promise<string> {
+  const resolved = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key,
+      value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, name: string) => process.env[name] ?? ""),
+    ]),
+  );
   const client = new Client({ name: "zoltbot-synthetic-native", version: "1" });
   try {
     await client.connect(
       new StreamableHTTPClientTransport(new URL(url), {
-        requestInit: { headers },
+        requestInit: { headers: resolved },
       }),
     );
     const tools = await client.listTools();

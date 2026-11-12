@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Readable, Writable } from "node:stream";
@@ -47,7 +48,15 @@ function setup() {
       starts++;
       const child = spawn(launch.command, launch.args, {
         cwd: opts.cwd,
-        env: { PATH: process.env.PATH, TSX_DISABLE_CACHE: "1", HOME: cwd, TMPDIR: cwd },
+        env: {
+          PATH: process.env.PATH,
+          TSX_DISABLE_CACHE: "1",
+          HOME: cwd,
+          TMPDIR: cwd,
+          ...(launch.env?.ZOLTBOT_HOST_MCP_TOKEN
+            ? { ZOLTBOT_HOST_MCP_TOKEN: launch.env.ZOLTBOT_HOST_MCP_TOKEN }
+            : {}),
+        },
         stdio: ["pipe", "pipe", "ignore"],
       });
       const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
@@ -96,6 +105,37 @@ it("opens and streams a native turn through the native protocol fake", async () 
   } finally {
     await session.close();
     await reader;
+    rmSync(test.cwd, { recursive: true, force: true });
+  }
+});
+
+it("writes only an environment placeholder for its host credential and passes the credential to the native child", async () => {
+  const test = setup(),
+    token = randomBytes(32).toString("base64url");
+  const connect = test.host.connect;
+  let received = false;
+  test.host.connect = async (definition, options, launch) => {
+    received = launch.env?.ZOLTBOT_HOST_MCP_TOKEN === token;
+    return connect(definition, options, launch);
+  };
+  const session = await new ClaudeAdapter(test.host).open(definition, {
+    ...test.options,
+    hostMcp: { ...test.options.hostMcp, token, tokenEnv: "ZOLTBOT_HOST_MCP_TOKEN" },
+    env: { ZOLTBOT_HOST_MCP_TOKEN: token },
+  });
+  try {
+    const content = readFileSync(path.join(test.cwd, "mcp-0.json"), "utf8");
+    expect(JSON.parse(content).mcpServers.zoltbot.headers.Authorization).toBe(
+      `Bearer \${ZOLTBOT_HOST_MCP_TOKEN}`,
+    );
+    expect(content.includes(token)).toBe(false);
+    expect(received).toBe(true);
+    expect(
+      JSON.parse(readFileSync(path.join(test.cwd, "environment-keys.json"), "utf8"))
+        .ZOLTBOT_HOST_MCP_TOKEN,
+    ).toBe("present");
+  } finally {
+    await session.close();
     rmSync(test.cwd, { recursive: true, force: true });
   }
 });

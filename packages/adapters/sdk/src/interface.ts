@@ -61,7 +61,12 @@ export interface OpenOptions {
   ownToolsOff?: readonly string[];
   managedSkills?: readonly { name: string; path: string; pluginPath: string; namespace: string }[];
   launchManifestId?: string;
-  hostMcp: { url: string; token: string };
+  hostMcp: {
+    url: string;
+    token: string;
+    /** For hosts that keep credentials exclusively in the native process environment. */
+    tokenEnv?: string;
+  };
   name?: string;
   budget?: { usd?: number };
   env?: Record<string, string>;
