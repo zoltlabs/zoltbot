@@ -312,7 +312,7 @@ test("critique retry after a partial failure does not duplicate a confirmed send
     if (typeof second?.threadId !== "string" || typeof first?.threadId !== "string")
       throw Error("missing members");
     f.daemon.store.database.exec(
-      `CREATE TRIGGER fail_critique BEFORE INSERT ON items WHEN NEW.thread_id='${second.threadId}' AND NEW.kind='user' BEGIN SELECT RAISE(ABORT,'forced_critique_failure'); END`,
+      `CREATE TRIGGER fail_critique BEFORE INSERT ON item_records WHEN NEW.thread_id='${second.threadId}' AND NEW.kind='user' BEGIN SELECT RAISE(ABORT,'forced_critique_failure'); END`,
     );
     await f.page
       .getByRole("button", { name: "Ask each to critique the others", exact: true })

@@ -216,6 +216,12 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  packages/cell:
+    dependencies:
+      '@zoltbot/store':
+        specifier: workspace:*
+        version: link:../store
+
   packages/cloud-contracts:
     dependencies:
       '@sinclair/typebox':

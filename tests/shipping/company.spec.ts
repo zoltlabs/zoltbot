@@ -236,7 +236,7 @@ test("organization ownership, initiative edits, approved reorg, reports and dire
       page.getByRole("button", { name: "Edit Onboarding launch", exact: true }),
     ).toBeVisible();
     await page.setViewportSize({ width: 320, height: 900 });
-    await page.getByRole("button", { name: "Hide sidebar", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Show sidebar", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

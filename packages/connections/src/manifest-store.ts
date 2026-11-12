@@ -3,7 +3,12 @@ import type { LaunchManifest } from "./launch-manifest.js";
 
 /** The caller's intent transaction may include task/session writes on the same database. */
 export class LaunchManifestStore {
-  constructor(private readonly db: Database.Database) {}
+  constructor(
+    private readonly db: {
+      prepare(sql: string): Pick<Database.Statement, "get" | "all" | "run">;
+      transaction<T>(fn: () => T): { (): T; immediate(): T };
+    },
+  ) {}
   prepare(manifest: LaunchManifest, validate: () => void): LaunchManifest {
     return this.db
       .transaction(() => {

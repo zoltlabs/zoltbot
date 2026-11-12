@@ -7,11 +7,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./projections": "./src/projections.ts",
-    "./migrations/*": "./migrations/*"
+    "./migrations/*": "./migrations/*",
+    "./portable": "./src/portable.ts"
   },
   "dependencies": {
     "@zoltbot/core": "workspace:*",
     "@zoltbot/protocol": "workspace:*",
     "better-sqlite3": "12.6.2"
+  },
+  "scripts": {
+    "migrations:generate": "node scripts/generate-migrations.mjs"
   }
 }

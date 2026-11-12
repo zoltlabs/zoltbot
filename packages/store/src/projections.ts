@@ -1,5 +1,5 @@
 import type { DomainEvent } from "@zoltbot/protocol";
-import type Database from "better-sqlite3";
+import type { SqlDriver } from "./driver.js";
 
 export const tableMap: Record<string, string> = {
   view: "view_records",
@@ -26,7 +26,7 @@ export const tableMap: Record<string, string> = {
   thread: "threads",
   session: "sessions",
   turn: "turns",
-  item: "items",
+  item: "item_records",
   interaction: "interactions",
   rule: "approval_rules",
   message: "messages",
@@ -77,7 +77,24 @@ interface Column {
   notnull: number;
   dflt_value: unknown;
 }
-export function applyProjection(database: Database.Database, event: DomainEvent) {
+const columnCache = new WeakMap<SqlDriver, Map<string, Column[]>>();
+export function clearProjectionCache(database: SqlDriver) {
+  columnCache.delete(database);
+}
+function tableColumns(database: SqlDriver, table: string): Column[] {
+  let tables = columnCache.get(database);
+  if (!tables) {
+    tables = new Map();
+    columnCache.set(database, tables);
+  }
+  let columns = tables.get(table);
+  if (!columns) {
+    columns = database.prepare(`PRAGMA table_info("${table}")`).all() as Column[];
+    tables.set(table, columns);
+  }
+  return columns;
+}
+export function applyProjection(database: SqlDriver, event: DomainEvent) {
   const table = tableMap[event.aggregateType];
   if (!table) throw new Error(`Unknown projection aggregate: ${event.aggregateType}`);
   const body =
@@ -124,7 +141,22 @@ export function applyProjection(database: Database.Database, event: DomainEvent)
     row.body = body;
     row.created_by = "system";
   }
-  const columns = database.prepare(`PRAGMA table_info("${table}")`).all() as Column[];
+  if (event.aggregateType === "item") {
+    const previous = database
+      .prepare("SELECT rowid,id,thread_id,body FROM items WHERE id=?")
+      .get(event.aggregateId) as
+      | { rowid: number; id: string; thread_id: string; body: string }
+      | undefined;
+    if (previous)
+      database
+        .prepare(
+          "INSERT INTO items_fts(items_fts,rowid,id,thread_id,text) VALUES('delete',?,?,?,?)",
+        )
+        .run(previous.rowid, previous.id, previous.thread_id, previous.body);
+    row.body = {};
+    row.body_event_id = event.eventId;
+  }
+  const columns = tableColumns(database, table);
   for (const col of columns) {
     if (row[col.name] !== undefined) continue;
     if (col.name === "created_at" || col.name === "updated_at") row[col.name] = event.occurredAt;
@@ -142,9 +174,18 @@ export function applyProjection(database: Database.Database, event: DomainEvent)
     .run(...present.map((c) => sqlValue(row[c.name])));
   database
     .prepare(
-      "INSERT INTO projection_records(kind,id,body) VALUES(?,?,?) ON CONFLICT(kind,id) DO UPDATE SET body=excluded.body",
+      "INSERT INTO projection_rows(kind,id,body,body_event_id) VALUES(?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET body=excluded.body,body_event_id=excluded.body_event_id",
     )
-    .run(event.aggregateType, event.aggregateId, JSON.stringify(body));
+    .run(
+      event.aggregateType,
+      event.aggregateId,
+      JSON.stringify(
+        event.aggregateType === "item"
+          ? Object.fromEntries(Object.entries(body).filter(([key]) => key !== "body"))
+          : body,
+      ),
+      event.aggregateType === "item" ? event.eventId : null,
+    );
   if (event.aggregateType === "artifact") {
     database.prepare("DELETE FROM artifacts_fts WHERE id=?").run(event.aggregateId);
     const aux = database
@@ -163,10 +204,6 @@ export function applyProjection(database: Database.Database, event: DomainEvent)
       );
   }
   if (event.aggregateType === "item") {
-    // FTS rows share the item's rowid: items_fts.id is UNINDEXED, so deleting by id scans the table.
-    database
-      .prepare("DELETE FROM items_fts WHERE rowid=(SELECT rowid FROM items WHERE id=?)")
-      .run(event.aggregateId);
     database
       .prepare(
         "INSERT INTO items_fts(rowid,id,thread_id,text) SELECT rowid,id,?,? FROM items WHERE id=?",

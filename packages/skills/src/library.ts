@@ -31,7 +31,13 @@ export interface SkillSnapshot {
   skills: SkillSelection[];
 }
 export class SkillsLibrary {
-  constructor(readonly db: Database.Database) {}
+  constructor(
+    readonly db: {
+      close(): void;
+      prepare(sql: string): Pick<Database.Statement, "get" | "all" | "run">;
+      transaction<T>(fn: () => T): { (): T; immediate(): T };
+    },
+  ) {}
   list(): SkillEntry[] {
     return this.db
       .prepare("SELECT * FROM skill_library WHERE removed=0 ORDER BY name,id")

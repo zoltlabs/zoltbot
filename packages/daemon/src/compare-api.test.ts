@@ -291,7 +291,7 @@ it("creates one opt-in summary atomically with exact visible input and a permane
     const prompt = compareSummaryPrompt(f.store.snapshot(), "comparison"),
       params = { id: "comparison", profileId: "profile", expectedPrompt: prompt };
     f.store.database.exec(
-      "CREATE TRIGGER reject_summary BEFORE INSERT ON items WHEN NEW.kind='user' AND NEW.thread_id NOT IN ('one','two','thread') BEGIN SELECT RAISE(ABORT,'forced_summary_failure'); END",
+      "CREATE TRIGGER reject_summary BEFORE INSERT ON item_records WHEN NEW.kind='user' AND NEW.thread_id NOT IN ('one','two','thread') BEGIN SELECT RAISE(ABORT,'forced_summary_failure'); END",
     );
     const threads = f.store.snapshot().thread?.length;
     await expect(f.api("compare.differences", params, "summary")).rejects.toThrow(

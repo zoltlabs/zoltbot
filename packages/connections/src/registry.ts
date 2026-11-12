@@ -49,7 +49,12 @@ export function validateDescriptor(value: ConnectionDescriptor) {
 }
 /** Metadata only. Never accepts raw tokens or environment values. */
 export class ConnectionRegistry {
-  constructor(private readonly db: Database.Database) {}
+  constructor(
+    private readonly db: {
+      prepare(sql: string): Pick<Database.Statement, "get" | "all" | "run">;
+      transaction<T>(fn: () => T): { (): T; immediate(): T };
+    },
+  ) {}
   list(projectId?: string): ConnectionRecord[] {
     const rows = projectId
       ? this.db

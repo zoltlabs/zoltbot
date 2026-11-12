@@ -1,28 +1,14 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import type Database from "better-sqlite3";
+import type { SqlDriver } from "./driver.js";
+import { type Migration, migrateDriver, pendingMigrations } from "./migrate-driver.js";
 
-export interface Migration {
-  version: number;
-  sql: string;
-}
-export function bundledMigrations(): Migration[] {
-  const dir = new URL("../migrations/", import.meta.url);
-  return readdirSync(dir)
-    .filter((f) => /^\d+.*\.sql$/.test(f))
-    .sort()
-    .map((file) => ({
-      version: Number(file.slice(0, 3)),
-      sql: readFileSync(new URL(file, dir), "utf8"),
-    }));
-}
-export async function migrate(
-  database: Database.Database,
-  file: string,
-  additional: Migration[] = [],
-) {
+export { bundledMigrations, type Migration } from "./migrate-driver.js";
+
+export async function migrate(database: SqlDriver, file: string, additional: Migration[] = []) {
+  const pending = pendingMigrations(database, additional);
   const exists = database
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'")
+    .prepare("SELECT name FROM sqlite_master WHERE name='schema_migrations'")
     .get();
   const current = exists
     ? (
@@ -31,26 +17,6 @@ export async function migrate(
           .get() as { version: number }
       ).version
     : 0;
-  const migrations = [...bundledMigrations(), ...additional].sort((a, b) => a.version - b.version);
-  const versions = new Set<number>();
-  for (const m of migrations) {
-    if (versions.has(m.version)) throw new Error("migration_failed: duplicate version");
-    versions.add(m.version);
-  }
-  // The pre-launch chain was replaced, not upgraded. Never silently accept its version numbers.
-  if (
-    exists &&
-    !database.prepare("SELECT name FROM sqlite_master WHERE name='schema_baseline'").get()
-  )
-    throw new Error("migration_failed: prelaunch_database_reset_required");
-  const applied = exists
-    ? new Set(
-        (
-          database.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]
-        ).map((r) => r.version),
-      )
-    : new Set<number>();
-  const pending = migrations.filter((m) => !applied.has(m.version));
   if (!pending.length) return;
   let backup: string | undefined;
   if (current > 0) {
@@ -68,14 +34,7 @@ export async function migrate(
       rmSync(path.join(dir, old));
   }
   try {
-    database.transaction(() => {
-      for (const m of pending) {
-        database.exec(m.sql);
-        database
-          .prepare("INSERT OR REPLACE INTO schema_migrations(version,applied_at) VALUES(?,?)")
-          .run(m.version, new Date().toISOString());
-      }
-    })();
+    migrateDriver(database, additional);
   } catch (error) {
     database.close();
     if (backup && existsSync(backup)) {

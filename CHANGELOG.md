@@ -5,7 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
-<!-- Add concise New, Fix, or Improvement bullets here as changes land. -->
+- Improvement: Chat history uses less disk space by sharing message text across its search index and projections.
+- Fix: A full database reports a clear error and rolls back the command.
 
 ## v0.1.5: Organization plans, chat wakes and results
 
