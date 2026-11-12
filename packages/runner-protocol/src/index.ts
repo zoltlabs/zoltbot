@@ -1,16 +1,22 @@
 import { type Static, type TSchema, Type } from "@sinclair/typebox";
 import {
+  AgentDefinitionSchema,
   AgentEventSchema,
   At,
   CommandActorSchema,
   ConnectionSchema,
   ContextPackSchema,
   Id,
+  ItemSchema,
   object,
+  ProfileSchema,
+  ProjectSchema,
   parse,
   ResolutionSchema,
   ScopeSchema,
+  TaskSchema,
   Text,
+  ThreadSchema,
   UserInputSchema,
   values,
 } from "@zoltbot/protocol";
@@ -67,6 +73,7 @@ export const LaunchManifestSchema = object({
   }),
 });
 export const RunnerHelloSchema = object({
+  acceptTasks: Type.Optional(Type.Boolean()),
   kind: values(["mac", "sandbox"]),
   runnerId: Id,
   protocolVersion: Type.Literal(runnerProtocolVersion),
@@ -74,7 +81,17 @@ export const RunnerHelloSchema = object({
   clis: Type.Array(object({ id: Id, version: Text })),
   sleepKeepsProcesses: Type.Boolean(),
 });
+export const RunnerExecutionSchema = object({
+  project: ProjectSchema,
+  task: TaskSchema,
+  thread: ThreadSchema,
+  profile: ProfileSchema,
+  definition: AgentDefinitionSchema,
+  queuedItems: Type.Array(ItemSchema, { maxItems: 8 }),
+  previousNativeId: Type.Optional(Id),
+});
 export const RunnerLeaseSchema = object({
+  execution: Type.Optional(RunnerExecutionSchema),
   leaseId: Id,
   taskId: Id,
   brief: Text,
@@ -83,6 +100,9 @@ export const RunnerLeaseSchema = object({
   workspaceInstructions: Text,
 });
 export const RunnerEventSchema = object({
+  sessionId: Type.Optional(Id),
+  itemId: Type.Optional(Id),
+  turnId: Type.Optional(Id),
   taskId: Id,
   leaseId: Id,
   runnerSeq: seq,
@@ -180,6 +200,7 @@ export const RunnerMessageSchema = Type.Union([
   RunnerErrorSchema,
 ]);
 export type RunnerHello = Static<typeof RunnerHelloSchema>;
+export type RunnerExecution = Static<typeof RunnerExecutionSchema>;
 export type RunnerLease = Static<typeof RunnerLeaseSchema>;
 export type RunnerEvent = Static<typeof RunnerEventSchema>;
 export type RunnerCommand = Static<typeof RunnerCommandSchema>;

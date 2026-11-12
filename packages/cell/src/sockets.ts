@@ -2,10 +2,13 @@ import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
 import type { Store } from "@zoltbot/store/portable";
 
 export interface SocketAttachment {
+  connectionId: string;
   claims: CellTokenClaims;
   lastSeq: number;
   subscribed: boolean;
   runnerId?: string;
+  acceptTasks?: boolean;
+  clis?: string[];
 }
 export function attachment(socket: WebSocket): SocketAttachment {
   const value = socket.deserializeAttachment() as SocketAttachment | null;
@@ -25,6 +28,7 @@ export class CellSockets {
     const [client, server] = [pair[0], pair[1]];
     this.ctx.acceptWebSocket(server, [claims.kind === "client" ? "client" : "runner"]);
     server.serializeAttachment({
+      connectionId: crypto.randomUUID(),
       claims,
       lastSeq,
       subscribed: claims.kind === "client",

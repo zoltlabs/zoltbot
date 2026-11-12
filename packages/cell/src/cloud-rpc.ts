@@ -49,6 +49,11 @@ const publicErrors = new Set([
   "store_rebuilding",
   "method_unavailable",
   "forbidden",
+  "storage_full",
+  "runner_sequence_gap",
+  "runner_session_required",
+  "runtime_native_identity_changed",
+  "task_not_running",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -251,13 +256,13 @@ export class CloudRpc {
         result = { seq: this.store.lastSeq(), entities, counters: {} };
         break;
       }
-      case "events.subscribe":
-        result = {
-          seq: this.store.lastSeq(),
-          resync: false,
-          events: this.store.eventsSince(Number(p.fromSeq ?? 0), 1),
-        };
+      case "events.subscribe": {
+        const seq = this.store.lastSeq();
+        const from = p.fromSeq;
+        const resync = typeof from !== "number" || from > seq || seq - from > 1000;
+        result = { seq, resync, events: resync ? [] : this.store.eventsSince(from as number, 1) };
         break;
+      }
       case "events.unsubscribe":
         result = { ok: true };
         break;

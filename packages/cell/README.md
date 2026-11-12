@@ -37,8 +37,8 @@ Cloud project creation/listing, task creation/update/cancel/retry/review, thread
 metadata/history, interaction answers and usage requests now use scoped core
 handlers. Snapshot responses contain metadata; transcript history is paged by
 thread. Unsupported methods return `method_unavailable`. W4 is still incomplete:
-the runner wire handler, task scheduler and orchestrator lifecycle are not wired.
-The lease store below is tested independently until that wiring lands.
+sandbox creation and lifecycle orchestration are not wired. Runner delivery and
+connected Mac task scheduling are implemented below.
 
 ## Test runtime
 
@@ -90,4 +90,40 @@ another runner to take the task. One wake operation is persisted before network
 I/O. Failed requests retry the same operation ID. A matching heartbeat clears the
 wake marker; a successful old wake response cannot overwrite a newer heartbeat.
 The real runtime tests exercise rollback, duplicate receipts, eviction, heartbeat
-recovery and refusal of a second writer. Runner delivery is the next W4 step.
+recovery and refusal of a second writer. Runner delivery is covered by the socket tests described below.
+
+## Runner delivery
+
+Runner sockets authenticate before `runner.hello`; the hello binds their device
+ID and the two supported CLIs. A Mac accepts no new tasks until `acceptTasks` is
+true. Drain stops new assignments while retaining existing leases. A sandbox
+receives only the task in its token. A replacement connection closes the old
+socket for that device; it does not transfer the lease to a different runner.
+
+The cell sends the saved acknowledgement cursor before each lease. It starts a
+queued task through the shared core handler in the same transaction that assigns
+its lease. Each task revision saves its selected project/profile/definition and
+brief, so reconnect does not silently change launch configuration. The launch
+manifest uses a relative `cwd` (`.`); the runner resolves it inside its managed
+checkout. Only queued input items and the latest native continuation ID accompany
+the frozen configuration. Neither full transcripts nor credentials enter leases.
+
+Runner observations include session, item and turn identities from the normalized
+runtime. The cell fences the task/runner/lease, requires contiguous sequence
+numbers and dispatches `runner:<taskId>:<runnerSeq>`. Its receipt and runner cursor
+commit together. Duplicate delivery returns the saved acknowledgement. Projection
+uses the shared runtime, input, interaction, usage and task-result handlers.
+A new session for a previously opened native conversation must confirm the same
+native ID. A runner cannot replace an item of another kind, including human input.
+A duplicate old turn completion cannot finish a newer task revision.
+
+The runner transport permits two MiB per message, covering the adapters' one-MiB
+native frame limit plus normalized context. Client requests retain their 64-KiB
+bound. Hibernation attachments retain connection IDs so a stale handler cannot
+overwrite the identity or replay cursor set by another handler. Close codes reserved
+for local diagnostics are normalized before sending a close frame.
+
+The workerd tests drive the actual runner WebSocket through hello, lease, event,
+acknowledgement and a mid-turn eviction. They also cover Mac opt-in, tasks created
+after connection, drain and refusal to write another runner's task. Sandbox
+orchestration and runner command delivery remain W4 work.

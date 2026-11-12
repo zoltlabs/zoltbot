@@ -5,6 +5,7 @@ import { migrateDriver, Store } from "@zoltbot/store/portable";
 import { interactionAlarms, rebuildAlarm } from "./alarm-work.js";
 import { boundedJson } from "./auth.js";
 import { CloudRpc, safeError } from "./cloud-rpc.js";
+import { CellRunners } from "./runners.js";
 import { seedCell } from "./seed.js";
 import { CellService } from "./service.js";
 import { attachment, CellSockets } from "./sockets.js";
@@ -98,6 +99,13 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
   }
   private async broadcast(store: Store) {
     const sockets = new CellSockets(this.ctx);
+    for (const runner of this.ctx.getWebSockets("runner")) {
+      try {
+        await new CellRunners(this.ctx, store).offer(runner);
+      } catch {
+        await this.schedule();
+      }
+    }
     for (const socket of this.ctx.getWebSockets("client")) {
       try {
         const data = attachment(socket);
@@ -112,26 +120,47 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     }
   }
   override async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
+    let responseId: string | number | null = null;
     try {
+      const data = attachment(socket);
+      const maximum = data.claims.kind === "client" ? 65536 : 2097152;
       if (
         typeof message !== "string" ||
-        message.length > 65536 ||
-        new TextEncoder().encode(message).byteLength > 65536
+        message.length > maximum ||
+        new TextEncoder().encode(message).byteLength > maximum
       )
         throw new Error("forbidden");
-      const data = attachment(socket);
       const store = await this.open(data.claims);
       if (!this.service) throw new Error("unauthorized");
       const input: unknown = JSON.parse(message);
-      const response = await new CloudRpc(store, data.claims, this.service).call(input);
-      if (input && typeof input === "object" && "method" in input) {
-        if (input.method === "events.unsubscribe") data.subscribed = false;
-        if (input.method === "events.subscribe") {
+      if (
+        input &&
+        typeof input === "object" &&
+        "id" in input &&
+        (typeof input.id === "string" || typeof input.id === "number")
+      )
+        responseId = input.id;
+      const response =
+        data.claims.kind === "client"
+          ? await new CloudRpc(store, data.claims, this.service).call(input)
+          : await new CellRunners(this.ctx, store).message(socket, input);
+      if (
+        data.claims.kind === "client" &&
+        input &&
+        typeof input === "object" &&
+        "method" in input &&
+        ["events.subscribe", "events.unsubscribe"].includes(String(input.method))
+      ) {
+        const subscription = attachment(socket);
+        subscription.subscribed = input.method === "events.subscribe";
+        if (subscription.subscribed) {
           const params = "params" in input ? (input.params as { fromSeq?: number }) : {};
-          data.lastSeq = params.fromSeq ?? 0;
-          data.subscribed = true;
+          const from = params.fromSeq ?? store.lastSeq();
+          subscription.lastSeq = Math.min(from, store.lastSeq());
+          if ("result" in response && (response.result as { resync?: boolean }).resync)
+            subscription.lastSeq = store.lastSeq();
         }
-        socket.serializeAttachment(data);
+        socket.serializeAttachment(subscription);
       }
       socket.send(JSON.stringify(response));
       await this.broadcast(store);
@@ -141,27 +170,20 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         socket.close(1008, "unauthorized");
         return;
       }
-      const input =
-        typeof message === "string" && message.length <= 65536
-          ? (() => {
-              try {
-                return JSON.parse(message);
-              } catch {
-                return null;
-              }
-            })()
-          : null;
       socket.send(
         JSON.stringify({
           jsonrpc: "2.0",
-          id: input?.id ?? null,
+          id: responseId,
           error: { code: -32000, message: safeError(error) },
         }),
       );
     }
   }
   override async webSocketClose(socket: WebSocket, code: number) {
-    socket.close(code);
+    const valid =
+      [1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014].includes(code) ||
+      (code >= 3000 && code <= 4999);
+    socket.close(valid ? code : 1000);
   }
   override async webSocketError(socket: WebSocket) {
     socket.close(1011, "reconnect");

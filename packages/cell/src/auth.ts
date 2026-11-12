@@ -155,7 +155,13 @@ export class CellTokenVerifier {
           claims.task !== undefined)
       )
         throw new Error("unauthorized");
-      if (claims.kind === "sandbox_runner" && (claims.surface !== "runner" || !claims.task))
+      if (
+        claims.kind === "sandbox_runner" &&
+        (claims.surface !== "runner" ||
+          !claims.task ||
+          claims.grant !== undefined ||
+          claims.session !== undefined)
+      )
         throw new Error("unauthorized");
       const signature = decodeBase64url(signatureText);
       if (signature.byteLength !== 64) throw new Error("unauthorized");

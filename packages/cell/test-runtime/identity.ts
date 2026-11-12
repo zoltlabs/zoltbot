@@ -9,7 +9,7 @@ export async function signer() {
   const kid = crypto.randomUUID();
   return {
     jwk: { kty: "EC", crv: "P-256", alg: "ES256", use: "sig", kid, x: exported.x, y: exported.y },
-    async token(org: string) {
+    async token(org: string, changes: Record<string, unknown> = {}) {
       const seconds = Math.floor(Date.now() / 1000);
       const input = [
         { alg: "ES256", typ: "JWT", kid },
@@ -25,6 +25,7 @@ export async function signer() {
           iat: seconds,
           exp: seconds + 600,
           jti: crypto.randomUUID(),
+          ...changes,
         },
       ]
         .map((value) => base64url(new TextEncoder().encode(JSON.stringify(value))))

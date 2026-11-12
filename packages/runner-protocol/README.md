@@ -14,3 +14,14 @@ Mac execution requests cap timeout at one hour and stdin at 64 KiB of text. Resu
 cap stdout and stderr schema lengths; execution code must enforce the stricter UTF-8
 byte limits. A request is not permission to execute: the Mac must verify the signed
 device approval before it runs anything.
+
+Runner leases can include the bounded execution metadata needed to seed a remote
+runner's separate cache. `queuedItems` holds at most eight input items per lease;
+transcript history is excluded. The cell saves selected configuration per task
+revision, while queued inputs and native continuation evidence reflect current
+state. Relative launch paths resolve in the managed checkout.
+
+Runner events carry normalized session/item/turn context. These fields remain
+optional in the general wire schema for compatibility, but the hosted cell requires
+`sessionId`. Mac hello messages default to declining new tasks; `acceptTasks: true`
+opts in, and drain stops new assignments.
