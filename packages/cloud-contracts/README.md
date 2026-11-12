@@ -45,3 +45,8 @@ refresh capability belongs in the authorization header, and provider/vault keys
 never enter this request. The worker validates the returned token's injected scope;
 the Cell still verifies its signature and current resource authorization. The
 private hosted refresh route is not implemented by these wire types.
+
+The device-list wrapper contains only registered public-key metadata. Mac command
+approval verification reads it through the Mac's own account session, checks the
+member and revocation state, and pins the key identity. A Cell-supplied key or a
+wire schema match cannot authorize execution.

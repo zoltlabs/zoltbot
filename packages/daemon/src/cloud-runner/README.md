@@ -319,5 +319,32 @@ releasing the journal.
 Sixteen synthetic process-port tests cover these checks, forged Cell approvals,
 Off, revoked keys, changed fields, uncertain results, concurrent delivery and
 shutdown. No shell or desktop application is launched by those tests. Prefix
-rules currently require a fresh command approval. Real shell execution, account
-client wiring, Cell routing and tools remain unfinished; W7 is not signed off.
+rules currently require a fresh command approval. Cell routing, streaming delivery,
+prefix policy and tools remain unfinished; W7 is not signed off.
+
+`startMacRunner` constructs that gate and the process host itself when explicitly
+enabled. It accepts local mode/folder/environment ports, never a raw Cell-approved
+shell callback. Registered public keys come from `runnerAccount.deviceKeys`, over
+the Mac's own current account session and configured HTTPS origin. The known
+device-list HTTP route is allowed as a URL value by the public boundary scanner;
+using it as an import remains forbidden. Explicit access revocation closes the
+connection, task hosts, bridge journal and credential references.
+
+The process host runs `zsh -lc` with an explicitly supplied HOME and environment.
+Its output journal is separate from project folders. Chunks are fsynced before
+delivery; output survives an unavailable delivery port. The agent receives the
+last 256 KiB of stdout and 64 KiB of stderr, preserving UTF-8 boundaries. Full text
+stays in the private local chunk log. Stdin is capped at 64 KiB of UTF-8, timeout
+at one hour, with ten minutes supplied by the approval gate. Timeout kills the
+owned process group and returns 124 with partial output. Cancellation and parent
+death also stop that group. Existing output IDs cannot start another process.
+
+Headless process tests supply a disposable HOME and ZDOTDIR and no owner profile.
+They cover uname, failure, timeout, Unicode bounds, complete local output, stream
+failure, cancellation, duplicate IDs and parent-crash cleanup while an unrelated
+sentinel remains alive. A localhost fake-Cell test exercises the real runner,
+account-registry port, signatures and shell: forged approval starts nothing,
+signed uname succeeds, replay does not repeat its temporary marker write, Cell
+loss leaves the command alive and its result replays once, and Off refuses work.
+It opens no desktop window or keychain and starts no native agent. This is still
+package evidence; the W8 whole-flow harness and live outcome remain open.

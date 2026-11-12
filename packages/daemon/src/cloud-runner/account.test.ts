@@ -54,6 +54,27 @@ it("uses the native account bearer only for the configured service and converts 
   expect(JSON.parse(String(request?.body))).toEqual({ orgId: "org", deviceId });
   expect(JSON.stringify(result).includes(f.accessToken)).toBe(false);
 });
+it("reads registered public device keys only through its own bounded account request", async () => {
+  const f = fixture(),
+    devices = [
+      {
+        userId: "member",
+        deviceId,
+        publicKey: randomBytes(32).toString("base64url"),
+        registeredAt: new Date().toISOString(),
+      },
+    ];
+  f.response({ devices });
+  expect(await f.client.deviceKeys(signal())).toEqual(devices);
+  expect(f.requests[0]?.url).toBe("https://accounts.example.invalid/api/cloud/devices");
+  expect(f.requests[0]?.input?.method).toBe("GET");
+  expect(f.requests[0]?.input?.body).toBeUndefined();
+  expect(JSON.stringify(devices).includes(f.accessToken)).toBe(false);
+  f.response({ devices, unexpected: true });
+  await expect(f.client.deviceKeys(signal())).rejects.toThrow(/^runner_account_unavailable$/);
+  f.response({ error: "revoked" }, 403);
+  await expect(f.client.deviceKeys(signal())).rejects.toThrow(/^runner_access_revoked$/);
+});
 it("sets only explicitly supplied task and bridge capabilities and verifies the returned grant", async () => {
   const f = fixture(),
     grant = {

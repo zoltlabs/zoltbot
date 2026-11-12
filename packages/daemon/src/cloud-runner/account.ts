@@ -1,5 +1,6 @@
 import {
   CellTokenResultSchema,
+  CloudDeviceListSchema,
   CloudRunnerGrantInputSchema,
   CloudRunnerGrantResultSchema,
 } from "@zoltbot/cloud-contracts";
@@ -42,7 +43,7 @@ export function runnerAccount(options: RunnerAccountOptions) {
   const { orgId, deviceId } = options;
   if (!orgId || orgId.length > 200 || !/^[A-Za-z0-9_-]{22}$/.test(deviceId))
     throw new Error("runner_account_unavailable");
-  const request = async (route: string, input: unknown, signal: AbortSignal) => {
+  const request = async (route: string, input: unknown, signal: AbortSignal, method?: "GET") => {
     try {
       const timeout = AbortSignal.timeout(10000),
         combined = AbortSignal.any([signal, timeout]);
@@ -63,9 +64,9 @@ export function runnerAccount(options: RunnerAccountOptions) {
       if (!token || token.length > 8192 || /[\0\r\n]/.test(token) || combined.aborted)
         throw new Error();
       const response = await fetcher(new URL(route, base), {
-        method: route.endsWith("runner-token") ? "POST" : "PUT",
+        method: method ?? (route.endsWith("runner-token") ? "POST" : "PUT"),
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify(input),
+        ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
         redirect: "error",
         signal: combined,
       });
@@ -103,6 +104,17 @@ export function runnerAccount(options: RunnerAccountOptions) {
     }
   };
   return {
+    async deviceKeys(signal: AbortSignal) {
+      try {
+        return parse(
+          CloudDeviceListSchema,
+          await request("/api/cloud/devices", undefined, signal, "GET"),
+        ).devices;
+      } catch (error) {
+        if (error instanceof RunnerAccessRevokedError) throw error;
+        throw new Error("runner_account_unavailable");
+      }
+    },
     async setGrant(
       capabilities: { canRunTasks: boolean; canMacExec: boolean },
       signal: AbortSignal,

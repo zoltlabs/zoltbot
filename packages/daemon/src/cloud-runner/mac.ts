@@ -1,7 +1,10 @@
 import path from "node:path";
-import type { RunnerHello } from "@zoltbot/runner-protocol";
+import { parse } from "@zoltbot/protocol";
+import { type RunnerHello, RunnerHelloSchema } from "@zoltbot/runner-protocol";
 import { type RunnerAccountOptions, runnerAccount } from "./account.js";
-import { RunnerConnection, type RunnerConnectionOptions } from "./connection.js";
+import { RunnerConnection } from "./connection.js";
+import { MacExecutionHost, type MacExecutionOptions } from "./mac-exec.js";
+import { type MacProcessOptions, macCommandProcess } from "./mac-exec-process.js";
 import { type NativeCloudTasksOptions, nativeCloudTasks } from "./native.js";
 import { ManagedWorkspaces } from "./workspaces.js";
 
@@ -14,8 +17,12 @@ export interface MacRunnerOptions
   versions: RunnerHello["versions"];
   clis: RunnerHello["clis"];
   githubToken?(signal: AbortSignal): Promise<string | undefined>;
-  /** W7's verified execution host, never a raw Cell-approved shell callback. */
-  macExec?: RunnerConnectionOptions["macExec"];
+  /** Local settings/folder ports only; this host always constructs its own approval gate. */
+  macExecution?: Omit<
+    MacExecutionOptions,
+    "directory" | "orgId" | "userId" | "deviceId" | "deviceKeys" | "execute"
+  > &
+    Pick<MacProcessOptions, "environment" | "shell" | "chunk">;
   localRepository?(repository: string): string;
 }
 
@@ -23,15 +30,25 @@ export interface MacRunnerOptions
 export function startMacRunner(options: MacRunnerOptions) {
   const capabilities = structuredClone(options.capabilities),
     privateValues = new Set<string>();
+  let closed = false;
   if (
     (!capabilities.canRunTasks && !capabilities.canMacExec) ||
-    (capabilities.canMacExec && !options.macExec) ||
+    (capabilities.canMacExec && !options.macExecution) ||
     typeof capabilities.canRunTasks !== "boolean" ||
     typeof capabilities.canMacExec !== "boolean"
   )
     throw new Error("runner_opt_in_required");
+  const hello = parse(RunnerHelloSchema, {
+    kind: "mac",
+    runnerId: options.account.deviceId,
+    protocolVersion: 1,
+    acceptTasks: capabilities.canRunTasks,
+    sleepKeepsProcesses: true,
+    versions: structuredClone(options.versions),
+    clis: structuredClone(options.clis),
+  });
   const remember = (value: string | undefined) => {
-    if (value) privateValues.add(value);
+    if (value && !closed) privateValues.add(value);
     return value;
   };
   const guard = (value: unknown) => {
@@ -44,6 +61,28 @@ export function startMacRunner(options: MacRunnerOptions) {
     ...options.account,
     accessToken: async (signal) => remember(await options.account.accessToken(signal)) as string,
   });
+  const bridgeOptions = options.macExecution;
+  const bridge =
+    capabilities.canMacExec && bridgeOptions
+      ? new MacExecutionHost({
+          directory: path.join(options.directory, "mac-exec"),
+          orgId: options.account.orgId,
+          userId: options.memberId,
+          deviceId: options.account.deviceId,
+          mac: bridgeOptions.mac,
+          mode: bridgeOptions.mode,
+          task: bridgeOptions.task,
+          deviceKeys: (signal) => account.deviceKeys(signal),
+          ...(bridgeOptions.now ? { now: bridgeOptions.now } : {}),
+          execute: macCommandProcess({
+            directory: path.join(options.directory, "mac-output"),
+            mac: bridgeOptions.mac,
+            environment: bridgeOptions.environment,
+            ...(bridgeOptions.shell ? { shell: bridgeOptions.shell } : {}),
+            ...(bridgeOptions.chunk ? { chunk: bridgeOptions.chunk } : {}),
+          }),
+        })
+      : undefined;
   const native = nativeCloudTasks({
     orgId: options.account.orgId,
     memberId: options.memberId,
@@ -72,39 +111,46 @@ export function startMacRunner(options: MacRunnerOptions) {
     orgId: options.account.orgId,
     outboxDirectory: path.join(options.directory, "outbox"),
     guard,
-    hello: {
-      kind: "mac",
-      runnerId: options.account.deviceId,
-      protocolVersion: 1,
-      acceptTasks: capabilities.canRunTasks,
-      sleepKeepsProcesses: true,
-      versions: structuredClone(options.versions),
-      clis: structuredClone(options.clis),
-    },
+    hello,
     async credentials(signal) {
       const credentials = await account.credentials(signal);
       remember(credentials.token);
       return credentials;
     },
     task: native.task,
-    ...(capabilities.canMacExec && options.macExec ? { macExec: options.macExec } : {}),
+    ...(bridge ? { macExec: (request, signal) => bridge.request(request, signal) } : {}),
     ...(options.account.allowLoopback ? { allowLoopback: true } : {}),
-    ...(options.status ? { status: options.status } : {}),
+    status(code) {
+      try {
+        options.status?.(code);
+      } catch {}
+      if (code === "runner_access_revoked")
+        void close().catch(() => {
+          try {
+            options.status?.("runner_cleanup_required");
+          } catch {}
+        });
+    },
   });
-  connection.start();
   let closing: Promise<void> | undefined;
   const close = () =>
     (closing ??= (async () => {
+      closed = true;
       try {
         await connection.close();
       } finally {
         try {
           await native.close();
         } finally {
-          privateValues.clear();
+          try {
+            await bridge?.close();
+          } finally {
+            privateValues.clear();
+          }
         }
       }
     })());
+  connection.start();
   return {
     close,
     async disable(signal: AbortSignal) {

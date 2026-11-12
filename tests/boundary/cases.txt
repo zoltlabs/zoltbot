@@ -1,4 +1,6 @@
 [
+  { "value": "/api/cloud/devices", "module": false, "allowed": true },
+  { "value": "/api/cloud/devices", "module": true, "allowed": false },
   {
     "value": "/api/cloud/runner-token",
     "module": false,

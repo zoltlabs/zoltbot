@@ -93,19 +93,24 @@ it("uses an explicitly enrolled grant, connects with a short-lived token and wit
       nativeCalls++;
       throw new Error("fixture_native_unexpected");
     },
-    async macExec() {
-      bridgeCalls++;
-      return { error: "approval_required" };
+    macExecution: {
+      mac: "Test Mac",
+      environment: { HOME: root, ZDOTDIR: root, PATH: "/usr/bin:/bin" },
+      mode: () => "ask",
+      async task() {
+        bridgeCalls++;
+        return { active: true, folder: root };
+      },
     },
   };
   await runnerAccount(options.account).setGrant(options.capabilities, new AbortController().signal);
   const runner = startMacRunner(options);
   try {
     await expect
-      .poll(() => messages.some((message) => message.id === "bridge" && message.result))
+      .poll(() => messages.some((message) => message.id === "bridge" && message.error))
       .toBe(true);
     expect(authenticated).toBe(true);
-    expect(bridgeCalls).toBe(1);
+    expect(bridgeCalls).toBe(0);
     expect(nativeCalls).toBe(0);
     expect(messages.find((message) => message.method === "runner.hello")?.params).toMatchObject({
       kind: "mac",
@@ -119,7 +124,7 @@ it("uses an explicitly enrolled grant, connects with a short-lived token and wit
       .poll(() => requests.filter((url) => url.endsWith("runner-token")).length, { timeout: 5000 })
       .toBe(2);
     expect(grants).toHaveLength(1);
-    expect(bridgeCalls).toBe(1);
+    expect(bridgeCalls).toBe(0);
     await runner.disable(new AbortController().signal);
     expect(grants.at(-1)).toEqual({ deviceId, canRunTasks: false, canMacExec: false });
     expect(requests).toHaveLength(4);

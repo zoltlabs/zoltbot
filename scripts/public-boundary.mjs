@@ -7,6 +7,7 @@ const forbidden =
   /(?:^|\/)(?:cloud|zoltbot\.ai)(?:\/|$)|(?:^|\/)services(?:\/(?!relay(?:\/|$))|$)|(?:^|\/)spikes\/do-cell(?:\/|$)/;
 // Public clients call these account endpoints; they are not filesystem dependencies.
 const publicAccountRoutes = new Set([
+  "/api/cloud/devices",
   "/api/cloud/runner-grants",
   "/api/cloud/runner-token",
   "/api/cloud/worker-token",

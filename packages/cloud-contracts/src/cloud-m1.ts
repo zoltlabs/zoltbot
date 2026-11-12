@@ -53,6 +53,7 @@ export const CloudDeviceSchema = object({
   registeredAt: At,
   revokedAt: Type.Optional(At),
 });
+export const CloudDeviceListSchema = object({ devices: Type.Array(CloudDeviceSchema) });
 export const CloudSecretNameSchema = values(["anthropic", "openai", "github"]);
 export const CloudSecretWriteSchema = object({
   value: Type.String({ minLength: 1, maxLength: 65536 }),
