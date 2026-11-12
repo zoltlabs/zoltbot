@@ -5,6 +5,7 @@ import { childSummary, type TranscriptRow } from "../data/view";
 import { mono, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Button, Txt } from "./kit";
+import { Markdown } from "./Markdown";
 
 function ToolRow({ row }: { row: TranscriptRow }) {
   const { c } = useTheme();
@@ -21,7 +22,7 @@ function ToolRow({ row }: { row: TranscriptRow }) {
         stroke={2.4}
         color={row.status === "running" ? c["accent-text"] : row.status === "ok" ? c.ok : c.danger}
       />
-      <Txt v="meta" tone="secondary" lines={1} style={[styles.toolText, { fontFamily: mono }]}>
+      <Txt v="meta" tone="secondary" style={[styles.toolText, { fontFamily: mono }]}>
         {row.text}
       </Txt>
       {row.added !== undefined ? (
@@ -281,17 +282,22 @@ export function Message({
         ) : null}
       </View>
     );
-  const prose = (
-    <Txt
-      v={compact ? "meta" : "body"}
-      tone={row.kind === "thought" || compact ? "muted" : "text"}
-      lines={compact ? 4 : undefined}
-      style={compact ? undefined : styles.prose}
-    >
-      {row.kind === "thought" ? `Thinking: ${row.text}` : row.text}
-      {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}
-    </Txt>
-  );
+  const prose =
+    row.kind === "message" && !compact ? (
+      <View style={{ gap: 4 }}>
+        <Markdown value={row.text} />
+        {row.streaming ? <Txt tone="secondary">▍</Txt> : null}
+      </View>
+    ) : (
+      <Txt
+        v={compact ? "meta" : "body"}
+        tone={row.kind === "thought" || compact ? "muted" : "text"}
+        style={compact ? undefined : styles.prose}
+      >
+        {row.kind === "thought" ? `Thinking: ${row.text}` : row.text}
+        {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}
+      </Txt>
+    );
   if (!onForward || row.kind !== "message" || row.streaming || compact) return prose;
   return (
     <Pressable
@@ -337,7 +343,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minHeight: 32,
+    minHeight: 44,
     paddingHorizontal: 8,
   },
   children: { marginLeft: 14, paddingLeft: 10, borderLeftWidth: 2, gap: 8 },

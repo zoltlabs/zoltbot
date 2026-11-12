@@ -48,6 +48,7 @@ export function Txt({
   style?: StyleProp<TextStyle>;
   children: ReactNode;
   lines?: number;
+  selectable?: boolean;
   accessibilityRole?: "header" | "text";
 }) {
   const { c } = useTheme();

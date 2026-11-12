@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { type Inline, parseMarkdown } from "../data/markdown";
 import { mono, useTheme } from "../theme";
 import { Txt } from "./kit";
@@ -12,7 +12,16 @@ function Spans({ parts }: { parts: Inline[] }) {
           // Inline parts have no identity beyond their position in the line.
           // biome-ignore lint/suspicious/noArrayIndexKey: static parse output
           key={index}
+          accessibilityRole={part.href ? "link" : undefined}
+          onPress={
+            part.href
+              ? () => {
+                  void Linking.openURL(part.href ?? "").catch(() => undefined);
+                }
+              : undefined
+          }
           style={[
+            part.href && { color: c["accent-text"], textDecorationLine: "underline" },
             part.bold && styles.bold,
             part.italic && styles.italic,
             part.code && { fontFamily: mono, fontSize: 13, backgroundColor: c["bg-sunken"] },
@@ -25,7 +34,7 @@ function Spans({ parts }: { parts: Inline[] }) {
   );
 }
 
-/** Plans and request context as native text: headings, lists, checklists, quotes, code. */
+/** Assistant replies and request context as native text, with accessible links. */
 export function Markdown({ value }: { value: string }) {
   const { c } = useTheme();
   const blocks = parseMarkdown(value);
@@ -36,6 +45,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "heading")
           return (
             <Txt
+              selectable
               key={key}
               v={block.level <= 2 ? "cardTitle" : "section"}
               accessibilityRole="header"
@@ -50,7 +60,11 @@ export function Markdown({ value }: { value: string }) {
               <Txt tone={block.checked ? "ok" : "muted"} style={styles.marker}>
                 {block.checked === undefined ? block.marker : block.checked ? "☑" : "☐"}
               </Txt>
-              <Txt style={[styles.flex, block.checked && { color: c["text-muted"] }]} tone="text">
+              <Txt
+                selectable
+                style={[styles.flex, block.checked && { color: c["text-muted"] }]}
+                tone="text"
+              >
                 <Spans parts={block.text} />
               </Txt>
             </View>
@@ -58,7 +72,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "quote")
           return (
             <View key={key} style={[styles.quote, { borderLeftColor: c["border-strong"] }]}>
-              <Txt tone="secondary">
+              <Txt selectable tone="secondary">
                 <Spans parts={block.text} />
               </Txt>
             </View>
@@ -79,7 +93,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "rule")
           return <View key={key} style={[styles.rule, { backgroundColor: c.border }]} />;
         return (
-          <Txt key={key} style={styles.paragraph}>
+          <Txt selectable key={key} style={styles.paragraph}>
             <Spans parts={block.text} />
           </Txt>
         );

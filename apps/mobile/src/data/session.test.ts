@@ -248,7 +248,12 @@ describe("markdown", () => {
     expect(blocks[4]).toMatchObject({ checked: false });
     expect(blocks[5]).toEqual({ type: "code", text: "const a = 1;" });
     expect(blocks[8]).toMatchObject({
-      text: [{ text: "Plain " }, { text: "text", italic: true }, { text: " " }, { text: "link" }],
+      text: [
+        { text: "Plain " },
+        { text: "text", italic: true },
+        { text: " " },
+        { text: "link", href: "http://x" },
+      ],
     });
   });
 });

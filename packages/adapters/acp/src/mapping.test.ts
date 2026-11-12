@@ -203,3 +203,41 @@ it("resolves normalized one-time choices by native kind even when an indefinite 
     ),
   ).toEqual({ outcome: "selected", optionId: "opaque-once" });
 });
+
+it("separates ACP commentary from the answer when providers omit message ids", () => {
+  const mapper = new AcpMapper("turn");
+  const chunk = (text: string) =>
+    mapper.update({ sessionUpdate: "agent_message_chunk", content: { type: "text", text } });
+  const before = chunk("I'll check.");
+  mapper.update({
+    sessionUpdate: "tool_call",
+    toolCallId: "search",
+    title: "Search",
+    kind: "search",
+  });
+  const after = chunk("The answer ");
+  const continuation = chunk("is here.");
+  expect(before[0]).toMatchObject({ itemId: "turn:message:default" });
+  expect(after[0]).toMatchObject({ itemId: "turn:message:default:1" });
+  expect(continuation[0]).toMatchObject({ itemId: "turn:message:default:1" });
+  const events = mapper.finish("end_turn");
+  expect(events.filter((event) => event.t === "message.done")).toMatchObject([
+    { itemId: "turn:message:default", text: "I'll check.", phase: "commentary" },
+    { itemId: "turn:message:default:1", text: "The answer is here.", phase: "final" },
+  ]);
+  for (const event of events) expect(parse(AgentEventSchema, event)).toEqual(event);
+});
+
+it("preserves explicit ACP message identities around tool calls", () => {
+  const mapper = new AcpMapper("turn");
+  const update = {
+    sessionUpdate: "agent_message_chunk" as const,
+    messageId: "provider-message",
+    content: { type: "text" as const, text: "Hello" },
+  };
+  const first = mapper.update(update);
+  mapper.update({ sessionUpdate: "tool_call", toolCallId: "read", title: "Read" });
+  expect(mapper.update(update)[0]).toMatchObject({
+    itemId: first[0]?.t === "text.delta" ? first[0].itemId : "missing",
+  });
+});

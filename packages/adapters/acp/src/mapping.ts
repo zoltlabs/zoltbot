@@ -13,6 +13,8 @@ export class AcpMapper {
     this.denied.add(id);
   }
   private messages = new Map<string, { text: string; thought: boolean }>();
+  private messageSegment = 0;
+  private afterTool = false;
   context: { used: number; size: number } | undefined;
   constructor(
     readonly turnId: string,
@@ -25,7 +27,13 @@ export class AcpMapper {
       case "agent_thought_chunk": {
         if (update.content.type !== "text") return [];
         const thought = update.sessionUpdate === "agent_thought_chunk";
-        const itemId = `${turnId}:${thought ? "thought" : "message"}:${update.messageId ?? "default"}`;
+        if (!thought && !update.messageId && this.afterTool) {
+          this.messageSegment++;
+          this.afterTool = false;
+        }
+        const fallback =
+          !thought && this.messageSegment ? `default:${this.messageSegment}` : "default";
+        const itemId = `${turnId}:${thought ? "thought" : "message"}:${update.messageId ?? fallback}`;
         const previous = this.messages.get(itemId);
         this.messages.set(itemId, { text: (previous?.text ?? "") + update.content.text, thought });
         return [
@@ -38,6 +46,7 @@ export class AcpMapper {
         ];
       }
       case "tool_call":
+        this.afterTool = true;
         return [
           {
             t: "tool.started",
@@ -149,11 +158,18 @@ export class AcpMapper {
   }
   finish(stopReason: string): AgentEvent[] {
     const events: AgentEvent[] = [];
+    const finalMessageId = [...this.messages].findLast(([, message]) => !message.thought)?.[0];
     for (const [itemId, message] of this.messages) {
       events.push(
         message.thought
           ? { t: "thought.done", turnId: this.turnId, itemId, text: message.text }
-          : { t: "message.done", turnId: this.turnId, itemId, text: message.text, phase: "final" },
+          : {
+              t: "message.done",
+              turnId: this.turnId,
+              itemId,
+              text: message.text,
+              phase: itemId === finalMessageId ? "final" : "commentary",
+            },
       );
     }
     this.messages.clear();

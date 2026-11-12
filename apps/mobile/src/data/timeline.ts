@@ -54,7 +54,9 @@ export function toolTitle(item: Row): string {
   const value = body(item);
   const input = (value.input ?? {}) as Row;
   const running = value.status === "running";
-  const target = text(value.title) || text(input.command) || text(input.path);
+  const useful = (label: string) => (/^(interaction|tool)$/i.test(label.trim()) ? "" : label);
+  const title = useful(text(value.title));
+  const target = title || text(input.command) || text(input.path);
   const verb: Record<string, [string, string]> = {
     read: ["Reading", "Read"],
     edit: ["Editing", "Edited"],
@@ -65,8 +67,8 @@ export function toolTitle(item: Row): string {
   };
   const words = verb[text(value.kind)];
   if (words && target) return `${running ? words[0] : words[1]} ${target}`;
-  if (text(value.title)) return text(value.title);
-  return [text(value.name) || "Tool", target].filter(Boolean).join(" ");
+  if (title) return title;
+  return [useful(text(value.name)) || "Tool activity", target].filter(Boolean).join(" ");
 }
 
 const askedLabels: Record<string, string> = {

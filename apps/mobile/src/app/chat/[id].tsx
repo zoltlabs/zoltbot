@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { artifactReference } from "../../data/artifacts";
 import { type Attachment, composeInput } from "../../data/attachments";
 import { threadChanges } from "../../data/changes";
+import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
 import { latestPlan, modelState, threadSession } from "../../data/session";
@@ -32,6 +33,7 @@ import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
+import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
@@ -64,6 +66,7 @@ export default function Chat() {
   }, [id, incoming]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const followLatest = useRef(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const rows = transcript(snapshot, id);
   const turn = runningTurn(snapshot, id);
@@ -119,6 +122,7 @@ export default function Chat() {
       mode: canSteer ? delivery : "queue",
     });
     if (result) {
+      followLatest.current = true;
       void donateBotConversation(id).catch(() => undefined);
       setDraft("");
       setAttachments([]);
@@ -199,7 +203,6 @@ export default function Chat() {
             <Icon name="bell" color={c["accent-text"]} size={22} stroke={1.8} />
           </Pressable>
         ) : null}
-        {turn ? <Chip label="Working" tone="accent" dot /> : null}
       </View>
       <PlanChecklist plan={latestPlan(snapshot, id)} />
       <View
@@ -240,7 +243,14 @@ export default function Chat() {
       <ScrollView
         ref={scroll}
         contentContainerStyle={styles.body}
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+        scrollEventThrottle={100}
+        onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
+          followLatest.current =
+            contentSize.height - layoutMeasurement.height - contentOffset.y < 80;
+        }}
+        onContentSizeChange={() => {
+          if (followLatest.current) scroll.current?.scrollToEnd({ animated: false });
+        }}
       >
         <OfflineBanner />
         <WakeStatus
@@ -259,39 +269,60 @@ export default function Chat() {
             onPress={() => router.push(`/chat/compare/${text(compare.id)}`)}
           />
         ) : null}
-        {rows.length === 0 ? <Txt tone="muted">{`Say what you want ${who} to do.`}</Txt> : null}
-        {rows.map((row) => (
-          <Message
-            threadId={id}
-            key={row.id}
-            row={row}
-            {...(online && !busy ? { onEdit: (queued: TranscriptRow) => void edit(queued) } : {})}
-            {...(row.turnId && edits.get(row.turnId)?.length
-              ? {
-                  edits: {
-                    count: edits.get(row.turnId)?.length ?? 0,
-                    open: () => router.push(`/chat/${edits.get(row.turnId ?? "")?.[0]}`),
-                  },
-                }
-              : {})}
-            {...(online
-              ? {
-                  onForward: (message: TranscriptRow) =>
-                    router.push(
-                      `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
-                    ),
-                }
-              : {})}
-            {...(compareReadOnly
-              ? {}
-              : {
-                  onEditSent: (sent: TranscriptRow) =>
-                    router.push(
-                      `/chat/edit?id=${encodeURIComponent(id)}&turnId=${encodeURIComponent(sent.turnId ?? "")}`,
-                    ),
-                })}
-          />
-        ))}
+        {rows.length === 0 && !turn ? (
+          <Txt tone="muted">{`Say what you want ${who} to do.`}</Txt>
+        ) : null}
+        {conversation(rows, snapshot, turn ? text(turn.id) : undefined).map((entry) => {
+          const row = entry.kind === "row" ? entry.row : undefined;
+          return entry.kind === "assistant" ? (
+            <AssistantTurn
+              key={`${entry.id}:${entry.rows[0]?.id ?? "pending"}`}
+              rows={entry.rows}
+              active={entry.active}
+              paused={!!request || !online}
+              threadId={id}
+              {...(online
+                ? {
+                    onForward: (message: TranscriptRow) =>
+                      router.push(
+                        `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
+                      ),
+                  }
+                : {})}
+            />
+          ) : row ? (
+            <Message
+              threadId={id}
+              key={row.id}
+              row={row}
+              {...(online && !busy ? { onEdit: (queued: TranscriptRow) => void edit(queued) } : {})}
+              {...(row.turnId && edits.get(row.turnId)?.length
+                ? {
+                    edits: {
+                      count: edits.get(row.turnId)?.length ?? 0,
+                      open: () => router.push(`/chat/${edits.get(row.turnId ?? "")?.[0]}`),
+                    },
+                  }
+                : {})}
+              {...(online
+                ? {
+                    onForward: (message: TranscriptRow) =>
+                      router.push(
+                        `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
+                      ),
+                  }
+                : {})}
+              {...(compareReadOnly
+                ? {}
+                : {
+                    onEditSent: (sent: TranscriptRow) =>
+                      router.push(
+                        `/chat/edit?id=${encodeURIComponent(id)}&turnId=${encodeURIComponent(sent.turnId ?? "")}`,
+                      ),
+                  })}
+            />
+          ) : null;
+        })}
         <ChatOutcome threadId={id} />
       </ScrollView>
       {request ? (

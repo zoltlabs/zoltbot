@@ -2,7 +2,13 @@
 // code fences and inline bold, italic, code and links. Enough for agent plans without a
 // renderer dependency; anything else falls back to plain paragraphs.
 
-export type Inline = { text: string; bold?: boolean; italic?: boolean; code?: boolean };
+export type Inline = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  href?: string;
+};
 export type Block =
   | { type: "heading"; level: number; text: Inline[] }
   | { type: "paragraph"; text: Inline[] }
@@ -21,9 +27,14 @@ export function inline(source: string): Inline[] {
       out.push({ text: part.slice(1, -1), code: true });
     else if (/^(\*\*|__).+\1$/.test(part)) out.push({ text: part.slice(2, -2), bold: true });
     else if (/^([*_]).+\1$/.test(part)) out.push({ text: part.slice(1, -1), italic: true });
-    else if (/^\[[^\]]+\]\([^)]+\)$/.test(part))
-      out.push({ text: part.slice(1, part.indexOf("]")) });
-    else out.push({ text: part });
+    else if (/^\[[^\]]+\]\([^)]+\)$/.test(part)) {
+      const href = part.slice(part.indexOf("](") + 2, -1);
+      out.push(
+        /^(https?:\/\/|mailto:)/i.test(href)
+          ? { text: part.slice(1, part.indexOf("]")), href }
+          : { text: part },
+      );
+    } else out.push({ text: part });
   }
   return out;
 }
