@@ -285,3 +285,39 @@ failures retain the runtime and reconnect for replay. The account callback must
 provide a current native account token, including refresh before issuance.
 Transport close is idempotent and reports native cleanup failure after closing
 its journals. Tests distinguish revocation from an outage and assert both outcomes.
+
+## Mac command journal (W7 in progress)
+
+`MacExecJournal` is an isolated SQLite sidecar for signed Mac requests. Its caller
+must verify the approving device key, exact request and current authority first.
+The journal stores a hash of the signature and a hash of the execution binding;
+it never stores a device's private signing key. Request keys include org, member,
+task and request IDs. A signature cannot claim a second request. The completed
+result is durable so reconnects can retrieve it without a second shell process.
+
+The execution claim commits with SQLite FULL synchronization before the caller
+spawns. On reopening under the exclusive owner lock, unfinished claims become
+uncertain and cannot be executed again. This preserves at-most-once execution
+after a crash; it cannot prove the outcome of an interrupted shell. Only the
+owning process may complete an executing claim. Result scope and public protocol
+shape are checked before persistence. Files use owner-only permissions, and
+symlinked control paths are refused.
+
+Four focused checks cover restart recovery, result replay, conflicting bindings,
+consumed approvals, another owner and malformed results.
+
+`MacExecutionHost` checks a fresh account-registry result, the member and target,
+the exact signed request, expiry and the canonical linked/scratch folder before
+claiming execution. Device IDs must match their public-key hashes, and a fetched
+key cannot change under a pinned ID. The account and task/folder callbacks are
+trusted Mac ports; the Cell cannot supply them. Relative folders and symlinks
+cannot escape the Mac's configured project folder. Stdin and timeout are signed,
+and execution bindings use a fixed field order. Repeated/concurrent requests
+return one result without another process. Close aborts owned execution before
+releasing the journal.
+
+Sixteen synthetic process-port tests cover these checks, forged Cell approvals,
+Off, revoked keys, changed fields, uncertain results, concurrent delivery and
+shutdown. No shell or desktop application is launched by those tests. Prefix
+rules currently require a fresh command approval. Real shell execution, account
+client wiring, Cell routing and tools remain unfinished; W7 is not signed off.

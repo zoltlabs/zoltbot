@@ -14,6 +14,7 @@ import {
   parse,
   ResolutionSchema,
   ScopeSchema,
+  SignedMacApprovalSchema,
   TaskSchema,
   Text,
   ThreadSchema,
@@ -147,6 +148,7 @@ export const MacExecRequestSchema = object({
   cwd: Type.Optional(Text),
   timeoutSeconds: Type.Optional(Type.Integer({ minimum: 1, maximum: 3600 })),
   stdin: Type.Optional(Type.String({ maxLength: 65536 })),
+  approval: Type.Optional(SignedMacApprovalSchema),
 });
 export const MacExecChunkSchema = object({
   requestId: Id,

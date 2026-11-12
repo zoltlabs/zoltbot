@@ -1,3 +1,4 @@
+import { parse, SignedMacApprovalSchema } from "@zoltbot/protocol";
 import { describe, expect, it } from "vitest";
 import {
   type ApprovalPayload,
@@ -26,6 +27,21 @@ const payload = (): ApprovalPayload => ({
   expiresAt: now + 300000,
 });
 describe("signed Mac approvals", () => {
+  it("uses the shared strict approval wire shape without granting authority through schema validation", () => {
+    const identity = createIdentity(),
+      p = payload(),
+      signed = signApproval(identity, p);
+    expect(() => parse(SignedMacApprovalSchema, signed)).not.toThrow();
+    expect(() =>
+      parse(SignedMacApprovalSchema, { ...signed, payload: { ...p, extra: true } }),
+    ).toThrow();
+    expect(() =>
+      parse(SignedMacApprovalSchema, { ...signed, payload: { ...p, timeoutSeconds: 3601 } }),
+    ).toThrow();
+    const forged = { ...signed, signature: toB64(new Uint8Array(64)) };
+    expect(() => parse(SignedMacApprovalSchema, forged)).not.toThrow();
+    expect(verifyApproval(toB64(identity.publicKey), forged, p, now)).toBe(false);
+  });
   it("verifies an exact approval against the registered device key independent of object insertion order", () => {
     const identity = createIdentity(),
       p = payload();

@@ -15,3 +15,11 @@ local default is the single local owner. The daemon supplies the paired device i
 a cell must supply the authenticated token's user, device and surface. Caller-supplied
 actor claims never override that identity. The older domain actor (`kind`, `id`) is
 retained for existing domain commands and event history.
+
+## Signed Mac approval wire shape
+
+`MacApprovalPayloadSchema` and `SignedMacApprovalSchema` define the shared device
+approval envelope. The signing helpers live in `@zoltbot/link`; the protocol adds
+no cryptography or runtime authority. Mac execution must verify the signature,
+current registered key, request binding, expiry and durable replay claim before
+spawning. Wire parsing alone does not grant permission.

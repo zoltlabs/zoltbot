@@ -15,6 +15,13 @@ cap stdout and stderr schema lengths; execution code must enforce the stricter U
 byte limits. A request is not permission to execute: the Mac must verify the signed
 device approval before it runs anything.
 
+`mac.exec.request.approval` carries the shared signed-approval envelope when the
+Cell forwards an approved request to the Mac. An initial worker request can omit
+it. The Mac must refuse execution without a verified, current device approval;
+schema validation alone is insufficient. The envelope binds stdin by hash and
+requires an absolute approved folder, timeout, task/turn, member, organization,
+target and signing device, and issuance/expiry times.
+
 Runner leases can include the bounded execution metadata needed to seed a remote
 runner's separate cache. `queuedItems` holds at most eight input items per lease;
 transcript history is excluded. The cell saves selected configuration per task

@@ -1,30 +1,12 @@
 import { ed25519 } from "@noble/curves/ed25519";
 import { sha256 } from "@noble/hashes/sha2";
 import { utf8ToBytes } from "@noble/hashes/utils";
+import type { MacApprovalPayload, SignedMacApproval } from "@zoltbot/protocol";
 import { fromB64, type Identity, toB64 } from "./crypto.js";
 
 /** Values displayed by the approving device, including execution options hidden by no default. */
-export interface ApprovalPayload {
-  v: 1;
-  orgId: string;
-  userId: string;
-  signerDeviceId: string;
-  requestId: string;
-  taskId: string;
-  turnId: string;
-  targetDeviceId: string;
-  scope: "command" | "prefix";
-  command: string;
-  cwd: string;
-  stdinHash: string;
-  timeoutSeconds: number;
-  issuedAt: number;
-  expiresAt: number;
-}
-export interface SignedApproval {
-  payload: ApprovalPayload;
-  signature: string;
-}
+export type ApprovalPayload = MacApprovalPayload;
+export type SignedApproval = SignedMacApproval;
 const fields = [
   "v",
   "orgId",

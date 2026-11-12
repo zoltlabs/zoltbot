@@ -23,3 +23,8 @@ match command prefixes, fetch device keys or run a shell. Those responsibilities
 belong to the Mac runner, including durable replay protection, key revocation,
 task expiry and the rules that always require a fresh approval. W7's runner,
 Cell routing and client integration remain unfinished.
+
+Approval types come from the protocol's strict shared wire schema. The dependency
+is type-only in the signer: no Cell imports, Node APIs or protocol initialization
+are needed to compute a signature. Passing the wire schema never authenticates a
+signature or establishes authority.
