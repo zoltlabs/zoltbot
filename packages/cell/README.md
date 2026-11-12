@@ -37,7 +37,7 @@ Cloud project creation/listing, task creation/update/cancel/retry/review, thread
 metadata/history, interaction answers and usage requests now use scoped core
 handlers. Snapshot responses contain metadata; transcript history is paged by
 thread. Unsupported methods return `method_unavailable`. W4 is still incomplete:
-diff/publication results and private native-answer delivery are pending. Runner
+diff/publication results are pending. Runner
 delivery, connected Mac scheduling and sandbox lifecycle alarms are implemented below.
 
 ## Test runtime
@@ -160,8 +160,8 @@ unacknowledged commands; connected runners retry after fifteen seconds. Results
 are fenced and accept only the command's bounded result schema. Basic command
 acknowledgements are exactly `{ok: true}`; arbitrary error details never reach
 storage. Diff and publication results remain unsupported until their own bounded
-schemas and review checks land. Private answer values are refused by the durable
-queue; live native-answer delivery remains pending.
+schemas and review checks land. Private answer values are refused by the generic durable
+queue; the answer-delivery path below handles them.
 
 A connected runner also receives a refreshed lease when new queued input arrives,
 including a continuation created after wake. A durable input marker prevents
@@ -188,3 +188,33 @@ audit and runner command together. The command names the selected turn; a runner
 must refuse it if a different turn is now active. Lifecycle checkpoint interrupts
 also name their active turn. Task cancellation atomically queues a stop for its
 existing lease, while an unassigned task needs no native stop.
+
+## Native answer delivery
+
+Client answers use the existing core validation, redaction and trusted human actor.
+The cell removes caller-supplied automatic attribution and refuses view attribution
+without a view context. A normal answer saves its runner command in the same
+transaction as its resolution. A sleeping sandbox wakes for pending answer delivery;
+no new chat message is required. Reconnect retries the same command and interaction
+version. The runner resolves its local binding by interaction ID or native reference
+and must enforce that version before responding.
+
+A private answer requires a live, recently heartbeating socket for the task's
+assigned runner. Its raw value goes directly to that socket once, after the core
+resolution commits. Durable delivery rows hold only the redacted resolution and
+lease metadata. They never replay private values after eviction. A missing
+acknowledgement after thirty seconds adds the existing unconfirmed-delivery note;
+a late valid acknowledgement reconciles that note. An unavailable runner refuses
+a private answer before committing it. The caller can retry when the runner is back.
+
+This follows the Local interaction engine's saved-answer/uncertain-delivery
+semantics. Native failures contribute fixed metadata, never raw error details.
+Batch answers commit together; a missing private handoff rolls the whole batch
+back. Ordinary runner commands cannot authorize the signed Mac bridge in W7.
+
+Deletion closes the old SQL facade before deleting storage. Code that retained
+that facade cannot create queue tables after its async work resumes. A runtime
+test captures the old facade, deletes the org and verifies queue creation fails
+with no tables or alarm remaining. It does not claim to reproduce every HTTP
+timing. Copy review covered the existing saved-resolution component and the note
+text; cloud client rendering remains part of W10/W11 verification.

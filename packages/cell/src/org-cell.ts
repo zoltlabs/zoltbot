@@ -3,6 +3,7 @@ import { type CellTokenClaims, CellTokenClaimsSchema } from "@zoltbot/cloud-cont
 import { parse } from "@zoltbot/protocol";
 import { migrateDriver, Store } from "@zoltbot/store/portable";
 import { interactionAlarms, rebuildAlarm } from "./alarm-work.js";
+import { CellAnswers } from "./answers.js";
 import { boundedJson } from "./auth.js";
 import { CloudRpc, safeError } from "./cloud-rpc.js";
 import { CellCommands } from "./commands.js";
@@ -61,6 +62,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     if (request.method === "DELETE" && request.headers.get("x-zolt-service") === "delete") {
       this.deleted = true;
       this.service?.invalidate();
+      this.store?.database.close();
       await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
       for (const socket of this.ctx.getWebSockets()) socket.close(1008, "deleted");
@@ -81,7 +83,12 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       const input = await boundedJson(request);
       try {
         if (!this.service) throw new Error("service_unavailable");
-        const response = await new CloudRpc(store, claims, this.service).call(input);
+        const response = await new CloudRpc(
+          store,
+          claims,
+          this.service,
+          new CellAnswers(store, this.ctx),
+        ).call(input);
         if (this.deleted) throw new Error("unauthorized");
         await this.broadcast(store);
         await this.schedule(1);
@@ -105,7 +112,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
     if (this.deleted) return;
     if (alarm === null || alarm > next) await this.ctx.storage.setAlarm(next);
   }
-  private sandboxes(store: Store) {
+  private sandboxes(store: Store, answers: CellAnswers) {
     if (this.deleted || !this.service) throw new Error("unauthorized");
     const identity = store.database
       .prepare("SELECT org_id,user_id FROM cell_identity WHERE id=1")
@@ -117,6 +124,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       identity.user_id,
       () => Date.now(),
       () => !this.deleted,
+      (taskId) => answers.pending(taskId),
     );
   }
   private async broadcast(store: Store) {
@@ -167,7 +175,12 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         responseId = input.id;
       const response =
         data.claims.kind === "client"
-          ? await new CloudRpc(store, data.claims, this.service).call(input)
+          ? await new CloudRpc(
+              store,
+              data.claims,
+              this.service,
+              new CellAnswers(store, this.ctx),
+            ).call(input)
           : await new CellRunners(this.ctx, store).message(socket, input);
       if (
         data.claims.kind === "client" &&
@@ -265,7 +278,9 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
         }
       }
       if (this.deleted) return;
-      const sandboxes = this.sandboxes(store);
+      const answers = new CellAnswers(store, this.ctx);
+      const answerAlarm = answers.alarm();
+      const sandboxes = this.sandboxes(store, answers);
       const commands = new CellCommands(store);
       const next = await sandboxes.tick(async (taskId) => {
         if (this.deleted) throw new Error("unauthorized");
@@ -291,6 +306,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       if (this.deleted) return;
       await this.broadcast(store);
       if (next !== undefined) await this.schedule(Math.max(1, next - Date.now()));
+      if (answerAlarm !== undefined) await this.schedule(Math.max(1, answerAlarm - Date.now()));
       if (retry || pending || this.ctx.getWebSockets().length) await this.schedule();
     } catch {
       for (const socket of this.ctx.getWebSockets()) socket.close(1008, "unauthorized");

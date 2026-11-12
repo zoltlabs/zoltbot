@@ -123,6 +123,7 @@ export const RunnerCommandSchema = object({
     object({
       type: Type.Literal("answer_interaction"),
       interactionId: Id,
+      nativeRef: Type.Optional(Id),
       version: Type.Optional(seq),
       answer: ResolutionSchema,
     }),

@@ -30,3 +30,7 @@ Commands may carry canonical input IDs, interaction versions and interrupt turn
 IDs. Hosted runners use these fields to merge input without duplication, refuse
 stale answers and avoid stopping a later turn. They remain optional in the general
 wire schema for compatibility.
+
+Native answer commands can include the provider request reference. Remote caches
+use it to find the exact pending local interaction when its local ID differs from
+the cell's ID; it is never authority to answer a different task or version.

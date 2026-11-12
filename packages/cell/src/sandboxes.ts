@@ -25,6 +25,7 @@ export class CellSandboxes {
     private readonly userId: string,
     private readonly now: () => number = () => Date.now(),
     private readonly isActive: () => boolean = () => true,
+    private readonly pendingWork: (taskId: string) => boolean = () => false,
   ) {
     store.database.exec(
       "CREATE TABLE IF NOT EXISTS cell_sandbox_maintenance(id INTEGER PRIMARY KEY CHECK(id=1),cursor TEXT NOT NULL,next_at INTEGER); CREATE TABLE IF NOT EXISTS cell_sandboxes(task_id TEXT PRIMARY KEY,body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS cell_sandbox_operations(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,operation TEXT NOT NULL,body TEXT NOT NULL,state TEXT NOT NULL,error_code TEXT,result TEXT); CREATE UNIQUE INDEX IF NOT EXISTS cell_sandbox_pending ON cell_sandbox_operations(task_id) WHERE state='pending'",
@@ -310,7 +311,8 @@ export class CellSandboxes {
         if (
           task.state === "queued" ||
           (["running", "blocked"].includes(task.state) && queuedInput) ||
-          (task.state === "blocked" && task.holdReason === "daemon_restarted")
+          (task.state === "blocked" && task.holdReason === "daemon_restarted") ||
+          (["running", "review", "blocked"].includes(task.state) && this.pendingWork(task.id))
         ) {
           await this.ensure(task.id);
           schedule(now + 15000);

@@ -19,6 +19,7 @@ import {
   type RunnerLease,
 } from "@zoltbot/runner-protocol";
 import type { Store } from "@zoltbot/store/portable";
+import { CellAnswers } from "./answers.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import { runnerEvent } from "./runner-events.js";
@@ -252,6 +253,7 @@ export class CellRunners {
       false,
     );
     new CellCommands(this.store).deliver(socket);
+    new CellAnswers(this.store, this.ctx).deliver(socket);
   }
   async message(socket: WebSocket, input: unknown) {
     const data = attachment(socket);
@@ -260,6 +262,8 @@ export class CellRunners {
     const request = parseRunnerMessage(input);
     if (!("method" in request)) {
       if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");
+      if (new CellAnswers(this.store, this.ctx).receive(claims, data.runnerId, request))
+        return undefined;
       new CellCommands(this.store).result(claims, data.runnerId, request);
       return undefined;
     }
@@ -282,6 +286,7 @@ export class CellRunners {
           other.close(1012, "reconnect");
       await this.deliver(socket, hello, claims);
       new CellCommands(this.store).deliver(socket, true);
+      new CellAnswers(this.store, this.ctx).deliver(socket, true);
       return { jsonrpc: "2.0", id: request.id, result: { ok: true, heartbeatMs: 15000 } };
     }
     if (!data.runnerId || data.runnerId !== claims.device) throw new Error("forbidden");

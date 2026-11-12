@@ -1,7 +1,7 @@
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import type { SandboxRecord } from "@zoltbot/cloud-contracts";
-import { handle } from "@zoltbot/core";
+import { handle, rejectQueuedInput } from "@zoltbot/core";
 import { Store } from "@zoltbot/store/portable";
 import { expect, it } from "vitest";
 import { CellSandboxes } from "../src/sandboxes.js";
@@ -199,6 +199,47 @@ it("does not restore storage after deletion while a create request is in flight"
     expect(
       state.storage.sql.exec("SELECT name FROM sqlite_master WHERE type='table'").toArray(),
     ).toEqual([]);
+  });
+});
+
+it("wakes a sleeping sandbox for an answer without waiting for another input item", async () => {
+  await runInDurableObject(stub(), async (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    const item = store.database
+      .prepare("SELECT id FROM item_records WHERE kind='user' LIMIT 1")
+      .get() as { id: string };
+    store.dispatch(
+      "reject-input",
+      (snapshot) =>
+        rejectQueuedInput(snapshot, item.id, {
+          commandId: "reject-input",
+          at: new Date(epoch).toISOString(),
+          actor: { kind: "system", id: "cell" },
+        }),
+      { scope: { taskId: "task" } },
+    );
+    let answerPending = false;
+    const calls: string[] = [];
+    const sandboxes = new CellSandboxes(
+      store,
+      {
+        request: async (path) => {
+          calls.push(path);
+          return record();
+        },
+      },
+      "org",
+      "member",
+      () => epoch + 1000,
+      () => true,
+      () => answerPending,
+    );
+    saved(store, record("sleeping"));
+    await sandboxes.tick(async () => {});
+    expect(calls).toEqual([]);
+    answerPending = true;
+    await sandboxes.tick(async () => {});
+    expect(calls).toEqual(["sandboxes/wake"]);
   });
 });
 

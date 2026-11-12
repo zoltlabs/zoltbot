@@ -15,13 +15,17 @@ import {
 } from "@zoltbot/core";
 import {
   type EntityKind,
+  type InteractionAnswer,
+  InteractionSchema,
   methodCatalog,
   ProjectSchema,
   parse,
   parseRequest,
+  ResolutionSchema,
   TaskSchema,
 } from "@zoltbot/protocol";
 import type { ReadScope, Snapshot, Store } from "@zoltbot/store/portable";
+import { CellAnswers, type PreparedAnswer } from "./answers.js";
 import { CellCommands } from "./commands.js";
 import { CellLeases } from "./leases.js";
 import type { CellService } from "./service.js";
@@ -65,6 +69,7 @@ const publicErrors = new Set([
   "runtime_session_unavailable",
   "empty_input",
   "invalid_attachment",
+  "view_context_required",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -87,7 +92,13 @@ export class CloudRpc {
     private readonly store: Store,
     private readonly claims: CellTokenClaims,
     private readonly service: CellService,
+    private readonly answers: CellAnswers = new CellAnswers(store),
   ) {}
+  private resolution(answer: InteractionAnswer, context: CommandContext): InteractionAnswer {
+    if (answer.via) throw new Error("view_context_required");
+    const { automatic: _automatic, ...value } = answer;
+    return { ...value, by: context.actor, device: this.claims.device, at: context.at };
+  }
   private project(id: unknown) {
     const row = typeof id === "string" ? this.store.record("project", id) : undefined;
     if (!row?.cloud || row.archived) throw new Error("forbidden");
@@ -352,23 +363,28 @@ export class CloudRpc {
       case "interaction.answer": {
         const value = parse(methodCatalog["interaction.answer"].params, p);
         const owned = this.owner("interaction", value.id);
-        result = this.mutate(request, owned.scope, (state, context) =>
-          handle(
+        const prepared: PreparedAnswer[] = [];
+        result = this.mutate(request, owned.scope, (state, context) => {
+          const answer = this.resolution(value.answer, context);
+          const interaction = parse(
+            InteractionSchema,
+            state.interaction?.find((row) => row.id === value.id),
+          );
+          const output = handle(
             state,
             {
               type: "answer",
               id: value.id,
               version: value.version,
-              answer: {
-                ...value.answer,
-                by: context.actor,
-                device: this.claims.device,
-                at: context.at,
-              },
+              answer,
             },
             context,
-          ),
-        );
+          );
+          const redacted = parse(ResolutionSchema, output.result.resolution);
+          prepared.push(this.answers.prepare(interaction, answer, redacted, context.commandId));
+          return output;
+        });
+        this.answers.sendPrivate(prepared);
         break;
       }
       case "interaction.defer": {
@@ -386,6 +402,7 @@ export class CloudRpc {
         const projectIds = owned
           .map((entry) => entry.row.threadId)
           .map((id) => String(this.store.record("thread", String(id))?.projectId));
+        const prepared: PreparedAnswer[] = [];
         result = this.mutate(request, { projectId: projectIds[0] as string }, (_state, context) => {
           const state: Snapshot = {};
           for (const projectId of new Set(projectIds)) {
@@ -397,20 +414,28 @@ export class CloudRpc {
                 ).values(),
               ];
           }
-          return answerInteractions(
-            state,
-            value.items.map((item) => ({
-              ...item,
-              answer: {
-                ...item.answer,
-                by: context.actor,
-                device: this.claims.device,
-                at: context.at,
-              },
-            })),
-            context,
-          );
+          const items = value.items.map((item) => ({
+            ...item,
+            answer: this.resolution(item.answer, context),
+          }));
+          const output = answerInteractions(state, items, context);
+          const results = output.result.results as unknown[];
+          for (const [index, item] of items.entries()) {
+            const interaction = parse(
+              InteractionSchema,
+              state.interaction?.find((row) => row.id === item.id),
+            );
+            const redacted = parse(
+              ResolutionSchema,
+              parse(InteractionSchema, results[index]).resolution,
+            );
+            prepared.push(
+              this.answers.prepare(interaction, item.answer, redacted, context.commandId),
+            );
+          }
+          return output;
         });
+        this.answers.sendPrivate(prepared);
         break;
       }
       case "task.create": {

@@ -1,9 +1,11 @@
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
 import { requestInteraction } from "@zoltbot/core";
 import { methodCatalog } from "@zoltbot/protocol";
 import { Store } from "@zoltbot/store/portable";
 import { afterEach, expect, it, vi } from "vitest";
+import { CellLeases } from "../src/leases.js";
 import { serviceToken } from "../src/service.js";
 import { CellSqlDriver } from "../src/sql-driver.js";
 import worker from "../src/worker.js";
@@ -173,6 +175,61 @@ it("opens only after the active membership check and deletes storage only with a
     );
   });
   const privateAnswer = crypto.randomUUID();
+  await runInDurableObject(memberStub, (_instance, state) => {
+    const store = new Store(new CellSqlDriver(state.storage));
+    const seconds = Math.floor(Date.now() / 1000);
+    const claims: CellTokenClaims = {
+      iss: env.CELL_JWT_ISSUER,
+      aud: "cell",
+      org,
+      sub: "member",
+      device: "runner",
+      kind: "sandbox_runner",
+      surface: "runner",
+      task: taskId,
+      iat: seconds,
+      exp: seconds + 600,
+      jti: "test",
+    };
+    new CellLeases(store).assign(taskId, "runner", claims);
+  });
+  const nativeResponse = await worker.fetch(
+    new Request(`https://cell.example.invalid/v1/orgs/${org}/connect`, {
+      headers: {
+        Upgrade: "websocket",
+        Authorization: `Bearer ${await id.token(org, { kind: "sandbox_runner", surface: "runner", device: "runner", task: taskId, session: undefined })}`,
+      },
+    }),
+    env,
+  );
+  const native = nativeResponse.webSocket;
+  if (!native) throw new Error("socket_missing");
+  native.accept();
+  let receivedPrivate = false;
+  let hello = false;
+  native.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data));
+    if (message.id === "private-test-hello") hello = true;
+    if (message.method !== "runner.command") return;
+    receivedPrivate = JSON.stringify(message.params).includes(privateAnswer);
+    native.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { ok: true } }));
+  });
+  native.send(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: "private-test-hello",
+      method: "runner.hello",
+      params: {
+        kind: "sandbox",
+        runnerId: "runner",
+        protocolVersion: 1,
+        versions: {},
+        clis: [],
+        sleepKeepsProcesses: false,
+      },
+    }),
+  );
+  await vi.waitFor(() => expect(hello).toBe(true));
   const answered = await rpc("interaction.answer", {
     id: "question",
     version: 1,
@@ -184,6 +241,7 @@ it("opens only after the active membership check and deletes storage only with a
     },
   });
   expect(answered.error).toBeUndefined();
+  await vi.waitFor(() => expect(receivedPrivate).toBe(true));
   expect((answered.result?.resolution as { by: { kind: string; id: string } }).by).toEqual({
     kind: "human",
     id: "member",
@@ -193,6 +251,7 @@ it("opens only after the active membership check and deletes storage only with a
     return JSON.stringify({
       events: store.eventsSince(0),
       receipts: store.database.prepare("SELECT result FROM command_receipts").all(),
+      deliveries: store.database.prepare("SELECT body FROM cell_answer_deliveries").all(),
     });
   });
   expect(persisted.includes(privateAnswer)).toBe(false);
