@@ -120,6 +120,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
   }
   private sandboxes(store: Store, answers: CellAnswers) {
     if (this.deleted || !this.service) throw new Error("unauthorized");
+    const commands = new CellCommands(store);
     const identity = store.database
       .prepare("SELECT org_id,user_id FROM cell_identity WHERE id=1")
       .get() as { org_id: string; user_id: string };
@@ -130,7 +131,7 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       identity.user_id,
       () => Date.now(),
       () => !this.deleted,
-      (taskId) => answers.pending(taskId),
+      (taskId) => answers.pending(taskId) || commands.pending(taskId),
     );
   }
   private async broadcast(store: Store) {

@@ -1,6 +1,10 @@
 import type { CellTokenClaims } from "@zoltbot/cloud-contracts";
 import { InteractionSchema, parse, privateAnswerValues, TaskSchema } from "@zoltbot/protocol";
-import { type RunnerCommand, RunnerCommandSchema } from "@zoltbot/runner-protocol";
+import {
+  parseRunnerCommandResult,
+  type RunnerCommand,
+  RunnerCommandSchema,
+} from "@zoltbot/runner-protocol";
 import type { Store } from "@zoltbot/store/portable";
 import { CellLeases } from "./leases.js";
 import { attachment } from "./sockets.js";
@@ -21,6 +25,28 @@ export class CellCommands {
     store.database.exec(
       "CREATE TABLE IF NOT EXISTS cell_runner_commands(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,task_id TEXT NOT NULL,lease_id TEXT NOT NULL,runner_id TEXT NOT NULL,body TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'pending',sent_at INTEGER,error_code TEXT); CREATE INDEX IF NOT EXISTS cell_runner_commands_pending ON cell_runner_commands(runner_id,state,seq)",
     );
+    store.database.exec(
+      "CREATE TABLE IF NOT EXISTS cell_runner_command_results(command_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL)",
+    );
+  }
+  collected(taskId: string, commandId: string) {
+    const row = this.store.database
+      .prepare("SELECT task_id,state,body FROM cell_runner_commands WHERE id=?")
+      .get(commandId) as { task_id: string; state: string; body: string } | undefined;
+    if (!row) return undefined;
+    if (row.task_id !== taskId) throw new Error("forbidden");
+    if (parse(RunnerCommandSchema, JSON.parse(row.body)).command.type !== "collect_diff")
+      throw new Error("command_conflict");
+    if (row.state === "failed") return { state: "failed" as const };
+    const result = this.store.database
+      .prepare("SELECT body FROM cell_runner_command_results WHERE command_id=? AND task_id=?")
+      .get(commandId, taskId) as { body: string } | undefined;
+    return result
+      ? {
+          state: "complete" as const,
+          result: parseRunnerCommandResult("collect_diff", JSON.parse(result.body)),
+        }
+      : { state: row.state === "complete" ? ("failed" as const) : ("pending" as const) };
   }
   enqueue(taskId: string, commandId: string, command: RunnerCommand["command"]) {
     const task = parse(TaskSchema, this.store.record("task", taskId));
@@ -102,9 +128,45 @@ export class CellCommands {
     this.leases.require(row.task_id, row.lease_id, runnerId, claims);
     if (row.state !== "pending") return;
     const command = parse(RunnerCommandSchema, JSON.parse(row.body)).command;
-    // Diff and publication results have separate bounded schemas; do not save arbitrary JSON.
-    if (command.type === "collect_diff" || command.type === "push_branch")
-      throw new Error("method_unavailable");
+    if (command.type === "collect_diff" && response.result !== undefined) {
+      if (response.error !== undefined) throw new Error("forbidden");
+      const value = parseRunnerCommandResult("collect_diff", response.result);
+      const task = parse(TaskSchema, this.store.record("task", row.task_id));
+      if (
+        value.taskId !== row.task_id ||
+        value.revision !== task.revision ||
+        (command.revision !== undefined && value.revision !== command.revision)
+      )
+        throw new Error("forbidden");
+      this.store.database
+        .transaction(() => {
+          this.store.database
+            .prepare(
+              "INSERT INTO cell_runner_command_results(command_id,task_id,revision,body) VALUES(?,?,?,?)",
+            )
+            .run(id, row.task_id, value.revision, JSON.stringify(value));
+          this.store.database
+            .prepare(
+              "UPDATE cell_runner_commands SET state='complete' WHERE id=? AND state='pending'",
+            )
+            .run(id);
+          // Retain four snapshots per task; refreshing a diff must not fill the Cell with copies.
+          this.store.database
+            .prepare(
+              "UPDATE cell_runner_commands SET state='failed',error_code='review_expired' WHERE id IN (SELECT command_id FROM cell_runner_command_results WHERE task_id=? ORDER BY rowid DESC LIMIT -1 OFFSET 4)",
+            )
+            .run(row.task_id);
+          this.store.database
+            .prepare(
+              "DELETE FROM cell_runner_command_results WHERE task_id=? AND command_id NOT IN (SELECT command_id FROM cell_runner_command_results WHERE task_id=? ORDER BY rowid DESC LIMIT 4)",
+            )
+            .run(row.task_id, row.task_id);
+        })
+        .immediate();
+      return;
+    }
+    // Publication results need the expected reviewed commit before they can be accepted.
+    if (command.type === "push_branch") throw new Error("method_unavailable");
     const value = response.result;
     if (
       !(

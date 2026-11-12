@@ -328,6 +328,7 @@ export class CellSandboxes {
       const lifetime = expiry !== undefined && now >= expiry;
       const idle =
         task.state !== "queued" &&
+        !this.pendingWork(task.id) &&
         now >= idleAt &&
         (!active.turn || (active.pending && sandbox.sleepKeepsProcesses));
       if (lifetime && active.turn && !(active.pending && sandbox.sleepKeepsProcesses)) {

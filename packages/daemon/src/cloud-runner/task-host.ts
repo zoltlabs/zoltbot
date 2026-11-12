@@ -1,5 +1,5 @@
 import type { AgentDefinition } from "@zoltbot/protocol";
-import type { RunnerLease } from "@zoltbot/runner-protocol";
+import { parseRunnerCommandResult, type RunnerLease } from "@zoltbot/runner-protocol";
 import type { Store } from "@zoltbot/store";
 import { InteractionEngine } from "../interaction-engine.js";
 import type { PrivateVault } from "../private-context.js";
@@ -13,6 +13,8 @@ import type { ManagedWorkspaces } from "./workspaces.js";
 export interface CloudTaskResources {
   host: RuntimeHost;
   secrets?: PrivateVault;
+  /** Include private human answers and task credentials before a result can leave this host. */
+  assertPublic(value: unknown): Promise<void>;
   /** Revoke tools and terminate only processes owned by this task host. */
   close(): Promise<void>;
 }
@@ -105,6 +107,7 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
       const execution = initial.execution;
       if (!execution?.project.cloud || initial.actor.userId !== options.memberId)
         throw new Error("runner_task_scope_conflict");
+      const cloud = execution.project.cloud;
       const definition = structuredClone(
         await options.definition(execution.definition.id, lifetime.signal),
       );
@@ -113,8 +116,8 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
         {
           orgId: options.orgId,
           taskId: initial.taskId,
-          repository: execution.project.cloud.repository,
-          defaultBranch: execution.project.cloud.defaultBranch,
+          repository: cloud.repository,
+          defaultBranch: cloud.defaultBranch,
         },
         lifetime.signal,
       );
@@ -191,6 +194,7 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
             signal.aborted ||
             !runtime ||
             !cache ||
+            !resources ||
             input.taskId !== initial.taskId ||
             input.leaseId !== initial.leaseId
           )
@@ -235,6 +239,46 @@ export function cloudTasks(options: CloudTasksOptions): RunnerConnectionOptions[
             await runtime.runner.stop({ threadId });
             publish();
             return { ok: true };
+          }
+          if (command.type === "collect_diff") {
+            const revision = Number(cache.store.record("task", initial.taskId)?.revision);
+            if (command.revision !== undefined && command.revision !== revision)
+              throw new Error("stale_revision");
+            // Reopen the binding before reading; a Cell command never supplies a path or ref.
+            const current = await options.workspaces.prepare(
+              {
+                orgId: options.orgId,
+                taskId: initial.taskId,
+                repository: cloud.repository,
+                defaultBranch: cloud.defaultBranch,
+              },
+              signal,
+            );
+            if (current.cwd !== workspace.cwd || current.baseCommit !== workspace.baseCommit)
+              throw new Error("runner_task_scope_conflict");
+            const changes = await runtime.runner.collectResult({
+              cwd: current.cwd,
+              baseRef: current.baseCommit,
+            });
+            check();
+            if (
+              signal.aborted ||
+              Number(cache.store.record("task", initial.taskId)?.revision) !== revision
+            )
+              throw new Error("stale_revision");
+            options.guard(changes);
+            await resources.assertPublic(changes);
+            check();
+            if (
+              signal.aborted ||
+              Number(cache.store.record("task", initial.taskId)?.revision) !== revision
+            )
+              throw new Error("stale_revision");
+            return parseRunnerCommandResult("collect_diff", {
+              ...changes,
+              taskId: initial.taskId,
+              revision,
+            });
           }
           // Diff/publication needs the bounded result protocol before results can cross the socket.
           throw new Error("runner_command_unavailable");

@@ -41,3 +41,11 @@ wire schema for compatibility.
 Native answer commands can include the provider request reference. Remote caches
 use it to find the exact pending local interaction when its local ID differs from
 the cell's ID; it is never authority to answer a different task or version.
+
+
+Diff results bind task and revision and carry bounded relative paths, patch data
+and capture metadata. Receivers validate the strict result schema and a one-MiB
+aggregate UTF-8 limit before saving anything. A typed result is not authorization:
+the Cell must also verify its current runner lease and task revision. The generated
+schema includes command-result contracts separately from generic JSON-RPC results.
+Push result types name the exact commit; publication handling is still unfinished.

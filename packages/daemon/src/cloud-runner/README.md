@@ -416,3 +416,12 @@ second continuation while a queued input exists. Pending native questions and
 Mac tools require their own recovery handling and do not take this automatic
 path. Tests check one continuation across repeated cache reopen and leave an
 uncertain send on hold. Local recovery and Local task startup are unchanged.
+
+
+Cloud diff collection uses `InProcessRunner.collectResult` after reopening the
+managed task binding. Commands cannot supply a checkout path or base reference.
+The host refuses a changed binding or task revision, checks injected credentials
+and private human answers through the task vault, then validates the bounded
+result before sending it. Missing private context fails closed. Large results that exceed the
+wire budget fail rather than sending an incomplete unmarked payload. Local diff
+collection is unchanged. Review commits and branch publication remain unfinished.

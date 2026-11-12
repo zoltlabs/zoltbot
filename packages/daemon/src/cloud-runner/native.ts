@@ -121,17 +121,15 @@ export function nativeCloudTasks(options: NativeCloudTasksOptions) {
         check(signal);
         const vault = taskVault(source, { orgId: options.orgId, taskId: input.lease.taskId });
         const contexts = new PrivateContexts({ store: input.store, vault, publish() {} });
-        const ports = await options.tools({
-          ...input,
-          async assertPublic(value) {
-            check(signal);
-            options.guard(value);
-            const known = await contexts.known();
-            check(signal);
-            options.guard(value);
-            assertNoPrivateValue(value, known.values);
-          },
-        });
+        const assertPublic = async (value: unknown) => {
+          check(signal);
+          options.guard(value);
+          const known = await contexts.known();
+          check(signal);
+          options.guard(value);
+          assertNoPrivateValue(value, known.values);
+        };
+        const ports = await options.tools({ ...input, assertPublic });
         check(signal);
         const definitions = structuredClone([...ports.definitions]);
         const execution = input.lease.execution;
@@ -200,6 +198,7 @@ export function nativeCloudTasks(options: NativeCloudTasksOptions) {
         active.add(close);
         return {
           secrets: vault,
+          assertPublic,
           host: {
             async prepare(request, redactor) {
               check(signal);

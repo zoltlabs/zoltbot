@@ -241,6 +241,24 @@ export class CloudRpc {
     const p = request.params as Record<string, unknown>;
     let result: unknown;
     switch (request.method) {
+      case "task.changes": {
+        const value = parse(methodCatalog["task.changes"].params, p);
+        const owned = this.owner("task", value.id);
+        const task = parse(TaskSchema, owned.row);
+        if (!request.commandId) throw new Error("command_id_required");
+        const commands = new CellCommands(this.store),
+          id = `diff:${request.commandId}`;
+        const previous = commands.collected(task.id, id);
+        if (previous?.state === "failed") throw new Error("runner_unavailable");
+        if (previous?.state === "complete") {
+          if (previous.result.revision !== task.revision) throw new Error("stale_revision");
+          result = previous.result;
+        } else {
+          commands.enqueue(task.id, id, { type: "collect_diff", revision: task.revision });
+          result = { state: "pending" };
+        }
+        break;
+      }
       case "cloud.mac.output": {
         const taskId = String(p.taskId);
         this.owner("task", taskId);

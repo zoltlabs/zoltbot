@@ -312,3 +312,16 @@ result replaces incomplete tails and clears the gap flag. Full output stays in
 the Mac's ordered local log. The client viewer and full local log paging remain
 unfinished. These storage and delivery choices avoid copying full command output
 into the historical event log.
+
+
+Cloud `task.changes` queues `collect_diff` for the task's current runner. The caller
+supplies a fresh command ID for each refresh and reuses it while polling a pending
+response. A completed response has the existing changes fields plus task/revision
+bindings. A current authenticated lease must return the same task revision before
+the Cell can save it. Arbitrary fields, foreign tasks and stale revisions are
+refused. Results survive object eviction, and duplicate delivery saves one copy.
+Only four snapshots per task remain; older command IDs report failure rather than
+queueing another collection. A fresh command ID requests a new snapshot.
+Pending runner commands wake sleeping review tasks and prevent idle sleep while
+the request is unfinished. Lifetime limits still apply. Full view-presence tracking,
+review commits, exact-head push/PR handling and client polling remain unfinished.

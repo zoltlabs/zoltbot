@@ -102,6 +102,7 @@ async function fixture() {
     statuses: string[] = [];
   const vault = new Map<string, unknown>();
   let currentStore: Store | undefined;
+  let currentCwd = "";
   let closes = 0,
     publications = 0;
   const controller = new AbortController();
@@ -118,7 +119,9 @@ async function fixture() {
     status: (code) => statuses.push(code),
     resources: async ({ cwd, signal, store }) => {
       currentStore = store;
+      currentCwd = cwd;
       return {
+        async assertPublic() {},
         secrets: {
           async put(value) {
             const reference = `keychain:zoltbot:${randomUUID()}`;
@@ -172,6 +175,9 @@ async function fixture() {
       if (!currentStore) throw new Error("fixture_store_missing");
       return currentStore;
     },
+    get cwd() {
+      return currentCwd;
+    },
     create,
     outbox,
     natives,
@@ -189,6 +195,38 @@ async function fixture() {
 }
 const done = (f: Awaited<ReturnType<typeof fixture>>) =>
   [...f.outbox.pending(0, 64)].filter((frame) => frame.event.t === "turn.done").length;
+
+it("collects a bounded diff only from its managed checkout and current task revision", async () => {
+  const f = await fixture(),
+    task = await f.start();
+  await writeFile(path.join(f.cwd, "README.md"), "Updated task content\n");
+  const revision = Number(f.store.record("task", "task")?.revision);
+  const command = {
+    taskId: "task",
+    leaseId: "lease",
+    commandId: "diff",
+    command: { type: "collect_diff" as const, revision },
+  };
+  const result = (await task.command(command, f.controller.signal)) as {
+    taskId: string;
+    revision: number;
+    patch: string;
+    paths: string[];
+  };
+  expect(result.taskId).toBe("task");
+  expect(result.revision).toBe(revision);
+  expect(result.paths).toContain("README.md");
+  expect(result.patch).toContain("+Updated task content");
+  await expect(
+    task.command(
+      { ...command, command: { ...command.command, revision: revision + 1 } },
+      f.controller.signal,
+    ),
+  ).rejects.toThrow("stale_revision");
+  expect(await readFile(path.join(f.root, "source", "README.md"), "utf8")).toBe(
+    "Synthetic repository\n",
+  );
+});
 
 it("drives a leased task through InProcessRunner and durably publishes normalized events before readiness", async () => {
   const f = await fixture(),

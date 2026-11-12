@@ -29,7 +29,7 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
   vi.unstubAllEnvs();
 });
-async function fixture(provider: "claude" | "codex", apiKey = true) {
+async function fixture(provider: "claude" | "codex", apiKey = true, privateRepositoryText = false) {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "zoltbot-native-cloud-")));
   cleanup.push(() => rm(root, { recursive: true, force: true }));
   const source = path.join(root, "source"),
@@ -162,7 +162,14 @@ child.once("exit",code=>process.exit(code??1));
                 vault: taskVault(vault, { orgId: "org", taskId: "task" }),
                 publish() {},
               });
-              await contexts.persist(actor.sessionId, new Set([privateAnswer]));
+              // Classify existing public fixture text as private without writing any secret to disk.
+              await contexts.persist(
+                actor.sessionId,
+                new Set([
+                  privateAnswer,
+                  ...(privateRepositoryText ? ["Synthetic repository"] : []),
+                ]),
+              );
               await expect(assertPublic({ stdin: privateAnswer })).rejects.toThrow(
                 "private_value_requires_secure_field",
               );
@@ -219,6 +226,20 @@ child.once("exit",code=>process.exit(code??1));
     done,
     start,
     verifyFiles,
+    async changeRepository() {
+      const cloud = execution.project.cloud;
+      if (!cloud) throw new Error("fixture_cloud_missing");
+      const workspace = await works.prepare(
+        {
+          orgId: "org",
+          taskId: "task",
+          repository: cloud.repository,
+          defaultBranch: cloud.defaultBranch,
+        },
+        controller.signal,
+      );
+      await writeFile(path.join(workspace.cwd, "README.md"), "Changed synthetic content\n");
+    },
     get calls() {
       return calls;
     },
@@ -231,7 +252,7 @@ child.once("exit",code=>process.exit(code??1));
 
 for (const provider of ["claude", "codex"] as const) {
   it(`runs a leased ${provider} task through production native hosts, serves a scoped tool, and resumes its original native session`, async () => {
-    const f = await fixture(provider);
+    const f = await fixture(provider, true, true);
     let task = await f.start();
     await expect.poll(f.done, { timeout: 10000 }).toBe(1);
     expect(task.ready?.()).toBe(true);
@@ -255,6 +276,18 @@ for (const provider of ["claude", "codex"] as const) {
     await expect.poll(f.done, { timeout: 10000 }).toBe(2);
     expect(f.calls).toBe(1);
     expect(f.audits).toEqual(["started", "succeeded"]);
+    await f.changeRepository();
+    await expect(
+      task.command(
+        {
+          taskId: "task",
+          leaseId: "lease",
+          commandId: "private-diff",
+          command: { type: "collect_diff", revision: 1 },
+        },
+        f.controller.signal,
+      ),
+    ).rejects.toThrow("private_value_requires_secure_field");
     await f.verifyFiles();
     await task.close();
     await f.restart();

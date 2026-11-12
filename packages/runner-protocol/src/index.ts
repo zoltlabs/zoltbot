@@ -1,4 +1,7 @@
 import { type Static, type TSchema, Type } from "@sinclair/typebox";
+
+export * from "./command-results.js";
+
 import {
   AgentDefinitionSchema,
   AgentEventSchema,
@@ -130,7 +133,8 @@ export const RunnerCommandSchema = object({
       answer: ResolutionSchema,
     }),
     object({ type: Type.Literal("interrupt"), turnId: Type.Optional(Id) }),
-    object({ type: values(["stop", "collect_diff"]) }),
+    object({ type: Type.Literal("stop") }),
+    object({ type: Type.Literal("collect_diff"), revision: Type.Optional(seq) }),
     object({
       type: Type.Literal("push_branch"),
       branch: Type.String({ minLength: 1, maxLength: 200 }),

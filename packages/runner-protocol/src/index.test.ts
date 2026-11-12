@@ -41,7 +41,7 @@ it("refuses unknown commands, invalid event sequence numbers and excessive Mac e
 
 it("keeps the generated runner schema current", async () => {
   const { readFile } = await import("node:fs/promises");
-  const { runnerProtocolVersion, RunnerMessageSchema } = await import("./index.js");
+  const { runnerProtocolVersion, RunnerMessageSchema, runnerResults } = await import("./index.js");
   const generated = JSON.parse(
     await readFile(new URL("../schema/messages.json", import.meta.url), "utf8"),
   );
@@ -51,6 +51,7 @@ it("keeps the generated runner schema current", async () => {
         runnerProtocolVersion,
         message: RunnerMessageSchema,
         methods: runnerMethods,
+        results: runnerResults,
       }),
     ),
   );

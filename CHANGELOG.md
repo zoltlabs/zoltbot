@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Improvement: Cloud task diffs stay scoped to their task and current revision.
+
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
 - Fix: Mac command rules require fresh approval when a prefix only selects options.
 

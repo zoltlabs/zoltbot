@@ -39,6 +39,74 @@ function socket(sent: unknown[], identity = claims()) {
     send: (body: string) => sent.push(JSON.parse(body)),
   } as unknown as WebSocket;
 }
+function diff() {
+  return {
+    taskId: "task",
+    revision: 1,
+    base: "a".repeat(40),
+    head: "b".repeat(40),
+    patch: "+change",
+    status: " M file.ts",
+    paths: ["file.ts"],
+    files: [{ path: "file.ts", added: 1, removed: 0, binary: false, patch: "+change" }],
+    uncommittedFiles: [],
+    provenance: "Task base to working tree.",
+    patchIncomplete: false,
+    capturedAt: "2026-11-12T00:00:00Z",
+  };
+}
+it("retains bounded revision-bound diffs through eviction and refuses foreign or malformed results", async () => {
+  const stub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(crypto.randomUUID()));
+  await runInDurableObject(stub, (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    new CellLeases(store).assign("task", "runner", claims());
+    const commands = new CellCommands(store);
+    commands.enqueue("task", "diff", { type: "collect_diff", revision: 1 });
+    expect(commands.collected("task", "diff")).toEqual({ state: "pending" });
+    for (const result of [
+      { ...diff(), taskId: "other" },
+      { ...diff(), revision: 2 },
+      { ...diff(), extra: "untrusted" },
+    ]) {
+      expect(() =>
+        commands.result(claims(), "runner", { id: "runner-command:diff", result }),
+      ).toThrow();
+    }
+    expect(() =>
+      commands.result({ ...claims(), device: "other" }, "other", {
+        id: "runner-command:diff",
+        result: diff(),
+      }),
+    ).toThrow("forbidden");
+    expect(commands.pending("task")).toBe(true);
+    commands.result(claims(), "runner", { id: "runner-command:diff", result: diff() });
+    commands.result(claims(), "runner", { id: "runner-command:diff", result: diff() });
+    expect(() => commands.collected("other", "diff")).toThrow("forbidden");
+  });
+  await evictDurableObject(stub);
+  await runInDurableObject(stub, (_instance, state) => {
+    const commands = new CellCommands(new Store(new CellSqlDriver(state.storage)));
+    expect(commands.collected("task", "diff")).toEqual({ state: "complete", result: diff() });
+    expect(commands.pending("task")).toBe(false);
+  });
+});
+it("retains only four diff snapshots and reports an expired snapshot as failed", async () => {
+  const stub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(crypto.randomUUID()));
+  await runInDurableObject(stub, (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    new CellLeases(store).assign("task", "runner", claims());
+    const commands = new CellCommands(store);
+    for (let index = 0; index < 5; index++) {
+      commands.enqueue("task", `diff:${index}`, { type: "collect_diff", revision: 1 });
+      commands.result(claims(), "runner", { id: `runner-command:diff:${index}`, result: diff() });
+    }
+    expect(
+      store.database.prepare("SELECT count(*) AS n FROM cell_runner_command_results").get(),
+    ).toEqual({ n: 4 });
+    expect(commands.collected("task", "diff:0")).toEqual({ state: "failed" });
+    expect(commands.collected("task", "diff:4")?.state).toBe("complete");
+  });
+});
 it("replays a saved command with the same identity after eviction until its fenced acknowledgement", async () => {
   const stub = env.ORG_CELLS.get(env.ORG_CELLS.idFromName(crypto.randomUUID()));
   const initial = await runInDurableObject(stub, (_instance, state) => {
