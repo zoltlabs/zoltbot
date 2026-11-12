@@ -68,6 +68,8 @@ export function macPrefixMatches(prefix: string, command: string): boolean {
     actual = tokenizeCommand(command);
   if (!rule || !actual || rule.length < 2 || rule.length > actual.length) return false;
   const program = basename(rule[0] ?? "");
+  // An option selector (git -C, open -a) does not name the operation being allowed.
+  if (rule[1]?.startsWith("-") && program !== "uname") return false;
   if (
     wrappers.has(program) ||
     fresh.has(program) ||

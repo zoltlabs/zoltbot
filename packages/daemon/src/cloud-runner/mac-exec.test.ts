@@ -185,6 +185,20 @@ it("requires allow-listed mode and fresh approvals for settings, keychain, shell
   await expect(host.request(initial, signal())).rejects.toThrow(/^mac_approval_required$/);
   expect(f.execute).toHaveBeenCalledTimes(1);
 });
+it("refuses a validly signed prefix that selects Git options without an operation", async () => {
+  const f = fixture();
+  f.mode("allow_listed");
+  const request = f.request();
+  if (!request.approval) throw new Error("fixture_approval_missing");
+  request.command = "git -C /tmp status";
+  request.approval = signApproval(f.identity, {
+    ...request.approval.payload,
+    scope: "prefix",
+    command: "git -C",
+  });
+  await expect(f.open().request(request, signal())).rejects.toThrow(/^mac_approval_required$/);
+  expect(f.execute).not.toHaveBeenCalled();
+});
 it("rechecks prefix task scope, expiry, device revocation and mode before each execution", async () => {
   const f = fixture();
   f.mode("allow_listed");

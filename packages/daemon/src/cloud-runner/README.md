@@ -396,6 +396,8 @@ Expired rules can retrieve only a previously claimed exact result.
 `macPrefixMatches` uses parsed argument boundaries and refuses ambiguous syntax,
 generic interpreter/execution wrappers, broad package-manager verbs and explicit
 settings/keychain commands. Unsupported prefixes ask for a fresh command approval.
+An option selector such as `git -C` or `open -a` also requires fresh approval;
+it does not name the operation. The fixed `uname` information flags are exempt.
 The matcher does not inspect a program's implementation or project scripts; an
 approved program can execute project code. Local approval behavior is unchanged.
 The desktop/phone signing card and settings remain unfinished.
