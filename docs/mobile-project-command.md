@@ -12,33 +12,45 @@ An initiative groups chats pursuing one outcome within a project. It owns a goal
 
 Recommend existing project directions as the initial membership source, with explicit assignment for root-level chats. Derive task completion from tasks, never from the number of finished chats. Confirm that directions represent outcomes before giving them the initiative label. A new entity is justified only if directions cannot represent this relationship.
 
-The phone currently consumes a client snapshot and sequenced domain events through RelayTransport or FakeTransport. RelayTransport uses the link package for authenticated pairing and encrypted relay traffic. Commands use stable command IDs to retry safely. The desktop view API derives chats, requests, checks and usage from those same entities; it does not supply initiative goals, progress or PR lists directly. Wiring this screen requires a mobile projection over project/subproject, thread/task ancestry, pending interactions, session activity, usage and shipping snapshots. Use existing command actions and request version checks, preserve stale/offline drafts, and await receipts before advancing. No transport or protocol changes belong in this prototype.
+The phone consumes a client snapshot and sequenced domain events through RelayTransport or FakeTransport. RelayTransport uses the link package for authenticated pairing and encrypted relay traffic. Commands use stable command IDs to retry safely. The desktop view API derives chats, requests, checks and usage from those same entities; it does not supply initiative goals, progress or PR lists directly.
 
-## Fixture
+Wiring this screen requires a mobile projection over project/subproject, thread/task ancestry, pending interactions, session activity, usage and shipping snapshots. Use existing command actions and request version checks, preserve stale/offline drafts, and await receipts before advancing. This prototype changes no protocol, daemon, relay, link or view API code.
 
-Bracken Supply is a fictional equipment rental marketplace. Its Autumn reliability project has six initiatives and 36 agents across Codex, Claude, Gemini and Cursor. Billing is stalled with every agent waiting; search is healthy, the widget is nearly done, and test cleanup is failing. Small and empty project variants exercise sparse states. All commands and answers change local sample state only.
+## Fixture and development entry
 
-## Layout experiment
+Bracken Supply is a fictional equipment rental marketplace. Autumn reliability has six initiatives and 36 agents across Codex, Claude, Gemini and Cursor. Billing is stalled with every agent waiting; search is healthy, the widget is nearly done, and test cleanup is failing. Requests include command approvals, questions and plans, with different waiting times. Checkout and reminder requests refer to their own initiative.
 
-Build both stacked sections and a two-column board, selectable in the development prototype. Start with the compact board: six initiatives occupy three rows, leaving room for the bottom unblock control. Stacked sections give long goals more width but require six vertical sections; their agent strips make the overview too tall at ordinary phone sizes. The board keeps the project structure visible sooner. At larger font scales it becomes one column and scrolls: readable text takes precedence over a no-scroll claim. Phone validation remains necessary before claiming that all six fit on a normal phone.
+Prototype options also offer a 40-agent sample, a tiny project with two agents, and an empty project. Three simulated events update an activity, introduce a request and finish another agent. Updates can be paused. Orders, messages, stops and answers change local fixture state only.
 
-Both layouts show goals, task progress, state marks and waiting counts. A persistent bottom button opens the oldest project request from overview, detail, chat or agent sheet. Detail has selection and editable orders. The sheet has explicit close and chat controls; no action requires a gesture. Prototype chat content is local, never a route to a real chat.
+Open **Projects → Prototype: project command** in a development build. Both the entry and route are guarded by `__DEV__`; the route redirects in release builds. Open **Prototype** in the bottom navigation to change samples, pause updates or close the prototype.
 
-## Interaction and accessibility
+## Selected layout: squad focus
 
-Reuse ApprovalCard, QuestionCard and PlanCard with a local submit adapter. Session-wide approval and auto-accept edits require an explicit confirmation before sample state changes. No haptics or animation are added. Live simulation has a visible pause control and advances local state only; answering pins the current request so an arriving older request cannot replace a draft.
+The first implementation compared stacked sections with a two-column board. Visual review rejected both: repeating per-agent text made the overview tall and difficult to scan, and the units had no coherent visual identity.
 
-Marks carry hexagon, diamond, flag, bar and warning triangle shapes plus words. Later shares idle's bar, as on desktop. Provider color is decorative; the provider name and unique unit number carry identity. Text uses existing theme tokens and grows without line clamps or fixed-height text boxes. Larger type uses a single column. All interactive targets are at least 44 points. Native sheet presentation supplies modal isolation; VoiceOver focus and restoration need device verification.
+Eight static directions followed: squad roster, mission tiles, tactical atlas, operations path, squad focus, field ledger, fabrication hangar and dispatch console. The owner selected **05, Squad focus**. That is now the implemented overview; the earlier layout switches have been removed.
 
-## Verification
+One initiative expands into a squad panel with its goal, task progress, numbered agent portraits, state marks and oldest local request. The initial focus is the initiative with the most waiting agents. Tapping another initiative focuses it, and the explicit choice remains stable during live updates. Five compact rows keep the rest of the project visible, including task counts, waiting or check status and small agent state marks.
 
-Results and measured contrast pairs are recorded below after implementation. Native layout, VoiceOver, one-handed reach and the complete unblock flow require a phone. The repository has no React Native headless screen snapshot harness; desktop browser screenshots cannot establish native layout correctness.
+This direction trades six simultaneous goal sentences for a larger, usable squad panel. A collapsed initiative's goal is in its accessible name and appears visibly when focused; activity, PRs, checks and recent changes are in its detail view. The focused heading's arrow opens those details. Every unit opens an agent sheet.
 
-The full sample contains 36 agents; the 40-agent sample adds four checkout workers for the density check. The developer entry is **Projects → Prototype: project command**, available only under `__DEV__`. The route redirects in release builds. Use “Close prototype” to leave. No real chat IDs or commands reach the transport.
+Units have provider-colored equipment and face details, a unique number and a static state symbol. Provider color is decorative; the unit's accessible name gives its provider, state and activity. Geometry uses SVG paths rather than Unicode glyphs. A visible state key names the five shapes. Later shares idle's bar, as on desktop.
 
-The render test bundles actual components with native host shims and renders them through React's server renderer. It checks content and adaptive props at a 3.2 font scale, and both overview layouts. It does not measure native glyph wrapping, clipping, modal focus or touch geometry. No screenshot images were produced.
+## Requests and orders
 
-Measured minimum contrast across the page and raised surfaces:
+The persistent lower command area shows the global request count and oldest waiting time. **Unblock** opens that request from the overview, detail, chat or agent sheet. The expanded squad's request row can also open its own oldest request directly.
+
+ApprovalCard, QuestionCard and PlanCard provide the existing request controls. The fixture adapter adds an explicit native confirmation before session-wide permission or auto-accept edits. Cancel keeps the request and draft; confirm records the answer and advances to the next oldest request. The queue stays open through the last answer and shows an all-clear screen. A live arrival cannot replace the request being drafted.
+
+Initiative detail lists agent roles, provider, state, activity and waiting time. Checkboxes select agents, then a lower orders control opens editable presets and Stop. The Stop alert follows the app's cancel/confirm pattern. The agent sheet offers answer, message, Stop and chat actions. Sample chat displays readable answers and messages; it never opens a real chat ID.
+
+## Accessibility and appearance
+
+The screen uses the mobile theme and existing Geist type roles. No theme tokens were added. Controls are at least 44 points, text wraps without line clamps, agent units wrap at larger text sizes, and the screen adds no animation or haptics.
+
+At accessibility text scales, the header, statistics and navigation join the scroll content. A single lower Unblock control stays reachable. This prevents large fixed chrome from consuming the entire screen. Forms use the existing keyboard-avoidance pattern. Shared request input boundaries use the existing control-border token, which passes 3:1 in both themes.
+
+Measured minimum contrast across page and raised surfaces:
 
 | Token | Dark | Light |
 | --- | ---: | ---: |
@@ -50,16 +62,31 @@ Measured minimum contrast across the page and raised surfaces:
 | Warning | 5.42 | 6.01 |
 | Control border | 6.58 | 6.26 |
 
-Provider strips remain decorative; accessible provider names and unique unit numbers identify agents. No color tokens were added. The test asserts 4.5:1 for semantic text and 3:1 for control boundaries in both themes.
+Tests also measure the attention-button foreground against its background. State graphics use these same readable semantic colors. Provider accents are not relied on to convey a state.
 
-Before treating this as a product design, check on a phone:
+## Verification
 
-- One-handed reach to initiative selection, agent actions and the persistent unblock button.
-- Answer the full queue, cancel and confirm a session-wide approval, send plan feedback, and receive a simulated request while drafting.
-- Dynamic Type at the largest setting, including keyboard-visible message and order fields. The overview intentionally scrolls when text grows.
-- VoiceOver section names, unit identities and states, selection, modal focus isolation and restoration, and announcement of answers.
-- Six initiatives with 40 agents in both themes. Verify ordinary-size fit and readability; the no-scroll goal has not been established by the host-shim test.
+Run:
 
-Progress fill against the composited sunken track measures 10.44:1 dark and 6.81:1 light. Primary button text measures 12.68:1 dark and 6.08:1 light. Stop uses the app's native cancel/confirm alert pattern. Session-wide choices use a separate confirmation with the permission scope stated plainly.
+```sh
+pnpm exec tsc --noEmit -p apps/mobile
+pnpm exec biome check apps/mobile
+pnpm exec vitest run apps/mobile
+pnpm --filter @zoltbot/mobile prototype:screenshots
+```
 
-Checks: `pnpm exec tsc --noEmit -p apps/mobile`, `pnpm exec biome check apps/mobile`, and `pnpm exec vitest run apps/mobile`. The mobile package defines no separate check scripts; these target the mobile portions of the root checks. The final suite has 126 passing tests across 21 files, including eight prototype tests. No desktop or native UI tests were launched.
+The screenshot command bundles the actual components with a browser host adapter, uses an isolated headless Chrome process and a localhost-only server, and saves images under ignored `output/playwright/squad-focus/`. It does not launch a simulator, a device or a visible browser. Chrome must be installed; `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select another installed Chromium binary.
+
+This adapter approximates native flex layout and text scaling. It is useful for visual comparison and exercising component interactions; it does not establish native line breaking, safe-area geometry, keyboard placement or VoiceOver behavior. The script produces overview images in both themes, initiative, orders, chat, agent sheet, request, all-clear, 40-agent, tiny, empty and large-text images.
+
+Checks cover initiative sorting, stable focus, state-to-vector mapping, oldest-first queue advancement, fixture validity, simulation and rendering at a 3.2 text scale. The browser harness checks that all six initiatives fit at 402 × 874 and 390 × 844, sends messages and orders, cancels and confirms broader permissions, drains the request queue, preserves a draft when a request arrives, checks Stop confirmation and verifies that the large-text scroll area remains usable at 320 pixels wide. All screenshot artifacts remain uncommitted.
+
+Before treating this as a product feature, check on a phone:
+
+- One-handed reach to initiative selection, units, orders and Unblock.
+- The entire unblock queue, including permission confirmation and a live arrival while drafting.
+- Largest Dynamic Type, including text fields with the keyboard visible.
+- VoiceOver names, states, selection, modal isolation, focus restoration and answer announcements.
+- Six initiatives and 40 agents in both themes, including actual safe areas and ordinary-size fit.
+
+For the squad-focus implementation, mobile typecheck and lint passed, all 129 mobile tests passed across 21 files, and the headless screenshot/flow command passed. Native phone checks above remain outstanding.
