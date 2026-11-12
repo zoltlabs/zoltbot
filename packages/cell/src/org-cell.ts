@@ -270,9 +270,15 @@ export class OrgCell extends DurableObject<Cloudflare.Env> {
       const next = await sandboxes.tick(async (taskId) => {
         if (this.deleted) throw new Error("unauthorized");
         const task = store.record("task", taskId);
+        const turn = store.database
+          .prepare(
+            "SELECT id FROM turns WHERE thread_id=? AND status='running' ORDER BY started_at DESC LIMIT 1",
+          )
+          .get(String(task?.threadId)) as { id: string } | undefined;
         sandboxes.checkpoint(taskId, () => {
           commands.enqueue(taskId, `checkpoint:${taskId}:r${task?.revision}`, {
             type: "interrupt",
+            ...(turn ? { turnId: turn.id } : {}),
           });
         });
       });

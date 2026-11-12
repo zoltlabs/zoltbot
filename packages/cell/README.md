@@ -174,3 +174,17 @@ Lifecycle response storage and core events share one `Store.dispatch`. The store
 forbids nested dispatches. Service requests clear their deadline timer after the
 response body is read, so a completed request does not keep the object alive until
 the deadline. The restart tests cover that cleanup. W4 remains incomplete.
+
+## Task input and stop requests
+
+`turn.send` queues a canonical input through the shared core handler in the task's
+existing thread. It requires a started task owned by the authenticated member.
+The transaction reads the latest item sequence without hydrating the transcript.
+Receipt replay returns the same input ID, and the next lease offer delivers that
+ID to the assigned runner. Project-only threads have no runner in milestone 1.
+
+`turn.interrupt` uses the shared human-interrupt handler and commits its note,
+audit and runner command together. The command names the selected turn; a runner
+must refuse it if a different turn is now active. Lifecycle checkpoint interrupts
+also name their active turn. Task cancellation atomically queues a stop for its
+existing lease, while an unassigned task needs no native stop.

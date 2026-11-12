@@ -116,15 +116,18 @@ export const RunnerCommandSchema = object({
   command: Type.Union([
     object({
       type: Type.Literal("send_turn"),
+      inputId: Type.Optional(Id),
       input: UserInputSchema,
       mode: values(["queue", "steer"]),
     }),
     object({
       type: Type.Literal("answer_interaction"),
       interactionId: Id,
+      version: Type.Optional(seq),
       answer: ResolutionSchema,
     }),
-    object({ type: values(["interrupt", "stop", "collect_diff"]) }),
+    object({ type: Type.Literal("interrupt"), turnId: Type.Optional(Id) }),
+    object({ type: values(["stop", "collect_diff"]) }),
     object({
       type: Type.Literal("push_branch"),
       branch: Type.String({ minLength: 1, maxLength: 200 }),

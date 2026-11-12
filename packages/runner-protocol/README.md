@@ -25,3 +25,8 @@ Runner events carry normalized session/item/turn context. These fields remain
 optional in the general wire schema for compatibility, but the hosted cell requires
 `sessionId`. Mac hello messages default to declining new tasks; `acceptTasks: true`
 opts in, and drain stops new assignments.
+
+Commands may carry canonical input IDs, interaction versions and interrupt turn
+IDs. Hosted runners use these fields to merge input without duplication, refuse
+stale answers and avoid stopping a later turn. They remain optional in the general
+wire schema for compatibility.

@@ -9,6 +9,8 @@ import {
   deferInteraction,
   handle,
   type Outcome,
+  queueHumanInput,
+  requestTurnInterrupt,
   retryTask,
 } from "@zoltbot/core";
 import {
@@ -20,6 +22,8 @@ import {
   TaskSchema,
 } from "@zoltbot/protocol";
 import type { ReadScope, Snapshot, Store } from "@zoltbot/store/portable";
+import { CellCommands } from "./commands.js";
+import { CellLeases } from "./leases.js";
 import type { CellService } from "./service.js";
 
 const metadata: readonly EntityKind[] = [
@@ -54,6 +58,13 @@ const publicErrors = new Set([
   "runner_session_required",
   "runtime_native_identity_changed",
   "task_not_running",
+  "runner_unavailable",
+  "interrupt_turn_changed",
+  "interrupt_already_requested",
+  "unsupported_interrupt",
+  "runtime_session_unavailable",
+  "empty_input",
+  "invalid_attachment",
 ]);
 export function safeError(error: unknown): string {
   const code = error instanceof Error ? error.message.split(":")[0] : undefined;
@@ -104,6 +115,31 @@ export class CloudRpc {
             .project?.[0],
       )
       .filter((row): row is Record<string, unknown> => !!row?.cloud && !row.archived);
+  }
+  private taskThread(id: string) {
+    const owned = this.owner("thread", id);
+    if (typeof owned.row.taskId !== "string") throw new Error("scope_unavailable");
+    const task = parse(TaskSchema, this.store.record("task", owned.row.taskId));
+    if (task.createdBy.id !== this.claims.sub || task.threadId !== id) throw new Error("forbidden");
+    return { task, scope: { taskId: task.id } };
+  }
+  private inputMetadata(state: Snapshot, threadId: string, notes = false) {
+    const last = this.store.database
+      .prepare("SELECT id,seq,kind FROM item_records WHERE thread_id=? ORDER BY seq DESC LIMIT 1")
+      .get(threadId) as { id: string; seq: number; kind: string } | undefined;
+    state.item = last ? [{ ...last, threadId, body: {} }] : [];
+    if (notes) {
+      const rows = this.store.database
+        .prepare(
+          "SELECT id FROM items WHERE thread_id=? AND kind='note' AND json_extract(body,'$.code')='turn_interrupt' AND json_extract(body,'$.state')!='completed'",
+        )
+        .all(threadId) as { id: string }[];
+      for (const row of rows) {
+        state.item = state.item.filter((item) => item.id !== row.id);
+        const item = this.store.record("item", row.id);
+        if (item) state.item.push(item);
+      }
+    }
   }
   private page(kind: EntityKind, params: Record<string, unknown>) {
     const projects = params.projectId ? [this.project(params.projectId)] : this.projects();
@@ -281,6 +317,38 @@ export class CloudRpc {
       case "rule.list":
         result = this.page("rule", p);
         break;
+      case "turn.send": {
+        const value = parse(methodCatalog["turn.send"].params, p);
+        const owned = this.taskThread(value.threadId);
+        if (!["running", "review", "blocked"].includes(owned.task.state))
+          throw new Error("task_not_running");
+        result = this.mutate(request, owned.scope, (state, context) => {
+          this.inputMetadata(state, value.threadId);
+          return queueHumanInput(state, value, `${context.commandId}:input`, context);
+        });
+        break;
+      }
+      case "turn.interrupt": {
+        const value = parse(methodCatalog["turn.interrupt"].params, p);
+        const owned = this.taskThread(value.threadId);
+        const commands = new CellCommands(this.store);
+        result = this.mutate(request, owned.scope, (state, context) => {
+          this.inputMetadata(state, value.threadId, true);
+          const outcome = requestTurnInterrupt(
+            state,
+            value.threadId,
+            value.turnId,
+            `${context.commandId}:interrupt`,
+            context,
+          );
+          commands.enqueue(owned.task.id, context.commandId, {
+            type: "interrupt",
+            turnId: value.turnId,
+          });
+          return { ...outcome, result: { ok: true } };
+        });
+        break;
+      }
       case "interaction.answer": {
         const value = parse(methodCatalog["interaction.answer"].params, p);
         const owned = this.owner("interaction", value.id);
@@ -394,9 +462,13 @@ export class CloudRpc {
       case "task.cancel": {
         const value = parse(methodCatalog["task.cancel"].params, p);
         const owned = this.owner("task", value.id);
-        result = this.mutate(request, owned.scope, (state, context) =>
-          cancelTask(state, value.id, value.confirmed, context),
-        );
+        const commands = new CellCommands(this.store);
+        result = this.mutate(request, owned.scope, (state, context) => {
+          const outcome = cancelTask(state, value.id, value.confirmed, context);
+          if (new CellLeases(this.store).get(value.id))
+            commands.enqueue(value.id, context.commandId, { type: "stop" });
+          return outcome;
+        });
         break;
       }
       case "task.retry": {
