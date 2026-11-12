@@ -37,6 +37,7 @@
         signBoard: "#ecd2a2",
         signPost: "#7c5c3e",
         signInk: "#2b2118",
+        signGlow: 0, // how much light a sign gives off
         shell: "#f2f2ee", // robot head
         tread: "#3b3e46",
         visorOff: "#23262d",
@@ -65,10 +66,10 @@
         bloom: { strength: 0.22, radius: 0.4, threshold: 1.0 },
       },
       night: {
-        mist: "#14171d",
-        water: "#1c2533",
-        shallows: "#202939",
-        foam: "#283246",
+        mist: "#15171b",
+        water: "#1f242c",
+        shallows: "#252b34",
+        foam: "#2e3540",
         grass: ["#46705a", "#6b6a4a", "#3f6c69", "#58734a", "#51705f"],
         soil: "#6a564c",
         rock: "#4a4550",
@@ -82,6 +83,7 @@
         signBoard: "#5f4d3a",
         signPost: "#4f3d30",
         signInk: "#f6ead6",
+        signGlow: 0.35,
         shell: "#d9dce6",
         tread: "#24262d",
         visorOff: "#0d0f13",
@@ -99,8 +101,8 @@
           idle: "#6b6b74",
           problem: "#e6a23c",
         },
-        sun: { color: "#c4d0ff", intensity: 1.9, azimuth: -0.9, elevation: 1.05 }, // the moon
-        sky: { top: "#8f9fce", ground: "#3a3f4c", intensity: 2.0 },
+        sun: { color: "#cdd6f5", intensity: 1.9, azimuth: -0.9, elevation: 1.05 }, // the moon
+        sky: { top: "#a3abc2", ground: "#3a3f4c", intensity: 1.9 },
         exposure: 1.15,
         emit: 2.4,
         glow: 0.32,
@@ -156,7 +158,7 @@
     },
 
     // Tilt-shift: rows this far from the focus (as a fraction of the height) stay sharp.
-    focus: { band: 0.16, blur: 3.2 },
+    focus: { band: 0.18, blur: 2.6 },
 
     // What each graphics level turns on. Auto steps down when frames take longer than `slowMs`.
     quality: {

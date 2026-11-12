@@ -47,9 +47,11 @@ button:disabled {
   border-color: var(--zb-border-strong);
   cursor: default;
 }
-button:hover:not(:disabled) {
-  background: var(--zb-bg-popover);
-  border-color: var(--zb-text);
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background: var(--zb-bg-popover);
+    border-color: var(--zb-text);
+  }
 }
 .icon {
   flex: none;
@@ -91,12 +93,14 @@ button:hover:not(:disabled) {
   flex: 1 1 40%;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--zb-space-3);
 }
 #actions {
   flex: 0 1 auto;
   max-height: 60%;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 0 var(--zb-space-3) var(--zb-space-3);
   border-block-start: 1px solid var(--zb-border-strong);
 }

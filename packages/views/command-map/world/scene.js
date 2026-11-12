@@ -52,6 +52,9 @@
         fire(name, detail) {
           for (const listener of listeners.get(name) ?? []) listener(detail);
         },
+        // How much brighter than its color a light is drawn. Bloom turns the extra into glow;
+        // without bloom (the low graphics level) lights are drawn at their plain color.
+        emit: (least = 1) => (world.glow ? Math.max(least, world.palette.emit) : 1),
         // The palette's color for a state: working, needs_you, review, idle or problem.
         stateColor(name) {
           if (!colors.has(name)) colors.set(name, new T.Color(world.palette.states[name]));
@@ -90,11 +93,11 @@
       });
       this.minimap = new map.Minimap({ ...view, center: (x, z) => this.center(x, z) });
       this.quality = new map.Quality(skin, this.renderer, (level) => {
-        this.post.setLevel(skin.quality[level]);
+        this.setLevel(level);
         host.onLevel(level);
         this.redraw();
       });
-      this.post.setLevel(skin.quality[this.quality.level]);
+      this.setLevel(this.quality.level);
       this.input = new map.Input(this);
       this.resize = new ResizeObserver(() => this.redraw());
       this.resize.observe(this.parent);
@@ -191,9 +194,18 @@
       this.forget();
       this.world.palette =
         this.skin.palettes[document.documentElement.dataset.theme === "light" ? "day" : "night"];
+      // Units keep their provider colors, so hand them the data again before repainting.
+      if (this.layout) for (const part of this.parts) part.setData?.(this.layout, this.clock);
       for (const part of this.parts) part.theme?.();
       this.post.theme();
       this.redraw();
+    }
+    setLevel(name) {
+      const level = this.skin.quality[name];
+      this.world.glow = level.bloom;
+      this.post.setLevel(level);
+      // Lights are drawn brighter when bloom is on, so repaint them.
+      if (this.layout) for (const part of this.parts) part.theme?.();
     }
     setQuality(choice) {
       this.quality.choose(choice);
@@ -287,7 +299,8 @@
       if (chosen.length) {
         const z = chosen.reduce((sum, unit) => sum + unit.z, 0) / chosen.length,
           x = chosen.reduce((sum, unit) => sum + unit.x, 0) / chosen.length;
-        row = Math.min(0.9, Math.max(0.1, 1 - camera.project(x, 0, z)[1] / height));
+        // Stay near the middle, so the rest of the map is never too soft to use.
+        row = Math.min(0.68, Math.max(0.32, 1 - camera.project(x, 0, z)[1] / height));
       }
       this.focusRow += (row - this.focusRow) * (world.reducedMotion ? 1 : 1 - Math.exp(-delta * 8));
       const focusing = Math.abs(row - this.focusRow) > 0.003;

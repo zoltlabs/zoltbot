@@ -115,9 +115,9 @@
 .count {
   min-width: var(--zb-control-xs);
   padding-inline: var(--zb-space-1);
+  border: 1px solid var(--zb-attention);
   border-radius: var(--zb-radius-pill);
-  background: var(--zb-attention);
-  color: var(--zb-bg-page);
+  color: var(--zb-attention);
   font-size: calc(var(--zb-text-sm) * var(--zb-font-scale, 1));
   font-variant-numeric: tabular-nums;
   text-align: center;

@@ -94,6 +94,7 @@ test("draws 200 chats within the draw-call and triangle budget at every graphics
         type: "budget",
         description: `${level}: ${now.calls} draw calls, ${now.triangles} triangles for 200 chats at zoom ${now.zoom}`,
       });
+      console.log(test.info().annotations.at(-1)?.description);
       return now;
     };
     expect(await budget("high")).toMatchObject({
@@ -320,7 +321,7 @@ for (const scheme of ["light", "dark"] as const)
           );
         };
         const failures: string[] = [];
-        const seen = new Set<string>();
+        const seen = new Map<string, number>();
         const visible = (element: Element) => {
           const box = element.getBoundingClientRect();
           return box.width > 0 && box.height > 0 && !element.closest("[hidden]");
@@ -340,14 +341,14 @@ for (const scheme of ["light", "dark"] as const)
               failures.push(
                 `${key} = ${value.toFixed(2)} (${element.className || element.tagName})`,
               );
-            seen.add(key);
+            seen.set(key, value);
           }
           if (element instanceof SVGSVGElement && element.classList.contains("icon") && !disabled) {
             const value = ratio(parse(style.color), behind),
               key = `icon ${style.color} on ${behind.map(Math.round)}`;
             if (value < 3 && !seen.has(key))
               failures.push(`${key} = ${value.toFixed(2)} (${element.getAttribute("class")})`);
-            seen.add(key);
+            seen.set(key, value);
           }
           if (element.matches("button, select, textarea, input[type=text]") && !disabled) {
             const outside = element.parentElement ? backdrop(element.parentElement) : behind,
@@ -357,15 +358,25 @@ for (const scheme of ["light", "dark"] as const)
               failures.push(
                 `${key} = ${value.toFixed(2)} (${element.className || element.tagName})`,
               );
-            seen.add(key);
+            seen.set(key, value);
           }
         }
-        return { failures, pairs: seen.size };
+        return {
+          failures,
+          pairs: seen.size,
+          lowestText: Math.min(
+            ...[...seen].filter(([key]) => key.startsWith("text")).map(([, value]) => value),
+          ),
+          lowestOther: Math.min(
+            ...[...seen].filter(([key]) => !key.startsWith("text")).map(([, value]) => value),
+          ),
+        };
       });
       test.info().annotations.push({
         type: "contrast",
-        description: `${scheme}: ${failures.pairs} distinct color pairs measured`,
+        description: `${scheme}: ${failures.pairs} distinct color pairs measured; lowest text contrast ${failures.lowestText.toFixed(2)}, lowest icon or border contrast ${failures.lowestOther.toFixed(2)}`,
       });
+      console.log(test.info().annotations.at(-1)?.description);
       expect(failures.pairs).toBeGreaterThan(8);
       expect(failures.failures).toEqual([]);
       // Keyboard focus is visible on HUD controls.

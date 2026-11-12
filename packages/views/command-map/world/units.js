@@ -235,7 +235,7 @@
                   unit.problem && unit.state !== "needs_you" ? "problem" : unit.state,
                 ),
               )
-              .multiplyScalar(palette.emit);
+              .multiplyScalar(world.emit());
           parts.visors.put(index * 2, kit.under(skull, 0, 0.02, 0.45), visor);
           // A small chest light repeats the visor's color, so the state reads from further off.
           parts.visors.put(

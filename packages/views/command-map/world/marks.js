@@ -144,7 +144,7 @@
         const ground = world.stateColor("needs_you");
         const attention = color
             .copy(world.stateColor("needs_you"))
-            .multiplyScalar(Math.max(1.5, palette.emit))
+            .multiplyScalar(world.emit(1.5))
             .clone(),
           pulse = still
             ? 0.5
@@ -201,7 +201,7 @@
         pools.warnings.begin(broken.length);
         const warn = color
           .copy(world.stateColor("problem"))
-          .multiplyScalar(Math.max(1, palette.emit * 0.6))
+          .multiplyScalar(world.emit(1) > 1 ? palette.emit * 0.6 : 1)
           .clone();
         broken.forEach((unit, index) => {
           pools.warnings.put(

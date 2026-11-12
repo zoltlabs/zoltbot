@@ -67,6 +67,10 @@
         this.now.z + Math.cos(yaw) * Math.cos(pitch) * reach,
       );
       this.lens.lookAt(this.now.x, 0, this.now.z);
+      // Keep the depth range tight around the scene; ambient occlusion needs the precision.
+      this.lens.near = Math.max(2, reach * 0.25);
+      this.lens.far = reach * 3 + 300;
+      this.lens.updateProjectionMatrix();
       this.lens.updateMatrixWorld();
     }
     // World position to screen pixels inside the map.

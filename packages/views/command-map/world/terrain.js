@@ -206,7 +206,7 @@
         lamps.put(
           index,
           kit.place(x, 2.2, z),
-          color.set(palette.lampLit).multiplyScalar(palette.emit),
+          color.set(palette.lampLit).multiplyScalar(world.emit()),
         );
       });
       posts.end();

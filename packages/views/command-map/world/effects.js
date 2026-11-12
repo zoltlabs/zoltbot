@@ -120,7 +120,7 @@
     const stop = [
       world.on("spark", ({ x, y, z }) => {
         if (world.reducedMotion || world.far) return;
-        color.set("#ffd27a").multiplyScalar(Math.max(1.4, world.palette.emit));
+        color.set("#ffd27a").multiplyScalar(Math.max(1.4, world.emit()));
         for (let index = 0; index < 4; index++)
           sparks.emit(
             x,
