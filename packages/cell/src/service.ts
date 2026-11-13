@@ -123,7 +123,8 @@ export class CellService {
           ...(options.operationId ? { "Idempotency-Key": options.operationId } : {}),
         },
         body: JSON.stringify(body),
-        redirect: "error",
+        // Workerd does not support redirect: "error". Non-2xx responses are refused below.
+        redirect: "manual",
         signal: controller.signal,
       });
       const result = await boundedJson(response, 262144);

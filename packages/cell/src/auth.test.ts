@@ -113,3 +113,17 @@ it("refreshes rotated public keys on an unknown key and bounds JSON buffering", 
   );
   expect(() => bearer(new Request("https://example.invalid"))).toThrow("unauthorized");
 });
+
+it("uses Workerd-compatible manual redirects and refuses redirected JWKS", async () => {
+  const id = await identity();
+  const fetcher = vi.fn(async (_url, init) => {
+    expect(init?.redirect).toBe("manual");
+    return Response.json(
+      { keys: [id.jwk] },
+      { status: 302, headers: { location: "https://other.example.invalid/jwks" } },
+    );
+  });
+  const verifier = new CellTokenVerifier({ issuer, jwksUrl: `${issuer}/jwks` }, fetcher, () => now);
+  await expect(verifier.verify(await id.token(), "org")).rejects.toThrow(/^unauthorized$/);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

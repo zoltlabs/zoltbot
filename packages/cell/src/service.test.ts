@@ -125,3 +125,20 @@ it("requires explicit Mac grant capabilities, refreshes them and does not expose
   response = { active: true, canRunTasks: false, canMacExec: false };
   await expect(service.authorize(claims, now + 5)).rejects.toThrow("unauthorized");
 });
+
+it("uses Workerd-compatible manual redirects and refuses redirected service responses", async () => {
+  const fetcher = vi.fn(async (_url, init) => {
+    expect(init?.redirect).toBe("manual");
+    return Response.json(
+      { active: true },
+      { status: 302, headers: { location: "https://other.example.invalid/access" } },
+    );
+  });
+  const client = new CellService(
+    { origin: "https://accounts.example.invalid/api/cloud", signingKey: secret(), issuer },
+    "org",
+    fetcher,
+  );
+  await expect(client.request("access", "POST", {})).rejects.toThrow(/^service_unavailable$/);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

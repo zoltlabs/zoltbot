@@ -109,6 +109,23 @@ export async function createCloudM1Account(options: {
           if (
             !input ||
             typeof input.orgId !== "string" ||
+            typeof input.userId !== "string" ||
+            typeof input.kind !== "string"
+          )
+            return refused();
+          const token = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(request.authorization ?? "")?.[1] ?? "";
+          await verifyServiceToken(token, serviceKey, issuer, "orchestrator", input.orgId, now());
+          if (input.kind === "cell") {
+            if (Object.keys(input).some((name) => !["orgId", "userId", "kind"].includes(name)))
+              return refused();
+            return reply({
+              active: [...sessions.values()].some(
+                (session) =>
+                  session.userId === input.userId && session.orgId === input.orgId && session.beta,
+              ),
+            });
+          }
+          if (
             Object.keys(input).some(
               (name) =>
                 ![
@@ -123,13 +140,11 @@ export async function createCloudM1Account(options: {
                   "taskId",
                 ].includes(name),
             ) ||
-            ["orgId", "userId", "deviceId", "kind", "tokenId", "surface"].some(
+            ["deviceId", "tokenId", "surface"].some(
               (name) => typeof input[name] !== "string" || !input[name],
             )
           )
             return refused();
-          const token = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(request.authorization ?? "")?.[1] ?? "";
-          await verifyServiceToken(token, serviceKey, issuer, "orchestrator", input.orgId, now());
           const session = sessions.get(String(input.sessionId));
           const active =
             !!session &&

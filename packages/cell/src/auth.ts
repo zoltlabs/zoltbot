@@ -78,7 +78,8 @@ export class CellTokenVerifier {
         throw new Error("unauthorized");
       const response = await this.fetcher(url, {
         headers: { Accept: "application/json" },
-        redirect: "error",
+        // Workerd does not support redirect: "error". Non-2xx responses are refused below.
+        redirect: "manual",
         signal: AbortSignal.timeout(5000),
       });
       if (!response.ok) throw new Error("unauthorized");

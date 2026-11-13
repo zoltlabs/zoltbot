@@ -152,6 +152,12 @@ it("uses localhost account HTTP to issue org-bound client and granted runner tok
         })
       ).json();
     expect((await access()).active).toBe(true);
+    const cellAccess = await fetch(accessPath, {
+      method: "POST",
+      headers: { authorization: `Bearer ${auth}`, "content-type": "application/json" },
+      body: JSON.stringify({ orgId: "personal", userId: "member", kind: "cell" }),
+    });
+    expect((await cellAccess.json()).active).toBe(true);
     expect((await access({ orgId: "other-org" })).active === true).toBe(false);
     const listed = await (await call(paths.devices, other.accessToken)).json();
     expect(listed.devices.map((d: { deviceId: string }) => d.deviceId)).toEqual([

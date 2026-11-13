@@ -372,3 +372,11 @@ persistence; Local callers keep their existing message and execution-approval
 flow. No additional human text enters the cloud Git metadata. Component/client
 flows and whole-flow verification remain unfinished; these routes do not sign
 W4 or W8 off by themselves.
+
+
+Workerd account-service requests use manual redirects and refuse non-success
+responses. Workerd does not implement the standard `error` redirect mode; using
+it prevents even the initial JWKS fetch. The headless Miniflare fixture now
+bundles the unmodified Cell, verifies real localhost account/JWKS requests and
+reopens its persisted project after a runtime restart. No key or bearer is stored
+in the fixture's persistence directory. The complete W8 flow remains unfinished.
