@@ -5,7 +5,7 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
-- Prepare Cloud settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
+- Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
 
 - Refuse account actions from an old sign-in after switching accounts.
 
