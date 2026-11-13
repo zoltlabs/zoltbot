@@ -7,6 +7,8 @@ import type { DeviceRecord, OfferRecord, PushPlatform, Registry } from "./regist
 
 export interface FirestoreOptions {
   project: string;
+  /** Session-scoped registrations: revocation is permanent and late writes are fenced. */
+  permanentRevocation?: boolean;
   database?: string;
   /** host:port of the Firestore emulator. Skips auth. */
   emulatorHost?: string;
@@ -17,9 +19,18 @@ export interface FirestoreOptions {
 type Value = { stringValue: string } | { timestampValue: string };
 type Fields = Record<string, Value>;
 interface Document {
+  updateTime?: string;
   fields?: Fields;
 }
 
+class FirestoreFailure extends Error {
+  constructor(
+    readonly status: number,
+    method: string,
+  ) {
+    super(`firestore ${method} ${status}`);
+  }
+}
 const metadata = "http://metadata.google.internal/computeMetadata/v1";
 
 /** Reads the project id from the Cloud Run metadata server. */
@@ -67,13 +78,21 @@ export class FirestoreRegistry implements Registry {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (response.status === 404) return undefined;
-    if (!response.ok) throw new Error(`firestore ${method} ${response.status}`);
+    if (!response.ok) throw new FirestoreFailure(response.status, method);
     return (await response.json()) as Document;
   }
 
   /** Writes `fields`; masked names missing from `fields` are deleted. Creates the document. */
-  private patch(path: string, fields: Fields, mask: string[]) {
-    const query = mask.map((name) => `updateMask.fieldPaths=${name}`).join("&");
+  private patch(
+    path: string,
+    fields: Fields,
+    mask: string[],
+    precondition?: { exists: false } | { updateTime: string },
+  ) {
+    let query = mask.map((name) => `updateMask.fieldPaths=${name}`).join("&");
+    if (precondition)
+      for (const [name, value] of Object.entries(precondition))
+        query += `&currentDocument.${name}=${encodeURIComponent(String(value))}`;
     return this.request("PATCH", `${path}?${query}`, { fields });
   }
 
@@ -112,18 +131,58 @@ export class FirestoreRegistry implements Registry {
       fields.publicKey = { stringValue: publicKey };
       mask.push("publicKey");
     }
-    await this.patch(this.devicePath(macId, deviceId), fields, mask);
+    if (this.options.permanentRevocation) {
+      const path = this.devicePath(macId, deviceId),
+        current = await this.request("GET", path);
+      if (current?.fields) {
+        if (text(current.fields.status) !== "allowed") throw new Error("registry_revoked");
+        if (publicKey && text(current.fields.publicKey) !== publicKey)
+          throw new Error("registry_key_mismatch");
+        return;
+      }
+      await this.patch(path, fields, mask, { exists: false });
+    } else await this.patch(this.devicePath(macId, deviceId), fields, mask);
   }
 
   async revokeDevice(macId: string, deviceId: string) {
     await this.patch(
       this.devicePath(macId, deviceId),
       { status: { stringValue: "revoked" }, updatedAt: this.stamp() },
-      ["status", "updatedAt", "pushToken", "platform"],
+      [
+        "status",
+        "updatedAt",
+        "pushToken",
+        "platform",
+        ...(this.options.permanentRevocation ? ["publicKey"] : []),
+      ],
     );
   }
 
   async setPushToken(macId: string, deviceId: string, platform: PushPlatform, token: string) {
+    if (this.options.permanentRevocation) {
+      const path = this.devicePath(macId, deviceId),
+        current = await this.request("GET", path);
+      if (text(current?.fields?.status) !== "allowed") return false;
+      if (!current?.updateTime) throw new Error("registry_version_missing");
+      try {
+        await this.patch(
+          path,
+          {
+            pushToken: { stringValue: token },
+            platform: { stringValue: platform },
+            updatedAt: this.stamp(),
+          },
+          ["pushToken", "platform", "updatedAt"],
+          { updateTime: current.updateTime },
+        );
+        return true;
+      } catch (error) {
+        // Firestore uses FAILED_PRECONDITION (HTTP 400) or a conflict for a stale version.
+        if (error instanceof FirestoreFailure && [400, 409, 412].includes(error.status))
+          return false;
+        throw error;
+      }
+    }
     const current = await this.getDevice(macId, deviceId);
     if (current?.status !== "allowed") return false;
     await this.patch(

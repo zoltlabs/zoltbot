@@ -15,7 +15,7 @@ export const CloudPushContextSchema = object({
 });
 export type CloudPushContext = Static<typeof CloudPushContextSchema>;
 export const CloudPushRegistrationSchema = object({
-  deviceId: routingId,
+  deviceId: Type.String({ pattern: "^[A-Za-z0-9_-]{22}$" }),
   platform: values(["apns", "apns-sandbox"]),
   token: Type.String({ pattern: "^(?:[a-fA-F0-9]{2}){16,256}$" }),
 });

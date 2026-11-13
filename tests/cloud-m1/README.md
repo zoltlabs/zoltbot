@@ -95,3 +95,28 @@ Private keys and tokens stay in memory or private process pipes. Provider
 stand-ins are ordinary test code uploaded into disposable containers.
 The test server must listen on numeric loopback only. No browser or Electron
 window, real keychain, real provider or external network request belongs here.
+
+
+Docker cleanup confirms that the fixture label has no remaining containers or
+snapshots before removing its unique image tag. Image removal allows three minutes
+for local layer cleanup; an already absent image is a completed retry. CLI errors
+report only a fixed stage, timeout/output-limit state or numeric exit status.
+They never serialize child arguments, stderr or injected environment values.
+A failed Docker cleanup still closes the fake targets and owned HTTP/Cell servers.
+
+Each fixture writes only its image tag and label to an ownership journal under
+`.cache/cloud-m1/docker/`. Confirmed image removal deletes that journal. A retained
+journal identifies this run's resources for a later cleanup attempt; it contains
+no task environment, provider key or token. Other fixtures' labels and tags must
+not be removed. These are headless test choices, not production sandbox behavior.
+
+Docker whole-flow cases allow five minutes including image cleanup. Their task,
+interaction and execution assertions retain their existing deadlines.
+
+
+Checkpoint verification remains incomplete. The prior Docker-only recheck printed
+`2 failed | 2 skipped`; both failures came from image removal during teardown,
+and the skips were filter deselections. The cleanup changes above have not passed
+the full harness yet. The latest frozen batch passed typecheck, then lint printed
+`Found 1 error` and stopped before the harness, builds and browser checks. The
+owner requested a work-in-progress commit at this point.

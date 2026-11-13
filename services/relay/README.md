@@ -146,3 +146,25 @@ The hosted Global API can reuse this sender and registry through a vendored
 public package. This change does not configure a hosted sender or connect the
 phone's Cloud notification route. APNs keys stay in deployment-owned environment
 or keychain inputs, and never enter notification payloads or logs.
+
+
+### Session registry revocation
+
+`FirestoreRegistry` has an opt-in `permanentRevocation` mode for account-session
+rooms. Allowing a new record uses the document-must-not-exist precondition.
+Storing its push token uses the exact Firestore document update time. A delayed
+write therefore cannot restore an allowed record or token after another service
+instance revokes it. Repeated registration can retry a conflict while the record
+is still allowed. A revoked session cannot be allowed again.
+
+Revocation clears its token, platform and public key. The routing document keeps
+only revoked status and its update timestamp, preventing a late create. Callers
+must retain that marker. Disabling notifications for a live session should clear
+the token; terminal account/session cleanup should revoke. A new account session
+uses a different room. The default mode keeps Local pairing and re-pairing behavior.
+
+Tests pause both the initial allow write and a token update while another registry
+instance revokes the same document. They use a memory-only REST stand-in with
+Firestore preconditions, not a hosted database.
+
+Reference: [Firestore document write preconditions](https://docs.cloud.google.com/workflows/docs/reference/googleapis/firestore/v1/projects.databases.documents/patch).

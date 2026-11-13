@@ -43,7 +43,11 @@ it("binds a strict Cloud routing scope without authority to approve commands", (
     expect(() => parse(CloudPushContextSchema, { ...context, ...extra })).toThrow();
 });
 it("accepts native APNs registration, not a URL or browser push capability", () => {
-  const registration = { deviceId: "phone", platform: "apns-sandbox", token: "a".repeat(64) };
+  const registration = {
+    deviceId: "p".repeat(22),
+    platform: "apns-sandbox",
+    token: "a".repeat(64),
+  };
   expect(() => parse(CloudPushRegistrationSchema, registration)).not.toThrow();
   for (const change of [
     { platform: "web" },
@@ -52,4 +56,15 @@ it("accepts native APNs registration, not a URL or browser push capability", () 
     { token: "a".repeat(514) },
   ])
     expect(() => parse(CloudPushRegistrationSchema, { ...registration, ...change })).toThrow();
+});
+
+it("accepts every base64url device-ID prefix, including dash and underscore", () => {
+  for (const prefix of ["-", "_", "A", "0"])
+    expect(() =>
+      parse(CloudPushRegistrationSchema, {
+        deviceId: prefix + "p".repeat(21),
+        platform: "apns",
+        token: "a".repeat(64),
+      }),
+    ).not.toThrow();
 });

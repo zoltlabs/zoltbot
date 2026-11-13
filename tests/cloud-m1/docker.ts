@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { build } from "esbuild";
@@ -8,12 +8,45 @@ import type { ExecutionTarget } from "../../packages/sandbox/src/interface.js";
 import { createDockerTarget } from "../../packages/sandbox/src/targets/docker/index.js";
 import { gitShim } from "./repository.js";
 
-const run = async (args: string[]) => {
+export class DockerFixtureError extends Error {}
+const run = async (args: string[], options: { timeout?: number; missingImage?: boolean } = {}) => {
   try {
-    await promisify(execFile)("docker", args, { timeout: 60000, maxBuffer: 1024 * 1024 });
-  } catch {
-    // CLI errors must never render a container's injected environment.
-    throw new Error("fixture_docker_command_failed");
+    const result = await promisify(execFile)("docker", args, {
+      timeout: options.timeout ?? 60000,
+      maxBuffer: 1024 * 1024,
+    });
+    return result.stdout;
+  } catch (error) {
+    // Never serialize the child error: it can contain an injected environment.
+    const failure = error as { code?: unknown; killed?: boolean; stderr?: unknown };
+    if (
+      options.missingImage &&
+      failure.code === 1 &&
+      typeof failure.stderr === "string" &&
+      /No such image/i.test(failure.stderr)
+    )
+      return "";
+    const stage =
+      args[0] === "image"
+        ? args[1] === "rm"
+          ? "image.remove"
+          : "image.inspect"
+        : args[0] === "build"
+          ? "build"
+          : args[0] === "ps"
+            ? "containers"
+            : args[0] === "images"
+              ? "images"
+              : "command";
+    const reason =
+      failure.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
+        ? "output_limit"
+        : failure.killed
+          ? "timeout"
+          : typeof failure.code === "number"
+            ? `exit ${failure.code}`
+            : "unavailable";
+    throw new DockerFixtureError(`fixture_docker_command_failed: ${stage} (${reason})`);
   }
 };
 
@@ -28,6 +61,14 @@ export async function dockerFixture(options: { remote: string; certificate: stri
     throw new Error("Build templates/sandbox/Dockerfile as zoltbot-base before Docker M1 tests");
   }
   const image = `zoltbot-m1-fixture:${randomUUID()}`;
+  const label = `m1-${randomUUID()}`;
+  const journal = path.resolve(".cache/cloud-m1/docker", `${randomUUID()}.json`);
+  await mkdir(path.dirname(journal), { recursive: true });
+  await writeFile(journal, JSON.stringify({ image, label }), { flag: "wx" });
+  const removeImage = async () => {
+    await run(["image", "rm", image], { timeout: 180000, missingImage: true });
+    await rm(journal, { force: true });
+  };
   const context = await mkdtemp("/private/tmp/zoltbot-m1-image-");
   try {
     await writeFile(
@@ -37,12 +78,12 @@ export async function dockerFixture(options: { remote: string; certificate: stri
     await copyFile("apps/worker/dist/main.mjs", path.join(context, "worker.mjs"));
     await run(["build", "--pull=false", "--network=none", "--tag", image, context]);
   } catch (error) {
-    await run(["image", "rm", image]).catch(() => {});
+    await removeImage().catch(() => {});
     throw error;
   } finally {
     await rm(context, { recursive: true, force: true });
   }
-  const raw = createDockerTarget({ image, label: `m1-${randomUUID()}` });
+  const raw = createDockerTarget({ image, label });
   const home = "/home/user/fixture",
     bin = `${home}/bin`;
   const files = new Map<string, string | Uint8Array>();
@@ -116,11 +157,16 @@ const child=require("node:child_process").spawn(process.execPath,[${JSON.stringi
       },
       async close() {
         await raw.removeAll();
-        await run(["image", "rm", image]);
+        const filter = `label=ai.zoltbot.sandbox=${label}`;
+        const containers = await run(["ps", "--all", "--quiet", "--filter", filter]);
+        const images = await run(["images", "--quiet", "--filter", filter]);
+        if (containers.trim() || images.trim())
+          throw new DockerFixtureError("fixture_docker_cleanup_pending");
+        await removeImage();
       },
     });
   } catch {
-    await run(["image", "rm", image]).catch(() => {});
+    await removeImage().catch(() => {});
     throw new Error("fixture_docker_setup_failed");
   }
 }

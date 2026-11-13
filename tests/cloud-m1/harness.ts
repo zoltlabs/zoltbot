@@ -14,7 +14,7 @@ import { createCloudM1Publication } from "../../tools/fakes/src/cloud-m1-publica
 import { createCloudM1Workers } from "../../tools/fakes/src/cloud-m1-workers.js";
 import { startTestCell } from "./cell.js";
 import { cellClient, loopbackClient, responseJson } from "./client.js";
-import { dockerFixture } from "./docker.js";
+import { DockerFixtureError, dockerFixture } from "./docker.js";
 import { startFixtureGit } from "./git-http.js";
 import { type FrameHook, startTlsProxy } from "./proxy.js";
 import { harnessRepository } from "./repository.js";
@@ -167,16 +167,30 @@ export async function cloudHarness(
   globalOrigin = `http://127.0.0.1:${(global.address() as AddressInfo).port}`;
   const close = async () => {
     await orchestrator.deleteOrg("personal").catch(() => {});
-    await docker?.close();
-    await fake.dispose();
-    await gitHttp?.close();
-    await cell?.close();
-    account.clear();
-    workers.clearOrg("personal");
-    await proxy.close();
-    global.closeAllConnections();
-    await new Promise<void>((resolve) => global.close(() => resolve()));
-    await rm(root, { recursive: true, force: true });
+    let failure: Error | undefined;
+    const actions: Array<() => unknown | Promise<unknown>> = [
+      () => docker?.close(),
+      () => fake.dispose(),
+      () => gitHttp?.close(),
+      () => cell?.close(),
+      () => account.clear(),
+      () => workers.clearOrg("personal"),
+      () => proxy.close(),
+      async () => {
+        global.closeAllConnections();
+        await new Promise<void>((resolve) => global.close(() => resolve()));
+      },
+      () => rm(root, { recursive: true, force: true }),
+    ];
+    for (const action of actions) {
+      try {
+        await action();
+      } catch (error) {
+        failure ??=
+          error instanceof DockerFixtureError ? error : new Error("fixture_cleanup_failed");
+      }
+    }
+    if (failure) throw failure;
   };
   try {
     const jwks = new URL("/api/cloud/jwks.json", globalOrigin);

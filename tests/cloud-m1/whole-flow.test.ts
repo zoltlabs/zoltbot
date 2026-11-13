@@ -400,5 +400,5 @@ for (const { target, provider } of targets.flatMap((target) =>
       await mac?.close();
       await harness.close();
     }
-  }, 180000);
+  }, target === "docker" ? 300000 : 180000);
 }

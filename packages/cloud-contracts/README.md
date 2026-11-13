@@ -66,3 +66,6 @@ The push context marks a Cloud org and notification digest. Phone decoding must
 keep it separate from Local pairing and fetch the current request before an
 answer. A push notice never authorizes a Mac command. These are additive v1
 contracts. Hosted registration, delivery and deletion remain integration work.
+
+Push registration device IDs use the complete 22-character base64url alphabet,
+including a leading dash or underscore, as the link identity helper generates.
