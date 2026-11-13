@@ -22,7 +22,7 @@ const routes: Record<string, RegExp> = {
 };
 interface BrokerRequest {
   origin: string;
-  operation: "status" | "save" | "clear" | "request";
+  operation: "status" | "save" | "clear" | "request" | "cloud_request";
   credentials?: unknown;
   path?: string;
   method?: string;
@@ -172,6 +172,7 @@ export async function startAccountBroker(
       clear: ["origin", "operation"],
       save: ["origin", "operation", "credentials"],
       request: ["origin", "operation", "path", "method", "payload"],
+      cloud_request: ["origin", "operation", "path", "method", "payload"],
     };
     if (typeof input.operation !== "string" || !Object.hasOwn(fields, input.operation))
       throw new Error("native_account_request_invalid");
@@ -200,7 +201,10 @@ export async function startAccountBroker(
         await owner.clear();
         return null;
       }
-      if (typeof input.path !== "string" || !routes[input.method ?? ""]?.test(input.path))
+      if (
+        typeof input.path !== "string" ||
+        (input.operation !== "cloud_request" && !routes[input.method ?? ""]?.test(input.path))
+      )
         throw new Error("native_account_request_invalid");
       let payload: string | Buffer | undefined;
       if (input.payload) {
@@ -218,6 +222,10 @@ export async function startAccountBroker(
             throw new Error("native_account_request_invalid");
           payload = bytes;
         } else throw new Error("native_account_request_invalid");
+      }
+      if (input.operation === "cloud_request") {
+        if (Buffer.isBuffer(payload)) throw new Error("native_account_request_invalid");
+        return await owner.cloudRequest(input.path, input.method, payload);
       }
       return await owner.request(input.path, input.method, payload);
     } catch (error) {
@@ -253,10 +261,10 @@ export async function startAccountBroker(
     active++;
     try {
       const input = await body(request);
-      const action = queue.then(async () => ({
-        result: await dispatch(input),
-        sessionId: owner.sessionId(),
-      }));
+      const action = queue.then(async () => {
+        if (response.destroyed || request.aborted) throw new Error("native_account_unavailable");
+        return { result: await dispatch(input), sessionId: owner.sessionId() };
+      });
       queue = action.catch(() => {});
       const result = await action,
         encoded = JSON.stringify({ ok: true, ...result });
@@ -270,6 +278,7 @@ export async function startAccountBroker(
         error instanceof Error &&
         [
           "sign_in_required",
+          "account_access_revoked",
           "account_origin_changed",
           "native_account_request_invalid",
           "account_service_unavailable",

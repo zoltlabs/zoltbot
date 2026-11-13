@@ -76,11 +76,11 @@ export function accountSession(options: AccountSessionOptions) {
     reference = undefined;
     tokens = undefined;
   }
-  async function request(path: string, method = "GET", payload?: string | Buffer) {
+  async function request(path: string, method = "GET", payload?: string | Buffer, cloud = false) {
     const current = await load();
     if (!current) throw new Error("sign_in_required");
     const perform = () =>
-      send(endpoint(path), {
+      send(cloud ? `${origin}${path}` : endpoint(path), {
         method,
         headers: {
           Authorization: `Bearer ${tokens?.accessToken}`,
@@ -116,6 +116,10 @@ export function accountSession(options: AccountSessionOptions) {
       await save(credentials(await rotated.json()));
       response = await perform();
     }
+    if (cloud && [401, 403, 410].includes(response.status)) {
+      await response.body?.cancel().catch(() => {});
+      throw new Error("account_access_revoked");
+    }
     if (!response.ok) throw new Error("account_service_unavailable");
     return response.json();
   }
@@ -134,6 +138,18 @@ export function accountSession(options: AccountSessionOptions) {
       const frozen = Buffer.isBuffer(payload) ? Buffer.from(payload) : payload;
       return serialized(() => request(path, method, frozen));
     },
+    // This port stays inside the native owner; trusted IPC applies its own route allowlist.
+    cloudRequest: (path: string, method = "GET", payload?: string) =>
+      serialized(() => {
+        if (!origin) throw new Error("accounts_not_configured");
+        const routes: Record<string, string> = {
+          "/api/cloud/devices": "GET",
+          "/api/cloud/runner-token": "POST",
+          "/api/cloud/runner-grants": "PUT",
+        };
+        if (routes[path] !== method) throw new Error("account_request_invalid");
+        return request(path, method, payload, true);
+      }),
     endpoint,
     sessionId: () => tokens?.sessionId,
   });

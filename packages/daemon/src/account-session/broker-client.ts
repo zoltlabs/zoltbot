@@ -17,10 +17,11 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
     throw new Error("native_account_unavailable");
   let sessionId: string | undefined;
   let queue: Promise<unknown> = Promise.resolve();
-  const call = (operation: string, input: Record<string, unknown> = {}) => {
+  const call = (operation: string, input: Record<string, unknown> = {}, signal?: AbortSignal) => {
     const encoded = JSON.stringify({ origin, operation, ...input });
     const next = queue
       .then(async () => {
+        if (signal?.aborted) throw new Error("native_account_unavailable");
         const [folder, socket] = await Promise.all([
           lstat(path.dirname(socketPath)),
           lstat(socketPath),
@@ -39,6 +40,7 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
           const client = request(
             {
               socketPath,
+              signal,
               path: "/v1/native-account",
               method: "POST",
               agent: false,
@@ -63,6 +65,7 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
                   if (value.ok !== true || response.statusCode !== 200) {
                     const code = [
                       "sign_in_required",
+                      "account_access_revoked",
                       "account_origin_changed",
                       "native_account_request_invalid",
                       "account_service_unavailable",
@@ -99,6 +102,7 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
           error instanceof Error &&
           [
             "sign_in_required",
+            "account_access_revoked",
             "account_origin_changed",
             "native_account_request_invalid",
             "account_service_unavailable",
@@ -148,6 +152,19 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
                 : { encoding: "text", data: payload },
             }),
       });
+    },
+    cloudRequest: (route: string, method = "GET", payload?: string, signal?: AbortSignal) => {
+      if (payload !== undefined && Buffer.byteLength(payload) > 1048576)
+        return Promise.reject(new Error("native_account_request_invalid"));
+      return call(
+        "cloud_request",
+        {
+          path: route,
+          method,
+          ...(payload === undefined ? {} : { payload: { encoding: "text", data: payload } }),
+        },
+        signal,
+      );
     },
     endpoint: (route: string) => `${origin}/api/account${route}`,
     sessionId: () => sessionId,

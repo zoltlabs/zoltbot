@@ -482,3 +482,11 @@ The shared Git runner retains parent-death cleanup, bounded streams and its
 isolated environment. Its transport policy also refuses worktree configuration,
 which could otherwise supply overrides outside the ordinary local config file.
 Cloud settings, native pending-call recovery and W8 remain unfinished.
+
+
+`runnerAccount` can now use the native account broker instead of resolving an
+account bearer. Its request port retains response bounds, schema checks,
+cancellation and explicit revocation handling. `startMacRunner` passes this port
+through without loading an account credential. Direct token access remains an
+alternative for existing injected hosts; supplying both paths is refused.
+Daemon startup, settings and W8 still need to select and verify the broker path.

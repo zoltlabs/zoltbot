@@ -138,3 +138,48 @@ it("replaces and clears a reopened keychain reference without leaving old creden
   expect(f.entries.size).toBe(0);
   await expect(readFile(f.referenceFile)).rejects.toMatchObject({ code: "ENOENT" });
 });
+
+it("shares one refresh queue between account metadata and allowlisted cloud runner requests", async () => {
+  const initial = credentials(),
+    rotated = credentials(initial.sessionId);
+  let refreshes = 0;
+  const routes: string[] = [];
+  const f = await fixture(async (url, init) => {
+    const route = new URL(String(url)).pathname;
+    routes.push(route);
+    if (route.endsWith("/session/refresh")) {
+      refreshes++;
+      return Response.json(rotated);
+    }
+    if (new Headers(init?.headers).get("authorization") === `Bearer ${initial.accessToken}`)
+      return new Response(null, { status: 401 });
+    return Response.json({ ok: true });
+  });
+  await f.session.save(initial);
+  expect(
+    await Promise.all([
+      f.session.request("/me"),
+      f.session.cloudRequest("/api/cloud/runner-token", "POST", JSON.stringify({ orgId: "org" })),
+      f.session.cloudRequest("/api/cloud/devices"),
+    ]),
+  ).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+  expect(refreshes).toBe(1);
+  expect(routes.filter((route) => route === "/api/cloud/runner-token")).toHaveLength(1);
+  const before = routes.length;
+  await expect(f.session.cloudRequest("/api/cloud/devices", "POST")).rejects.toThrow(
+    "account_request_invalid",
+  );
+  await expect(f.session.cloudRequest("//other.example.invalid/me")).rejects.toThrow(
+    "account_request_invalid",
+  );
+  expect(routes.length).toBe(before);
+});
+it("reports cloud grant revocation without exposing service details or clearing an unrelated account session", async () => {
+  const f = await fixture(async () => new Response(null, { status: 403 }));
+  await f.session.save(credentials());
+  await expect(f.session.cloudRequest("/api/cloud/devices")).rejects.toThrow(
+    "account_access_revoked",
+  );
+  expect(!!(await f.session.load())).toBe(true);
+  await expect(f.session.request("/me")).rejects.toThrow("account_service_unavailable");
+});

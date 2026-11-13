@@ -12,7 +12,14 @@ export interface RunnerAccountOptions {
   orgId: string;
   deviceId: string;
   /** Resolve the current native account access token from keychain/memory only. */
-  accessToken(signal: AbortSignal): Promise<string>;
+  accessToken?(signal: AbortSignal): Promise<string>;
+  /** A daemon-owned session performs authenticated I/O without handing out its account bearer. */
+  nativeRequest?(input: {
+    route: string;
+    method: "GET" | "POST" | "PUT";
+    body: unknown;
+    signal: AbortSignal;
+  }): Promise<unknown>;
   fetch?: typeof globalThis.fetch;
   allowLoopback?: boolean;
 }
@@ -40,18 +47,46 @@ function origin(value: string, allowLoopback: boolean | undefined) {
 export function runnerAccount(options: RunnerAccountOptions) {
   const base = origin(options.origin, options.allowLoopback),
     fetcher = options.fetch ?? globalThis.fetch;
-  const { orgId, deviceId } = options;
+  const { orgId, deviceId, accessToken, nativeRequest } = options;
+  if (!!accessToken === !!nativeRequest || (nativeRequest && options.fetch))
+    throw new Error("runner_account_unavailable");
   if (!orgId || orgId.length > 200 || !/^[A-Za-z0-9_-]{22}$/.test(deviceId))
     throw new Error("runner_account_unavailable");
   const request = async (route: string, input: unknown, signal: AbortSignal, method?: "GET") => {
     try {
       const timeout = AbortSignal.timeout(10000),
         combined = AbortSignal.any([signal, timeout]);
+      if (combined.aborted) throw new Error();
+      if (nativeRequest) {
+        let cancel = () => {};
+        try {
+          const result = await Promise.race([
+            nativeRequest({
+              route,
+              method: method ?? (route.endsWith("runner-token") ? "POST" : "PUT"),
+              body: input,
+              signal: combined,
+            }),
+            new Promise<never>((_resolve, reject) => {
+              cancel = () => reject(new Error());
+              if (combined.aborted) cancel();
+              else combined.addEventListener("abort", cancel, { once: true });
+            }),
+          ]);
+          const encoded = JSON.stringify(result);
+          if (typeof encoded !== "string" || Buffer.byteLength(encoded) > maximumResponse)
+            throw new Error();
+          return result;
+        } finally {
+          combined.removeEventListener("abort", cancel);
+        }
+      }
+      if (!accessToken) throw new Error();
       let abort = () => {};
       let token: string;
       try {
         token = await Promise.race([
-          options.accessToken(combined),
+          accessToken(combined),
           new Promise<never>((_resolve, reject) => {
             abort = () => reject(new Error());
             if (combined.aborted) abort();

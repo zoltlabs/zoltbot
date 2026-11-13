@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { runnerAccount } from "./account.js";
+import { RunnerAccessRevokedError } from "./connection.js";
 
 const deviceId = "device".padEnd(22, "x"),
   signal = () => new AbortController().signal;
@@ -187,4 +188,67 @@ it("treats explicit authentication or grant refusal as revoked authority without
   }
   f.response({ error: f.accessToken }, 503);
   await expect(f.client.credentials(signal())).rejects.toThrow(/^runner_account_unavailable$/);
+});
+
+it("uses the daemon session port without loading an account bearer or making its own HTTP request", async () => {
+  const f = fixture();
+  const calls: unknown[] = [];
+  const client = runnerAccount({
+    origin: f.options.origin,
+    orgId: f.options.orgId,
+    deviceId,
+    async nativeRequest(input) {
+      calls.push({ route: input.route, method: input.method, body: input.body });
+      return {
+        token: f.runnerToken,
+        cellUrl: "https://cell.example.invalid",
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+      };
+    },
+  });
+  expect((await client.credentials(signal())).token === f.runnerToken).toBe(true);
+  expect(calls).toEqual([
+    { route: "/api/cloud/runner-token", method: "POST", body: { orgId: "org", deviceId } },
+  ]);
+  expect(f.requests).toEqual([]);
+  expect(() => runnerAccount({ ...f.options, nativeRequest: async () => ({}) })).toThrow(
+    "runner_account_unavailable",
+  );
+  expect(() => runnerAccount({ origin: f.options.origin, orgId: "org", deviceId })).toThrow(
+    "runner_account_unavailable",
+  );
+});
+it("bounds and cancels native session requests and preserves only the explicit revocation error", async () => {
+  const options = { origin: "https://accounts.example.invalid", orgId: "org", deviceId };
+  const controller = new AbortController();
+  const stalled = runnerAccount({
+    ...options,
+    nativeRequest: async () => new Promise<never>(() => {}),
+  });
+  const pending = stalled.credentials(controller.signal);
+  controller.abort();
+  await expect(pending).rejects.toThrow("runner_account_unavailable");
+  for (const value of [undefined, { token: "x".repeat(65537) }]) {
+    const client = runnerAccount({ ...options, nativeRequest: async () => value });
+    await expect(client.credentials(signal())).rejects.toThrow("runner_account_unavailable");
+  }
+  const broken = runnerAccount({
+    ...options,
+    nativeRequest: async () => {
+      throw new Error("Untrusted backend detail");
+    },
+  });
+  await expect(broken.credentials(signal())).rejects.toThrow(/^runner_account_unavailable$/);
+});
+
+it("propagates explicit native-session revocation to the runner connection", async () => {
+  const client = runnerAccount({
+    origin: "https://accounts.example.invalid",
+    orgId: "org",
+    deviceId,
+    async nativeRequest() {
+      throw new RunnerAccessRevokedError();
+    },
+  });
+  await expect(client.credentials(signal())).rejects.toBeInstanceOf(RunnerAccessRevokedError);
 });

@@ -56,3 +56,19 @@ cover two clients sharing one refresh, private socket modes, restart cleanup,
 origin and legacy refusal, endpoint ownership, binary uploads, invalid routes,
 shutdown, cleanup retry and credential-echo refusal. They use no real keychain,
 account service or native application. This does not complete W5 or W8.
+
+
+The native runner uses `brokerRunnerRequest` through the same owner. The broker
+allows only GET device keys, PUT runner grants and POST runner tokens on this
+port. Account metadata and cloud calls share refresh rotation and keychain
+persistence. The runner receives its own scoped Cell token, never the account
+access or refresh credential. A grant refusal stops runner authority while
+leaving a still-valid account session signed in. Configuration must select one
+of native-session requests or direct bearer access; it cannot select both.
+
+Canceled requests do not start after waiting in the native client's queue.
+The socket closes on cancellation, and the server skips disconnected requests
+that have not started dispatch. An accepted refresh still drains and persists
+before shutdown releases credential ownership. Tests cover the actual private
+socket path with a memory keychain and injected account transport. Packaged
+startup and settings still do not select this port; W5 and W8 remain unfinished.

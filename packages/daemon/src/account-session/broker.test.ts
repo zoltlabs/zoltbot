@@ -318,3 +318,31 @@ it("drains an accepted keychain write before releasing credential ownership", as
   expect((await next.client.status()).signedIn).toBe(true);
   expect(f.entries.size).toBe(1);
 });
+
+it("does not start a canceled cloud request after it waited behind another native request", async () => {
+  let started!: () => void, finish!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const blocked = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let requests = 0;
+  const f = await fixture(async () => {
+    requests++;
+    started();
+    await blocked;
+    return Response.json({ ok: true });
+  });
+  const { client } = await f.start();
+  await client.save(credentials());
+  const first = client.request("/me");
+  await ready;
+  const controller = new AbortController();
+  const queued = client.cloudRequest("/api/cloud/devices", "GET", undefined, controller.signal);
+  controller.abort();
+  finish();
+  await first;
+  await expect(queued).rejects.toThrow("native_account_unavailable");
+  expect(requests).toBe(1);
+});

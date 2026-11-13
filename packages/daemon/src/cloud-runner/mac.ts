@@ -59,7 +59,12 @@ export function startMacRunner(options: MacRunnerOptions) {
   };
   const account = runnerAccount({
     ...options.account,
-    accessToken: async (signal) => remember(await options.account.accessToken(signal)) as string,
+    ...(options.account.accessToken
+      ? {
+          accessToken: async (signal: AbortSignal) =>
+            remember(await options.account.accessToken?.(signal)) as string,
+        }
+      : {}),
   });
   const bridgeOptions = options.macExecution;
   const bridge =
