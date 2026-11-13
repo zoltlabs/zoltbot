@@ -103,8 +103,10 @@ provider CLI, owner keychain, desktop window or real provider request is used.
 
 The [base template](../../templates/sandbox/README.md) still needs an actual Docker
 build and E2B acceptance. Parsing its Dockerfile through the pinned E2B SDK is an
-offline compatibility check, not either of those gates. `pnpm test:cloud-m1` and
-live verification remain pending.
+offline compatibility check, not either of those gates. `pnpm test:cloud-m1`
+runs the joined headless fake flow for both providers, including the real Cell,
+phone signatures, actual Mac command host, worker recovery, bare-Git publication,
+quota and deletion. Live verification remains pending.
 
 Mac tools first flush committed native observations through their Cell
 acknowledgements, so the Cell has the calling turn before a tool request arrives.

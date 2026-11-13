@@ -15,6 +15,7 @@ const publicAccountRoutes = new Set([
   "/api/cloud/sandboxes/wake",
   "/api/cloud/sandboxes/sleep",
   "/api/cloud/usage",
+  "/api/cloud/github/pull-request",
   "/api/cloud/secrets/github",
   "/api/cloud/secrets/anthropic",
   "/api/cloud/secrets/openai",

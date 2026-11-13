@@ -1,6 +1,8 @@
-# Cloud milestone 1 harness (in progress)
+# Cloud milestone 1 headless harness
 
-This folder does not yet provide `pnpm test:cloud-m1` or pass W8.
+Run `pnpm test:cloud-m1` from the repository root. It needs no accounts, keys,
+installed provider CLIs, owner keychain or desktop windows. It starts only owned
+localhost services and native CLI stand-ins in disposable folders.
 
 The identity fixture generates an ephemeral ES256 signing key in memory. Its
 localhost JWKS test uses the real Cell verifier for desktop, phone, Mac-runner
@@ -44,11 +46,27 @@ created. The synthetic providers use explicit `[cloud-m1:...]` markers inside
 real task prompts to select these scenarios; ordinary task prose keeps its
 existing behavior.
 
-These checks do not run the whole outcome. The harness still needs assertions
-for three independent tasks, review publication, process recovery, quota refusal
-and account deletion in one joined run. Native pending questions and tools also
-still need process-loss recovery in the worker. The eventual command must
-assert every outcome before W8 can pass.
+The whole-flow test runs independently for Claude and Codex. Each case starts
+three sandbox tasks, answers a native question on the phone, requests a revision
+that runs `uname` through the signed Mac gate, kills a worker mid-turn and resumes
+its native conversation, commits the reviewed diff, pushes its branch to bare
+Git and records one synthetic PR. It advances the usage clock to refuse a fourth
+task, then deletes the account and checks the sandboxes, secrets, device keys and
+persisted Cell project/event/identity records are gone.
+
+The network fault hook duplicates one real event and drops later acknowledgements;
+it preserves the required initial cursor. Recovery reconciles the on-disk outbox
+against the Cell and finishes with one assistant result and no duplicate transcript
+IDs. The fixture's hang scenario recognizes the native restart continuation;
+ordinary task prose keeps its previous behavior. Cell source and its authorization
+checks remain unmodified in the runtime fixture.
+
+The command also runs the existing signed-in Local boundary tests. Any HTTP
+request during Local task execution fails those tests, including when a cloud
+host fails to start. These fake results do not prove Docker/E2B template behavior,
+real provider permissions, client UI or the live milestone. Native pending
+questions and tools still need process-loss recovery in the worker. Docker
+build and live owner-gated checks remain separate gates.
 
 Keys, tokens and provider stand-ins stay in memory or private process pipes.
 The test server must listen on numeric loopback only. No browser or Electron

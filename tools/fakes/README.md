@@ -37,3 +37,18 @@ can retain it. Both protocol fakes preserve their existing `host_tools` behavior
 `mac_exec` asks the configured host for a `uname` command and echoes its result.
 Worker tests use it with the default cloud tool set and a scripted localhost Cell.
 It does not invoke the owner's installed agent or directly run a host command.
+
+Cloud M1 fixtures use explicit `[cloud-m1:...]` markers to select a native scenario
+inside the real task/review prompt. Ordinary task text keeps its previous behavior.
+The account fixture keeps sessions, provider stand-ins and device keys in memory.
+Its task-secret injection port is available only to the native fixture, never
+through HTTP. A confirmed account deletion revokes sessions immediately; its
+queued cleanup retains secrets until the supplied scoped effects succeed.
+Tests can retry that queue and inspect counts without receiving credential bytes.
+
+The publication fixture accepts only service-authenticated requests for its
+configured org and repository. A supplied branch lookup must prove that the exact
+reviewed commit was pushed to the disposable bare remote before the fixture opens
+one synthetic PR. Idempotency keys bind the complete request; retries cannot
+silently change the reviewed commit. This does not call GitHub or prove live
+GitHub token permissions.

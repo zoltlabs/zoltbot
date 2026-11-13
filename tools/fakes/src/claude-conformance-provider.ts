@@ -104,6 +104,8 @@ function toolResult(id: string, output: unknown, isError = false) {
 }
 async function run(text: string) {
   text = artifactFixturePrompt([text]);
+  if (text === "cloud_m1_edit")
+    writeFileSync(path.join(process.cwd(), "README.md"), "A reviewed cloud task change.\n");
   let reply = "ok";
   turn++;
   total++;

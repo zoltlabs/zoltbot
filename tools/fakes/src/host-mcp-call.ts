@@ -81,8 +81,10 @@ for (const [prompt, text] of [
 export function artifactFixturePrompt(blocks: string[]): string {
   // Real task prompts include their brief/review framing. Only explicit test markers
   // select a cloud scenario; ordinary task prose keeps its existing behavior.
-  const cloud = blocks.join("\n").match(/^\[cloud-m1:(mac_exec|question|slow|hang)\]$/m)?.[1];
-  if (cloud) return cloud;
+  const cloud = blocks.join("\n").match(/^\[cloud-m1:(mac_exec|question|slow|hang|edit)\]$/m)?.[1];
+  if (cloud === "hang" && blocks.some((text) => text.startsWith("[Zoltbot] Zoltbot restarted")))
+    return "cloud_m1_continue";
+  if (cloud) return cloud === "edit" ? "cloud_m1_edit" : cloud;
   if (!blocks.some((text) => text.includes("[brief:human-artifact-target]")))
     return blocks.at(-1) ?? "";
   return (

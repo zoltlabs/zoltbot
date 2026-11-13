@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile && pnpm --filter @zoltbot/cell typecheck",
     "lint": "biome check . && node scripts/quality.mjs && node scripts/fixture-hygiene.mjs && pnpm check:boundary",
     "test": "vitest run && pnpm --filter @zoltbot/cell test",
+    "test:cloud-m1": "vitest run tests/cloud-m1 tools/fakes/src/task-runs.test.ts",
     "format": "biome check --write .",
     "view:dev": "TSX_DISABLE_CACHE=1 node --import tsx scripts/view-dev.mjs",
     "view:schema": "TSX_DISABLE_CACHE=1 node --import tsx packages/view-api/generate.ts",

@@ -75,6 +75,8 @@ function finish(threadId: string, turnId: string, status = "completed", reply = 
 }
 async function run(threadId: string, turnId: string, text: string) {
   text = artifactFixturePrompt([text]);
+  if (text === "cloud_m1_edit")
+    writeFileSync(path.join(process.cwd(), "README.md"), "A reviewed cloud task change.\n");
   if (text === "hang") {
     hung = true;
     return;

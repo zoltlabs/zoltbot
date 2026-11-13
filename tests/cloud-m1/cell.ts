@@ -87,11 +87,12 @@ export async function startTestCell(options: {
     });
     const origin = (await runtime.ready).origin,
       owned = runtime;
+    let closing: Promise<void> | undefined;
     return Object.freeze({
       origin: () => origin,
       refusedNetwork: () => refused,
       outboundPaths: () => [...paths],
-      close: () => owned.dispose(),
+      close: () => (closing ??= owned.dispose()),
     });
   } catch {
     await runtime?.dispose().catch(() => {});

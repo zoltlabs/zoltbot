@@ -28,6 +28,7 @@ interface Session {
   credentials: Credentials;
   active: boolean;
   beta: boolean;
+  authenticatedAt: number;
 }
 const opaque = () => randomBytes(32).toString("base64url");
 const routes = {
@@ -43,16 +44,20 @@ export async function createCloudM1Account(options: {
   cellUrl: string;
   serviceKey: string;
   now?: () => number;
+  deleteAccount?(scope: { userId: string; orgId: string }): Promise<void>;
 }) {
   const now = options.now ?? Date.now,
     issuer = options.issuer,
     cellUrl = options.cellUrl,
-    serviceKey = options.serviceKey;
+    serviceKey = options.serviceKey,
+    deleteAccount = options.deleteAccount;
   const identity = await createCellIdentity({ issuer, now });
   const sessions = new Map<string, Session>(),
     devices = new Map<string, CloudDevice>(),
     grants = new Map<string, CloudRunnerGrant>(),
-    secrets = new Map<string, string>();
+    secrets = new Map<string, string>(),
+    deleting = new Map<string, { userId: string; orgId: string }>(),
+    deleted = new Set<string>();
   const key = (user: string, name: string) => JSON.stringify([user, name]);
   const reply = (body: unknown, status = 200) => ({ body, status });
   const refused = () => reply({ error: "forbidden" }, 403);
@@ -69,6 +74,8 @@ export async function createCloudM1Account(options: {
     nativeSession(
       input: Pick<Session, "userId" | "orgId" | "deviceId" | "surface"> & { beta?: boolean },
     ) {
+      if (deleting.has(input.userId) || deleted.has(input.userId))
+        throw new Error("fixture_account_deleted");
       const credentials = {
         sessionId: randomUUID(),
         accessToken: opaque(),
@@ -78,6 +85,7 @@ export async function createCloudM1Account(options: {
         ...input,
         beta: input.beta ?? true,
         active: true,
+        authenticatedAt: now(),
         credentials,
       });
       return structuredClone(credentials);
@@ -100,7 +108,12 @@ export async function createCloudM1Account(options: {
           return reply(structuredClone(session.credentials));
         }
         if (
-          ![...Object.values(routes), "/api/account/me", "/api/account/logout"].includes(path) &&
+          ![
+            ...Object.values(routes),
+            "/api/account",
+            "/api/account/me",
+            "/api/account/logout",
+          ].includes(path) &&
           !/^\/api\/cloud\/(?:devices\/[^/]+|secrets\/(?:anthropic|openai|github)|access)$/.test(
             path,
           )
@@ -123,7 +136,10 @@ export async function createCloudM1Account(options: {
             return reply({
               active: [...sessions.values()].some(
                 (session) =>
-                  session.userId === input.userId && session.orgId === input.orgId && session.beta,
+                  session.userId === input.userId &&
+                  session.orgId === input.orgId &&
+                  session.beta &&
+                  !deleting.has(session.userId),
               ),
             });
           }
@@ -189,6 +205,18 @@ export async function createCloudM1Account(options: {
         if (path === "/api/account/logout" && method === "POST") {
           session.active = false;
           return reply({ ok: true });
+        }
+        if (path === "/api/account" && method === "DELETE") {
+          const input = body as Record<string, unknown>;
+          if (!input || Object.keys(input).join(",") !== "confirm" || input.confirm !== "DELETE")
+            return reply({ error: "confirmation_required" }, 400);
+          if (now() - session.authenticatedAt > 600000)
+            return reply({ error: "reauthentication_required" }, 403);
+          if (!deleteAccount) return reply({ error: "fixture_deletion_unavailable" }, 503);
+          deleting.set(session.userId, { userId: session.userId, orgId: session.orgId });
+          for (const current of sessions.values())
+            if (current.userId === session.userId) current.active = false;
+          return reply({ status: "deletion_requested" }, 202);
         }
         if (!session.beta) return refused();
         if (path === routes.devices && method === "POST") {
@@ -298,6 +326,8 @@ export async function createCloudM1Account(options: {
     ) {
       if (
         Object.keys(scope).sort().join(",") !== "orgId,taskId,userId" ||
+        deleting.has(scope.userId) ||
+        deleted.has(scope.userId) ||
         Object.values(scope).some(
           (value) => typeof value !== "string" || !value || value.length > 200,
         ) ||
@@ -315,7 +345,40 @@ export async function createCloudM1Account(options: {
       if (!providerKey || !githubToken) throw new Error("fixture_secret_required");
       return { providerKey, githubToken };
     },
+    async drainDeletions() {
+      let completed = 0;
+      for (const scope of deleting.values()) {
+        if (!deleteAccount) throw new Error("fixture_deletion_unavailable");
+        await deleteAccount(structuredClone(scope));
+        for (const [id, session] of sessions)
+          if (session.userId === scope.userId) sessions.delete(id);
+        for (const [id, device] of devices) if (device.userId === scope.userId) devices.delete(id);
+        for (const id of grants.keys())
+          if ((JSON.parse(id) as string[])[0] === scope.userId) grants.delete(id);
+        for (const id of secrets.keys())
+          if ((JSON.parse(id) as string[])[0] === scope.userId) secrets.delete(id);
+        deleting.delete(scope.userId);
+        deleted.add(scope.userId);
+        completed++;
+      }
+      return completed;
+    },
+    stateFor(userId: string) {
+      return {
+        sessions: [...sessions.values()].filter((value) => value.userId === userId).length,
+        devices: [...devices.values()].filter((value) => value.userId === userId).length,
+        grants: [...grants.keys()].filter((value) => (JSON.parse(value) as string[])[0] === userId)
+          .length,
+        secrets: [...secrets.keys()].filter(
+          (value) => (JSON.parse(value) as string[])[0] === userId,
+        ).length,
+        deletionPending: deleting.has(userId),
+        deleted: deleted.has(userId),
+      };
+    },
     clear() {
+      deleting.clear();
+      deleted.clear();
       sessions.clear();
       devices.clear();
       grants.clear();

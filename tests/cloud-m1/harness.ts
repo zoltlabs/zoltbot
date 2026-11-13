@@ -5,14 +5,16 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { promisify } from "node:util";
 import { expect } from "vitest";
+import { serviceToken } from "../../packages/cell/src/service.js";
 import { createFakeTarget } from "../../packages/sandbox/src/targets/fake/index.js";
 import { createCloudFake } from "../../tools/fakes/src/cloud.js";
 import { createCloudM1Account } from "../../tools/fakes/src/cloud-m1-account.js";
 import { createSandboxHarness } from "../../tools/fakes/src/cloud-m1-orchestrator.js";
+import { createCloudM1Publication } from "../../tools/fakes/src/cloud-m1-publication.js";
 import { createCloudM1Workers } from "../../tools/fakes/src/cloud-m1-workers.js";
 import { startTestCell } from "./cell.js";
 import { cellClient, loopbackClient, responseJson } from "./client.js";
-import { startTlsProxy } from "./proxy.js";
+import { type FrameHook, startTlsProxy } from "./proxy.js";
 import { harnessRepository } from "./repository.js";
 import { loopbackTls } from "./tls.js";
 
@@ -31,26 +33,37 @@ export const buildTestWorker = () =>
     }
   })());
 
-export async function cloudHarness(provider: "claude" | "codex") {
+export async function cloudHarness(
+  provider: "claude" | "codex",
+  options: { now?: () => number; limitSeconds?: number; transformFrame?: FrameHook } = {},
+) {
   await buildTestWorker();
   const root = await mkdtemp("/private/tmp/zoltbot-m1-worker-live-");
   const target = createFakeTarget({ root: path.join(root, "sandboxes") });
   let cell: Awaited<ReturnType<typeof startTestCell>> | undefined, globalOrigin: string | undefined;
   const tls = await loopbackTls();
-  const proxy = await startTlsProxy(tls, (pathname) =>
-    pathname.startsWith("/api/")
-      ? globalOrigin
-        ? new URL(globalOrigin)
-        : undefined
-      : cell
-        ? new URL(cell.origin())
-        : undefined,
+  const proxy = await startTlsProxy(
+    tls,
+    (pathname) =>
+      pathname.startsWith("/api/")
+        ? globalOrigin
+          ? new URL(globalOrigin)
+          : undefined
+        : cell
+          ? new URL(cell.origin())
+          : undefined,
+    options.transformFrame,
   );
   const serviceKey = randomBytes(32).toString("base64url");
+  const fetch = loopbackClient(tls.certificate());
+  let removeAccount = async (_scope: { userId: string; orgId: string }): Promise<void> => {
+    throw new Error("fixture_deletion_not_ready");
+  };
   const account = await createCloudM1Account({
     issuer: proxy.origin(),
     cellUrl: proxy.origin(),
     serviceKey,
+    deleteAccount: (scope) => removeAccount(scope),
   });
   const workers = await createCloudM1Workers({
     issuer: proxy.origin(),
@@ -67,6 +80,7 @@ export async function cloudHarness(provider: "claude" | "codex") {
     target,
     account,
     workers,
+    ...options,
     command: [process.execPath, path.resolve("apps/worker/dist/main.mjs")],
     environment: {
       ...tls.childEnvironment(),
@@ -75,8 +89,43 @@ export async function cloudHarness(provider: "claude" | "codex") {
       ),
     },
   });
+  const publication = createCloudM1Publication({
+    issuer: proxy.origin(),
+    serviceKey,
+    orgId: "personal",
+    repository: "example/repository",
+    base: "main",
+    async branchHead(branch) {
+      return repository
+        .git(root, [
+          "--git-dir",
+          repository.remote,
+          "rev-parse",
+          "--verify",
+          `refs/heads/${branch}`,
+        ])
+        .toString()
+        .trim();
+    },
+  });
+  removeAccount = async (scope) => {
+    if (scope.orgId !== "personal" || scope.userId !== "member")
+      throw new Error("fixture_deletion_scope_refused");
+    await orchestrator.deleteOrg(scope.orgId);
+    const result = await fetch(new URL(`/v1/orgs/${scope.orgId}`, proxy.origin()), {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${await serviceToken(serviceKey, proxy.origin(), "cell-service", scope.orgId)}`,
+      },
+    });
+    if (result.status !== 200) throw new Error("fixture_cell_deletion_failed");
+    workers.clearOrg(scope.orgId);
+  };
   const global = createCloudFake({
-    cloud: async (request) => (await orchestrator.handle(request)) ?? workers.handle(request),
+    cloud: async (request) =>
+      (await publication.handle(request)) ??
+      (await orchestrator.handle(request)) ??
+      workers.handle(request),
   });
   await new Promise<void>((resolve) => global.listen(0, "127.0.0.1", resolve));
   globalOrigin = `http://127.0.0.1:${(global.address() as AddressInfo).port}`;
@@ -109,8 +158,7 @@ export async function cloudHarness(provider: "claude" | "codex") {
       deviceId,
       surface: "desktop",
     });
-    const fetch = loopbackClient(tls.certificate()),
-      headers = { authorization: `Bearer ${session.accessToken}` };
+    const headers = { authorization: `Bearer ${session.accessToken}` };
     expect(
       (
         await fetch(new URL("/api/cloud/devices", proxy.origin()), {
@@ -157,6 +205,7 @@ export async function cloudHarness(provider: "claude" | "codex") {
       workers,
       repository,
       orchestrator,
+      publication,
       proxy,
       cell,
       fetch,
