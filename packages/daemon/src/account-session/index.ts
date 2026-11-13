@@ -1,5 +1,6 @@
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { type Credentials, parseCredentials as credentials } from "@zoltbot/cloud-contracts";
+import { cloudSettingsRequest } from "./cloud-settings.js";
 
 export interface AccountSessionOptions {
   origin?: string;
@@ -140,8 +141,10 @@ export function accountSession(options: AccountSessionOptions) {
     },
     // This port stays inside the native owner; trusted IPC applies its own route allowlist.
     cloudRequest: (path: string, method = "GET", payload?: string) =>
-      serialized(() => {
+      serialized(async () => {
         if (!origin) throw new Error("accounts_not_configured");
+        const settings = cloudSettingsRequest(path, method, payload);
+        if (settings) return settings.response(await request(path, method, settings.payload, true));
         const routes: Record<string, string> = {
           "/api/cloud/devices": "GET",
           "/api/cloud/runner-token": "POST",

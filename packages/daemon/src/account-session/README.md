@@ -17,7 +17,8 @@ callers through that same owner. Separate processes must not independently rotat
 the same account credentials.
 
 The broker below provides the native IPC seam. Packaged daemon/controller wiring,
-Mac runner startup and the whole-flow harness remain unfinished. Tests use
+Mac runner startup and client settings remain unfinished. The headless fake
+whole-flow command now passes for both providers. Tests use
 generated memory-only credentials, a fake keychain and an injected HTTP transport.
 
 ## Native broker (in progress)
@@ -55,12 +56,12 @@ limits and the account-route allowlist are implementation choices for M1. Tests
 cover two clients sharing one refresh, private socket modes, restart cleanup,
 origin and legacy refusal, endpoint ownership, binary uploads, invalid routes,
 shutdown, cleanup retry and credential-echo refusal. They use no real keychain,
-account service or native application. This does not complete W5 or W8.
+account service or native application. Packaged W5 wiring remains unfinished.
 
 
-The native runner uses `brokerRunnerRequest` through the same owner. The broker
-allows only GET device keys, PUT runner grants and POST runner tokens on this
-port. Account metadata and cloud calls share refresh rotation and keychain
+The native runner uses `brokerRunnerRequest` through the same owner. The runner
+adapter calls GET device keys, PUT runner grants and POST runner tokens
+through this port. Account metadata and cloud calls share refresh rotation and keychain
 persistence. The runner receives its own scoped Cell token, never the account
 access or refresh credential. A grant refusal stops runner authority while
 leaving a still-valid account session signed in. Configuration must select one
@@ -71,4 +72,17 @@ The socket closes on cancellation, and the server skips disconnected requests
 that have not started dispatch. An accepted refresh still drains and persists
 before shutdown releases credential ownership. Tests cover the actual private
 socket path with a memory keychain and injected account transport. Packaged
-startup and settings still do not select this port; W5 and W8 remain unfinished.
+startup and settings still do not select this port; W5 remains unfinished.
+
+## Cloud settings ports
+
+Session-bound native settings may register/revoke public device keys, request a
+client Cell token and write Anthropic, OpenAI or GitHub credentials. Inputs use
+the public schemas. Key and device writes return only `{ ok: true }`; unexpected
+response fields fail with a fixed error before the broker can return them. No
+secret read route exists. These ports do not enable Cloud, grant a runner or
+start a process themselves.
+
+The packaged app still needs to select this owner and supply its native keychain
+and account lifecycle. Legacy credentials without an origin binding require the
+owner's migration decision before that integration changes existing sign-in.

@@ -1,0 +1,41 @@
+.cloud-settings-group,
+.cloud-secret-form,
+.cloud-folder-list,
+.cloud-folder-list li {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--zb-space-3);
+  min-inline-size: 0;
+}
+.cloud-settings-group + .cloud-settings-group {
+  margin-block-start: var(--zb-space-4);
+}
+.cloud-secret-form + .cloud-secret-form {
+  margin-block-start: var(--zb-space-3);
+}
+.cloud-settings input:not([type="checkbox"]),
+.cloud-settings select {
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+.cloud-settings [aria-disabled="true"] {
+  cursor: progress;
+}
+.cloud-folder-list {
+  list-style: none;
+  padding: 0;
+  gap: var(--zb-space-6);
+}
+.cloud-folder-path {
+  overflow-wrap: anywhere;
+}
+.cloud-folder-list button {
+  align-self: flex-start;
+  max-inline-size: 100%;
+  white-space: normal;
+}
+/* These fields need a boundary that remains visible against both themes. */
+.cloud-settings .zb-input {
+  border-color: var(--zb-border-control);
+}
