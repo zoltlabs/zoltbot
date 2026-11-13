@@ -6,7 +6,11 @@ import { type Credentials, parseCredentials } from "@zoltbot/cloud-contracts";
 const maximumResponse = 8 * 1024 * 1024;
 const sessionPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 /** Native callers only. No raw bearer can be loaded through this endpoint. */
-export function accountBrokerClient(options: { socketPath: string; origin: string }) {
+export function accountBrokerClient(options: {
+  socketPath: string;
+  origin: string;
+  expectedSessionId?: string;
+}) {
   const { socketPath, origin } = options,
     base = new URL(origin);
   if (
@@ -15,10 +19,13 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
     (base.protocol !== "https:" && !(base.protocol === "http:" && base.hostname === "127.0.0.1"))
   )
     throw new Error("native_account_unavailable");
-  let sessionId: string | undefined;
+  if (options.expectedSessionId !== undefined && !sessionPattern.test(options.expectedSessionId))
+    throw new Error("native_account_unavailable");
+  let sessionId: string | undefined,
+    initialized = false;
   let queue: Promise<unknown> = Promise.resolve();
   const call = (operation: string, input: Record<string, unknown> = {}, signal?: AbortSignal) => {
-    const encoded = JSON.stringify({ origin, operation, ...input });
+    const invocation = { initialized, sessionId };
     const next = queue
       .then(async () => {
         if (signal?.aborted) throw new Error("native_account_unavailable");
@@ -35,67 +42,86 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
           (process.getuid && (folder.uid !== process.getuid() || socket.uid !== process.getuid()))
         )
           throw new Error("native_account_unavailable");
-        return await new Promise<unknown>((resolve, reject) => {
-          const fail = (code = "native_account_unavailable") => reject(new Error(code));
-          const client = request(
-            {
-              socketPath,
-              signal,
-              path: "/v1/native-account",
-              method: "POST",
-              agent: false,
-              headers: {
-                "content-type": "application/json",
-                "content-length": Buffer.byteLength(encoded),
+        const send = async (selectedOperation: string, selectedInput: Record<string, unknown>) => {
+          const encoded = JSON.stringify({
+            origin,
+            operation: selectedOperation,
+            ...selectedInput,
+          });
+          return await new Promise<unknown>((resolve, reject) => {
+            const fail = (code = "native_account_unavailable") => reject(new Error(code));
+            const client = request(
+              {
+                socketPath,
+                signal,
+                path: "/v1/native-account",
+                method: "POST",
+                agent: false,
+                headers: {
+                  "content-type": "application/json",
+                  "content-length": Buffer.byteLength(encoded),
+                },
               },
-            },
-            (response) => {
-              const chunks: Buffer[] = [];
-              let size = 0;
-              response.on("data", (chunk) => {
-                size += chunk.length;
-                if (size > maximumResponse) client.destroy();
-                else chunks.push(Buffer.from(chunk));
-              });
-              response.once("error", () => fail());
-              response.once("end", () => {
-                try {
-                  const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-                  if (!value || typeof value !== "object") throw new Error();
-                  if (value.ok !== true || response.statusCode !== 200) {
-                    const code = [
-                      "sign_in_required",
-                      "account_access_revoked",
-                      "account_origin_changed",
-                      "native_account_request_invalid",
-                      "account_service_unavailable",
-                    ].includes(value.error)
-                      ? value.error
-                      : "native_account_unavailable";
-                    fail(code);
-                    return;
+              (response) => {
+                const chunks: Buffer[] = [];
+                let size = 0;
+                response.on("data", (chunk) => {
+                  size += chunk.length;
+                  if (size > maximumResponse) client.destroy();
+                  else chunks.push(Buffer.from(chunk));
+                });
+                response.once("error", () => fail());
+                response.once("end", () => {
+                  try {
+                    const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+                    if (!value || typeof value !== "object") throw new Error();
+                    if (value.ok !== true || response.statusCode !== 200) {
+                      const code = [
+                        "sign_in_required",
+                        "account_access_revoked",
+                        "account_origin_changed",
+                        "account_session_changed",
+                        "native_account_request_invalid",
+                        "account_service_unavailable",
+                      ].includes(value.error)
+                        ? value.error
+                        : "native_account_unavailable";
+                      fail(code);
+                      return;
+                    }
+                    if (
+                      Object.keys(value).some(
+                        (key) => !["ok", "result", "sessionId"].includes(key),
+                      ) ||
+                      (value.sessionId !== undefined &&
+                        (typeof value.sessionId !== "string" ||
+                          !sessionPattern.test(value.sessionId)))
+                    )
+                      throw new Error();
+                    sessionId = value.sessionId;
+                    initialized = true;
+                    resolve(value.result);
+                  } catch {
+                    fail();
                   }
-                  if (
-                    Object.keys(value).some(
-                      (key) => !["ok", "result", "sessionId"].includes(key),
-                    ) ||
-                    (value.sessionId !== undefined &&
-                      (typeof value.sessionId !== "string" ||
-                        !sessionPattern.test(value.sessionId)))
-                  )
-                    throw new Error();
-                  sessionId = value.sessionId;
-                  resolve(value.result);
-                } catch {
-                  fail();
-                }
-              });
-            },
-          );
-          client.setTimeout(50000, () => client.destroy());
-          client.once("error", () => fail());
-          client.end(encoded);
-        });
+                });
+              },
+            );
+            client.setTimeout(50000, () => client.destroy());
+            client.once("error", () => fail());
+            client.end(encoded);
+          });
+        };
+        if (operation === "status") {
+          const result = await send(operation, input);
+          if (options.expectedSessionId !== undefined && sessionId !== options.expectedSessionId)
+            throw new Error("account_session_changed");
+          return result;
+        }
+        if (!invocation.initialized && !initialized) await send("status", {});
+        const expectedSessionId =
+          options.expectedSessionId ?? (invocation.initialized ? invocation.sessionId : sessionId);
+        return send(operation, { ...input, expectedSessionId: expectedSessionId ?? null });
       })
       .catch((error) => {
         if (
@@ -104,6 +130,7 @@ export function accountBrokerClient(options: { socketPath: string; origin: strin
             "sign_in_required",
             "account_access_revoked",
             "account_origin_changed",
+            "account_session_changed",
             "native_account_request_invalid",
             "account_service_unavailable",
           ].includes(error.message)

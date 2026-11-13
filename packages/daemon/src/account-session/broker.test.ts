@@ -346,3 +346,34 @@ it("does not start a canceled cloud request after it waited behind another nativ
   await expect(queued).rejects.toThrow("native_account_unavailable");
   expect(requests).toBe(1);
 });
+
+it("refuses a native client's old-session requests and cleanup after another client switches the account", async () => {
+  let requests = 0;
+  const f = await fixture(async () => {
+    requests++;
+    return Response.json({ ok: true });
+  });
+  const { broker, client } = await f.start();
+  const first = credentials(),
+    second = credentials();
+  await client.save(first);
+  const stale = accountBrokerClient({ origin: f.options.origin, socketPath: broker.location() });
+  expect((await stale.status()).sessionId).toBe(first.sessionId);
+  const pinned = accountBrokerClient({
+    origin: f.options.origin,
+    socketPath: broker.location(),
+    expectedSessionId: first.sessionId,
+  });
+  expect((await pinned.status()).sessionId).toBe(first.sessionId);
+  await client.save(second);
+  await expect(pinned.status()).rejects.toThrow("account_session_changed");
+  await expect(pinned.request("/me")).rejects.toThrow("account_session_changed");
+  await expect(stale.request("/me")).rejects.toThrow("account_session_changed");
+  await expect(stale.clear()).rejects.toThrow("account_session_changed");
+  await expect(stale.save(credentials())).rejects.toThrow("account_session_changed");
+  expect(requests).toBe(0);
+  expect((await client.status()).sessionId).toBe(second.sessionId);
+  expect((await stale.status()).sessionId).toBe(second.sessionId);
+  expect(await stale.request("/me")).toEqual({ ok: true });
+  expect(requests).toBe(1);
+});

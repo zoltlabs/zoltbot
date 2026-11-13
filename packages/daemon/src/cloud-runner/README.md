@@ -490,3 +490,11 @@ cancellation and explicit revocation handling. `startMacRunner` passes this port
 through without loading an account credential. Direct token access remains an
 alternative for existing injected hosts; supplying both paths is refused.
 Daemon startup, settings and W8 still need to select and verify the broker path.
+
+Native broker requests bind their account session ID at invocation. A queued
+request, clear or credential save bound to an old session is refused after an
+account switch, before any authenticated HTTP request or credential write. A
+client may explicitly refresh its status for a new account; work tied to one
+session can pin `expectedSessionId` when constructing its native client. Runner
+ports also retain the session they were created for and withdraw access when
+that binding changes. Refresh rotation within the same session keeps working.

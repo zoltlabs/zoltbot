@@ -101,6 +101,12 @@ it("gets a runner token and pinned public device keys through the single native 
       RunnerAccessRevokedError,
     );
     expect((await native.status()).signedIn).toBe(true);
+    await native.save({ ...rotated, sessionId: randomUUID() });
+    const beforeSwitchRequest = requests;
+    await expect(account.credentials(new AbortController().signal)).rejects.toBeInstanceOf(
+      RunnerAccessRevokedError,
+    );
+    expect(requests).toBe(beforeSwitchRequest);
   } finally {
     await broker.close();
     await rm(root, { recursive: true, force: true });

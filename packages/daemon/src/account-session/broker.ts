@@ -24,6 +24,7 @@ interface BrokerRequest {
   origin: string;
   operation: "status" | "save" | "clear" | "request" | "cloud_request";
   credentials?: unknown;
+  expectedSessionId?: string | null;
   path?: string;
   method?: string;
   payload?: { encoding: "text" | "base64"; data: string };
@@ -169,10 +170,10 @@ export async function startAccountBroker(
     if (input.origin !== origin) throw new Error("account_origin_changed");
     const fields = {
       status: ["origin", "operation"],
-      clear: ["origin", "operation"],
-      save: ["origin", "operation", "credentials"],
-      request: ["origin", "operation", "path", "method", "payload"],
-      cloud_request: ["origin", "operation", "path", "method", "payload"],
+      clear: ["origin", "operation", "expectedSessionId"],
+      save: ["origin", "operation", "credentials", "expectedSessionId"],
+      request: ["origin", "operation", "path", "method", "payload", "expectedSessionId"],
+      cloud_request: ["origin", "operation", "path", "method", "payload", "expectedSessionId"],
     };
     if (typeof input.operation !== "string" || !Object.hasOwn(fields, input.operation))
       throw new Error("native_account_request_invalid");
@@ -180,6 +181,28 @@ export async function startAccountBroker(
     if (!allowed || Object.keys(input).some((key) => !allowed.includes(key)))
       throw new Error("native_account_request_invalid");
     try {
+      if (input.operation !== "status") {
+        if (
+          !Object.hasOwn(input, "expectedSessionId") ||
+          (input.expectedSessionId !== null &&
+            (typeof input.expectedSessionId !== "string" ||
+              !sessionIdPattern.test(input.expectedSessionId)))
+        )
+          throw new Error("native_account_request_invalid");
+        let current: Awaited<ReturnType<typeof owner.load>>;
+        try {
+          current = await owner.load();
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !== "account_session_origin_required" ||
+            !["save", "clear"].includes(input.operation)
+          )
+            throw error;
+        }
+        if (input.expectedSessionId !== (current?.sessionId ?? null))
+          throw new Error("account_session_changed");
+      }
       if (input.operation === "status") {
         try {
           const current = await owner.load();
@@ -280,6 +303,7 @@ export async function startAccountBroker(
           "sign_in_required",
           "account_access_revoked",
           "account_origin_changed",
+          "account_session_changed",
           "native_account_request_invalid",
           "account_service_unavailable",
         ].includes(error.message)

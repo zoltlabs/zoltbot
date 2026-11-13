@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Refuse account actions from an old sign-in after switching accounts.
+
 - Show cloud task audit records, including refused Mac commands, in their project.
 
 - Fix: Cloud tasks can connect to their account service on the hosted Worker runtime.
