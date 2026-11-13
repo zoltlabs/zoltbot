@@ -16,7 +16,7 @@ WORKDIR /opt/zoltbot
 COPY . .
 RUN pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm build:worker \
-    && pnpm --filter-prod @zoltbot/worker... install --prod --frozen-lockfile --ignore-scripts \
+    && CI=true pnpm --filter-prod @zoltbot/worker... install --prod --frozen-lockfile --ignore-scripts \
     && pnpm --filter-prod @zoltbot/worker... rebuild better-sqlite3 \
     && npm install --global @anthropic-ai/claude-code@2.1.299 @openai/codex@0.164.0
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/chromium

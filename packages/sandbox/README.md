@@ -40,3 +40,11 @@ Docker engine; actual Docker conformance and live provider lookup remain unrun.
 `@zoltbot/sandbox/orchestrate` supplies the generic provider-operation helper.
 Its [README](src/orchestrate/README.md) records journal, reconciliation and retry
 choices and the Global-service responsibilities that remain unfinished.
+
+
+When the fake target declares that sleep loses processes, it retains each owned
+process group until captured streams close. It retries group termination for at
+most three seconds, then reports a fixed provider error if processes remain. A
+missed first signal must not make the fake claim a successful processless sleep
+or wait indefinitely. Tests deliberately drop that first signal and verify the
+owned process exits; ordinary sleep still preserves the sandbox files.

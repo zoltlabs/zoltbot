@@ -147,9 +147,32 @@ export function createFakeTarget(options: FakeTargetOptions = {}): ExecutionTarg
       box.state = "sleeping";
       if (target.capabilities.sleepKeepsProcesses) signal(box, "SIGSTOP");
       else {
-        signal(box, "SIGKILL");
+        const exits = Promise.allSettled([...box.exits]);
+        let stopped = false;
+        void exits.then(() => {
+          stopped = true;
+        });
+        // A shell can fork while the first group signal is delivered. Retain its
+        // group until all captured pipes close and retry instead of waiting forever.
+        for (let attempt = 0; !stopped && attempt < 60; attempt++) {
+          signal(box, "SIGKILL");
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            await Promise.race([
+              exits,
+              new Promise<void>((resolve) => {
+                timer = setTimeout(resolve, 50);
+              }),
+            ]);
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+        if (!stopped) {
+          box.state = "running";
+          throw new SandboxError("provider", "Fake processes did not stop");
+        }
         box.groups.clear();
-        await Promise.allSettled([...box.exits]);
       }
     },
 

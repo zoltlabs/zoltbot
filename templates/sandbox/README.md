@@ -20,8 +20,10 @@ repository layout under `/opt/zoltbot`. Task execution uses the unprivileged
 
 The Dockerfile has one stage because the pinned E2B SDK rejects multi-stage
 Dockerfiles. `packages/sandbox/src/worker-template.test.ts` converts it through that
-SDK without an account or network request. An actual Docker build and live E2B
-acceptance remain unverified.
+SDK without an account or network request. The local ARM64 Docker build and a network-disabled runtime check passed.
+The check verified the pinned CLIs, Chromium, the Node 22 SQLite binding, an
+unprivileged user and absence of the build-only `CI` setting at runtime.
+Live E2B acceptance remains unverified.
 
 `e2b.toml` names `zoltbot-base`, four vCPUs and 8 GiB. Its template ID is a
 placeholder. Generated account/template IDs and publish configuration belong in
@@ -39,3 +41,7 @@ refusal. Docker starts it directly when create supplies the environment.
 Secrets are never baked into the image, readiness command, argv or a startup file.
 This uses the documented [E2B template build/start process](https://e2b-preview.mintlify.app/sandbox-template).
 The private orchestrator wiring and its live verification are still pending.
+
+The production-dependency install sets `CI=true` for that command only, so pnpm
+can replace the build-time modules without a TTY. The agent runtime does not
+inherit that build-only setting.
