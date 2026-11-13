@@ -21,14 +21,13 @@ import {
 } from "electron";
 import WebSocket from "ws";
 import { artifactKitAsset } from "../../../packages/artifact-kit/src/index.js";
-import { keychainProcess } from "../../../packages/daemon/src/keychain-process.js";
-import { KeychainSecrets } from "../../../packages/daemon/src/secrets.js";
 import { artifactProtocol } from "./artifact-protocol.js";
 import { cloudAccount } from "./cloud-account.js";
 import { createDictationController, type DictationStartOptions } from "./dictation.js";
 import { folderPicker } from "./folder-picker.js";
 import { frameRequestAllowed } from "./frame-isolation.js";
 import { hostedOrigins } from "./hosted-origins.js";
+import { desktopAccountClient } from "./native-account-client.js";
 import { answerNotification } from "./notification-answer.js";
 import { desktopNotifications } from "./notifications.js";
 import { viewFolderPath } from "./view-folders.js";
@@ -107,13 +106,18 @@ const daemon = new Supervisor(
     surviveParentExit: true,
     cwd: packaged ? dataDir : root,
     env: {
-      ZOLTBOT_DATA_DIR: dataDir,
+      ZOLTBOT_DATA_DIR: path.resolve(dataDir),
       ZOLTBOT_UI_ORIGIN: uiOrigin,
       ...(!packaged && process.env.ZOLTBOT_GOOGLE_TEST_MODE === "1"
         ? { ZOLTBOT_GOOGLE_TEST_MODE: "1" }
         : {}),
-      ...(packaged ? { ZOLTBOT_KEYCHAIN_HELPER: file("", "bin/zoltbot-keychain") } : {}),
+      ...(process.env.ZOLTBOT_KEYCHAIN_HELPER
+        ? { ZOLTBOT_KEYCHAIN_HELPER: process.env.ZOLTBOT_KEYCHAIN_HELPER }
+        : packaged
+          ? { ZOLTBOT_KEYCHAIN_HELPER: file("", "bin/zoltbot-keychain") }
+          : {}),
       ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
+      ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
       ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
       TSX_DISABLE_CACHE: "1",
       TMPDIR: desktopData,
@@ -340,14 +344,14 @@ function verifyMainFrame(event: Electron.IpcMainInvokeEvent | Electron.IpcMainEv
 const account = cloudAccount({
   ...(hosted.cloud ? { origin: hosted.cloud } : {}),
   referenceFile: path.join(desktopData, "account-keychain-reference"),
-  secrets: new KeychainSecrets(
-    keychainProcess({
-      command:
-        process.env.ZOLTBOT_KEYCHAIN_HELPER ??
-        file(".cache/native/zoltbot-keychain", "bin/zoltbot-keychain"),
-      cwd: root,
-    }),
-  ),
+  ...(hosted.cloud
+    ? {
+        nativeSession: desktopAccountClient({
+          origin: hosted.cloud,
+          socketPath: path.resolve(dataDir, "account-ipc", "broker.sock"),
+        }),
+      }
+    : {}),
   openBrowser: (url) => shell.openExternal(url),
   deviceName: hostname(),
   writeClipboard: (text) => clipboard.writeText(text),

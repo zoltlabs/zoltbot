@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { parseCredentials as credentials } from "@zoltbot/cloud-contracts";
+import type { accountBrokerClient } from "../../../packages/daemon/src/account-session/broker-client.js";
 import { accountSession } from "../../../packages/daemon/src/account-session/index.js";
 import { possibleSecret } from "../../../packages/daemon/src/artifacts/intake.js";
 import { validateManifest } from "../../../packages/daemon/src/artifacts/model.js";
@@ -20,7 +21,11 @@ interface SecretStore {
 export interface CloudAccountOptions {
   origin?: string;
   referenceFile: string;
-  secrets: SecretStore;
+  secrets?: SecretStore;
+  nativeSession?: Pick<
+    ReturnType<typeof accountBrokerClient>,
+    "status" | "save" | "clear" | "request" | "sessionId"
+  >;
   openBrowser(url: string): Promise<void>;
   deviceName: string;
   fetch?: typeof fetch;
@@ -33,12 +38,46 @@ export interface CloudAccountOptions {
 export function cloudAccount(options: CloudAccountOptions) {
   const send = options.fetch ?? fetch;
   const origin = options.origin;
-  const session = accountSession(options);
-  const { load, save, clear, request, endpoint } = session;
+  if (options.secrets && options.nativeSession) throw new Error("account_owner_ambiguous");
+  if (origin) {
+    const url = new URL(origin);
+    if (
+      url.origin !== origin ||
+      (url.protocol !== "https:" && !(url.protocol === "http:" && url.hostname === "127.0.0.1"))
+    )
+      throw new Error("invalid_account_origin");
+    if (!options.secrets && !options.nativeSession) throw new Error("native_account_unavailable");
+  }
+  const local = options.secrets
+      ? accountSession({ ...options, secrets: options.secrets })
+      : undefined,
+    native = options.nativeSession;
+  const endpoint = (route: string) => {
+    if (!origin) throw new Error("accounts_not_configured");
+    return `${origin}/api/account${route}`;
+  };
+  const save = (value: Parameters<ReturnType<typeof accountSession>["save"]>[0]) => {
+    if (native) return native.save(value);
+    if (local) return local.save(value);
+    throw new Error("accounts_not_configured");
+  };
+  const clear = () => (native ? native.clear() : local ? local.clear() : Promise.resolve());
+  const request = (route: string, method = "GET", payload?: string | Buffer): Promise<unknown> => {
+    if (native) return native.request(route, method, payload);
+    if (local) return local.request(route, method, payload);
+    return Promise.reject(new Error("accounts_not_configured"));
+  };
+  const sessionId = () => (native ? native.sessionId() : local?.sessionId());
   let pending: { server: Server; cancel(): void } | undefined;
   let queue: Promise<unknown> = Promise.resolve();
-  function serialized<T>(action: () => Promise<T>): Promise<T> {
-    const next = queue.then(action, action);
+  function serialized<T>(action: () => Promise<T>, bound = true): Promise<T> {
+    const expected = native?.sessionId();
+    const perform = () => {
+      if (bound && native && native.sessionId() !== expected)
+        throw new Error("account_session_changed");
+      return action();
+    };
+    const next = queue.then(perform, perform);
     queue = next.catch(() => {});
     return next;
   }
@@ -147,7 +186,8 @@ export function cloudAccount(options: CloudAccountOptions) {
   }
   async function status() {
     if (!origin) return { configured: false, signedIn: false };
-    if (!(await load())) return { configured: true, signedIn: false };
+    if (!(native ? (await native.status()).signedIn : await local?.load()))
+      return { configured: true, signedIn: false };
     return {
       configured: true,
       managementUrl: `${origin}/account`,
@@ -198,6 +238,7 @@ export function cloudAccount(options: CloudAccountOptions) {
         server.listen(0, "127.0.0.1", resolve);
       });
       timer = setTimeout(() => fail(new Error("sign_in_timed_out")), options.timeoutMs ?? 600000);
+      if (native) await Promise.race([native.status(), code]);
       const start = await send(endpoint("/native/start"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,8 +278,8 @@ export function cloudAccount(options: CloudAccountOptions) {
     }
   }
   return {
-    status: () => serialized(status),
-    signIn: () => serialized(signIn),
+    status: () => serialized(status, false),
+    signIn: () => serialized(signIn, false),
     cancel: () => pending?.cancel(),
     signOut: () =>
       serialized(async () => {
@@ -252,7 +293,7 @@ export function cloudAccount(options: CloudAccountOptions) {
       serialized(async () => {
         if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error("invalid_session_id");
         await request(`/sessions/${id}`, "DELETE");
-        if (id === session.sessionId()) await clear();
+        if (id === sessionId()) await clear();
         return status();
       }),
     revokeAll: () =>

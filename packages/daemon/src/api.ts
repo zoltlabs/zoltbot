@@ -30,6 +30,7 @@ import {
 } from "@zoltbot/protocol";
 import { openStore } from "@zoltbot/store";
 import { WebSocket, WebSocketServer } from "ws";
+import { daemonAccountOwner } from "./account-session/daemon.js";
 import { assetServer } from "./api-assets.js";
 import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
@@ -94,6 +95,12 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  if (options.nativeAccount) {
+    const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
+      logger.write("warn", "native_account_unavailable"),
+    );
+    if (account) resources.push(() => account.close());
+  }
   if (options.cloudRunner) {
     try {
       const cloud = options.cloudRunner({

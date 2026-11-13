@@ -7,7 +7,7 @@ import { relayUrlPattern } from "./relay-link.js";
 import { KeychainSecrets } from "./secrets.js";
 import { deferredSetup } from "./setup-api.js";
 
-const dataDir = process.env.ZOLTBOT_DATA_DIR ?? path.resolve(".cache/dev-daemon");
+const dataDir = path.resolve(process.env.ZOLTBOT_DATA_DIR ?? ".cache/dev-daemon");
 const secrets =
   process.platform === "darwin"
     ? new KeychainSecrets(
@@ -29,6 +29,11 @@ const daemon = await startDaemon({
   dataDir,
   runtime: (context) => productionRuntime(context, dataDir),
   ...(secrets ? { secrets } : {}),
+  ...(secrets && process.env.ZOLTBOT_CLOUD_ORIGIN
+    ? {
+        nativeAccount: { origin: process.env.ZOLTBOT_CLOUD_ORIGIN, secrets },
+      }
+    : {}),
   // Quick Chat runs on the coding tools the person signed in to on this Mac.
   quickChat: { tools: quickToolRuntime(dataDir) },
   setup: (context) =>

@@ -1,9 +1,11 @@
-import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { syntheticCredentials } from "@zoltbot/cloud-contracts";
 import { type Daemon, type DaemonOptions, startDaemon } from "@zoltbot/daemon";
 import { type EntityKind, protocolVersion } from "@zoltbot/protocol";
 import { expect, it, vi } from "vitest";
+import { accountBrokerClient } from "../../../packages/daemon/src/account-session/broker-client.js";
 import { createCloudFake } from "./cloud.js";
 import { ReferenceSession } from "./reference-adapter.js";
 import { at, runtimeFixture } from "./runtime-fixture.js";
@@ -448,7 +450,7 @@ it("creates and fires a routine through the daemon runner, records its outcome, 
   }
 });
 
-for (const cloud of ["off", "startup_failed"] as const) {
+for (const cloud of ["off", "startup_failed", "native_owner", "native_owner_failed"] as const) {
   it(`keeps Local task execution off the cloud while signed in (${cloud})`, async () => {
     const account = createCloudFake();
     account.listen(0, "127.0.0.1");
@@ -463,13 +465,45 @@ for (const cloud of ["off", "startup_failed"] as const) {
     const test = await runtimeFixture(),
       prompts: string[] = [];
     let daemon: Daemon | undefined, client: Awaited<ReturnType<typeof connect>> | undefined;
+    const nativeRoot = cloud.startsWith("native_owner")
+        ? mkdtempSync("/private/tmp/zoltbot-account-c1-")
+        : undefined,
+      memory = new Map<string, unknown>(),
+      secrets = {
+        async put(value: unknown) {
+          const reference = `keychain:zoltbot:${randomUUID()}`;
+          memory.set(reference, structuredClone(value));
+          return { reference };
+        },
+        async read(reference: string) {
+          return structuredClone(memory.get(reference));
+        },
+        async replace(reference: string, value: unknown) {
+          memory.set(reference, structuredClone(value));
+        },
+        async remove(reference: string) {
+          memory.delete(reference);
+        },
+      };
     const requests = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("local_task_attempted_cloud_request");
     });
     try {
       daemon = await startDaemon({
-        dataDir: path.join(test.root, "daemon"),
+        dataDir: nativeRoot ?? path.join(test.root, "daemon"),
         runtimeHost: referenceHost(test.root, prompts),
+        ...(nativeRoot
+          ? {
+              secrets,
+              nativeAccount: {
+                origin:
+                  cloud === "native_owner_failed"
+                    ? "invalid-origin"
+                    : `http://127.0.0.1:${address.port}`,
+                secrets,
+              },
+            }
+          : {}),
         ...(cloud === "startup_failed"
           ? {
               cloudRunner: () => {
@@ -478,6 +512,14 @@ for (const cloud of ["off", "startup_failed"] as const) {
             }
           : {}),
       });
+      if (nativeRoot && cloud === "native_owner") {
+        const native = accountBrokerClient({
+          origin: `http://127.0.0.1:${address.port}`,
+          socketPath: path.join(nativeRoot, "account-ipc", "broker.sock"),
+        });
+        await native.save({ ...syntheticCredentials, sessionId: randomUUID() });
+        expect((await native.status()).signedIn).toBe(true);
+      }
       for (const kind of ["agentDefinition", "agent"] as const)
         seed(daemon, test.store.snapshot()[kind] ?? [], kind, "seed");
       seed(daemon, [project([])], "project", "seed");
@@ -503,6 +545,10 @@ for (const cloud of ["off", "startup_failed"] as const) {
       expect(daemon.store.snapshot(["taskResult"]).taskResult).toEqual([
         expect.objectContaining({ taskId: created.id, summary: "ok" }),
       ]);
+      if (cloud === "native_owner_failed")
+        expect(
+          daemon.logger.lines.some((line) => line.includes("native_account_unavailable")),
+        ).toBe(true);
       if (cloud === "startup_failed")
         expect(daemon.logger.lines.some((line) => line.includes("cloud_runner_unavailable"))).toBe(
           true,
@@ -512,6 +558,7 @@ for (const cloud of ["off", "startup_failed"] as const) {
       await daemon?.close();
       requests.mockRestore();
       test.close();
+      if (nativeRoot) rmSync(nativeRoot, { recursive: true, force: true });
       account.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         account.close((error) => (error ? reject(error) : resolve())),

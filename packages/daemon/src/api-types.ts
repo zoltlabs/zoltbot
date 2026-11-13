@@ -37,6 +37,8 @@ export interface OwnedRuntime extends RuntimeHost {
 }
 export interface DaemonOptions {
   dataDir: string;
+  /** Native account owner; no credentials or Local projections appear in daemon RPC. */
+  nativeAccount?: import("./account-session/daemon.js").DaemonAccountOptions;
   /** Absent by default. A separate cloud host receives no Local store or runtime context. */
   cloudRunner?(input: { dataDir: string; status(code: string): void }): { close(): Promise<void> };
   githubClient?: GitHubClient;

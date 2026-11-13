@@ -9,19 +9,20 @@ Reopening before sign-in or sign-out resolves the existing reference before
 replacing/removing it, so those actions do not leave old credentials in keychain.
 Queued inputs and returned credentials use copies to protect the session state.
 
-The desktop account controller now uses this module while retaining its existing
+The desktop account controller now uses the daemon broker while retaining its existing
 sign-in, sign-out, artifact and session-management flows. Its IPC methods continue
 to return metadata. Credential-bearing `load` and `save` are internal native ports,
 never renderer endpoints. A process that owns this session must proxy other native
 callers through that same owner. Separate processes must not independently rotate
 the same account credentials.
 
-The broker below provides the native IPC seam. Packaged daemon/controller wiring,
-Mac runner startup and client settings remain unfinished. The headless fake
+The broker below provides the native IPC seam. The daemon owns it when its account
+origin is configured; the desktop controller uses that owner. Mac runner startup
+and client settings wiring remain unfinished. The headless fake
 whole-flow command now passes for both providers. Tests use
 generated memory-only credentials, a fake keychain and an injected HTTP transport.
 
-## Native broker (in progress)
+## Native broker
 
 `startAccountBroker` owns the session and its refresh queue. Native callers use
 `accountBrokerClient` over a Unix socket in an owner-only directory. Socket
@@ -40,9 +41,9 @@ existing filtering before renderer IPC.
 
 Keychain records bind credentials and the exact origin in one atomic envelope.
 A changed origin cannot receive the previous origin's bearer. Legacy unbound
-credentials require explicit sign-in when this broker is selected. The current
-desktop has not selected it yet; integration and its migration behavior still
-need review. The disk reference remains an opaque keychain reference.
+credentials require one fresh Google sign-in when this broker is selected.
+The desktop uses this broker; the daemon rotates and persists credentials.
+The disk reference remains an opaque keychain reference.
 
 Requests serialize through one owner, including session-change notification.
 The notification is for local cleanup; it must not reenter this broker. A failed
@@ -83,6 +84,21 @@ response fields fail with a fixed error before the broker can return them. No
 secret read route exists. These ports do not enable Cloud, grant a runner or
 start a process themselves.
 
-The packaged app still needs to select this owner and supply its native keychain
-and account lifecycle. Legacy credentials without an origin binding require the
-owner's migration decision before that integration changes existing sign-in.
+The packaged daemon supplies its native keychain to this owner; the desktop
+uses the private socket and retains browser authorization. Legacy credentials
+without an origin binding require one fresh Google sign-in.
+The controller captures the current session before queueing protected actions,
+so a status reload cannot move an old-account action onto a new account.
+No Cloud runner grant or connection starts merely because an account is present.
+
+Native broker paths resolve from the configured app data directory. The desktop
+passes its absolute data path to the daemon, including when a developer supplies
+a relative data-directory override. Account startup failure logs a fixed code
+and leaves Local work available.
+
+The desktop waits up to five seconds for the daemon’s private socket during cold
+startup. It rechecks its session after waiting and preflights the owner before
+opening the sign-in browser. It does not create a second credential owner.
+
+Cancel sign-in also cancels the owner preflight. Its loopback listener closes
+and the browser stays unopened when cancellation arrives during readiness.
