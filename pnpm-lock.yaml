@@ -59,6 +59,9 @@ importers:
       vitest:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.8.2)
+      ws:
+        specifier: 8.19.0
+        version: 8.19.0
 
   apps/desktop:
     dependencies:
@@ -650,6 +653,9 @@ importers:
       '@zoltbot/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@zoltbot/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
       '@zoltbot/store':
         specifier: workspace:*
         version: link:../../packages/store

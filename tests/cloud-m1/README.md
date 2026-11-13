@@ -19,10 +19,18 @@ OpenSSL through a private pipe. Isolated Node children trust its public
 certificate through an environment variable while keeping TLS verification on.
 Miniflare debug-config file output is refused before service credentials are set.
 
+The worker component tests build the actual worker CLI from source, start it in
+an owned directory through the sandbox fake target, and connect it to the real
+Cell through verified localhost TLS. Both native provider stand-ins deliver a
+turn to review. The fake Global injects task-bound credentials in the child
+environment and uses the public orchestrator journal. A Git shim maps the
+fixture's canonical repository URL to a disposable bare remote and refuses
+other remote operations. The Codex shim also serves the checked-in protocol
+schema for its native schema-generation command.
+
 These checks do not run the whole outcome. The harness still needs to join the
-Cell to the fake execution target and worker CLI, the headless daemon, scripted
-device clients and the bare Git remote, with assertions for Mac execution,
-recovery, quota refusal and deletion. Native pending questions and tools also still need
+headless daemon and scripted phone client, with assertions for Mac execution,
+review publication, process recovery, quota refusal and account deletion. Native pending questions and tools also still need
 process-loss recovery in the worker. The eventual command must assert every
 outcome before W8 can pass.
 

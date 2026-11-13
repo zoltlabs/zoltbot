@@ -150,3 +150,12 @@ native ID and queues the existing core restart continuation once. An original
 handled input remains handled. An already queued input takes priority, and a
 pending native question or Mac tool is not automatically continued. Their
 recovery remains unfinished, along with W8.
+
+
+The CLI defaults to `/home/user/.zoltbot` for private state and `/home/user/work`
+for checkouts. A deployment can set `ZOLTBOT_WORKER_HOME` to a canonical absolute
+home, which derives those same two child folders. This lets the headless fake
+target run the actual CLI in its disposable sandbox directory. The value comes
+only from startup configuration; a Cell lease or command cannot select it.
+Relative paths, root directories, traversal, NUL and line breaks are refused
+before startup. The hosted template keeps its existing default paths.

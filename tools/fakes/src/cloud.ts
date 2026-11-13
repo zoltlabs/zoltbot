@@ -89,6 +89,9 @@ export function createCloudFake(
         method: request.method ?? "GET",
         ...(request.headers.authorization ? { authorization: request.headers.authorization } : {}),
         body,
+        ...(typeof request.headers["idempotency-key"] === "string"
+          ? { operationId: request.headers["idempotency-key"] }
+          : {}),
       });
       if (result) {
         send(result.body, result.status);

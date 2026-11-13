@@ -1,9 +1,12 @@
+import path from "node:path";
 import metadata from "../package.json" with { type: "json" };
 import { workerCliMetadata } from "./discovery.js";
 import { readWorkerEnvironment, workerSecretNames } from "./environment.js";
 import { startWorker } from "./index.js";
+import { workerPaths } from "./paths.js";
 
 async function boot() {
+  const paths = workerPaths(process.env);
   const environment = readWorkerEnvironment(process.env);
   for (const name of workerSecretNames) delete process.env[name];
   let worker: Awaited<ReturnType<typeof startWorker>> | undefined,
@@ -23,7 +26,11 @@ async function boot() {
   for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, stop);
   worker = await startWorker({
     environment,
-    clis: (directory) => workerCliMetadata(environment.provider, directory),
+    ...paths,
+    clis: (directory) =>
+      workerCliMetadata(environment.provider, directory, {
+        home: path.dirname(paths.workDirectory),
+      }),
     versions: { worker: metadata.version, node: process.versions.node },
     status,
   });

@@ -8,20 +8,21 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@zoltbot/adapters-acp": "workspace:*",
+    "@zoltbot/adapters-claude": "workspace:*",
     "@zoltbot/adapters-codex": "workspace:*",
+    "@zoltbot/adapters-pi": "workspace:*",
     "@zoltbot/adapters-sdk": "workspace:*",
+    "@zoltbot/cloud-contracts": "workspace:*",
     "@zoltbot/core": "workspace:*",
     "@zoltbot/daemon": "workspace:*",
-    "@zoltbot/protocol": "workspace:*",
-    "ajv": "8.17.1",
-    "yaml": "2.8.2",
-    "@zoltbot/adapters-claude": "workspace:*",
-    "@zoltbot/adapters-pi": "workspace:*",
-    "@zoltbot/store": "workspace:*",
     "@zoltbot/hostmcp": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.32.2",
-    "@zoltbot/cloud-contracts": "workspace:*"
+    "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/sandbox": "workspace:*",
+    "@zoltbot/store": "workspace:*",
+    "ajv": "8.17.1",
+    "yaml": "2.8.2"
   },
   "bin": {
     "fake-claude": "./src/fake-claude.ts",

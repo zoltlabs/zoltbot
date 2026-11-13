@@ -233,6 +233,21 @@ it("keeps fixture secrets write-only, rotates native sessions and enforces the b
     const saved = await write(owner.accessToken);
     expect(saved.status).toBe(200);
     expect((await saved.text()).includes(standIn)).toBe(false);
+    const providerKey = randomBytes(32).toString("base64url");
+    const providerWrite = await fetch(new URL("/api/cloud/secrets/anthropic", origin), {
+      method: "PUT",
+      headers: { authorization: `Bearer ${owner.accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ value: providerKey }),
+    });
+    expect(providerWrite.status).toBe(200);
+    const injected = account.secretsForTask(
+      { orgId: "personal", userId: "member", taskId: "task" },
+      "claude",
+    );
+    expect(injected.providerKey === providerKey && injected.githubToken === standIn).toBe(true);
+    expect(() =>
+      account.secretsForTask({ orgId: "other", userId: "member", taskId: "task" }, "claude"),
+    ).toThrow("fixture_secret_required");
     const read = await fetch(secretPath, {
       headers: { authorization: `Bearer ${owner.accessToken}` },
     });

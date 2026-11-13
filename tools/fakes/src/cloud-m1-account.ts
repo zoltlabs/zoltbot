@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
+  CellTokenClaimsSchema,
   CellTokenRequestSchema,
   type CloudDevice,
   CloudDeviceKeySchema,
@@ -16,6 +17,7 @@ export interface FakeAccountRequest {
   path: string;
   method: string;
   authorization?: string;
+  operationId?: string;
   body: unknown;
 }
 interface Session {
@@ -270,11 +272,13 @@ export async function createCloudM1Account(options: {
             kind: runner ? "mac_runner" : "client",
             ...(runner && grant ? { grant: grant.id } : {}),
           });
-          return reply({
-            token,
-            cellUrl,
-            expiresAt: new Date(Math.floor(now() / 1000) * 1000 + 600000).toISOString(),
-          });
+          const payload = token.split(".")[1];
+          if (!payload) throw new Error("fixture_token_invalid");
+          const claims = parse(
+            CellTokenClaimsSchema,
+            JSON.parse(Buffer.from(payload, "base64url").toString("utf8")),
+          );
+          return reply({ token, cellUrl, expiresAt: new Date(claims.exp * 1000).toISOString() });
         }
         const secret = /^\/api\/cloud\/secrets\/(anthropic|openai|github)$/.exec(path)?.[1];
         if (secret && method === "PUT") {
@@ -287,7 +291,30 @@ export async function createCloudM1Account(options: {
         return reply({ error: "fixture_request_refused" }, 400);
       }
     },
-    // No secret read port: the fake orchestrator will receive a separate task-scoped injection port.
+    // Native test port only: never exposed by HTTP or returned to a protocol client.
+    secretsForTask(
+      scope: { orgId: string; userId: string; taskId: string },
+      provider: "claude" | "codex",
+    ) {
+      if (
+        Object.keys(scope).sort().join(",") !== "orgId,taskId,userId" ||
+        Object.values(scope).some(
+          (value) => typeof value !== "string" || !value || value.length > 200,
+        ) ||
+        !["claude", "codex"].includes(provider) ||
+        ![...sessions.values()].some(
+          (session) =>
+            session.orgId === scope.orgId && session.userId === scope.userId && session.beta,
+        )
+      )
+        throw new Error("fixture_secret_required");
+      const providerKey = secrets.get(
+          key(scope.userId, provider === "claude" ? "anthropic" : "openai"),
+        ),
+        githubToken = secrets.get(key(scope.userId, "github"));
+      if (!providerKey || !githubToken) throw new Error("fixture_secret_required");
+      return { providerKey, githubToken };
+    },
     clear() {
       sessions.clear();
       devices.clear();
