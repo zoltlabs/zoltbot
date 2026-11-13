@@ -8,6 +8,10 @@ const forbidden =
 // Public clients call these account endpoints; they are not filesystem dependencies.
 const publicAccountRoutes = new Set([
   "/api/cloud/devices",
+  "/api/cloud/cell-token",
+  "/api/cloud/jwks.json",
+  "/api/cloud/access",
+  "/api/cloud/secrets/github",
   "/api/cloud/runner-grants",
   "/api/cloud/runner-token",
   "/api/cloud/worker-token",

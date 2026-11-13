@@ -11,7 +11,13 @@ import {
 } from "@zoltbot/cloud-contracts";
 import { parse } from "@zoltbot/protocol";
 
-export function createCloudFake() {
+export function createCloudFake(
+  options: {
+    cloud?(
+      request: import("./cloud-m1-account.js").FakeAccountRequest,
+    ): Promise<{ body: unknown; status: number } | undefined>;
+  } = {},
+) {
   const credentials = {
     ...syntheticCredentials,
     sessionId: "11111111-1111-4111-8111-111111111111",
@@ -63,7 +69,10 @@ export function createCloudFake() {
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const bytes = Buffer.concat(chunks);
     let body: Record<string, unknown> = {};
-    if (bytes.length && request.method !== "PUT") {
+    if (
+      bytes.length &&
+      (request.method !== "PUT" || request.headers["content-type"]?.startsWith("application/json"))
+    ) {
       try {
         const value: unknown = JSON.parse(bytes.toString());
         if (!value || typeof value !== "object" || Array.isArray(value))
@@ -73,6 +82,21 @@ export function createCloudFake() {
         send({ error: "invalid_body" }, 400);
         return;
       }
+    }
+    try {
+      const result = await options.cloud?.({
+        path: endpoint,
+        method: request.method ?? "GET",
+        ...(request.headers.authorization ? { authorization: request.headers.authorization } : {}),
+        body,
+      });
+      if (result) {
+        send(result.body, result.status);
+        return;
+      }
+    } catch {
+      send({ error: "fixture_request_refused" }, 500);
+      return;
     }
     if (endpoint === "/api/account/integrations/catalog") {
       send({ services: [] });
