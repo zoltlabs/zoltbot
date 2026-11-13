@@ -110,15 +110,16 @@ export function createCloudFake(
         const input = parse(NativeStartSchema, body);
         const redirect = new URL(input.redirectUri);
         if (
-          redirect.protocol !== "http:" ||
-          redirect.hostname !== "127.0.0.1" ||
-          redirect.pathname !== "/account/callback" ||
-          redirect.username ||
-          redirect.password ||
-          redirect.search ||
-          redirect.hash
+          input.redirectUri !== "zoltbot://account/callback" &&
+          (redirect.protocol !== "http:" ||
+            redirect.hostname !== "127.0.0.1" ||
+            redirect.pathname !== "/account/callback" ||
+            redirect.username ||
+            redirect.password ||
+            redirect.search ||
+            redirect.hash)
         )
-          throw Error("loopback_required");
+          throw Error("native_callback_required");
         const id = randomUUID();
         intents.set(id, { ...input, code: randomBytes(32).toString("base64url") });
         send({
