@@ -49,3 +49,41 @@ The native notification handler does not yet dispatch `open_cloud`. Cloud accoun
 validation, navigation, registration and signed approval UI still need integration.
 The tests check the actual relay payload and phone decoder together, with no real
 APNs traffic or native notification registration.
+
+
+## Native Cloud API port
+
+The account owner exposes fixed methods for registered device keys, notification
+tokens and short-lived Cell connections. Each call carries the account session
+shown by the screen. An old session is refused before Cloud HTTP, request bodies
+are frozen before entering the shared refresh queue, and acknowledgement responses
+accept only `{ ok: true }`. A registered key must derive the supplied device ID.
+The phone cannot use this port to read provider secrets or call an arbitrary URL.
+
+A Cell connection returns its HTTPS origin, expiry and a memory-only token reader.
+JSON serialization and secure storage contain no Cell token. Clearing the handle,
+signing out, changing sessions or reaching expiry disables its reader. Cell tokens
+are bounded to eleven minutes including clock allowance. The phone pins the returned claims to the current member, org, session and device,
+requires a phone client token without runner authority, and limits expiry to the
+signed expiry. This decoding is not signature verification: the Cell verifies the
+signature and current account/device authority. A malformed successful
+account refresh clears uncertain custody rather than retrying a consumed value.
+
+These methods are not yet selected by Cloud screens or transport. Tests use the
+loopback fake broker, RAM-only keys/store and fake Cloud responses. No phone app,
+keychain, real Google account or hosted service was contacted.
+
+A refused Cloud permission returns `account_access_refused`, so the Cloud owner
+can discard its projections without signing the person out of their account.
+Rejected native refresh authority clears account custody before any Cloud retry.
+
+
+## Work-in-progress checkpoint
+
+The owner requested this checkpoint before the milestone checks passed. The
+account API tests last printed `28 passed` before adding the connection's owner
+metadata. Mobile typecheck passed with that metadata and `connection.ts`. The
+new connection has no transport tests or native adapter yet, and no screen selects
+it. Verify reconnect races, authority loss, read-only caches, command outcomes,
+subscription isolation and teardown before connecting it to the phone. This is
+unverified implementation work, not W11 sign-off.

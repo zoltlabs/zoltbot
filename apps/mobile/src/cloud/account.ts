@@ -1,10 +1,15 @@
 import { Type } from "@sinclair/typebox";
 import {
+  CellTokenClaimsSchema,
+  CellTokenRequestSchema,
+  CellTokenResultSchema,
+  CloudDeviceKeySchema,
+  CloudPushRegistrationSchema,
   type Credentials,
   NativeStartResultSchema,
   parseCredentials,
 } from "@zoltbot/cloud-contracts";
-import { toB64 } from "@zoltbot/link";
+import { fromB64, linkId, toB64 } from "@zoltbot/link";
 import { parse } from "@zoltbot/protocol";
 import type { SecretStore } from "../data/link-store.js";
 
@@ -30,6 +35,13 @@ export interface PhoneAccountStatus {
   online: boolean;
   sessionId?: string;
   account?: PhoneAccountMetadata;
+}
+export interface PhoneCellConnection {
+  readonly owner: Readonly<{ userId: string; sessionId: string; orgId: string; deviceId: string }>;
+  readonly cellUrl: string;
+  readonly expiresAt: string;
+  readToken(): string;
+  clear(): void;
 }
 export interface PhoneAccountOptions {
   origin?: string;
@@ -145,10 +157,14 @@ export function phoneAccount(options: PhoneAccountOptions) {
     }
     credentials = next;
   };
-  const http = async (route: string, init: RequestInit = {}) => {
+  const http = async (
+    route: string,
+    init: RequestInit = {},
+    prefix: "/api/account" | "/api/cloud" = "/api/account",
+  ) => {
     if (!origin) throw new Error("accounts_not_configured");
     try {
-      return await send(`${origin}/api/account${route}`, {
+      return await send(`${origin}${prefix}${route}`, {
         ...init,
         credentials: "omit",
         redirect: "error",
@@ -177,11 +193,27 @@ export function phoneAccount(options: PhoneAccountOptions) {
       throw new Error("account_unavailable");
     }
   };
-  const authenticated = async (route: string, method = "GET") => {
+  const authenticated = async (
+    route: string,
+    method = "GET",
+    payload?: string,
+    prefix: "/api/account" | "/api/cloud" = "/api/account",
+  ) => {
     await load();
     if (!credentials) throw new Error("sign_in_required");
     const perform = () =>
-      http(route, { method, headers: { authorization: `Bearer ${credentials?.accessToken}` } });
+      http(
+        route,
+        {
+          method,
+          headers: {
+            authorization: `Bearer ${credentials?.accessToken}`,
+            ...(payload === undefined ? {} : { "content-type": "application/json" }),
+          },
+          ...(payload === undefined ? {} : { body: payload }),
+        },
+        prefix,
+      );
     let response = await perform();
     if (response.status === 401) {
       await response.body?.cancel().catch(() => {});
@@ -195,7 +227,18 @@ export function phoneAccount(options: PhoneAccountOptions) {
         throw new Error("sign_in_required");
       }
       // Rotation must retain the account session and be persisted before bearer use.
-      const rotated = parseSaved(await json(refreshed));
+      if (!refreshed.ok) {
+        await refreshed.body?.cancel().catch(() => {});
+        throw new Error("account_unavailable");
+      }
+      let rotated: Credentials;
+      try {
+        rotated = parseSaved(await json(refreshed));
+      } catch {
+        await clear();
+        notify();
+        throw new Error("account_unavailable");
+      }
       if (rotated.sessionId !== credentials.sessionId) {
         await clear();
         notify();
@@ -204,8 +247,54 @@ export function phoneAccount(options: PhoneAccountOptions) {
       await save(rotated);
       response = await perform();
     }
+    if (prefix === "/api/cloud" && [401, 403].includes(response.status)) {
+      await response.body?.cancel().catch(() => {});
+      if (response.status === 401) {
+        await clear();
+        notify();
+        throw new Error("sign_in_required");
+      }
+      throw new Error("account_access_refused");
+    }
     return json(response);
   };
+  const cloudRequest = (
+    expectedSessionId: string,
+    route: string,
+    method: string,
+    payload?: string,
+  ) =>
+    serialized(async () => {
+      try {
+        await load();
+        if (!credentials || credentials.sessionId !== expectedSessionId)
+          throw new Error("account_session_changed");
+        const value = await authenticated(route, method, payload, "/api/cloud");
+        if (!credentials || credentials.sessionId !== expectedSessionId)
+          throw new Error("account_session_changed");
+        return value;
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          [
+            "account_session_changed",
+            "account_cleanup_required",
+            "sign_in_required",
+            "account_access_refused",
+          ].includes(error.message)
+        )
+          throw error;
+        throw new Error("account_unavailable");
+      }
+    });
+  const acknowledgement = (value: unknown) => {
+    try {
+      parse(Type.Object({ ok: Type.Literal(true) }, { additionalProperties: false }), value);
+    } catch {
+      throw new Error("account_unavailable");
+    }
+  };
+  const invalidRequest = () => new Error("account_request_invalid");
   const status = async (): Promise<PhoneAccountStatus> => {
     await load();
     if (!origin || !credentials) return { configured: !!origin, signedIn: false, online: !!origin };
@@ -240,6 +329,137 @@ export function phoneAccount(options: PhoneAccountOptions) {
   };
   return Object.freeze({
     status: () => serialized(status),
+    async registerDevice(expectedSessionId: string, input: unknown): Promise<void> {
+      let payload: string;
+      try {
+        const key = parse(CloudDeviceKeySchema, input),
+          bytes = fromB64(key.publicKey);
+        if (bytes.length !== 32 || toB64(bytes) !== key.publicKey || linkId(bytes) !== key.deviceId)
+          throw new Error();
+        payload = JSON.stringify(key);
+      } catch {
+        throw invalidRequest();
+      }
+      acknowledgement(await cloudRequest(expectedSessionId, "/devices", "POST", payload));
+    },
+    async setPushToken(expectedSessionId: string, input: unknown): Promise<void> {
+      let payload: string;
+      try {
+        payload = JSON.stringify(parse(CloudPushRegistrationSchema, input));
+      } catch {
+        throw invalidRequest();
+      }
+      acknowledgement(await cloudRequest(expectedSessionId, "/push", "PUT", payload));
+    },
+    async clearPushToken(expectedSessionId: string, deviceId: string): Promise<void> {
+      if (!/^[A-Za-z0-9_-]{22}$/.test(deviceId)) throw invalidRequest();
+      acknowledgement(await cloudRequest(expectedSessionId, `/push/${deviceId}`, "DELETE"));
+    },
+    async cellConnection(expectedSessionId: string, input: unknown): Promise<PhoneCellConnection> {
+      let request: ReturnType<typeof parse<typeof CellTokenRequestSchema>>, payload: string;
+      try {
+        request = parse(CellTokenRequestSchema, input);
+        payload = JSON.stringify(request);
+      } catch {
+        throw invalidRequest();
+      }
+      return serialized(async () => {
+        try {
+          await load();
+          if (!credentials || credentials.sessionId !== expectedSessionId)
+            throw new Error("account_session_changed");
+          const member = parse(metadataSchema, await authenticated("/me"));
+          if (
+            member.sessionId !== expectedSessionId ||
+            [...privateValues].some((secret) => JSON.stringify(member).includes(secret))
+          )
+            throw new Error("account_session_changed");
+          const value = parse(
+            CellTokenResultSchema,
+            await authenticated("/cell-token", "POST", payload, "/api/cloud"),
+          );
+          const url = new URL(value.cellUrl),
+            parts = value.token.split(".");
+          if (
+            url.protocol !== "https:" ||
+            url.origin !== value.cellUrl ||
+            url.username ||
+            url.password ||
+            value.token.length > 8192 ||
+            !Number.isFinite(Date.parse(value.expiresAt)) ||
+            Date.parse(value.expiresAt) > Date.now() + 660000 ||
+            parts.length !== 3 ||
+            parts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part))
+          )
+            throw new Error();
+          const decoded = decodeURIComponent(
+            Array.from(
+              fromB64(parts[1] ?? ""),
+              (byte) => `%${byte.toString(16).padStart(2, "0")}`,
+            ).join(""),
+          );
+          const claims = parse(CellTokenClaimsSchema, JSON.parse(decoded));
+          const until = Math.min(Date.parse(value.expiresAt), claims.exp * 1000),
+            now = Date.now();
+          if (
+            claims.iss !== origin ||
+            claims.kind !== "client" ||
+            claims.surface !== "phone" ||
+            claims.sub !== member.user.id ||
+            claims.org !== request.orgId ||
+            claims.device !== request.deviceId ||
+            claims.session !== expectedSessionId ||
+            claims.task !== undefined ||
+            claims.grant !== undefined ||
+            claims.iat * 1000 > now + 30000 ||
+            claims.exp <= claims.iat ||
+            claims.exp - claims.iat > 600 ||
+            !Number.isFinite(until) ||
+            until <= now + 1000
+          )
+            throw new Error("account_session_changed");
+          if (!credentials || credentials.sessionId !== expectedSessionId)
+            throw new Error("account_session_changed");
+          let token: string | undefined = value.token;
+          privateValues.add(token);
+          return Object.freeze({
+            owner: Object.freeze({
+              userId: member.user.id,
+              sessionId: expectedSessionId,
+              orgId: request.orgId,
+              deviceId: request.deviceId,
+            }),
+            cellUrl: value.cellUrl,
+            expiresAt: new Date(until).toISOString(),
+            readToken() {
+              if (
+                !token ||
+                cleanupRequired ||
+                credentials?.sessionId !== expectedSessionId ||
+                Date.now() >= until
+              )
+                throw new Error("account_session_changed");
+              return token;
+            },
+            clear() {
+              token = undefined;
+            },
+          });
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            [
+              "account_session_changed",
+              "account_cleanup_required",
+              "sign_in_required",
+              "account_access_refused",
+            ].includes(error.message)
+          )
+            throw error;
+          throw new Error("account_unavailable");
+        }
+      });
+    },
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {

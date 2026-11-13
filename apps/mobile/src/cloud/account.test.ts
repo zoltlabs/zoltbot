@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { syntheticCredentials } from "@zoltbot/cloud-contracts";
+import { createIdentity, linkId, toB64 } from "@zoltbot/link";
 import { afterEach, expect, it } from "vitest";
 import { createCloudFake } from "../../../../tools/fakes/src/cloud.js";
 import { memoryStore } from "../data/link-store.js";
@@ -385,5 +386,355 @@ it("refuses a refresh response for a different account session before using its 
   });
   expect((await owner.status()).signedIn).toBe(false);
   expect(used).toBe(false);
+  expect(await f.storage.get(phoneAccountKey)).toBeNull();
+});
+
+function phoneKey() {
+  const key = createIdentity();
+  return { deviceId: linkId(key.publicKey), publicKey: toB64(key.publicKey) };
+}
+it("registers the phone and scopes push operations without exposing account credentials", async () => {
+  const f = await fixture(),
+    routes: string[] = [],
+    key = phoneKey();
+  let privateHeader = true;
+  f.options.fetch = async (input, init) => {
+    if (String(input).includes("/api/cloud/")) {
+      routes.push(`${init?.method} ${new URL(String(input)).pathname}`);
+      privateHeader &&= !!new Headers(init?.headers).get("authorization")?.startsWith("Bearer ");
+      expect(init?.credentials).toBe("omit");
+      expect(init?.redirect).toBe("error");
+      return Response.json({ ok: true });
+    }
+    return fetch(input, init);
+  };
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  const session = status.sessionId as string;
+  await owner.registerDevice(session, key);
+  await owner.setPushToken(session, {
+    deviceId: key.deviceId,
+    platform: "apns",
+    token: randomBytes(32).toString("hex"),
+  });
+  await owner.clearPushToken(session, key.deviceId);
+  expect(routes).toEqual([
+    "POST /api/cloud/devices",
+    "PUT /api/cloud/push",
+    `DELETE /api/cloud/push/${key.deviceId}`,
+  ]);
+  expect(privateHeader).toBe(true);
+  const encoded = JSON.stringify(await owner.status());
+  expect(encoded.includes(syntheticCredentials.accessToken)).toBe(false);
+});
+it("refuses old-session Cloud actions and mismatched keys before Cloud HTTP", async () => {
+  const f = await fixture();
+  let calls = 0;
+  f.options.fetch = async (input, init) => {
+    if (String(input).includes("/api/cloud/")) {
+      calls++;
+      return Response.json({ ok: true });
+    }
+    return fetch(input, init);
+  };
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn(),
+    key = phoneKey();
+  for (const action of [
+    () => owner.registerDevice("old", key),
+    () =>
+      owner.setPushToken("old", {
+        deviceId: key.deviceId,
+        platform: "apns",
+        token: randomBytes(32).toString("hex"),
+      }),
+    () => owner.clearPushToken("old", key.deviceId),
+    () => owner.cellConnection("old", { orgId: "org", deviceId: key.deviceId }),
+  ])
+    await expect(action()).rejects.toThrow("account_session_changed");
+  await expect(
+    owner.registerDevice(status.sessionId as string, { ...key, deviceId: phoneKey().deviceId }),
+  ).rejects.toThrow("account_request_invalid");
+  expect(calls).toBe(0);
+});
+it("keeps a Cell token in a revocable memory-only handle that cannot survive sign-out", async () => {
+  const f = await fixture(),
+    key = phoneKey(),
+    token = { value: "" };
+  f.options.fetch = async (input, init) =>
+    String(input).endsWith("/api/cloud/cell-token")
+      ? Response.json({
+          token: token.value,
+          cellUrl: "https://cell.example.invalid",
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+        })
+      : fetch(input, init);
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  token.value = fixtureCellToken(
+    f.origin,
+    status.account?.user.id as string,
+    status.sessionId as string,
+    key.deviceId,
+  );
+  const handle = await owner.cellConnection(status.sessionId as string, {
+    orgId: "org",
+    deviceId: key.deviceId,
+  });
+  expect(handle.readToken() === token.value).toBe(true);
+  expect(JSON.stringify(handle).includes(token.value)).toBe(false);
+  expect((await f.storage.get(phoneAccountKey))?.includes(token.value)).toBe(false);
+  await owner.signOut(status.sessionId as string);
+  expect(() => handle.readToken()).toThrow("account_session_changed");
+  handle.clear();
+});
+it("refuses unsafe Cell origins and overlong token lifetimes", async () => {
+  const f = await fixture(),
+    key = phoneKey();
+  let token = "";
+  let cellUrl = "http://cell.example.invalid",
+    expiresAt = new Date(Date.now() + 600000).toISOString();
+  f.options.fetch = async (input, init) =>
+    String(input).endsWith("/api/cloud/cell-token")
+      ? Response.json({ token, cellUrl, expiresAt })
+      : fetch(input, init);
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  token = fixtureCellToken(
+    f.origin,
+    status.account?.user.id as string,
+    status.sessionId as string,
+    key.deviceId,
+  );
+  for (const origin of [
+    "http://cell.example.invalid",
+    "https://name:private@cell.example.invalid",
+    "https://cell.example.invalid/path",
+  ]) {
+    cellUrl = origin;
+    await expect(
+      owner.cellConnection(status.sessionId as string, { orgId: "org", deviceId: key.deviceId }),
+    ).rejects.toThrow("account_unavailable");
+  }
+  cellUrl = "https://cell.example.invalid";
+  expiresAt = new Date(Date.now() + 7200000).toISOString();
+  await expect(
+    owner.cellConnection(status.sessionId as string, { orgId: "org", deviceId: key.deviceId }),
+  ).rejects.toThrow("account_unavailable");
+});
+it("freezes a Cloud request before it waits behind another account operation", async () => {
+  const f = await fixture(),
+    owner = phoneAccount(f.options),
+    status = await owner.signIn(),
+    key = phoneKey();
+  let release = () => {},
+    started = () => {},
+    held = false,
+    matched = false;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  // Reopen the saved account with one serialized request owner and a controllable metadata read.
+  const reopened = phoneAccount({
+    ...f.options,
+    fetch: async (input, init) => {
+      if (String(input).endsWith("/api/account/me") && held) {
+        started();
+        await blocked;
+      }
+      if (String(input).endsWith("/api/cloud/devices")) {
+        matched = JSON.parse(String(init?.body)).publicKey === key.publicKey;
+        return Response.json({ ok: true });
+      }
+      return fetch(input, init);
+    },
+  });
+  held = true;
+  const pending = reopened.status();
+  await ready;
+  const input = { ...key },
+    registered = reopened.registerDevice(status.sessionId as string, input);
+  input.publicKey = phoneKey().publicKey;
+  release();
+  await pending;
+  await registered;
+  expect(matched).toBe(true);
+});
+
+it("does not reuse a consumed refresh after a malformed successful rotation", async () => {
+  const f = await fixture();
+  await phoneAccount(f.options).signIn();
+  let refreshes = 0;
+  const owner = phoneAccount({
+    ...f.options,
+    fetch: async (input) => {
+      if (String(input).endsWith("/session/refresh")) {
+        refreshes++;
+        return Response.json({ unexpected: "malformed" });
+      }
+      return Response.json({}, { status: 401 });
+    },
+  });
+  expect((await owner.status()).signedIn).toBe(false);
+  expect((await owner.status()).signedIn).toBe(false);
+  expect(refreshes).toBe(1);
+  expect(await f.storage.get(phoneAccountKey)).toBeNull();
+});
+
+it("serializes Cloud refresh rotation and persists it before another protected request", async () => {
+  const f = await fixture();
+  await phoneAccount(f.options).signIn();
+  const previous = JSON.parse((await f.storage.get(phoneAccountKey)) as string).credentials;
+  const rotated = {
+    ...previous,
+    accessToken: randomBytes(32).toString("base64url"),
+    refreshToken: randomBytes(32).toString("base64url"),
+  };
+  let refreshes = 0,
+    rotatedResponse = false,
+    persistedBeforeUse = true;
+  const owner = phoneAccount({
+    ...f.options,
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/account/session/refresh") {
+        refreshes++;
+        rotatedResponse = true;
+        return Response.json(rotated);
+      }
+      if (path.startsWith("/api/cloud/")) {
+        if (!rotatedResponse) return Response.json({}, { status: 401 });
+        persistedBeforeUse &&=
+          JSON.parse((await f.storage.get(phoneAccountKey)) as string).credentials.accessToken ===
+          rotated.accessToken;
+        persistedBeforeUse &&=
+          new Headers(init?.headers).get("authorization") === `Bearer ${rotated.accessToken}`;
+        return Response.json({ ok: true });
+      }
+      throw new Error("unexpected_fixture_route");
+    },
+  });
+  const key = phoneKey();
+  await Promise.all([
+    owner.registerDevice(previous.sessionId, key),
+    owner.setPushToken(previous.sessionId, {
+      deviceId: key.deviceId,
+      platform: "apns",
+      token: randomBytes(32).toString("hex"),
+    }),
+  ]);
+  expect(refreshes).toBe(1);
+  expect(persistedBeforeUse).toBe(true);
+});
+it("refuses extra fields in Cloud acknowledgements with a fixed error", async () => {
+  const f = await fixture(),
+    key = phoneKey();
+  f.options.fetch = async (input, init) =>
+    String(input).includes("/api/cloud/")
+      ? Response.json({ ok: true, privateValue: randomBytes(32).toString("base64url") })
+      : fetch(input, init);
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  await expect(owner.registerDevice(status.sessionId as string, key)).rejects.toThrow(
+    "account_unavailable",
+  );
+});
+
+function fixtureCellToken(
+  origin: string,
+  userId: string,
+  sessionId: string,
+  deviceId: string,
+  changes: Record<string, unknown> = {},
+) {
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    iss: origin,
+    aud: "cell",
+    sub: userId,
+    org: "org",
+    device: deviceId,
+    surface: "phone",
+    kind: "client",
+    session: sessionId,
+    iat: now,
+    exp: now + 600,
+    jti: randomUUID(),
+    ...changes,
+  };
+  return `${Buffer.from(JSON.stringify({ alg: "ES256", typ: "JWT" })).toString("base64url")}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${randomBytes(64).toString("base64url")}`;
+}
+
+it("refuses Cell claims for another user, org, session, device or execution surface", async () => {
+  const f = await fixture(),
+    key = phoneKey();
+  let token = "";
+  f.options.fetch = async (input, init) =>
+    String(input).endsWith("/api/cloud/cell-token")
+      ? Response.json({
+          token,
+          cellUrl: "https://cell.example.invalid",
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+        })
+      : fetch(input, init);
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  for (const change of [
+    { sub: "other" },
+    { org: "other" },
+    { session: "other" },
+    { device: "other" },
+    { surface: "desktop" },
+    { kind: "sandbox_runner", task: "task" },
+    { grant: "grant" },
+  ]) {
+    token = fixtureCellToken(
+      f.origin,
+      status.account?.user.id as string,
+      status.sessionId as string,
+      key.deviceId,
+      change,
+    );
+    await expect(
+      owner.cellConnection(status.sessionId as string, { orgId: "org", deviceId: key.deviceId }),
+    ).rejects.toThrow("account_session_changed");
+  }
+});
+
+it("reports refused Cloud authority separately while retaining the native account", async () => {
+  const f = await fixture(),
+    key = phoneKey();
+  f.options.fetch = async (input, init) =>
+    String(input).includes("/api/cloud/") ? Response.json({}, { status: 403 }) : fetch(input, init);
+  const owner = phoneAccount(f.options),
+    status = await owner.signIn();
+  await expect(owner.registerDevice(status.sessionId as string, key)).rejects.toThrow(
+    "account_access_refused",
+  );
+  expect((await owner.status()).signedIn).toBe(true);
+  expect((await f.storage.get(phoneAccountKey)) !== null).toBe(true);
+});
+it("clears rejected native refresh authority before a Cloud request can retry", async () => {
+  const f = await fixture();
+  await phoneAccount(f.options).signIn();
+  let cloudCalls = 0,
+    refreshes = 0;
+  const owner = phoneAccount({
+    ...f.options,
+    fetch: async (input) => {
+      if (String(input).includes("/api/cloud/")) cloudCalls++;
+      if (String(input).endsWith("/session/refresh")) refreshes++;
+      return Response.json({}, { status: 401 });
+    },
+  });
+  const saved = JSON.parse((await f.storage.get(phoneAccountKey)) as string).credentials;
+  await expect(owner.registerDevice(saved.sessionId, phoneKey())).rejects.toThrow(
+    "sign_in_required",
+  );
+  expect(cloudCalls).toBe(1);
+  expect(refreshes).toBe(1);
   expect(await f.storage.get(phoneAccountKey)).toBeNull();
 });
