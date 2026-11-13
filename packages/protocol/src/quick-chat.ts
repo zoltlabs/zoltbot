@@ -117,6 +117,9 @@ export type QuickContextRef = Static<typeof QuickContextRefSchema>;
 export const QuickChatSchema = object({
   id: Id,
   title: Type.String({ minLength: 1, maxLength: 200 }),
+  pinned: Type.Optional(Type.Boolean()),
+  archived: Type.Optional(Type.Boolean()),
+  unread: Type.Optional(Type.Boolean()),
   contextSources: Type.Array(QuickContextSourceSchema, { maxItems: 20 }),
   lastConnectionId: Type.Optional(Id),
   lastModel: Type.Optional(Id),
@@ -251,6 +254,15 @@ export const quickChatMethods = {
   "quickChat.forgetTool": { params: object({ name: Text }), result: ok },
   "quickChat.rename": {
     params: object({ id: Id, title: Type.String({ minLength: 1, maxLength: 200 }) }),
+    result: QuickChatSchema,
+  },
+  "quickChat.update": {
+    params: object({
+      id: Id,
+      pinned: Type.Optional(Type.Boolean()),
+      archived: Type.Optional(Type.Boolean()),
+      unread: Type.Optional(Type.Boolean()),
+    }),
     result: QuickChatSchema,
   },
   "quickChat.delete": { params: object({ id: Id, confirmed: Confirmed }), result: ok },

@@ -2,14 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { parse, ThreadSchema, terms } from "@zoltbot/protocol";
 import { type RefObject, useEffect, useId, useMemo, useRef, useState } from "react";
 import { type ChatConnection, type Row, text } from "../chat/types.js";
+import {
+  ChatRowShell,
+  createThreadActions,
+  isManageableThread,
+} from "../components/ChatRowActions.js";
 import { StatusDot, statusLabels } from "../components/primitives.js";
+import { mergeSeen } from "../inbox/read-state.js";
 import Knowledge from "../knowledge/Knowledge.js";
 import { Icon } from "../shell/icons.js";
 import { useShell } from "../state.js";
-import { chatStatuses } from "./activity.js";
+import { chatStatuses, isThreadUnread, rowStatuses } from "./activity.js";
 import { CompanyPanel } from "./CompanyPanel.js";
 import type { CreationMode } from "./CreationForm.js";
 import { queuedThreads, recentActivity, teamBelow, teamWork } from "./manager-view.js";
+import { useSeen } from "./seen.js";
 import { RecentActivity } from "./TeamSections.js";
 import { emptyRows, type WorkspaceScope } from "./view.js";
 import { DesignFiles, type Detected, SavedText, SideRow, shortPath } from "./WorkspaceDocuments.js";
@@ -54,9 +61,18 @@ export function WorkspaceHome({
   const rows = connection.snapshot.entities,
     teams = rows.subproject ?? emptyRows,
     threads = rows.thread ?? emptyRows;
+  const seen = useSeen();
   const statuses = useMemo(
     () => chatStatuses({ thread: rows.thread, turn: rows.turn, interaction: rows.interaction }),
     [rows.thread, rows.turn, rows.interaction],
+  );
+  const rowStates = useMemo(
+    () =>
+      rowStatuses(
+        { thread: rows.thread, turn: rows.turn, interaction: rows.interaction },
+        mergeSeen(seen, rows.thread),
+      ),
+    [rows.thread, rows.turn, rows.interaction, seen],
   );
   const queued = useMemo(() => queuedThreads(rows.item ?? emptyRows), [rows.item]);
   const below = useMemo(
@@ -184,28 +200,54 @@ export function WorkspaceHome({
             {terms.chat.Many} <span className="mo-count">{below.totalChats}</span>
           </h2>
           <ul className="mo-list">
-            {below.chats.map((chat) => (
-              <li key={chat.id}>
-                <button type="button" className="mo-row" onClick={() => openThread(chat.id)}>
-                  <StatusDot status={chat.status} label={false} />
-                  <span className="mo-row-main">
-                    <strong>
-                      <bdi>{chat.title}</bdi>
-                    </strong>
-                    <span className="dim">
-                      <bdi>{chat.profileName}</bdi>
-                      {chat.teamName ? (
-                        <>
-                          {" "}
-                          · in <bdi>{chat.teamName}</bdi>
-                        </>
-                      ) : null}
-                    </span>
-                  </span>
-                  <span className={`mo-state ${chat.status}`}>{statusLabels[chat.status]}</span>
-                </button>
-              </li>
-            ))}
+            {below.chats.map((chat) => {
+              const threadRow = threads.find((entry) => text(entry.id) === chat.id);
+              const rowState = rowStates.get(chat.id);
+              const unread = isThreadUnread(rowState);
+              return (
+                <li key={chat.id}>
+                  <ChatRowShell
+                    className="mo-row-shell"
+                    title={chat.title}
+                    enabled={
+                      threadRow
+                        ? isManageableThread(threadRow, { compareMembers: rows.compareMember })
+                        : false
+                    }
+                    actions={
+                      threadRow
+                        ? createThreadActions({
+                            thread: threadRow,
+                            rowStatus: rowState,
+                            turns: rows.turn,
+                            call: connection.call,
+                          })
+                        : undefined
+                    }
+                  >
+                    <button type="button" className="mo-row" onClick={() => openThread(chat.id)}>
+                      <StatusDot status={chat.status} label={false} />
+                      <span className="mo-row-main">
+                        <strong>
+                          <bdi>{chat.title}</bdi>
+                        </strong>
+                        <span className="dim">
+                          <bdi>{chat.profileName}</bdi>
+                          {chat.teamName ? (
+                            <>
+                              {" "}
+                              · in <bdi>{chat.teamName}</bdi>
+                            </>
+                          ) : null}
+                        </span>
+                      </span>
+                      {unread ? <span className="chat-unread-badge">Unread</span> : null}
+                      <span className={`mo-state ${chat.status}`}>{statusLabels[chat.status]}</span>
+                    </button>
+                  </ChatRowShell>
+                </li>
+              );
+            })}
           </ul>
           {below.totalChats > below.chats.length ? (
             <p className="dim sm">

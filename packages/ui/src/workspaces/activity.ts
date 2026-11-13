@@ -134,15 +134,37 @@ export function mostRecentProject(projects: Row[], threads: Row[], directions: R
 }
 
 /** What a chat row says at a glance, T3-style: the one thing most worth your attention. */
-export type RowStatus = "approval" | "input" | "working" | "failed" | "done" | "idle";
+export type RowStatus = "approval" | "input" | "working" | "failed" | "done" | "unread" | "idle";
 export const rowStatusLabels: Record<RowStatus, string> = {
   approval: "Approval",
   input: "Input",
   working: "Working",
   failed: "Failed",
   done: "Done",
+  unread: "Unread",
   idle: "",
 };
+
+/** Whether the chat should show as unread and offer a "Mark read" action. */
+export function isThreadUnread(rowStatus: RowStatus | undefined) {
+  return rowStatus === "done" || rowStatus === "failed" || rowStatus === "unread";
+}
+
+/** A read timestamp guaranteed to advance past finished turns and wake notifications. */
+export function latestReadTimestamp(
+  threadId: string,
+  thread: Row | undefined,
+  turns: readonly Row[] | undefined,
+) {
+  let latest = new Date().toISOString();
+  const wake = text(thread?.wakeUnreadAt);
+  if (wake > latest) latest = wake;
+  for (const turn of turns ?? []) {
+    const ended = turn.threadId === threadId ? text(turn.endedAt) : "";
+    if (ended > latest) latest = ended;
+  }
+  return latest;
+}
 
 /**
  * An approval waits on you first, then a question, then running work. A finished or failed turn
@@ -171,7 +193,8 @@ export function rowStatuses(
   for (const thread of entities.thread ?? []) {
     const id = text(thread.id),
       turn = latest.get(id),
-      unseen = !!turn && text(turn.endedAt) > (seen[id] ?? "");
+      unseen = !!turn && text(turn.endedAt) > (seen[id] ?? ""),
+      wakeUnread = text(thread.wakeUnreadAt) > (seen[id] ?? "");
     result.set(
       id,
       asks.get(id) ??
@@ -181,7 +204,9 @@ export function rowStatuses(
             ? "failed"
             : unseen && turn?.status === "completed"
               ? "done"
-              : "idle"),
+              : wakeUnread
+                ? "unread"
+                : "idle"),
     );
   }
   return result;

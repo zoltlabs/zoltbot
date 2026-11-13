@@ -275,6 +275,56 @@ export class FakeTransport implements Transport {
       }
       case "thread.settle":
         return this.settle(String(p.id));
+      case "thread.rename": {
+        const title = String(p.title ?? "").trim();
+        if (!title) throw new Error("Chat name cannot be empty.");
+        return this.put("thread", { ...this.find("thread", p.id), title, titleSource: "human" });
+      }
+      case "thread.pin": {
+        return this.put("thread", { ...this.find("thread", p.id), pinned: Boolean(p.pinned) });
+      }
+      case "thread.archive": {
+        if (!p.confirmed) throw new Error("Confirm archiving this chat.");
+        const {
+          archiveWhenIdle: _,
+          snoozedUntil: __,
+          wakePending: ___,
+          ...thread
+        } = this.find("thread", p.id);
+        this.put("thread", { ...thread, archived: true });
+        return { ok: true };
+      }
+      case "thread.delete": {
+        if (!p.confirmed) throw new Error("Confirm deleting this chat.");
+        const thread = this.find("thread", p.id);
+        const id = String(thread.id);
+        this.snapshot.entities.thread = this.rows("thread").filter((row) => row.id !== id);
+        for (const kind of [
+          "item",
+          "turn",
+          "session",
+          "interaction",
+          "wake",
+          "orchestration",
+          "contextPack",
+          "compareMember",
+        ])
+          if (this.snapshot.entities[kind])
+            this.snapshot.entities[kind] = this.snapshot.entities[kind].filter(
+              (row) => row.threadId !== id,
+            );
+        this.snapshot.seq += 1;
+        this.handlers?.event({
+          seq: this.snapshot.seq,
+          eventId: `fake-${this.snapshot.seq}`,
+          aggregateType: "thread",
+          aggregateId: id,
+          type: "thread.deleted",
+          occurredAt: now,
+          payload: { id },
+        });
+        return { ok: true };
+      }
       case "thread.unarchive": {
         const { archiveWhenIdle: _, ...thread } = this.find("thread", p.id);
         return this.put("thread", { ...thread, archived: false });

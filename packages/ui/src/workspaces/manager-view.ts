@@ -226,8 +226,12 @@ export function teamBelow(scope: WorkspaceScope, input: MemberInputs) {
       [...a.path, a.name].join("/").localeCompare([...b.path, b.name].join("/")),
   );
   const activity = new Map(threads.map((row) => [text(row.id), text(row.lastActivityAt)]));
+  const pinnedIds = new Set(
+    threads.filter((row) => Boolean(row.pinned)).map((row) => text(row.id)),
+  );
   chats.sort(
     (a, b) =>
+      Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id)) ||
       memberRank(a.status) - memberRank(b.status) ||
       (activity.get(b.id) ?? "").localeCompare(activity.get(a.id) ?? ""),
   );

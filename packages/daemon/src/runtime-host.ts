@@ -103,3 +103,75 @@ export function runtimeEntryFor(
     throw new Error("interaction_runtime_unavailable");
   return entry;
 }
+
+/** Stops any live or failed session handle for a thread before archiving or deleting it. */
+export async function stopThreadRuntime(
+  entries: Map<string, RuntimeEntry>,
+  openingMap: ReadonlyMap<string, Promise<unknown>>,
+  failedHandles: Map<string, AgentSession>,
+  onError: ((code: string) => void) | undefined,
+  threadId: string,
+  forceCleanup = false,
+): Promise<void> {
+  const opening = openingMap.get(threadId);
+  if (opening) await opening.catch(() => undefined);
+  const entry = entries.get(threadId);
+  if (entry) {
+    entries.delete(threadId);
+    try {
+      await entry.worker.close();
+    } catch {
+      if (!forceCleanup) {
+        failedHandles.set(threadId, entry.native);
+        onError?.("runtime_cleanup_failed");
+      }
+    }
+  }
+  if (forceCleanup) {
+    const failed = failedHandles.get(threadId);
+    if (failed) {
+      failedHandles.delete(threadId);
+      await failed.close().catch(() => undefined);
+    }
+  }
+}
+
+/** Closes the owned live session matching `sessionId` after credential disconnection. */
+export async function stopSessionRuntime(
+  entries: Map<string, RuntimeEntry>,
+  store: Store,
+  sessionId: string,
+): Promise<void> {
+  for (const [threadId, entry] of entries) {
+    const session = store.record("session", sessionId);
+    if (session?.threadId !== threadId || entry.sessionId !== sessionId) continue;
+    await entry.worker.close();
+    if (entries.get(threadId) === entry) entries.delete(threadId);
+    return;
+  }
+  const session = store.record("session", sessionId);
+  if (session && !["closed", "failed"].includes(String(session.state)))
+    throw new Error("connection_session_not_owned");
+}
+
+/** Settles opening sessions, worker closes, failed handles, and private contexts during shutdown. */
+export async function closeAllRuntimes(
+  entries: Map<string, RuntimeEntry>,
+  opening: ReadonlyMap<string, Promise<unknown>>,
+  failedHandles: Map<string, AgentSession>,
+  commands: ReadonlySet<Promise<unknown>>,
+  settlePrivateContexts: (() => Promise<void>) | undefined,
+): Promise<void> {
+  await Promise.allSettled([...opening.values()]);
+  const closed = await Promise.allSettled(
+    [...entries.values()]
+      .map((entry) => entry.worker.close())
+      .concat([...failedHandles.values()].map((native) => native.close())),
+  );
+  await Promise.allSettled([...commands]);
+  await settlePrivateContexts?.();
+  entries.clear();
+  failedHandles.clear();
+  if (closed.some((result) => result.status === "rejected"))
+    throw new Error("runtime_close_failed");
+}

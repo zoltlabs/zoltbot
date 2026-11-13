@@ -94,7 +94,62 @@ function tableColumns(database: SqlDriver, table: string): Column[] {
   }
   return columns;
 }
+function deleteThreadProjection(database: SqlDriver, threadId: string) {
+  const itemRows = database
+    .prepare("SELECT rowid,id,thread_id,body FROM items WHERE thread_id=?")
+    .all(threadId) as { rowid: number; id: string; thread_id: string; body: string }[];
+  if (itemRows.length) {
+    const deleteFts = database.prepare(
+      "INSERT INTO items_fts(items_fts,rowid,id,thread_id,text) VALUES('delete',?,?,?,?)",
+    );
+    for (const item of itemRows) deleteFts.run(item.rowid, item.id, item.thread_id, item.body);
+  }
+  database
+    .prepare(
+      "DELETE FROM projection_rows WHERE kind='delivery' AND id IN (SELECT id FROM deliveries WHERE message_id IN (SELECT id FROM messages WHERE thread_id=? AND task_id IS NULL))",
+    )
+    .run(threadId);
+  database
+    .prepare(
+      "DELETE FROM deliveries WHERE message_id IN (SELECT id FROM messages WHERE thread_id=? AND task_id IS NULL)",
+    )
+    .run(threadId);
+  database
+    .prepare(
+      "DELETE FROM projection_rows WHERE kind='message' AND id IN (SELECT id FROM messages WHERE thread_id=? AND task_id IS NULL)",
+    )
+    .run(threadId);
+  database.prepare("DELETE FROM messages WHERE thread_id=? AND task_id IS NULL").run(threadId);
+  database.prepare("DELETE FROM item_records WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM turns WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM sessions WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM chats WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM orchestrations WHERE thread_id=?").run(threadId);
+  database
+    .prepare("UPDATE compares SET summary_thread_id=NULL WHERE summary_thread_id=?")
+    .run(threadId);
+  database
+    .prepare(
+      "UPDATE projection_rows SET body=json_remove(body,'$.summaryThreadId') WHERE kind='compare' AND json_extract(body,'$.summaryThreadId')=?",
+    )
+    .run(threadId);
+  database.prepare("DELETE FROM compare_members WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM interactions WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM wakes WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM context_packs WHERE thread_id=?").run(threadId);
+  database.prepare("DELETE FROM native_sessions WHERE thread_id=?").run(threadId);
+  database
+    .prepare(
+      "DELETE FROM projection_rows WHERE (kind='thread' AND id=?) OR (kind IN ('item','turn','session','interaction','wake','orchestration','contextPack','compareMember') AND json_extract(body,'$.threadId')=?)",
+    )
+    .run(threadId, threadId);
+  database.prepare("DELETE FROM threads WHERE id=?").run(threadId);
+}
 export function applyProjection(database: SqlDriver, event: DomainEvent) {
+  if (event.type === "thread.deleted") {
+    deleteThreadProjection(database, event.aggregateId);
+    return;
+  }
   const table = tableMap[event.aggregateType];
   if (!table) throw new Error(`Unknown projection aggregate: ${event.aggregateType}`);
   const body =

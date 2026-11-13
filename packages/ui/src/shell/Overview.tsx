@@ -2,12 +2,19 @@ import { type Interaction, InteractionSchema, parse, terms } from "@zoltbot/prot
 import { useMemo, useState } from "react";
 import { type ChatConnection, type Row, text } from "../chat/types.js";
 import { chiefName, chiefNotes, chiefThreadId } from "../chief/data.js";
+import {
+  ChatRowShell,
+  createThreadActions,
+  isManageableThread,
+} from "../components/ChatRowActions.js";
 import { Button, Chip, EmptyState, StatusDot } from "../components/primitives.js";
 import { useInteractionActions } from "../interactions/actions.js";
 import type { Route } from "../state.js";
 import {
   ago,
   type ChatStatus,
+  isThreadUnread,
+  type RowStatus,
   scopeLabel,
   sharedFolders,
   threadProject,
@@ -27,12 +34,14 @@ const kindLabels: Record<Interaction["type"], string> = {
 export function Overview({
   connection,
   statuses,
+  rowStatuses,
   navigate,
   openThread,
   openRequest,
 }: {
   connection: ChatConnection;
   statuses: Map<string, ChatStatus>;
+  rowStatuses?: Map<string, RowStatus> | undefined;
   navigate(route: Route): void;
   openThread(id: string): void;
   openRequest(id: string): void;
@@ -84,7 +93,11 @@ export function Overview({
   const withStatus = (status: ChatStatus) =>
     [...threads.values()]
       .filter((row) => statuses.get(text(row.id)) === status)
-      .sort((a, b) => text(b.lastActivityAt).localeCompare(text(a.lastActivityAt)));
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
+          text(b.lastActivityAt).localeCompare(text(a.lastActivityAt)),
+      );
   const running = withStatus("working"),
     finished = withStatus("done"),
     // Idle chats, including ones outside any project that the sidebar tree does not list.
@@ -253,6 +266,11 @@ export function Overview({
           place={place}
           note={note}
           provider={showProvider}
+          connection={connection}
+          turns={entities.turn ?? emptyRows}
+          compareMembers={entities.compareMember}
+          chiefId={chief}
+          rowStatuses={rowStatuses}
           openThread={openThread}
         />
       ) : null}
@@ -265,6 +283,11 @@ export function Overview({
           place={place}
           note={note}
           provider={showProvider}
+          connection={connection}
+          turns={entities.turn ?? emptyRows}
+          compareMembers={entities.compareMember}
+          chiefId={chief}
+          rowStatuses={rowStatuses}
           openThread={openThread}
         />
       ) : null}
@@ -277,6 +300,11 @@ export function Overview({
           place={place}
           note={note}
           provider={showProvider}
+          connection={connection}
+          turns={entities.turn ?? emptyRows}
+          compareMembers={entities.compareMember}
+          chiefId={chief}
+          rowStatuses={rowStatuses}
           openThread={openThread}
         />
       ) : null}
@@ -305,6 +333,11 @@ function ChatList({
   place,
   note,
   provider,
+  connection,
+  turns,
+  compareMembers,
+  chiefId,
+  rowStatuses,
   openThread,
 }: {
   title: string;
@@ -315,6 +348,11 @@ function ChatList({
   /** The main agent's one-line note on this chat, when it has written one. */
   note(row: Row): string | undefined;
   provider(id: string): string;
+  connection: ChatConnection;
+  turns: Row[];
+  compareMembers?: Row[] | undefined;
+  chiefId?: string | undefined;
+  rowStatuses?: Map<string, RowStatus> | undefined;
   openThread(id: string): void;
 }) {
   return (
@@ -323,20 +361,36 @@ function ChatList({
       <ul className="zb-card overview-list">
         {rows.map((row) => {
           const id = text(row.id),
+            rowTitle = text(row.title) || "Chat",
             tool = provider(id),
-            remark = note(row);
+            remark = note(row),
+            rowStatus = rowStatuses?.get(id),
+            unread = isThreadUnread(rowStatus);
           return (
             <li key={id}>
-              <button type="button" onClick={() => openThread(id)}>
-                <StatusDot status={status} label={false} />
-                <strong className="truncate">{text(row.title)}</strong>
-                <span className="overview-place truncate">{place(row)}</span>
-                {remark ? <span className="overview-note truncate">{remark}</span> : null}
-                <span className="overview-meta">{detail(row)}</span>
-                {tool ? (
-                  <span className={`overview-provider ${tool.toLowerCase()}`}>{tool}</span>
-                ) : null}
-              </button>
+              <ChatRowShell
+                className="overview-row-shell"
+                title={rowTitle}
+                enabled={isManageableThread(row, { compareMembers, chiefId })}
+                actions={createThreadActions({
+                  thread: row,
+                  rowStatus,
+                  turns,
+                  call: connection.call,
+                })}
+              >
+                <button type="button" onClick={() => openThread(id)}>
+                  <StatusDot status={status} label={false} />
+                  <strong className="truncate">{text(row.title)}</strong>
+                  <span className="overview-place truncate">{place(row)}</span>
+                  {remark ? <span className="overview-note truncate">{remark}</span> : null}
+                  {unread ? <span className="chat-unread-badge">Unread</span> : null}
+                  <span className="overview-meta">{detail(row)}</span>
+                  {tool ? (
+                    <span className={`overview-provider ${tool.toLowerCase()}`}>{tool}</span>
+                  ) : null}
+                </button>
+              </ChatRowShell>
             </li>
           );
         })}

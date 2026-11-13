@@ -31,6 +31,17 @@ export function markSeen(threadId: string, at = new Date().toISOString()) {
   for (const listener of listeners) listener();
 }
 
+/** Clears the saved seen timestamp so an explicitly marked-unread chat stays unread. */
+export function clearSeen(threadId: string) {
+  if (!(threadId in seen)) return;
+  const { [threadId]: _, ...rest } = seen;
+  seen = rest;
+  try {
+    localStorage.setItem(key, JSON.stringify(seen));
+  } catch {}
+  for (const listener of listeners) listener();
+}
+
 export function useSeen() {
   return useSyncExternalStore(
     (listener) => {

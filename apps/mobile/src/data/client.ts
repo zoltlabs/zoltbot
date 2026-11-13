@@ -33,6 +33,36 @@ export function applyEvent(snapshot: Snapshot, event: DomainEvent): Snapshot {
   if (!event.seq && event.type === "item.stream") return applyStreamEvent(snapshot, event);
   if (!event.seq || event.seq <= snapshot.seq) return snapshot;
   const entities = { ...snapshot.entities };
+  if (event.type === "thread.deleted") {
+    entities.thread = (entities.thread ?? []).filter((row) => row.id !== event.aggregateId);
+    for (const kind of [
+      "item",
+      "turn",
+      "session",
+      "interaction",
+      "wake",
+      "orchestration",
+      "contextPack",
+      "compareMember",
+    ])
+      if (entities[kind])
+        entities[kind] = entities[kind].filter((row) => row.threadId !== event.aggregateId);
+    if (entities.compare)
+      entities.compare = entities.compare.map((row) => {
+        if (row.summaryThreadId !== event.aggregateId) return row;
+        const { summaryThreadId: _, ...rest } = row;
+        return rest;
+      });
+    return {
+      seq: event.seq,
+      entities,
+      counters: {
+        ...snapshot.counters,
+        pendingInteractions: (entities.interaction ?? []).filter((i) => i.state === "pending")
+          .length,
+      },
+    };
+  }
   const rows = (entities[event.aggregateType] ?? []).filter(
     (row) =>
       String(event.aggregateType === "compareMember" ? row.threadId : (row.id ?? row.key)) !==

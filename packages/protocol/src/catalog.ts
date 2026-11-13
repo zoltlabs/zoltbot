@@ -248,7 +248,9 @@ const rawMethodCatalog = {
     ThreadSchema,
   ),
   "thread.rename": entry(object({ id: Id, title: Text }), ThreadSchema),
+  "thread.pin": entry(object({ id: Id, pinned: Type.Boolean() }), ThreadSchema),
   "thread.archive": thread.archive,
+  "thread.delete": entry(object({ id: Id, confirmed: Type.Boolean() }), ok),
   "thread.fork": entry(
     object({
       id: Id,
@@ -693,8 +695,6 @@ export const unservedMethods: readonly MethodName[] = [
   "agent.archive",
   "agent.duplicate",
   "thread.list",
-  "thread.rename",
-  "thread.archive",
   "thread.history",
   "thread.search",
   "turn.retry",
@@ -748,6 +748,7 @@ for (const name of ["task.stateChanged", "task.resultSubmitted"])
 eventCatalog["item.delta"] = AgentEventSchema;
 eventCatalog["item.stream"] = ItemSchema;
 for (const [name, schema] of Object.entries(quickChatEvents)) eventCatalog[name] = schema;
+eventCatalog["thread.deleted"] = object({ id: Id });
 eventCatalog["notice.created"] = object({ id: Id, message: Text, code: Id });
 eventCatalog["doctor.updated"] = object({ definitionId: Id, status: Text });
 export const DomainEventSchema = object({

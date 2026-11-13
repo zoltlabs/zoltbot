@@ -1,7 +1,13 @@
 import { parse, terms, type Wake, WakeSchema } from "@zoltbot/protocol";
-import { type Row, text } from "../chat/types.js";
+import { type ChatConnection, type Row, text } from "../chat/types.js";
+import { chiefThreadId } from "../chief/data.js";
+import {
+  ChatRowShell,
+  createThreadActions,
+  isManageableThread,
+} from "../components/ChatRowActions.js";
 import { Button, EmptyState, ListRow } from "../components/primitives.js";
-import { ago, scopeLabel } from "../workspaces/activity.js";
+import { ago, isThreadUnread, type RowStatus, scopeLabel } from "../workspaces/activity.js";
 import "../chat/wakes.css";
 
 /** Every chat, newest first, with where it lives; the Overview only shows the recent few. */
@@ -10,6 +16,9 @@ export function AllChats({
   projects,
   wakes = [],
   directions,
+  connection,
+  turns,
+  rowStatuses,
   openThread,
   openQuickChat,
 }: {
@@ -17,9 +26,14 @@ export function AllChats({
   projects: Row[];
   wakes?: Row[];
   directions: Row[];
+  connection?: ChatConnection;
+  turns?: Row[];
+  rowStatuses?: Map<string, RowStatus>;
   openThread(id: string): void;
   openQuickChat(): void;
 }) {
+  const chiefId = connection ? chiefThreadId(connection.snapshot.entities) : undefined;
+  const compareMembers = connection?.snapshot.entities.compareMember;
   const waits = wakes
     .map((w) => parse(WakeSchema, w))
     .filter(
@@ -33,7 +47,11 @@ export function AllChats({
     .filter(
       (thread) => !thread.archived && thread.kind !== "task" && !waitingIds.has(String(thread.id)),
     )
-    .sort((a, b) => text(b.lastActivityAt).localeCompare(text(a.lastActivityAt)));
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
+        text(b.lastActivityAt).localeCompare(text(a.lastActivityAt)),
+    );
   return (
     <section className="zb-card recent-work">
       <h1>All {terms.chat.many}</h1>
@@ -58,20 +76,48 @@ export function AllChats({
       ) : null}
       {rows.length ? (
         <div className="recent-list">
-          {rows.map((thread) => (
-            <ListRow
-              key={text(thread.id)}
-              icon="Sessions"
-              label={text(thread.title) || terms.chat.One}
-              trailing={
-                <span className="dim">
-                  {scopeLabel(thread, projects, directions) || `Not in a ${terms.workspace.one}`}
-                  {thread.lastActivityAt ? ` · ${ago(thread.lastActivityAt)}` : ""}
-                </span>
-              }
-              onClick={() => openThread(text(thread.id))}
-            />
-          ))}
+          {rows.map((thread) => {
+            const id = text(thread.id);
+            const label = text(thread.title) || terms.chat.One;
+            const rowStatus = rowStatuses?.get(id);
+            const unread = isThreadUnread(rowStatus);
+            return (
+              <ChatRowShell
+                key={id}
+                className="recent-row-shell"
+                title={label}
+                enabled={
+                  Boolean(connection) && isManageableThread(thread, { compareMembers, chiefId })
+                }
+                actions={
+                  connection
+                    ? createThreadActions({
+                        thread,
+                        rowStatus,
+                        turns,
+                        call: connection.call,
+                      })
+                    : undefined
+                }
+              >
+                <ListRow
+                  icon="Sessions"
+                  label={label}
+                  trailing={
+                    <>
+                      {unread ? <span className="chat-unread-badge">Unread</span> : null}
+                      <span className="dim">
+                        {scopeLabel(thread, projects, directions) ||
+                          `Not in a ${terms.workspace.one}`}
+                        {thread.lastActivityAt ? ` · ${ago(thread.lastActivityAt)}` : ""}
+                      </span>
+                    </>
+                  }
+                  onClick={() => openThread(id)}
+                />
+              </ChatRowShell>
+            );
+          })}
         </div>
       ) : !waits.length ? (
         <EmptyState

@@ -25,7 +25,7 @@
 }
 .quick-history li {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   min-width: 0;
   border-radius: var(--zb-radius-sm);
 }
@@ -33,6 +33,9 @@
   background: var(--zb-bg-selected);
 }
 .quick-history .quick-recent-open {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
   flex: 1;
   min-width: 0;
   padding: var(--zb-space-2);
@@ -41,30 +44,4 @@
   color: var(--zb-text-secondary);
   text-align: start;
   overflow-wrap: anywhere;
-}
-.quick-row-actions {
-  flex: none;
-}
-.quick-row-actions > summary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--zb-control-sm);
-  min-height: var(--zb-control-md);
-  list-style: none;
-  cursor: pointer;
-}
-.quick-row-actions > summary::-webkit-details-marker {
-  display: none;
-}
-.quick-row-actions > div {
-  display: flex;
-  flex-direction: column;
-}
-.quick-history form {
-  min-width: 0;
-}
-.quick-history input {
-  width: 100%;
-  min-width: 0;
 }

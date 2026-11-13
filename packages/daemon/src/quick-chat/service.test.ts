@@ -704,3 +704,41 @@ it("adds explicit, bounded workspace context and hands off without starting work
   expect(responsesCalls(test)).toHaveLength(3);
   expect((await test.call("quickChat.get", { id: sent.chatId })).chat.handoffs).toHaveLength(1);
 });
+
+it("pins, marks unread/read, and archives quick chats via quickChat.update", async () => {
+  const test = await fixture();
+  const connection = await apiKeyConnection(test);
+  const sent = await test.call(
+    "quickChat.send",
+    { text: "Pin and archive test", connectionId: connection.id, model: "fake-fast" },
+    "q1",
+  );
+  await settled(test, sent.replyId);
+  const initial = (await test.call("quickChat.get", { id: sent.chatId })).chat;
+
+  const pinned = await test.call("quickChat.update", { id: sent.chatId, pinned: true }, "q-pin");
+  expect(pinned).toMatchObject({ id: sent.chatId, pinned: true, updatedAt: initial.updatedAt });
+
+  const unread = await test.call("quickChat.update", { id: sent.chatId, unread: true }, "q-unread");
+  expect(unread).toMatchObject({ id: sent.chatId, pinned: true, unread: true });
+
+  const follow = await test.call(
+    "quickChat.send",
+    {
+      chatId: sent.chatId,
+      text: "Follow-up",
+      connectionId: connection.id,
+      model: "fake-fast",
+    },
+    "q2",
+  );
+  await settled(test, follow.replyId);
+  expect((await test.call("quickChat.get", { id: sent.chatId })).chat.unread).toBe(false);
+
+  const archived = await test.call(
+    "quickChat.update",
+    { id: sent.chatId, archived: true },
+    "q-archive",
+  );
+  expect(archived).toMatchObject({ id: sent.chatId, archived: true });
+});

@@ -10,8 +10,13 @@ export function mergeSeen(seen: Record<string, string>, threads: Row[] | undefin
   const merged = { ...seen };
   for (const thread of threads ?? []) {
     const id = text(thread.id),
-      read = text(thread.lastReadAt);
+      read = text(thread.lastReadAt),
+      wakeUnread = text(thread.wakeUnreadAt);
     if (read && read > (merged[id] ?? "")) merged[id] = read;
+    if (wakeUnread && wakeUnread > read && (merged[id] ?? "") < wakeUnread) {
+      if (read) merged[id] = read;
+      else delete merged[id];
+    }
   }
   return merged;
 }

@@ -41,10 +41,13 @@ import {
 } from "./runtime-configuration.js";
 import { runtimeCapabilityErrors, runtimeOpenErrors } from "./runtime-errors.js";
 import {
+  closeAllRuntimes,
   commitRuntime,
   type RuntimeEntry,
   runtimeEntryFor,
   type SessionManagerOptions,
+  stopSessionRuntime,
+  stopThreadRuntime,
 } from "./runtime-host.js";
 
 export type { PreparedRuntime, RuntimeHost } from "./runtime-host.js";
@@ -762,37 +765,34 @@ export class SessionManager {
       throw new Error("compaction_delivery_uncertain");
     }
   }
+  /** Stops any live session handle for a thread before archiving or deleting it. */
+  async stopThread(threadId: string, forceCleanup = false): Promise<void> {
+    this.forks.assertNotLeased(threadId);
+    await stopThreadRuntime(
+      this.entries,
+      this.opening,
+      this.failedHandles,
+      this.options.onError,
+      threadId,
+      forceCleanup,
+    );
+  }
   /** Human confirmed disconnection: close only the exact session that received credentials. */
   async stopSession(sessionId: string): Promise<void> {
     const target = this.options.store.record("session", sessionId);
     if (target) this.forks.assertNotLeased(String(target.threadId));
-    for (const [threadId, entry] of this.entries) {
-      const session = this.options.store.record("session", sessionId);
-      if (session?.threadId !== threadId || entry.sessionId !== sessionId) continue;
-      await entry.worker.close();
-      if (this.entries.get(threadId) === entry) this.entries.delete(threadId);
-      return;
-    }
-    const session = this.options.store.record("session", sessionId);
-    if (session && !["closed", "failed"].includes(String(session.state)))
-      throw new Error("connection_session_not_owned");
+    await stopSessionRuntime(this.entries, this.options.store, sessionId);
   }
   close(): Promise<void> {
-    this.closing ??= (async () => {
-      this.stopped = true;
-      await Promise.allSettled([...this.opening.values()]);
-      const closed = await Promise.allSettled(
-        [...this.entries.values()]
-          .map((entry) => entry.worker.close())
-          .concat([...this.failedHandles.values()].map((native) => native.close())),
-      );
-      await Promise.allSettled([...this.commands]);
-      await this.privateContexts?.settle();
-      this.entries.clear();
-      this.failedHandles.clear();
-      if (closed.some((result) => result.status === "rejected"))
-        throw new Error("runtime_close_failed");
-    })();
+    this.stopped = true;
+    const contexts = this.privateContexts;
+    this.closing ??= closeAllRuntimes(
+      this.entries,
+      this.opening,
+      this.failedHandles,
+      this.commands,
+      contexts ? () => contexts.settle() : undefined,
+    );
     return this.closing;
   }
 }

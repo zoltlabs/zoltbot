@@ -45,7 +45,6 @@ import { conversationServices } from "./conversation-services.js";
 import { creationApi } from "./creation-api.js";
 import { type Cleanup, withDaemonResources } from "./daemon-resources.js";
 import { deviceBook } from "./devices.js";
-import { entityEditsApi } from "./entity-edits.js";
 import { forkApi } from "./fork-api.js";
 import { shippingService } from "./github/service.js";
 import { respondHostApproval } from "./host-approvals.js";
@@ -399,7 +398,6 @@ async function startOwnedDaemon(
     ...(setupService ? { definitions: () => setupService.definitions() } : {}),
   });
   const projectFiles = projectFilesApi({ store, privacy, publish });
-  const entityEdits = entityEditsApi({ store, privacy, publish });
   const settings = settingsApi({ store, privacy, redactor, publish });
   const setup = setupService
     ? setupApi(setupService, {
@@ -415,6 +413,11 @@ async function startOwnedDaemon(
     tasks: ownedTasks,
     runtime,
     createThread: (value, id) => creation("thread.create", { value }, id),
+    stopThread: (id, force) => manager?.stopThread(id, force),
+    clearInteractions: (id, cmd) =>
+      interactions || options.interactionHost || manager
+        ? loadInteractions().then((engine) => engine.clear([id], "turn_ended", cmd))
+        : undefined,
     onError: (code) => logger.write("warn", code),
   });
   orchestration = chats.orchestration;
@@ -597,7 +600,7 @@ async function startOwnedDaemon(
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??
-          (await chats.quick.api(request.method, params, commandId)) ??
+          (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??
           (await browser(request.method, params)) ??
@@ -609,7 +612,6 @@ async function startOwnedDaemon(
           (await compare(request.method, params, commandId)) ??
           (await creation(request.method, params, commandId)) ??
           (await projectFiles(request.method, params, commandId)) ??
-          (await entityEdits(request.method, params, commandId)) ??
           (await inbox.api(request.method, params, commandId)) ??
           (await messages(request.method, params, commandId)) ??
           (await orchestration?.api(request.method, params, commandId)) ??

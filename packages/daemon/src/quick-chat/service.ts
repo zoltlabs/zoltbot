@@ -404,6 +404,8 @@ export function quickChatService(options: QuickChatOptions) {
     const chat: QuickChat = existing
       ? {
           ...existing,
+          ...(existing.unread ? { unread: false } : {}),
+          ...(existing.archived ? { archived: false } : {}),
           contextSources: selected,
           lastConnectionId: entry.row.id,
           lastModel: model,
@@ -596,6 +598,21 @@ export function quickChatService(options: QuickChatOptions) {
           };
           if (!chat.title) throw new Error("quick_title_required");
           repo.saveChat(parse(QuickChatSchema, chat));
+          chatChanged(chat);
+          return chat;
+        }
+        case "quickChat.update": {
+          const current = chatOrThrow(String(params.id));
+          const chat = parse(QuickChatSchema, {
+            ...current,
+            ...(typeof params.pinned === "boolean" ? { pinned: params.pinned } : {}),
+            ...(typeof params.archived === "boolean" ? { archived: params.archived } : {}),
+            ...(typeof params.unread === "boolean" ? { unread: params.unread } : {}),
+          });
+          if (chat.archived) {
+            for (const row of repo.messages(chat.id)) running.get(row.id)?.abort();
+          }
+          repo.saveChat(chat);
           chatChanged(chat);
           return chat;
         }

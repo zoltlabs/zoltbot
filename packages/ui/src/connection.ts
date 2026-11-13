@@ -222,6 +222,40 @@ export class DaemonClient {
     }
     if (!event.seq || event.seq <= snapshot.seq) return;
     const entities = { ...snapshot.entities };
+    if (event.type === "thread.deleted") {
+      entities.thread = (entities.thread ?? []).filter((row) => row.id !== event.aggregateId);
+      for (const kind of [
+        "item",
+        "turn",
+        "session",
+        "interaction",
+        "wake",
+        "orchestration",
+        "contextPack",
+        "compareMember",
+      ])
+        if (entities[kind])
+          entities[kind] = entities[kind].filter((row) => row.threadId !== event.aggregateId);
+      if (entities.compare)
+        entities.compare = entities.compare.map((row) => {
+          if (row.summaryThreadId !== event.aggregateId) return row;
+          const { summaryThreadId: _, ...rest } = row;
+          return rest;
+        });
+      this.publish({
+        ...this.state,
+        snapshot: {
+          seq: event.seq,
+          entities,
+          counters: {
+            ...snapshot.counters,
+            pendingInteractions: (entities.interaction ?? []).filter((i) => i.state === "pending")
+              .length,
+          },
+        },
+      });
+      return;
+    }
     const body = event.payload as Record<string, unknown>;
     const rows = (entities[event.aggregateType] ?? []).filter(
       (row) =>

@@ -99,6 +99,22 @@ export class Store {
       this.database.prepare("SELECT COALESCE(MAX(seq),0) AS n FROM events").get() as { n: number }
     ).n;
   }
+  /** Purges historical event payloads of a deleted chat while preserving its `thread.deleted` seq. */
+  purgeDeletedThreadEvents(threadId: string, beforeSeq: number) {
+    this.database
+      .prepare(
+        `DELETE FROM events
+         WHERE seq < ?
+           AND (
+             (aggregate_type = 'thread' AND aggregate_id = ?)
+             OR (
+               aggregate_type IN ('item', 'turn', 'session', 'interaction', 'wake', 'orchestration', 'contextPack', 'compareMember')
+               AND json_extract(payload, '$.threadId') = ?
+             )
+           )`,
+      )
+      .run(beforeSeq, threadId, threadId);
+  }
   eventsSince(seq: number, limit = 1000): DomainEvent[] {
     const rows = this.database
       .prepare("SELECT * FROM events WHERE seq>? ORDER BY seq LIMIT ?")

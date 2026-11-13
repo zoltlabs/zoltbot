@@ -53,6 +53,7 @@ const cloudSharedMethods: readonly MethodName[] = [
   "thread.list",
   "thread.create",
   "thread.rename",
+  "thread.pin",
   "thread.archive",
   "thread.history",
   "thread.search",

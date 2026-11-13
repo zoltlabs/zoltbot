@@ -233,22 +233,36 @@ export function App() {
   const latestConnection = useRef(connection);
   latestConnection.current = connection;
   const connectionStatus = connection.status;
-  useEffect(() => {
-    if (route !== "Chat" || !threadId || !entities.turn) return;
-    markSeen(threadId);
-    // The thread records the read too, so Ready to review clears on every device.
-    const ended = entities.turn
+  const hasTurns = Boolean(entities.turn);
+  const latestEnded = useMemo(() => {
+    if (route !== "Chat" || !threadId || !entities.turn) return undefined;
+    return entities.turn
       .filter((turn) => turn.threadId === threadId && typeof turn.endedAt === "string")
       .map((turn) => String(turn.endedAt))
       .sort()
       .at(-1);
-    if (ended && connectionStatus === "online")
-      markRead(
-        latestConnection.current,
-        entities.thread?.find((row) => row.id === threadId),
-        ended,
-      );
-  }, [route, threadId, entities.turn, entities.thread, connectionStatus]);
+  }, [route, threadId, entities.turn]);
+  const latestThreads = useRef(entities.thread);
+  latestThreads.current = entities.thread;
+  const callRpc = useCallback(
+    (method: string, params: unknown, commandId?: string) =>
+      latestConnection.current.call(method, params, commandId),
+    [],
+  );
+  useEffect(() => {
+    if (route !== "Chat" || !threadId || !hasTurns) return;
+    markSeen(threadId);
+    // The thread records the read too, so Ready to review clears on every device.
+    const thread = latestThreads.current?.find((row) => row.id === threadId);
+    const wakeUnread = typeof thread?.wakeUnreadAt === "string" ? thread.wakeUnreadAt : undefined;
+    const readAt =
+      latestEnded && wakeUnread
+        ? latestEnded >= wakeUnread
+          ? latestEnded
+          : wakeUnread
+        : (latestEnded ?? wakeUnread);
+    if (readAt && connectionStatus === "online") markRead(latestConnection.current, thread, readAt);
+  }, [route, threadId, hasTurns, latestEnded, connectionStatus]);
   useSeenMigration(connection, seen);
   const inboxCounts = useMemo(() => inboxFromSnapshot(entities).counts, [entities]);
   // Sections remember what you set; landing on a page inside one only opens it, never closes it.
@@ -430,6 +444,8 @@ export function App() {
                 threads={sidebarThreads}
                 statuses={statuses}
                 rows={rows}
+                turns={entities.turn ?? emptyRows}
+                call={callRpc}
                 selected={route === "Projects" ? scope : undefined}
                 currentChat={route === "Chat" ? threadId : undefined}
                 onScope={openScope}
@@ -526,6 +542,7 @@ export function App() {
               <Overview
                 connection={connection}
                 statuses={statuses}
+                rowStatuses={rows}
                 navigate={navigate}
                 openThread={openThread}
                 openRequest={openRequest}
@@ -563,6 +580,9 @@ export function App() {
                 threads={entities.thread ?? emptyRows}
                 projects={entities.project ?? emptyRows}
                 directions={entities.subproject ?? emptyRows}
+                connection={connection}
+                turns={entities.turn ?? emptyRows}
+                rowStatuses={rows}
                 openThread={openThread}
                 openQuickChat={() => openQuickChat()}
               />

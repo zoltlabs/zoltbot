@@ -213,15 +213,27 @@ export function inboxApi(host: {
       case "thread.markRead": {
         const at = typeof params.at === "string" ? params.at : new Date().toISOString();
         // Reads only move forward, so a slow device cannot mark newer work unread.
-        return update(commandId, id, (row) =>
-          String(row.lastReadAt ?? "") >= at ? undefined : { lastReadAt: at },
-        );
+        return update(commandId, id, (row) => {
+          const target =
+            row.wakeUnreadAt && String(row.wakeUnreadAt) > at ? String(row.wakeUnreadAt) : at;
+          return String(row.lastReadAt ?? "") >= target ? undefined : { lastReadAt: target };
+        });
       }
       case "thread.markUnread":
-        return update(commandId, id, (_row, state) => {
+        return update(commandId, id, (row, state) => {
           const endedAt = threadFacts(state).endedAt(id);
-          if (!endedAt) return { lastReadAt: undefined };
-          return { lastReadAt: new Date(Date.parse(endedAt) - 1).toISOString() };
+          const clearSnooze = row.snoozedUntil !== undefined ? { snoozedUntil: undefined } : {};
+          if (!endedAt)
+            return {
+              lastReadAt: undefined,
+              wakeUnreadAt:
+                typeof row.wakeUnreadAt === "string" ? row.wakeUnreadAt : new Date().toISOString(),
+              ...clearSnooze,
+            };
+          return {
+            lastReadAt: new Date(Date.parse(endedAt) - 1).toISOString(),
+            ...clearSnooze,
+          };
         });
       case "thread.snooze": {
         const until = typeof params.until === "string" ? params.until : undefined;

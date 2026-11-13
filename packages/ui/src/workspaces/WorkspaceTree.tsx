@@ -1,6 +1,11 @@
 import { terms } from "@zoltbot/protocol";
 import { memo, useEffect, useState } from "react";
 import { type Row, text } from "../chat/types.js";
+import {
+  type ChatActionCall,
+  ChatRowShell,
+  createThreadActions,
+} from "../components/ChatRowActions.js";
 import { avatarHue } from "../components/identity.js";
 import { Chip, StatusDot, statusLabels } from "../components/primitives.js";
 import { Icon } from "../shell/icons.js";
@@ -82,6 +87,8 @@ export const WorkspaceTree = memo(function WorkspaceTree({
   threads,
   statuses,
   rows,
+  turns,
+  call,
   selected,
   currentChat,
   onScope,
@@ -93,6 +100,8 @@ export const WorkspaceTree = memo(function WorkspaceTree({
   statuses: Map<string, ChatStatus>;
   /** What each chat row says on its right: Approval, Input, Working, Failed or Done. */
   rows: Map<string, RowStatus>;
+  turns?: Row[];
+  call?: ChatActionCall;
   selected: WorkspaceScope | undefined;
   currentChat: string | undefined;
   onScope(scope: WorkspaceScope): void;
@@ -142,13 +151,18 @@ export const WorkspaceTree = memo(function WorkspaceTree({
       .sort(
         (a, b) =>
           Number(b.kind === "manager") - Number(a.kind === "manager") ||
+          Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
           statusRank[status(a)] - statusRank[status(b)] ||
           text(b.lastActivityAt).localeCompare(text(a.lastActivityAt)),
       );
     const showOlder = expandedOlder.has(key);
     const shown = chats.filter(
       (chat, index) =>
-        showOlder || index < visibleChats || chat.kind === "manager" || status(chat) !== "idle",
+        showOlder ||
+        index < visibleChats ||
+        chat.kind === "manager" ||
+        Boolean(chat.pinned) ||
+        status(chat) !== "idle",
     );
     const older = chats.length - shown.length;
     // The manager is the team's lead, so the count matches "N chats" on the overview.
@@ -225,44 +239,58 @@ export const WorkspaceTree = memo(function WorkspaceTree({
               const jump = hints.indexOf(id) + 1;
               return (
                 <li key={id}>
-                  <button
-                    type="button"
-                    className={`item scope-chat ${status(chat)} row-${rowStatus(chat)}${current ? " on" : ""}`}
-                    aria-current={current ? "page" : undefined}
-                    onClick={() => {
-                      onScope(scope);
-                      onChat(id);
-                    }}
+                  <ChatRowShell
                     title={title}
-                    data-chat={id}
-                    aria-description={[
-                      badge ? terms.manager.One : "",
-                      rowStatusLabels[rowStatus(chat)] || statusLabels[status(chat)],
-                    ]
-                      .filter(Boolean)
-                      .join(", ")
-                      .toLowerCase()}
+                    actions={
+                      call
+                        ? createThreadActions({
+                            thread: chat,
+                            rowStatus: rowStatus(chat),
+                            turns,
+                            call,
+                          })
+                        : undefined
+                    }
                   >
-                    <StatusDot
-                      status={rowStatus(chat) === "failed" ? "error" : status(chat)}
-                      label={false}
-                    />
-                    <bdi className="truncate grow">{title}</bdi>
-                    {badge ? (
-                      <span className="scope-lead" aria-hidden="true">
-                        {terms.manager.One}
-                      </span>
-                    ) : null}
-                    {jump ? (
-                      <span className="scope-jump" aria-hidden="true">
-                        {jumpLabel(jump)}
-                      </span>
-                    ) : rowStatus(chat) !== "idle" ? (
-                      <span className={`scope-state ${rowStatus(chat)}`} aria-hidden="true">
-                        {rowStatusLabels[rowStatus(chat)]}
-                      </span>
-                    ) : null}
-                  </button>
+                    <button
+                      type="button"
+                      className={`item scope-chat ${status(chat)} row-${rowStatus(chat)}${current ? " on" : ""}`}
+                      aria-current={current ? "page" : undefined}
+                      onClick={() => {
+                        onScope(scope);
+                        onChat(id);
+                      }}
+                      title={title}
+                      data-chat={id}
+                      aria-description={[
+                        badge ? terms.manager.One : "",
+                        rowStatusLabels[rowStatus(chat)] || statusLabels[status(chat)],
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                        .toLowerCase()}
+                    >
+                      <StatusDot
+                        status={rowStatus(chat) === "failed" ? "error" : status(chat)}
+                        label={false}
+                      />
+                      <bdi className="truncate grow">{title}</bdi>
+                      {badge ? (
+                        <span className="scope-lead" aria-hidden="true">
+                          {terms.manager.One}
+                        </span>
+                      ) : null}
+                      {jump ? (
+                        <span className="scope-jump" aria-hidden="true">
+                          {jumpLabel(jump)}
+                        </span>
+                      ) : rowStatus(chat) !== "idle" ? (
+                        <span className={`scope-state ${rowStatus(chat)}`} aria-hidden="true">
+                          {rowStatusLabels[rowStatus(chat)]}
+                        </span>
+                      ) : null}
+                    </button>
+                  </ChatRowShell>
                 </li>
               );
             })}

@@ -649,24 +649,64 @@ export class CloudRpc {
         );
         break;
       }
-      case "thread.rename":
-      case "thread.archive": {
-        const owned = this.owner("thread", p.id);
+      case "thread.rename": {
+        const value = parse(methodCatalog["thread.rename"].params, p);
+        const title = value.title.trim();
+        if (!title) throw new Error("invalid_params");
+        const owned = this.owner("thread", value.id);
         result = this.mutate(request, owned.scope, (state, context) =>
           handle(
             state,
             {
               type: "update",
               kind: "thread",
-              id: String(p.id),
-              changes:
-                request.method === "thread.rename"
-                  ? { title: p.title, titleSource: "human" }
-                  : { archived: true },
+              id: value.id,
+              changes: { title, titleSource: "human" },
             },
             context,
           ),
         );
+        break;
+      }
+      case "thread.pin": {
+        const value = parse(methodCatalog["thread.pin"].params, p);
+        const owned = this.owner("thread", value.id);
+        result = this.mutate(request, owned.scope, (state, context) =>
+          handle(
+            state,
+            {
+              type: "update",
+              kind: "thread",
+              id: value.id,
+              changes: { pinned: value.pinned },
+            },
+            context,
+          ),
+        );
+        break;
+      }
+      case "thread.archive": {
+        const value = parse(methodCatalog["thread.archive"].params, p);
+        if (!value.confirmed) throw new Error("confirmation_required");
+        const owned = this.owner("thread", value.id);
+        this.mutate(request, owned.scope, (state, context) =>
+          handle(
+            state,
+            {
+              type: "update",
+              kind: "thread",
+              id: value.id,
+              changes: {
+                archived: true,
+                archiveWhenIdle: undefined,
+                snoozedUntil: undefined,
+                wakePending: undefined,
+              },
+            },
+            context,
+          ),
+        );
+        result = { ok: true };
         break;
       }
       case "thread.history": {

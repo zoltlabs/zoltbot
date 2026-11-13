@@ -1,0 +1,188 @@
+/* Shared chat row shell, hover/focus pin + menu actions, and top-layer context menu.
+ * Every value uses layer-2 --zb-* semantic tokens. */
+
+.chat-row-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border-radius: var(--zb-radius-sm);
+  transition: background-color var(--zb-duration-fast) var(--zb-ease-out);
+}
+
+.chat-row-shell > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-row-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  padding-inline-end: var(--zb-space-1);
+}
+
+.chat-row-actions .zb-icon-button {
+  width: var(--zb-control-sm);
+  min-width: var(--zb-control-sm);
+  height: var(--zb-control-sm);
+  min-height: var(--zb-control-sm);
+  padding: 0;
+  justify-content: center;
+  color: var(--zb-text-muted);
+}
+
+.chat-row-actions .chat-pin-btn.pinned {
+  color: var(--zb-accent-text);
+}
+
+.chat-row-actions .zb-icon-button:hover:not(:disabled) {
+  color: var(--zb-text);
+  background: var(--zb-bg-active);
+}
+
+@media (hover: hover) {
+  .chat-row-shell:hover,
+  .chat-row-shell.menu-open {
+    background: var(--zb-bg-hover);
+  }
+  .chat-row-shell > .scope-chat:hover,
+  .chat-row-shell > button.mo-row:hover:not(:disabled),
+  .overview-list .chat-row-shell > button:hover,
+  .chat-row-shell > .zb-list-row:hover {
+    background: transparent;
+  }
+
+  .chat-row-actions {
+    max-width: 0;
+    padding-inline-end: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  .chat-row-shell.is-pinned .chat-row-actions {
+    max-width: none;
+    padding-inline-end: var(--zb-space-1);
+    overflow: visible;
+    opacity: 1;
+  }
+
+  .chat-row-shell.is-pinned:not(:hover):not(:focus-within):not(.menu-open) .chat-more-btn {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  .chat-row-shell:hover .chat-row-actions,
+  .chat-row-shell:focus-within .chat-row-actions,
+  .chat-row-shell.menu-open .chat-row-actions {
+    max-width: none;
+    padding-inline-end: var(--zb-space-1);
+    overflow: visible;
+    opacity: 1;
+  }
+
+  /* Yield secondary state badges cleanly on hover in narrow trees so titles stay legible. */
+  .scope-tree .chat-row-shell:hover .scope-state,
+  .scope-tree .chat-row-shell:focus-within .scope-state,
+  .scope-tree .chat-row-shell.menu-open .scope-state {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .chat-row-shell:not(.is-pinned) .chat-pin-btn {
+    color: var(--zb-text-muted);
+  }
+}
+
+/* Surface integrations: avoid double highlights and preserve section dividers. */
+.scope-tree .scope-chat.row-unread bdi {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+.scope-state.unread {
+  color: var(--zb-accent-text);
+  font-weight: var(--zb-weight-medium);
+}
+
+.mo-row-shell {
+  border-top: 1px solid var(--zb-border);
+  border-radius: 0;
+}
+.mo-row-shell > .mo-row {
+  border-top: 0;
+}
+.mo-list > li:first-child > .mo-row-shell {
+  border-top: 0;
+}
+.mo-row-shell.is-unread .mo-row strong {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+
+.overview-row-shell {
+  border-radius: 0;
+}
+.overview-row-shell.is-unread button strong {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+
+.recent-row-shell {
+  border-radius: var(--zb-radius-sm);
+}
+.recent-row-shell.is-unread .zb-row-label {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+
+.chat-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-1);
+  color: var(--zb-accent-text);
+  font-size: var(--zb-text-xs);
+  line-height: var(--zb-leading-xs);
+  font-weight: var(--zb-weight-semibold);
+}
+.chat-unread-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--zb-radius-pill);
+  background: var(--zb-accent);
+}
+
+.quick-history .chat-row-shell.is-unread .quick-recent-open {
+  color: var(--zb-text);
+  font-weight: var(--zb-weight-semibold);
+}
+
+/* Portal + popover top-layer context / dropdown menu so sidebar overflow never clips. */
+.chat-context-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  z-index: var(--zb-layer-dropdown);
+  min-width: 192px;
+}
+
+.chat-rename-error {
+  margin: var(--zb-space-2) 0 0;
+  color: var(--zb-danger);
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-row-shell {
+    transition: none;
+  }
+}
