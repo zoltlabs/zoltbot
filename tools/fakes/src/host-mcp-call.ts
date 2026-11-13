@@ -79,6 +79,10 @@ for (const [prompt, text] of [
 
 /** Synthetic providers select their scenario while preserving real injected target blocks on the wire. */
 export function artifactFixturePrompt(blocks: string[]): string {
+  // Real task prompts include their brief/review framing. Only explicit test markers
+  // select a cloud scenario; ordinary task prose keeps its existing behavior.
+  const cloud = blocks.join("\n").match(/^\[cloud-m1:(mac_exec|question|slow|hang)\]$/m)?.[1];
+  if (cloud) return cloud;
   if (!blocks.some((text) => text.includes("[brief:human-artifact-target]")))
     return blocks.at(-1) ?? "";
   return (

@@ -40,6 +40,13 @@ export function scopedRead(
     ["json_extract(body,'$.threadId') IN (SELECT id FROM scoped_threads)", []],
     ["kind='message' AND id IN (SELECT id FROM scoped_messages)", []],
     [
+      `kind='audit' AND id IN (
+        SELECT id FROM audit_log WHERE target=?
+        UNION SELECT id FROM audit_log WHERE target IN (SELECT id FROM tasks WHERE ${project ? "project_id" : "id"}=?)
+      )`,
+      [id, id],
+    ],
+    [
       "kind='delivery' AND id IN (SELECT id FROM deliveries WHERE message_id IN (SELECT id FROM scoped_messages))",
       [],
     ],

@@ -9,3 +9,7 @@ or backups before explicitly recreating a disposable database. No reset runs aut
 
 Future schema changes append numbered migrations after 001. Existing transactional
 application, backups and rollback handling remain in the migration runner.
+
+Migration 009 adds the target index used by scoped audit reads. A project reads
+its own target records and its tasks' records; a task reads only its own. The
+lookup does not load audit records from another project.
