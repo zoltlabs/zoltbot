@@ -607,9 +607,15 @@ importers:
       '@sinclair/typebox':
         specifier: 0.34.48
         version: 0.34.48
+      '@zoltbot/cloud-contracts':
+        specifier: workspace:*
+        version: link:../../packages/cloud-contracts
       '@zoltbot/link':
         specifier: workspace:*
         version: link:../../packages/link
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       ws:
         specifier: 8.19.0
         version: 8.19.0

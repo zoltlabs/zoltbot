@@ -38,4 +38,5 @@ export const syntheticCredentials: Credentials = {
 };
 
 export * from "./cloud-m1.js";
+export * from "./notifications.js";
 export * from "./wire.js";

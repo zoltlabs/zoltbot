@@ -131,3 +131,18 @@ Notes on the flags:
 * `--allow-unauthenticated` is needed because phones and Macs sign in with their own keys, not with Google identities.
 * `FIRESTORE_DATABASE` must be set: without it the relay uses `(default)`, which the IAM condition does not allow.
 * Set `--min-instances=1` if cold starts hurt.
+
+### Cloud notices
+
+The exported APNs sender accepts an optional Cloud context with the org and an
+opaque notification digest. It keeps the existing fixed notification text and
+adds only routing identifiers. Cloud context cannot be combined with the Local
+approval category or action buttons: the app must fetch and review the current
+Cloud request, then sign an approval on the device. A malformed context returns
+`push_scope_invalid` before opening an APNs connection. Existing paired-Mac
+payloads retain their previous shape.
+
+The hosted Global API can reuse this sender and registry through a vendored
+public package. This change does not configure a hosted sender or connect the
+phone's Cloud notification route. APNs keys stay in deployment-owned environment
+or keychain inputs, and never enter notification payloads or logs.

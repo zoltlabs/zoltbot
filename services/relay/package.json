@@ -14,7 +14,9 @@
   "dependencies": {
     "@sinclair/typebox": "0.34.48",
     "@zoltbot/link": "workspace:*",
-    "ws": "8.19.0"
+    "ws": "8.19.0",
+    "@zoltbot/cloud-contracts": "workspace:*",
+    "@zoltbot/protocol": "workspace:*"
   },
   "devDependencies": {
     "sodium-javascript": "~0.8.0"

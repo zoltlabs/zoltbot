@@ -116,3 +116,58 @@ describe("APNs", () => {
     expect(JSON.parse(bodies[0] ?? "")).toEqual(apnsPayload("needs_you", 2));
   });
 });
+
+describe("Cloud push scope", () => {
+  const cloud = { kind: "cloud", orgId: "personal", notificationId: "a".repeat(64) } as const;
+  it("carries identifiers with fixed text and no actionable category", () => {
+    const payload = apnsPayload("needs_you", 2, undefined, "thread:one", cloud);
+    expect(payload).toEqual({
+      aps: { alert: { body: "Zoltbot needs you (2)" }, badge: 2, sound: "default" },
+      scope: cloud,
+      threadId: "thread:one",
+      body: { scope: cloud, threadId: "thread:one" },
+    });
+    expect(() =>
+      apnsPayload(
+        "needs_you",
+        1,
+        { category: "approval", interactionId: "request", threadId: "thread:one", version: 1 },
+        "thread:one",
+        cloud,
+      ),
+    ).toThrow("push_scope_invalid");
+    expect(() => apnsPayload("needs_you", 1, undefined, "private prose", cloud)).toThrow(
+      "push_scope_invalid",
+    );
+    for (const count of [-1, 1.5, 10000])
+      expect(() => apnsPayload("needs_you", count, undefined, "thread:one", cloud)).toThrow(
+        "push_scope_invalid",
+      );
+    expect(() => apnsPayload("zolt", 1, undefined, "thread:one", cloud)).toThrow(
+      "push_scope_invalid",
+    );
+  });
+  it("refuses malformed Cloud input before creating an APNs connection", async () => {
+    const sender = new ApnsPush({
+      key: "unused",
+      keyId: "unused",
+      teamId: "unused",
+      topic: "com.example.fixture",
+      origins: { apns: "http://127.0.0.1:1" },
+    });
+    try {
+      expect(
+        await sender.send({
+          platform: "apns",
+          token: "a".repeat(64),
+          kind: "needs_you",
+          count: 1,
+          threadId: "thread",
+          cloud: { ...cloud, notificationId: "invalid" },
+        }),
+      ).toEqual({ ok: false, gone: false, reason: "push_scope_invalid" });
+    } finally {
+      sender.close();
+    }
+  });
+});

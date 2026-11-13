@@ -35,3 +35,17 @@ Implementation choices:
 The account owner and Expo adapter are not yet selected by the phone screens.
 Device-key registration, Cloud transport/Needs you, signed approval UI, push and
 simulator verification remain W11 work. This module is not W11 sign-off.
+
+## Notification routing
+
+Cloud notices carry an explicit org scope and opaque event digest. The decoder
+returns `open_cloud` for a normal tap; Cloud quick-action identifiers never become
+an unsigned answer. A malformed or conflicting scope is quarantined before any
+Local action or chat navigation. Equivalent nested scopes are accepted regardless
+of JSON property order. Existing paired-Mac approvals and thread taps keep their
+previous behavior.
+
+The native notification handler does not yet dispatch `open_cloud`. Cloud account
+validation, navigation, registration and signed approval UI still need integration.
+The tests check the actual relay payload and phone decoder together, with no real
+APNs traffic or native notification registration.

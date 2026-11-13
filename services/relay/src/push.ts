@@ -1,6 +1,8 @@
 import { sign } from "node:crypto";
 import http2 from "node:http2";
+import { type CloudPushContext, CloudPushContextSchema } from "@zoltbot/cloud-contracts";
 import type { PushKind } from "@zoltbot/link";
+import { parse } from "@zoltbot/protocol";
 import type { PushPlatform } from "./registry.js";
 
 // Pushes carry no content. The text is fixed per kind; the app fetches details over the link.
@@ -22,6 +24,8 @@ export interface PushRequest {
   action?: PushAction;
   /** The chat a tap opens, for a push with no action. An id, never text. */
   threadId?: string;
+  /** Org-bound notice; Cloud approvals are reviewed and signed inside the app. */
+  cloud?: CloudPushContext;
 }
 
 /** `gone` means APNs says the token is no longer valid and should be forgotten. */
@@ -38,12 +42,39 @@ export function pushText(kind: PushKind, count: number) {
   return count > 1 ? `Zoltbot needs you (${count})` : "Zoltbot needs you";
 }
 
-export function apnsPayload(kind: PushKind, count: number, action?: PushAction, threadId?: string) {
+export function apnsPayload(
+  kind: PushKind,
+  count: number,
+  action?: PushAction,
+  threadId?: string,
+  cloud?: CloudPushContext,
+) {
   // A notice is not a request, so it leaves the badge (what needs you) as it is.
   const aps =
     kind === "zolt"
       ? { alert: { body: pushText(kind, count) }, sound: "default" }
       : { alert: { body: pushText(kind, count) }, badge: count, sound: "default" };
+  if (cloud !== undefined) {
+    let scope: CloudPushContext;
+    try {
+      scope = parse(CloudPushContextSchema, cloud);
+      if (
+        action ||
+        !["needs_you", "task_done"].includes(kind) ||
+        !Number.isInteger(count) ||
+        count < 0 ||
+        count > 9999 ||
+        !threadId ||
+        threadId.length > 200 ||
+        !/^[A-Za-z0-9][A-Za-z0-9:._-]*$/.test(threadId)
+      )
+        throw new Error();
+    } catch {
+      throw new Error("push_scope_invalid");
+    }
+    const data = { scope, threadId };
+    return { aps, ...data, body: data };
+  }
   if (!action) return threadId ? { aps, threadId, body: { threadId } } : { aps };
   // The app registers the "approval" category with Allow once and Reject buttons. The ids sit
   // at the top level of the APNs payload (the app's notification data) and are mirrored under
@@ -138,9 +169,14 @@ export class ApnsPush implements PushSender {
   }
 
   send(request: PushRequest): Promise<PushResult> {
-    const body = JSON.stringify(
-      apnsPayload(request.kind, request.count, request.action, request.threadId),
-    );
+    let body: string;
+    try {
+      body = JSON.stringify(
+        apnsPayload(request.kind, request.count, request.action, request.threadId, request.cloud),
+      );
+    } catch {
+      return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });
+    }
     return new Promise((resolve) => {
       let stream: http2.ClientHttp2Stream;
       try {

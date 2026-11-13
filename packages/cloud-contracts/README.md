@@ -50,3 +50,19 @@ The device-list wrapper contains only registered public-key metadata. Mac comman
 approval verification reads it through the Mac's own account session, checks the
 member and revocation state, and pins the key identity. A Cell-supplied key or a
 wire schema match cannot authorize execution.
+
+## Content-free phone notifications
+
+Cloud registration accepts an APNs environment and bounded hexadecimal device
+token. The Global API must authenticate the phone session and its registered
+device before storing it. No read response exposes that token.
+
+Cell notifications carry only the member/org/task/thread identifiers, a digest
+of the originating event ID, a fixed kind and a bounded count. They contain no
+question, command, task title or credential. The Global API must enforce the org
+service token and current membership; these schemas grant no authority.
+
+The push context marks a Cloud org and notification digest. Phone decoding must
+keep it separate from Local pairing and fetch the current request before an
+answer. A push notice never authorizes a Mac command. These are additive v1
+contracts. Hosted registration, delivery and deletion remain integration work.

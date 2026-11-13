@@ -1,3 +1,5 @@
+import { type CloudPushContext, CloudPushContextSchema } from "@zoltbot/cloud-contracts";
+import { parse } from "@zoltbot/protocol";
 import type { Row } from "./transport.js";
 
 export interface PushPermission {
@@ -34,6 +36,9 @@ export const pushActions = { allow: "allow_once", reject: "reject" } as const;
 
 export interface PushTarget {
   category: string;
+  /** Present for any scoped payload, including a malformed one that must be quarantined. */
+  scoped?: true;
+  cloud?: CloudPushContext;
   threadId?: string;
   interactionId?: string;
   version?: number;
@@ -48,6 +53,22 @@ export function readPushTarget(content: {
   const raw = content.data && typeof content.data === "object" ? (content.data as Row) : {};
   const nested = raw.body && typeof raw.body === "object" ? (raw.body as Row) : {};
   const data = { ...nested, ...raw };
+  if (Object.hasOwn(raw, "scope") || Object.hasOwn(nested, "scope")) {
+    try {
+      const cloud = parse(CloudPushContextSchema, data.scope);
+      if (Object.hasOwn(raw, "scope") && Object.hasOwn(nested, "scope")) {
+        const inner = parse(CloudPushContextSchema, nested.scope);
+        if (inner.orgId !== cloud.orgId || inner.notificationId !== cloud.notificationId)
+          throw new Error();
+      }
+      const threadId = field(data.threadId);
+      if (!threadId || threadId.length > 200 || !/^[A-Za-z0-9][A-Za-z0-9:._-]*$/.test(threadId))
+        throw new Error();
+      return { category: "", scoped: true, cloud, threadId };
+    } catch {
+      return { category: "", scoped: true };
+    }
+  }
   const version = Number(data.version);
   const target: PushTarget = {
     category: field(content.categoryIdentifier) ?? field(data.category) ?? "",
@@ -69,6 +90,7 @@ export type PushResponse =
       threadId?: string;
       answer: { action: "accept" | "decline"; choice: string; feedback?: string };
     }
+  | { kind: "open_cloud"; orgId: string; notificationId: string; threadId: string }
   | { kind: "none" };
 /** What a notification tap or action button should do. */
 export function pushResponse(
@@ -77,6 +99,15 @@ export function pushResponse(
   userText?: string,
 ): PushResponse {
   const quick = actionIdentifier === pushActions.allow || actionIdentifier === pushActions.reject;
+  if (target.scoped || target.cloud) {
+    if (quick || !target.cloud || !target.threadId) return { kind: "none" };
+    return {
+      kind: "open_cloud",
+      orgId: target.cloud.orgId,
+      notificationId: target.cloud.notificationId,
+      threadId: target.threadId,
+    };
+  }
   if (!quick)
     return target.threadId ? { kind: "open", threadId: target.threadId } : { kind: "none" };
   if (target.category !== approvalCategory || !target.interactionId || !target.version)
