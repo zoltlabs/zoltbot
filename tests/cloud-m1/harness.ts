@@ -14,6 +14,8 @@ import { createCloudM1Publication } from "../../tools/fakes/src/cloud-m1-publica
 import { createCloudM1Workers } from "../../tools/fakes/src/cloud-m1-workers.js";
 import { startTestCell } from "./cell.js";
 import { cellClient, loopbackClient, responseJson } from "./client.js";
+import { dockerFixture } from "./docker.js";
+import { startFixtureGit } from "./git-http.js";
 import { type FrameHook, startTlsProxy } from "./proxy.js";
 import { harnessRepository } from "./repository.js";
 import { loopbackTls } from "./tls.js";
@@ -35,25 +37,59 @@ export const buildTestWorker = () =>
 
 export async function cloudHarness(
   provider: "claude" | "codex",
-  options: { now?: () => number; limitSeconds?: number; transformFrame?: FrameHook } = {},
+  options: {
+    now?: () => number;
+    limitSeconds?: number;
+    transformFrame?: FrameHook;
+    target?: "fake" | "docker";
+  } = {},
 ) {
   await buildTestWorker();
   const root = await mkdtemp("/private/tmp/zoltbot-m1-worker-live-");
-  const target = createFakeTarget({ root: path.join(root, "sandboxes") });
+  const fake = createFakeTarget({ root: path.join(root, "sandboxes") });
+  const repository = await harnessRepository(root);
+  let gitHttp: Awaited<ReturnType<typeof startFixtureGit>> | undefined;
+  if (options.target === "docker") {
+    repository.git(root, ["--git-dir", repository.remote, "config", "http.receivepack", "true"]);
+    gitHttp = await startFixtureGit(repository.remote);
+  }
   let cell: Awaited<ReturnType<typeof startTestCell>> | undefined, globalOrigin: string | undefined;
   const tls = await loopbackTls();
   const proxy = await startTlsProxy(
     tls,
     (pathname) =>
-      pathname.startsWith("/api/")
-        ? globalOrigin
-          ? new URL(globalOrigin)
+      pathname.startsWith("/fixture.git/")
+        ? gitHttp
+          ? new URL(gitHttp.origin)
           : undefined
-        : cell
-          ? new URL(cell.origin())
-          : undefined,
+        : pathname.startsWith("/api/")
+          ? globalOrigin
+            ? new URL(globalOrigin)
+            : undefined
+          : cell
+            ? new URL(cell.origin())
+            : undefined,
     options.transformFrame,
   );
+  const workerOrigin =
+    options.target === "docker"
+      ? proxy.origin().replace("127.0.0.1", "host.docker.internal")
+      : proxy.origin();
+  let docker: Awaited<ReturnType<typeof dockerFixture>> | undefined;
+  try {
+    if (options.target === "docker")
+      docker = await dockerFixture({
+        remote: `${workerOrigin}/fixture.git`,
+        certificate: tls.certificate(),
+      });
+  } catch (error) {
+    await proxy.close();
+    await gitHttp?.close();
+    await fake.dispose();
+    await rm(root, { recursive: true, force: true });
+    throw error;
+  }
+  const target = docker?.target ?? fake;
   const serviceKey = randomBytes(32).toString("base64url");
   const fetch = loopbackClient(tls.certificate());
   let removeAccount = async (_scope: { userId: string; orgId: string }): Promise<void> => {
@@ -67,22 +103,22 @@ export async function cloudHarness(
   });
   const workers = await createCloudM1Workers({
     issuer: proxy.origin(),
-    cellUrl: proxy.origin(),
+    cellUrl: workerOrigin,
     serviceKey,
     account,
   });
-  const repository = await harnessRepository(root);
   const orchestrator = createSandboxHarness({
     issuer: proxy.origin(),
     serviceKey,
-    cellOrigin: proxy.origin(),
-    cloudOrigin: proxy.origin(),
+    cellOrigin: workerOrigin,
+    cloudOrigin: workerOrigin,
     target,
     account,
     workers,
-    ...options,
-    command: [process.execPath, path.resolve("apps/worker/dist/main.mjs")],
-    environment: {
+    ...(options.now ? { now: options.now } : {}),
+    ...(options.limitSeconds === undefined ? {} : { limitSeconds: options.limitSeconds }),
+    command: docker?.command ?? [process.execPath, path.resolve("apps/worker/dist/main.mjs")],
+    environment: docker?.environment ?? {
       ...tls.childEnvironment(),
       PATH: [repository.bin, path.dirname(process.execPath), "/usr/bin", "/bin"].join(
         path.delimiter,
@@ -131,7 +167,9 @@ export async function cloudHarness(
   globalOrigin = `http://127.0.0.1:${(global.address() as AddressInfo).port}`;
   const close = async () => {
     await orchestrator.deleteOrg("personal").catch(() => {});
-    await target.dispose();
+    await docker?.close();
+    await fake.dispose();
+    await gitHttp?.close();
     await cell?.close();
     account.clear();
     workers.clearOrg("personal");

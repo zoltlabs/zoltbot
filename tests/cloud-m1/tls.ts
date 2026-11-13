@@ -25,7 +25,7 @@ export async function loopbackTls() {
         "-subj",
         "/CN=127.0.0.1",
         "-addext",
-        "subjectAltName=IP:127.0.0.1",
+        "subjectAltName=IP:127.0.0.1,DNS:host.docker.internal",
         "-days",
         "1",
         "-sha256",

@@ -4,13 +4,17 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { createIdentity, linkId, signApproval, toB64 } from "../../packages/link/src/index.js";
 import { InteractionSchema, parse } from "../../packages/protocol/src/index.js";
+import { dockerAvailable } from "../../packages/sandbox/src/targets/docker/index.js";
 import { cellClient, responseJson } from "./client.js";
 import { cloudHarness } from "./harness.js";
 import { startTestMac } from "./mac.js";
 import { cellStorageCounts } from "./storage.js";
 
-for (const provider of ["claude", "codex"] as const) {
-  it(`runs three ${provider} cloud tasks, phone answers, signed Mac execution, replay, review publication, quota and deletion with fakes`, async () => {
+const targets = (await dockerAvailable()) ? (["fake", "docker"] as const) : (["fake"] as const);
+for (const { target, provider } of targets.flatMap((target) =>
+  (["claude", "codex"] as const).map((provider) => ({ target, provider })),
+)) {
+  it(`runs three ${provider} cloud tasks, phone answers, signed Mac execution, replay, review publication, quota and deletion on ${target}`, async () => {
     const date = new Date();
     date.setUTCDate(15);
     date.setUTCHours(12, 0, 0, 0);
@@ -21,6 +25,7 @@ for (const provider of ["claude", "codex"] as const) {
     const deliveries = new Map<number, number>();
     let duplicated = false;
     const harness = await cloudHarness(provider, {
+      target,
       now: () => meter,
       limitSeconds: 600,
       transformFrame(frame) {
@@ -377,6 +382,20 @@ for (const provider of ["claude", "codex"] as const) {
         projects: 0,
         cell_identity: 0,
       });
+    } catch (error) {
+      throw new Error(
+        JSON.stringify({
+          target,
+          workers: harness.orchestrator.summaries(),
+          tasks: (await tasks()).items.map((row) => ({
+            id: row.id,
+            state: row.state,
+            revision: row.revision,
+            holdReason: row.holdReason,
+          })),
+        }),
+        { cause: error },
+      );
     } finally {
       await mac?.close();
       await harness.close();

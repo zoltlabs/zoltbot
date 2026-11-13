@@ -105,7 +105,19 @@ export function createSandboxHarness(options: {
     void (async () => {
       let pending = "";
       for await (const chunk of process) {
-        if (chunk.stream !== "stdout") continue;
+        if (chunk.stream !== "stdout") {
+          for (const code of [
+            "ERR_MODULE_NOT_FOUND",
+            "MODULE_NOT_FOUND",
+            "TypeError",
+            "SyntaxError",
+            "EACCES",
+            "fixture_git_network_refused",
+          ])
+            if (chunk.data.includes(code) && job.statuses.length < 128)
+              job.statuses.push(`fixture_stderr_${code.toLowerCase()}`);
+          continue;
+        }
         pending += chunk.data;
         if (pending.length > 65536) {
           pending = "";

@@ -65,9 +65,13 @@ const child=require("node:child_process").spawn(process.execPath,["--import",${J
 child.once("error",()=>{process.exitCode=1;});child.once("exit",code=>{process.exitCode=code??1;});`,
     );
   }
-  await script(
-    "git",
-    `
+  await script("git", gitShim(remote, realGit));
+  return Object.freeze({ bin, remote, source, git });
+}
+
+/** Network operations are restricted to this fixture's one remote. */
+export function gitShim(remote: string, realGit: string, certificate?: string) {
+  return `
 const child=require("node:child_process"),args=process.argv.slice(2),remote=${JSON.stringify(remote)},canonical="https://github.com/example/repository.git";
 let offset=0;while(args[offset]?.startsWith("-")){offset+=["-c","-C","--git-dir","--work-tree"].includes(args[offset])?2:1;}
 const operation=args[offset],network=["clone","fetch","push","ls-remote"].includes(operation);
@@ -75,10 +79,8 @@ const safe=["add","branch","cat-file","check-ref-format","checkout","clone","com
 if(!safe.includes(operation)&&args[0]!=="--version"){process.stderr.write("fixture_git_command_refused\\n");process.exit(127);}
 const rewritten=network?args.map(value=>value===canonical||value==="origin"?remote:value):args;
 if(!network&&args.some(value=>/^(?:https?|ssh|git):|^git@|^--remote(?:=|$)/.test(value))){process.stderr.write("fixture_git_network_refused\\n");process.exit(127);}
-if(network&&(!rewritten.includes(remote)||rewritten.some(value=>/^(?:https?|ssh|git):|^git@/.test(value)))){process.stderr.write("fixture_git_network_refused\\n");process.exit(127);}
-const result=child.spawnSync(${JSON.stringify(realGit)},rewritten,{stdio:"inherit",env:process.env});
+if(network&&(!rewritten.includes(remote)||rewritten.some(value=>value!==remote&&/^(?:https?|ssh|git):|^git@/.test(value)))){process.stderr.write("fixture_git_network_refused\\n");process.exit(127);}
+const result=child.spawnSync(${JSON.stringify(realGit)},rewritten,{stdio:"inherit",env:{...process.env,...${JSON.stringify(certificate ? { GIT_SSL_CAINFO: certificate } : {})}}});
 if(operation==="clone"&&result.status===0){const destination=rewritten.at(-1);const config=child.spawnSync(${JSON.stringify(realGit)},["-C",destination,"config","remote.origin.url",canonical],{stdio:"ignore",env:process.env});if(config.status!==0)process.exit(1);}
-process.exit(result.status??1);`,
-  );
-  return Object.freeze({ bin, remote, source, git });
+process.exit(result.status??1);`;
 }

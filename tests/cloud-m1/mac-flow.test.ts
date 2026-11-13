@@ -4,17 +4,20 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { createIdentity, linkId, signApproval, toB64 } from "../../packages/link/src/index.js";
 import { InteractionSchema, parse } from "../../packages/protocol/src/index.js";
+import { dockerAvailable } from "../../packages/sandbox/src/targets/docker/index.js";
 import { cellClient, responseJson } from "./client.js";
 import { cloudHarness } from "./harness.js";
 import { startTestMac } from "./mac.js";
 
-for (const { provider, forged } of [
-  { provider: "claude", forged: false },
-  { provider: "codex", forged: false },
-  { provider: "claude", forged: true },
-] as const) {
-  it(`${forged ? "refuses a forged signature for" : "relays a phone-signed approval for"} a ${provider} sandbox tool through the real Cell to a headless Mac`, async () => {
-    const harness = await cloudHarness(provider);
+const cases: Array<{ provider: "claude" | "codex"; forged: boolean; target: "fake" | "docker" }> = [
+  { provider: "claude", forged: false, target: "fake" },
+  { provider: "codex", forged: false, target: "fake" },
+  { provider: "claude", forged: true, target: "fake" },
+];
+if (await dockerAvailable()) cases.push({ provider: "claude", forged: true, target: "docker" });
+for (const { provider, forged, target } of cases) {
+  it(`${forged ? "refuses a forged signature for" : "relays a phone-signed approval for"} a ${provider} sandbox tool through the real Cell to a headless Mac on ${target}`, async () => {
+    const harness = await cloudHarness(provider, { target });
     let mac: Awaited<ReturnType<typeof startTestMac>> | undefined;
     const { client, project, account, proxy, fetch, tls, root } = harness;
     try {

@@ -2,7 +2,11 @@
 
 Run `pnpm test:cloud-m1` from the repository root. It needs no accounts, keys,
 installed provider CLIs, owner keychain or desktop windows. It starts only owned
-localhost services and native CLI stand-ins in disposable folders.
+localhost services and native CLI stand-ins in disposable folders. When Docker
+answers, it also runs the whole flow inside owned containers. Build the local
+base image first with `docker build -f templates/sandbox/Dockerfile -t zoltbot-base .`.
+`ZOLTBOT_M1_DOCKER_IMAGE` can select an already built local image. A running engine
+without that image fails the gate; the test never pulls or builds the base image.
 
 The identity fixture generates an ephemeral ES256 signing key in memory. Its
 localhost JWKS test uses the real Cell verifier for desktop, phone, Mac-runner
@@ -46,7 +50,8 @@ created. The synthetic providers use explicit `[cloud-m1:...]` markers inside
 real task prompts to select these scenarios; ordinary task prose keeps its
 existing behavior.
 
-The whole-flow test runs independently for Claude and Codex. Each case starts
+The whole-flow test runs independently for Claude and Codex on the fake target,
+and again on the Docker target whenever its engine answers. Each case starts
 three sandbox tasks, answers a native question on the phone, requests a revision
 that runs `uname` through the signed Mac gate, kills a worker mid-turn and resumes
 its native conversation, commits the reviewed diff, pushes its branch to bare
@@ -63,11 +68,30 @@ checks remain unmodified in the runtime fixture.
 
 The command also runs the existing signed-in Local boundary tests. Any HTTP
 request during Local task execution fails those tests, including when a cloud
-host fails to start. These fake results do not prove Docker/E2B template behavior,
-real provider permissions, client UI or the live milestone. Native pending
-questions and tools still need process-loss recovery in the worker. Docker
-build and live owner-gated checks remain separate gates.
+host fails to start. These fake-provider results do not prove E2B behavior, real
+provider permissions, client UI or the live milestone. Native pending questions
+and tools still need process-loss recovery in the worker. The base template build
+and live owner-gated checks remain separate gates.
 
-Keys, tokens and provider stand-ins stay in memory or private process pipes.
+The Docker fixture builds one disposable local image layer with the current
+worker bundle, disables the template's automatic boot, and removes the installed
+real provider executables. It uploads bundled provider stand-ins and starts the
+worker explicitly through `DockerTarget.exec`. No host folder is mounted. The
+containers reach only the owned fixture services through Docker Desktop's
+`host.docker.internal` route; every fixture server still binds numeric loopback.
+TLS remains verified against the in-memory fixture certificate, whose public
+certificate also has that Docker hostname. Git receives its public CA path from
+the test shim because managed Git intentionally strips inherited environment.
+
+An owned Smart HTTP server exposes exactly one bare Git remote for clone and
+push, with fixed routes and bounded input/output. The shim rewrites the canonical
+fixture GitHub URL to that local endpoint and refuses other remote operations.
+The reviewed branch must exist in the host's bare remote before the fake PR can
+be recorded. Raw worker stderr is discarded; diagnostics retain only a fixed
+list of error classes and worker status codes. Cleanup removes only containers
+with this fixture's unique label and its own image tag.
+
+Private keys and tokens stay in memory or private process pipes. Provider
+stand-ins are ordinary test code uploaded into disposable containers.
 The test server must listen on numeric loopback only. No browser or Electron
 window, real keychain, real provider or external network request belongs here.
