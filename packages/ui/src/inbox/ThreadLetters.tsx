@@ -401,7 +401,6 @@ function ReplyComposer({
       <header className="letter-head">
         <span className="letter-from">Reply</span>
         <span className="letter-time truncate">Re: {title}</span>
-        <span className="letter-hint">Select text in a letter and press &gt; to quote it</span>
       </header>
       {quoted.map((question) => {
         const options = Array.isArray(question.item.options)

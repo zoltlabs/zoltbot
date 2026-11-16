@@ -247,22 +247,18 @@ export function EventRoutineForm({
           />
         </div>
         <div className="event-location">
-          <h3>This Mac · Free</h3>
-          <p>No Zoltbot subscription required. Your coding provider’s usage still applies.</p>
-          <p>
-            Initial execution requires Claude, which blocks shell execution and file edits.
-            Read-only investigation · Findings for review · No inherited connections, skills or
-            knowledge.
-          </p>
-          <p>
-            One active run per routine, two event runs per Mac, 50 runs per workspace per UTC day.
-            Busy events wait up to 15 minutes.
-          </p>
-          <p>
-            Checks recent runs while awake. Offline events may be missed. No guaranteed offline
-            queue or cloud fallback.
-          </p>
-          <p className="dim">Zoltbot Cloud execution is not available.</p>
+          <h3>Run on this Mac</h3>
+          <p>Requires a Claude profile. Runs read-only and returns findings for review.</p>
+          <p>Keep this Mac awake and Zoltbot running. Events may be missed while offline.</p>
+          <details>
+            <summary>Usage and limits</summary>
+            <p>Your coding provider’s usage applies.</p>
+            <p>Connections, skills and knowledge are not inherited.</p>
+            <p>
+              One active run per routine, two event runs per Mac, and 50 runs per workspace per UTC
+              day. Busy events wait up to 15 minutes.
+            </p>
+          </details>
         </div>
       </div>
       {error ? <p role="alert">{error}</p> : null}

@@ -228,9 +228,7 @@ export default function Routines({ connection }: { connection: ChatConnection })
       <header className="tasks-heading">
         <div>
           <h1>Routines</h1>
-          <p className="dim">
-            Runs need your Mac awake and Zoltbot running. Local routines are free.
-          </p>
+          <p className="dim">Runs while this Mac is awake and Zoltbot is running.</p>
         </div>
         <Button onClick={() => setCreating(!creating)}>New routine</Button>
       </header>

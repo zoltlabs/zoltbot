@@ -84,10 +84,6 @@ export default function Tasks({ connection }: { connection: ChatConnection }) {
       <header className="tasks-heading">
         <div>
           <h1>Tasks</h1>
-          <p className="dim">
-            Hand a piece of work to an agent. It runs in its own conversation and comes back for
-            your review.
-          </p>
         </div>
         <Button
           variant="primary"
@@ -470,11 +466,7 @@ function TaskForm({
           node: { type: place.split(":")[0], id: place.split(":")[1] },
         }}
       />
-      <p className="dim sm">
-        The task starts in a new conversation with this brief, the {terms.workspace.one}’s
-        instructions and the session inputs above. If another task is running in the same code
-        folder, it waits.
-      </p>
+      <p className="dim sm">Tasks using the same code folder run one at a time.</p>
       <label htmlFor={`${id}-workspace`}>Work location</label>
       <select
         id={`${id}-workspace`}
@@ -496,10 +488,11 @@ function TaskForm({
           <p className="dim sm">Resolved to a fixed commit before setup starts.</p>
         </>
       ) : null}
-      <p className="dim sm">
-        Separate worktrees require one Git root. Ports, databases and external services are still
-        shared.
-      </p>
+      {workspaceMode === "worktree" ? (
+        <p className="dim sm">
+          Requires one Git root. Ports, databases and external services remain shared.
+        </p>
+      ) : null}
       {error ? <p role="alert">{error}</p> : null}
       <div className="r wrap">
         <Button
@@ -589,11 +582,7 @@ function TaskCard({
         </Chip>
       </header>
       <ShippingRow task={task} connection={connection} />
-      <SessionInputsPanel
-        connection={connection}
-        task={task}
-        mode={state === "queued" ? "preview" : "frozen"}
-      />
+
       {hold && state !== "completed" ? <p className="task-hold">{hold}</p> : null}
       {state === "review" && result ? (
         <section className="task-result" aria-label={`Result for ${text(task.title)}, ${ordinal}`}>
@@ -655,77 +644,86 @@ function TaskCard({
         <Button onClick={() => setRoutineForm(true)}>Make this a routine</Button>
       ) : null}
       {error ? <p role="alert">{error}</p> : null}
-      <div className="r wrap task-actions">
-        {state === "review" && mode === "idle" ? (
-          <>
+      <footer className="task-card-footer">
+        <SessionInputsPanel
+          connection={connection}
+          task={task}
+          mode={state === "queued" ? "preview" : "frozen"}
+        />
+        <div className="r wrap task-actions">
+          {state === "review" && mode === "idle" ? (
+            <>
+              <Button
+                variant="primary"
+                disabled={!online || pending}
+                onClick={() =>
+                  act("task.review", { revision, decision: "accept", confirmed: true })
+                }
+              >
+                Accept
+              </Button>
+              <Button disabled={!online || pending} onClick={() => setMode("changes")}>
+                Request changes
+              </Button>
+            </>
+          ) : null}
+          {mode === "changes" ? (
+            <>
+              <Button
+                variant="primary"
+                disabled={!online || pending || !feedback.trim()}
+                onClick={() =>
+                  act("task.review", {
+                    revision,
+                    decision: "changes",
+                    feedback: feedback.trim(),
+                    confirmed: true,
+                  })
+                }
+              >
+                Send back
+              </Button>
+              <Button disabled={pending} onClick={() => setMode("idle")}>
+                Cancel
+              </Button>
+            </>
+          ) : null}
+          {state === "failed" && mode === "idle" ? (
             <Button
               variant="primary"
               disabled={!online || pending}
-              onClick={() => act("task.review", { revision, decision: "accept", confirmed: true })}
+              onClick={() => act("task.retry", {})}
             >
-              Accept
+              Try again
             </Button>
-            <Button disabled={!online || pending} onClick={() => setMode("changes")}>
-              Request changes
+          ) : null}
+          {mode === "stop" ? (
+            <>
+              <Button
+                variant="danger"
+                disabled={!online || pending}
+                onClick={() => act("task.cancel", { confirmed: true })}
+              >
+                Stop task
+              </Button>
+              <Button disabled={pending} onClick={() => setMode("idle")}>
+                Keep it
+              </Button>
+            </>
+          ) : null}
+          <span className="sp" />
+          {task.threadId && state !== "queued" ? (
+            <Button variant="ghost" onClick={() => openThread(text(task.threadId))}>
+              Open conversation
             </Button>
-          </>
-        ) : null}
-        {mode === "changes" ? (
-          <>
-            <Button
-              variant="primary"
-              disabled={!online || pending || !feedback.trim()}
-              onClick={() =>
-                act("task.review", {
-                  revision,
-                  decision: "changes",
-                  feedback: feedback.trim(),
-                  confirmed: true,
-                })
-              }
-            >
-              Send back
+          ) : null}
+          {stoppable && mode === "idle" ? (
+            <Button variant="ghost" disabled={!online || pending} onClick={() => setMode("stop")}>
+              Stop
             </Button>
-            <Button disabled={pending} onClick={() => setMode("idle")}>
-              Cancel
-            </Button>
-          </>
-        ) : null}
-        {state === "failed" && mode === "idle" ? (
-          <Button
-            variant="primary"
-            disabled={!online || pending}
-            onClick={() => act("task.retry", {})}
-          >
-            Try again
-          </Button>
-        ) : null}
-        {mode === "stop" ? (
-          <>
-            <Button
-              variant="danger"
-              disabled={!online || pending}
-              onClick={() => act("task.cancel", { confirmed: true })}
-            >
-              Stop task
-            </Button>
-            <Button disabled={pending} onClick={() => setMode("idle")}>
-              Keep it
-            </Button>
-          </>
-        ) : null}
-        <span className="sp" />
-        {task.threadId && state !== "queued" ? (
-          <Button variant="ghost" onClick={() => openThread(text(task.threadId))}>
-            Open conversation
-          </Button>
-        ) : null}
-        {stoppable && mode === "idle" ? (
-          <Button variant="ghost" disabled={!online || pending} onClick={() => setMode("stop")}>
-            Stop
-          </Button>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      </footer>
     </article>
   );
 }

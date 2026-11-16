@@ -18,9 +18,11 @@
 .scope-heading > div:first-child {
   min-width: 0;
   flex: 1 1 300px;
+  display: grid;
+  gap: var(--zb-space-2);
 }
 .scope-heading h1 {
-  margin: 4px 0 8px;
+  margin: 0;
   font-size: var(--zb-text-2xl);
   line-height: var(--zb-leading-2xl);
   text-wrap: balance;
@@ -271,7 +273,8 @@ button.mo-row:disabled {
   margin-bottom: var(--zb-space-4);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--zb-space-3);
+  min-width: 0;
   max-width: 680px;
 }
 .scope-form p {

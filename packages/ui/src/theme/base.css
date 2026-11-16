@@ -39,14 +39,8 @@ body {
   color: inherit;
   cursor: pointer;
 }
-.zb h1,
-.zb h2,
-.zb h3,
-.zb p {
-  margin: 0;
-}
-.zb ol,
-.zb ul {
+/* Resets must not override the spacing owned by a screen or component. */
+:where(.zb) :where(h1, h2, h3, p, ol, ul) {
   margin: 0;
 }
 /* Headings focused on page change (tabIndex -1) move the reading position; no ring needed. */
@@ -81,11 +75,14 @@ body {
 }
 .r {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--zb-space-2);
 }
 .c {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: var(--zb-space-2);
 }
@@ -112,6 +109,8 @@ body {
     textarea
   ) {
   min-height: var(--zb-control-md);
+  min-width: 0;
+  max-width: 100%;
   padding: 0 var(--zb-space-2);
   border: 1px solid var(--zb-border);
   border-radius: var(--zb-radius-sm);

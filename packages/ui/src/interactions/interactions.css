@@ -708,3 +708,16 @@ button.letter-from {
   margin: 0;
   min-width: 0;
 }
+
+.inbox-action-menu {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.inbox-detail-title {
+  flex: 1 1 16rem;
+}
+.inbox-detail-actions {
+  flex: none;
+}

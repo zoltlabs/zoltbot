@@ -471,6 +471,7 @@ export function Menu({
             <button
               type="button"
               role="menuitem"
+              aria-label={item.label}
               tabIndex={-1}
               key={item.label}
               className={`zb-menu-item${item.danger ? " danger" : ""}`}

@@ -492,6 +492,7 @@
 /* Tabs */
 .zb-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--zb-space-4);
   border-bottom: 1px solid var(--zb-border-subtle);
 }
@@ -624,6 +625,10 @@
   opacity: 1;
 }
 .zb-dialog {
+  max-height: calc(100% - var(--zb-space-8));
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
   width: min(440px, calc(100vw - var(--zb-space-8)));
   padding: var(--zb-space-5);
   border: 0;
@@ -634,7 +639,7 @@
 }
 .zb-dialog.wide {
   width: min(1100px, calc(100vw - var(--zb-space-8)));
-  max-height: calc(100vh - var(--zb-space-8));
+  max-height: calc(100% - var(--zb-space-8));
 }
 .zb-dialog::backdrop {
   background: var(--zb-scrim);
@@ -651,6 +656,7 @@
 }
 .zb-dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--zb-space-2);
   margin-top: var(--zb-space-5);
@@ -737,7 +743,7 @@
 }
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: var(--zb-space-4);
 }
 .gallery-column {
@@ -747,12 +753,14 @@
   min-width: 0;
 }
 .gallery-list {
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--zb-space-0-5);
   width: 240px;
 }
 .gallery-meter {
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--zb-space-2);
@@ -765,9 +773,24 @@
 }
 .gallery-pipeline {
   display: flex;
+  flex-wrap: wrap;
   align-items: stretch;
   gap: var(--zb-space-3);
 }
 .gallery-note {
   color: var(--zb-text-muted);
+}
+
+/* Long action labels grow instead of drawing outside their button. */
+.zb-dialog :is(.btn, .zb-button) {
+  height: auto;
+  min-height: var(--zb-control-md);
+  max-width: 100%;
+  padding-block: var(--zb-space-1);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.gallery-pipeline > .zb-stage {
+  flex-basis: 12rem;
 }

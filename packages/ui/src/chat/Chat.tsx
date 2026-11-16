@@ -273,6 +273,10 @@ export default function Chat({
           >
             {waiting.label}
           </button>
+        ) : waiting?.kind === "work" ? (
+          <Chip tone="accent" dot>
+            {waiting.label}
+          </Chip>
         ) : busy ? (
           <Chip tone="accent" dot>
             Working

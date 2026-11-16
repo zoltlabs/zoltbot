@@ -79,10 +79,10 @@ test("completion is suppressed for waits and uncertain delivery, then archives t
   for (const [state, label] of [
     ["limited", "Usage limit reached"],
     ["reconnecting", "Coding tool reconnecting"],
-    ["offline", "Waiting for connection"],
+    ["offline", "Host disconnected"],
     ["background", "Background work in progress"],
     ["pending", "Answer needed"],
-    ["uncertain", "Message delivery needs review"],
+    ["uncertain", "Check message delivery"],
     ["failed", ""],
   ]) {
     await page.getByLabel("Fixture state").selectOption(state ?? "online");
@@ -138,7 +138,8 @@ test("results and comparison remain accessible in both themes and narrow layouts
 test("letters share completion actions and Results preserves the preview preference", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "Letters", exact: true }).click();
+  await page.getByRole("button", { name: "Conversation actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Read as letters", exact: true }).click();
   await expect(page.getByRole("region", { name: "Completed work" })).toBeVisible();
   await page.getByRole("button", { name: "Results", exact: true }).click();
   const results = page.getByRole("complementary", { name: "Results" });
@@ -283,7 +284,8 @@ test("terminal shares the desktop workspace and has a clear return path at narro
   await page
     .getByRole("textbox", { name: /Message Designer/ })
     .fill("Keep this draft while inspecting output.");
-  await page.getByRole("button", { name: "Show terminal", exact: true }).click();
+  await page.getByRole("button", { name: "Conversation actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Show terminal", exact: true }).click();
   const terminal = page.getByRole("region", { name: "Workspace terminal", exact: true });
   await expect(terminal.getByRole("button", { name: "Start shell", exact: true })).toBeVisible();
   const chat = await page.locator(".chat-conversation").boundingBox();
@@ -295,7 +297,9 @@ test("terminal shares the desktop workspace and has a clear return path at narro
   await expect(page.locator(".chat-conversation")).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await terminal.getByRole("button", { name: "Hide terminal", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Show terminal", exact: true })).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Conversation actions", exact: true }),
+  ).toBeFocused();
   await expect(page.getByRole("textbox", { name: /Message Designer/ })).toHaveValue(
     "Keep this draft while inspecting output.",
   );

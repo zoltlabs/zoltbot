@@ -41,6 +41,8 @@
 }
 .shipping-content section {
   min-width: 0;
+  display: grid;
+  gap: var(--zb-space-3);
 }
 .shipping-content h3 {
   font-size: var(--zb-text-md);

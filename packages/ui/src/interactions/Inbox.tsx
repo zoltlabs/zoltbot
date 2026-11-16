@@ -248,7 +248,6 @@ export default function Inbox({ connection }: { connection: ChatConnection }) {
         <header>
           <div className="inbox-title">
             <h1>Inbox</h1>
-            {counts.needs_you ? <Chip tone="attention">{counts.needs_you} need you</Chip> : null}
           </div>
           <div className="inbox-filters" role="tablist" aria-label="Mailboxes">
             {mailboxes.map((id) => (
@@ -269,7 +268,6 @@ export default function Inbox({ connection }: { connection: ChatConnection }) {
               </button>
             ))}
           </div>
-          <p className="inbox-hint">{mailboxHints[box]}</p>
           {box === "needs_you" && picks.length ? (
             <button
               type="button"
@@ -441,52 +439,49 @@ export default function Inbox({ connection }: { connection: ChatConnection }) {
               >
                 Open as chat
               </Button>
-              <Button
-                size="sm"
-                kbd="u"
-                disabled={pending || !online}
-                onClick={() =>
-                  void call(
-                    "thread.markUnread",
-                    { id: current.thread.id },
-                    "That conversation could not be marked unread.",
-                  )
-                }
-              >
-                Mark unread
-              </Button>
-              <Menu
-                label="Snooze"
-                icon="Snooze"
-                items={snoozeTimes().map((time) => ({
-                  label: time.label,
-                  onSelect: () => void snooze([current.thread.id], time.at),
-                }))}
-              />
-              {current.mailbox === "settled" ? (
-                <Button
-                  size="sm"
-                  disabled={pending || !online}
-                  onClick={() =>
-                    void call(
-                      "thread.unarchive",
-                      { id: current.thread.id },
-                      "That conversation could not be moved back.",
-                    )
-                  }
-                >
-                  Move to Inbox
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  kbd="e"
-                  disabled={pending || !online || !!current.thread.archiveWhenIdle}
-                  onClick={() => void settle([current.thread.id])}
-                >
-                  {current.mailbox === "working" ? "Settle when done" : "Settle"}
-                </Button>
-              )}
+              <fieldset className="inbox-action-menu" disabled={pending || !online}>
+                <legend className="sr-only">Conversation actions</legend>
+                <Menu
+                  label="Conversation actions"
+                  items={[
+                    {
+                      label: "Mark unread",
+                      kbd: "U",
+                      onSelect: () =>
+                        void call(
+                          "thread.markUnread",
+                          { id: current.thread.id },
+                          "That conversation could not be marked unread.",
+                        ),
+                    },
+                    ...snoozeTimes().map((time) => ({
+                      label: `Snooze · ${time.label}`,
+                      onSelect: () => void snooze([current.thread.id], time.at),
+                    })),
+                    ...(current.thread.archiveWhenIdle && current.mailbox !== "settled"
+                      ? []
+                      : [
+                          {
+                            label:
+                              current.mailbox === "settled"
+                                ? "Move to Inbox"
+                                : current.mailbox === "working"
+                                  ? "Settle when done"
+                                  : "Settle",
+                            kbd: "E",
+                            onSelect: () =>
+                              current.mailbox === "settled"
+                                ? void call(
+                                    "thread.unarchive",
+                                    { id: current.thread.id },
+                                    "That conversation could not be moved back.",
+                                  )
+                                : void settle([current.thread.id]),
+                          },
+                        ]),
+                  ]}
+                />
+              </fieldset>
             </div>
           </header>
           {currentRequests.length ? (

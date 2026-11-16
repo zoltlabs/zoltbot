@@ -741,3 +741,16 @@
     transition: none;
   }
 }
+
+.doctor-tool,
+.doctor-global {
+  container-type: inline-size;
+}
+@container (max-width: 24rem) {
+  .doctor-facts > div,
+  .doctor-capabilities > div,
+  .doctor-global dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--zb-space-1);
+  }
+}

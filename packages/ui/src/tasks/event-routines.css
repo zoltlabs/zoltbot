@@ -67,3 +67,21 @@
   height: auto;
   min-height: 32px;
 }
+
+.event-location {
+  display: grid;
+  align-content: start;
+  gap: var(--zb-space-3);
+  min-width: 0;
+}
+.event-location h3 {
+  font-size: var(--zb-text-md);
+  font-weight: var(--zb-weight-medium);
+}
+.event-location details > p {
+  margin-block-start: var(--zb-space-3);
+}
+.event-location summary {
+  cursor: pointer;
+  color: var(--zb-text-secondary);
+}

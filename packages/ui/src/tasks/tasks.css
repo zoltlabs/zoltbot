@@ -15,9 +15,11 @@
 .tasks-heading > div {
   min-width: 0;
   flex: 1 1 300px;
+  display: grid;
+  gap: var(--zb-space-2);
 }
 .tasks-heading h1 {
-  margin: 4px 0 8px;
+  margin: 0;
   font-size: var(--zb-text-2xl);
   line-height: var(--zb-leading-2xl);
   font-weight: var(--zb-weight-semibold);
@@ -40,8 +42,8 @@
 }
 .task-card {
   display: grid;
-  gap: var(--zb-space-2);
-  padding: var(--zb-space-3) var(--zb-space-4);
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-4);
   margin-bottom: var(--zb-space-2);
 }
 .task-card header {
@@ -131,4 +133,47 @@
   align-items: center;
   gap: var(--zb-space-2);
   cursor: pointer;
+}
+
+.task-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--zb-space-3);
+}
+.task-card-footer > .session-inputs {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.task-card-footer > .session-inputs[open] {
+  flex-basis: 100%;
+}
+.task-card-footer > .task-actions {
+  margin-inline-start: auto;
+}
+.task-card-footer > .task-actions > .sp {
+  display: none;
+}
+.task-card > header > .zb-chip {
+  flex: none;
+}
+
+.task-form,
+.task-form-row > div {
+  min-width: 0;
+}
+.task-form :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+}
+.task-form p {
+  overflow-wrap: anywhere;
+}
+
+.task-title {
+  display: grid;
+  gap: var(--zb-space-1);
+}
+.task-title p {
+  margin: 0;
 }
