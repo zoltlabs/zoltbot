@@ -111,3 +111,53 @@
   border: 0;
   background-color: transparent;
 }
+
+/* One action row; secondary tools open above it instead of claiming another toolbar. */
+.composer-row {
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-3);
+}
+.composer-row > .chat-execution-controls {
+  flex: 0 1 auto;
+  padding: 0;
+}
+.composer-options {
+  position: relative;
+}
+.composer-options > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--zb-control-sm);
+  min-height: var(--zb-control-sm);
+  list-style: none;
+  border-radius: var(--zb-radius-sm);
+  color: var(--zb-text-secondary);
+  cursor: pointer;
+}
+.composer-options > summary::-webkit-details-marker {
+  display: none;
+}
+.composer-options-panel {
+  position: absolute;
+  z-index: var(--zb-layer-popover);
+  inset-block-end: calc(100% + var(--zb-space-2));
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--zb-space-3);
+  padding: var(--zb-space-3);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-md);
+  background: var(--zb-bg-popover);
+  box-shadow: var(--zb-shadow-popover);
+  overscroll-behavior: contain;
+}
+.composer-row .chat-model-field select {
+  max-inline-size: 12rem;
+}
+.composer-row .chat-mode select {
+  max-inline-size: 10rem;
+}

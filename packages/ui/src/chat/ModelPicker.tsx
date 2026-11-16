@@ -86,7 +86,6 @@ export function ModelPicker({
   }
   return (
     <div className="chat-model-controls">
-      <span className="chat-agent-name">{tool}</span>
       {!session ? (
         <button
           type="button"
@@ -121,6 +120,7 @@ export function ModelPicker({
             <span className="sr-only">Model</span>
             <select
               aria-label="Model"
+              title={tool}
               value={text(session.model)}
               disabled={pending || !online || !ready || working}
               onChange={(event) => void apply({ model: event.target.value })}

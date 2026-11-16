@@ -163,3 +163,27 @@
 .interaction-undo.external {
   border-color: var(--zb-danger, var(--zb-border-strong));
 }
+
+/* Keep decisions and dismissal together, with room to read the request first. */
+.interaction-card > ul {
+  margin-block: var(--zb-space-3);
+  padding-inline-start: var(--zb-space-5);
+}
+.approval-actions {
+  margin-block-start: var(--zb-space-5);
+  gap: var(--zb-space-2);
+}
+.approval-actions > .interaction-footer {
+  margin: 0;
+  margin-inline-start: auto;
+  gap: var(--zb-space-2);
+}
+.approval-actions > .interaction-footer > .sp {
+  display: none;
+}
+.interaction-card .interaction-prompt {
+  margin-block: var(--zb-space-3) var(--zb-space-2);
+}
+.interaction-card .interaction-undo {
+  margin-block: var(--zb-space-2) var(--zb-space-5);
+}

@@ -129,6 +129,30 @@ export function InteractionCard({
       {...(placeholder ? { placeholder } : {})}
     />
   );
+  const requestFooter = (
+    <footer className="interaction-buttons interaction-footer">
+      <span className="sp" />
+      {actions.pending ? <span aria-live="polite">Sending…</span> : null}
+      {request.type === "form" && linkOnlyForm(request) ? null : (
+        <button
+          type="button"
+          className="btn sm interaction-ghost"
+          disabled={disabled}
+          onClick={() => void actions.submit({ action: "cancel" })}
+        >
+          {request.type === "form" ? "Cancel" : "Skip"}
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn sm interaction-ghost"
+        disabled={disabled}
+        onClick={() => void actions.defer()}
+      >
+        Defer <span className="kbd">Esc</span>
+      </button>
+    </footer>
+  );
   return (
     <article
       ref={root}
@@ -235,6 +259,7 @@ export function InteractionCard({
             <ApprovalActions
               request={request}
               choices={choices}
+              secondaryActions={requestFooter}
               disabled={disabled}
               feedback={explaining ? feedback : ""}
               explaining={explaining}
@@ -277,28 +302,7 @@ export function InteractionCard({
           ) : (
             <FormCard request={request} disabled={disabled} submit={submit} decline={reject} />
           )}
-          <footer className="interaction-buttons interaction-footer">
-            <span className="sp" />
-            {actions.pending ? <span aria-live="polite">Sending…</span> : null}
-            {request.type === "form" && linkOnlyForm(request) ? null : (
-              <button
-                type="button"
-                className="btn sm interaction-ghost"
-                disabled={disabled}
-                onClick={() => void actions.submit({ action: "cancel" })}
-              >
-                {request.type === "form" ? "Cancel" : "Skip"}
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn sm interaction-ghost"
-              disabled={disabled}
-              onClick={() => void actions.defer()}
-            >
-              Defer <span className="kbd">Esc</span>
-            </button>
-          </footer>
+          {request.type !== "approval" ? requestFooter : null}
         </>
       )}
       {confirmation ? (

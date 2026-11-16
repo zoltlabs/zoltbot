@@ -20,7 +20,9 @@ test("recovers independent conversation drafts, attachments and output across na
   page,
 }) => {
   await editor(page).fill("Exact **draft**\n日本語");
+  await page.locator(".composer-options > summary").click();
   await page.getByRole("combobox", { name: "Output", exact: true }).selectOption("document");
+  await page.locator(".composer-options > summary").click();
   await page.getByLabel("Attach files", { exact: true }).setInputFiles(image);
   await expect(page.getByText("Image ready", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Switch conversation" }).click();
@@ -30,7 +32,9 @@ test("recovers independent conversation drafts, attachments and output across na
   await expect(editor(page)).toHaveValue("Exact **draft**\n日本語");
   await page.reload();
   await expect(editor(page)).toHaveValue("Exact **draft**\n日本語");
+  await page.locator(".composer-options > summary").click();
   await expect(page.getByRole("combobox", { name: "Output", exact: true })).toHaveValue("document");
+  await page.locator(".composer-options > summary").click();
   await expect(page.getByRole("img", { name: "Preview of screen.png" })).toBeVisible();
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(editor(page)).toHaveValue("");

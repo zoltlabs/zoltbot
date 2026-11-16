@@ -41,7 +41,7 @@ async function fixture(options: { longFirst?: boolean; dropResolveAck?: boolean 
       });
     });
   await page.goto("http://127.0.0.1:5196/#chat/thread");
-  await expect(page.getByRole("button", { name: "+ Compare", exact: true })).toBeVisible();
+  await expect(page.locator(".composer-options > summary")).toBeVisible();
   return {
     ...f,
     page,
@@ -58,6 +58,7 @@ async function send(
   four = false,
 ) {
   const { page } = f;
+  await page.locator(".composer-options > summary").click();
   await page.getByRole("button", { name: "+ Compare", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: /^Unavailable/ })).toBeDisabled();
   await page.getByText("Second", { exact: true }).click();
@@ -66,6 +67,7 @@ async function send(
     await page.getByText("Fourth", { exact: true }).click();
   }
   await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.locator(".composer-options > summary").click();
   await page.getByRole("textbox", { name: "Message First", exact: true }).fill(prompt);
   await page.getByRole("button", { name: four ? "Send to 4" : "Send to 2", exact: true }).click();
   await expect(page.locator(".compare-view")).toBeVisible();

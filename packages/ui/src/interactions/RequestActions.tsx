@@ -20,6 +20,7 @@ export function ApprovalActions({
   onExplain,
   onAlwaysAllow,
   children,
+  secondaryActions,
 }: {
   request: Interaction;
   choices: Choices;
@@ -33,6 +34,7 @@ export function ApprovalActions({
   onAlwaysAllow(): void;
   /** The reason field or rule preview, shown under the buttons. */
   children?: ReactNode;
+  secondaryActions?: ReactNode;
 }) {
   const session = choices.get("allow_session");
   const undo = reversibility(request);
@@ -61,8 +63,10 @@ export function ApprovalActions({
           <strong>{undo.label}.</strong> {undo.detail}
         </p>
       ) : null}
-      {ruleOpen ? null : (
-        <div className="interaction-buttons">
+      {ruleOpen ? (
+        <div className="interaction-buttons">{secondaryActions}</div>
+      ) : (
+        <div className="interaction-buttons approval-actions">
           <button
             type="button"
             className="btn"
@@ -154,6 +158,7 @@ export function ApprovalActions({
               </span>
             ) : null}
           </span>
+          {secondaryActions}
         </div>
       )}
       {children}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { text } from "../chat/types.js";
 import { readOnlyReason } from "./compare-state.js";
@@ -17,6 +17,13 @@ export function ComparePicker({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open) {
+      const disclosure = root.current?.closest("details");
+      if (disclosure) disclosure.open = true;
+    }
+  }, [open]);
   const id = useId();
   const [definitions, setDefinitions] = useState(
     connection.snapshot.entities.agentDefinition ?? [],
@@ -82,7 +89,7 @@ export function ComparePicker({
     return () => window.removeEventListener("keydown", key);
   }, [disabled]);
   return (
-    <div className="compare-picker">
+    <div className="compare-picker" ref={root}>
       <button
         type="button"
         className="btn sm"
@@ -103,6 +110,8 @@ export function ComparePicker({
           className="compare-picker-panel"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
               setOpen(false);
               event.currentTarget.parentElement
                 ?.querySelector<HTMLButtonElement>("button")

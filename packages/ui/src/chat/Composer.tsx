@@ -653,14 +653,40 @@ function ComposerSession({
           will be sent; preview is paused.
         </output>
       ) : null}
-      {comparing ? null : modeControl}
       <div className="composer-row">
-        <OutputControl
-          value={outputMode}
-          onChange={setOutputMode}
-          disabled={saving}
-          legacy={!artifactOutputAvailable(connection, threadId)}
-        />
+        {comparing ? null : modeControl}
+        <details
+          className="composer-options"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && event.currentTarget.open) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }
+          }}
+        >
+          <summary aria-label="Output and comparison options" title="Output and comparison options">
+            <Icon name="More" size="sm" />
+          </summary>
+          <div className="composer-options-panel">
+            <OutputControl
+              value={outputMode}
+              onChange={setOutputMode}
+              disabled={saving}
+              legacy={!artifactOutputAvailable(connection, threadId)}
+            />
+            {compareAvailable ? (
+              <ComparePicker
+                connection={connection}
+                threadId={threadId}
+                selected={compareProfiles}
+                onChange={setCompareProfiles}
+                disabled={saving || configurationPending}
+              />
+            ) : null}
+          </div>
+        </details>
         <input
           hidden
           ref={picker}
@@ -674,15 +700,6 @@ function ComposerSession({
             event.target.value = "";
           }}
         />
-        {compareAvailable ? (
-          <ComparePicker
-            connection={connection}
-            threadId={threadId}
-            selected={compareProfiles}
-            onChange={setCompareProfiles}
-            disabled={saving || configurationPending}
-          />
-        ) : null}
         <span id={`composer-help-${threadId}`} className="sr-only">
           Shift + Enter for a new line · @ files · / commands and skills
         </span>
