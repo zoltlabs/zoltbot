@@ -21,6 +21,7 @@ import {
   formatMarkdown,
   type MarkdownFormat,
 } from "./composer-editing.js";
+import { modKey, useModifierHeld } from "./composer-shortcuts.js";
 import { DictationControl, useDictation } from "./Dictation.js";
 import { collectContextualStrings } from "./dictation-state.js";
 
@@ -35,30 +36,6 @@ import "./composer.css";
 // Remount all ephemeral editor state when navigation changes the conversation.
 export function Composer(props: ComponentProps<typeof ComposerSession>) {
   return <ComposerSession key={props.threadId} {...props} />;
-}
-const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-const modKey = mac ? "⌘" : "Ctrl";
-
-/** Whether ⌘ (Ctrl elsewhere) is held, so the send button can show what a click will do. */
-function useModifierHeld(active: boolean) {
-  const [held, setHeld] = useState(false);
-  useEffect(() => {
-    if (!active) {
-      setHeld(false);
-      return;
-    }
-    const update = (event: KeyboardEvent) => setHeld(mac ? event.metaKey : event.ctrlKey);
-    const clear = () => setHeld(false);
-    window.addEventListener("keydown", update);
-    window.addEventListener("keyup", update);
-    window.addEventListener("blur", clear);
-    return () => {
-      window.removeEventListener("keydown", update);
-      window.removeEventListener("keyup", update);
-      window.removeEventListener("blur", clear);
-    };
-  }, [active]);
-  return held;
 }
 
 function ComposerSession({
@@ -75,12 +52,14 @@ function ComposerSession({
   clearArtifactTarget,
   modeControl,
   onCycleMode,
+  configurationPending = false,
 }: {
   connection: ChatConnection;
   threadId: string;
   name: string;
   projectName?: string;
   busy: boolean;
+  configurationPending?: boolean;
   steer: boolean;
   images: boolean;
   interrupt?: () => Promise<void>;
@@ -260,6 +239,7 @@ function ComposerSession({
     }
     if (
       saving ||
+      configurationPending ||
       sendLock.current ||
       !!blocked ||
       composing.current ||
@@ -673,6 +653,7 @@ function ComposerSession({
           will be sent; preview is paused.
         </output>
       ) : null}
+      {comparing ? null : modeControl}
       <div className="composer-row">
         <OutputControl
           value={outputMode}
@@ -699,10 +680,9 @@ function ComposerSession({
             threadId={threadId}
             selected={compareProfiles}
             onChange={setCompareProfiles}
-            disabled={saving}
+            disabled={saving || configurationPending}
           />
         ) : null}
-        {comparing ? null : modeControl}
         <span id={`composer-help-${threadId}`} className="sr-only">
           Shift + Enter for a new line · @ files · / commands and skills
         </span>
@@ -729,6 +709,7 @@ function ComposerSession({
               !!artifactTarget ||
               !!blocked ||
               saving ||
+              configurationPending ||
               dictation.active ||
               connection.status !== "online" ||
               (!draft.trim() && !attachments.length)
@@ -769,7 +750,12 @@ function ComposerSession({
                 : undefined
             }
             disabled={
-              !!blocked || saving || dictation.active || connection.status !== "online" || empty
+              !!blocked ||
+              saving ||
+              configurationPending ||
+              dictation.active ||
+              connection.status !== "online" ||
+              empty
             }
             onClick={(event) => {
               // ⌘/Ctrl-click does the other thing: steer the running turn instead of queueing.

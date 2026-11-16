@@ -13,6 +13,10 @@ export const routeLabels: Partial<Record<Route, string>> = {
   Connections: "Settings",
   Rules: "Settings",
   ViewsSettings: "Settings",
+  ModelsSettings: "Settings",
+  SkillsSettings: "Settings",
+  DevicesSettings: "Settings",
+  VoiceSettings: "Settings",
 };
 export type Route =
   | (typeof routes)[number]
@@ -28,7 +32,11 @@ export type Route =
   | "Chief"
   | "Compare"
   | "View"
-  | "ViewsSettings";
+  | "ViewsSettings"
+  | "ModelsSettings"
+  | "SkillsSettings"
+  | "DevicesSettings"
+  | "VoiceSettings";
 export type Theme = "light" | "dark" | "system";
 function storedTheme(): Theme {
   try {

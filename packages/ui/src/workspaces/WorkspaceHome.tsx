@@ -512,9 +512,6 @@ function DefaultProfile({
           ))}
         </select>
       </p>
-      <p className="dim sm">
-        Its model and permissions apply. You can still pick another per chat.
-      </p>
       {error ? <p role="alert">{error}</p> : null}
     </>
   );
@@ -561,7 +558,9 @@ function StartChat({
       onSubmit={async (event) => {
         event.preventDefault();
         const message = draft.trim();
-        if (!message) {
+        const submitter = (event.nativeEvent as SubmitEvent).submitter;
+        const configure = submitter instanceof HTMLButtonElement && submitter.value === "configure";
+        if (!message && !configure) {
           field.current?.focus();
           return;
         }
@@ -569,7 +568,7 @@ function StartChat({
           setError(`Choose an available ${terms.profile.one}.`);
           return;
         }
-        const key = JSON.stringify([scope, profileId, message]);
+        const key = JSON.stringify([scope, profileId, message, configure]);
         if (request.current?.key !== key)
           request.current = { key, thread: crypto.randomUUID(), send: crypto.randomUUID() };
         const attempt = request.current,
@@ -589,7 +588,10 @@ function StartChat({
                   projectId,
                   node: scope,
                   kind: "side",
-                  title: firstLine.length > 80 ? `${firstLine.slice(0, 79)}…` : firstLine,
+                  title:
+                    firstLine.length > 80
+                      ? `${firstLine.slice(0, 79)}…`
+                      : firstLine || "Conversation",
                   titleSource: "auto",
                   pinned: false,
                   archived: false,
@@ -600,6 +602,21 @@ function StartChat({
               `workspace:thread:${attempt.thread}`,
             ),
           );
+          if (configure) {
+            if (message) useShell.setState({ chatDraft: { threadId: thread.id, text: message } });
+            // Discover choices without sending the draft. Failures remain visible in the chat.
+            await connection
+              .call(
+                "session.connect",
+                { threadId: thread.id },
+                `workspace:connect:${attempt.thread}`,
+              )
+              .catch(() => undefined);
+            setDraft("");
+            request.current = undefined;
+            onStarted(thread.id);
+            return;
+          }
           await connection.call(
             "turn.send",
             {
@@ -658,6 +675,15 @@ function StartChat({
             </option>
           ))}
         </select>
+        <button
+          type="submit"
+          name="intent"
+          value="configure"
+          className="btn"
+          disabled={pending || !online}
+        >
+          Choose model
+        </button>
         <span className="ws-grow" />
         <button type="submit" className="btn pri" disabled={pending || !online || !draft.trim()}>
           {pending ? "Starting…" : `Start ${terms.chat.one}`}

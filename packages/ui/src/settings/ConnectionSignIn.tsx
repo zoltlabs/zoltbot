@@ -139,10 +139,10 @@ export function ConnectionSignIn({
         </label>
         <Button
           type="submit"
-          aria-disabled={!confirmed || state === "waiting"}
+          disabled={!confirmed || state === "waiting" || state === "starting"}
           aria-describedby={`${id}-status`}
         >
-          Prepare sign-in
+          {state === "starting" ? "Preparing…" : "Sign in"}
         </Button>
       </form>
       <output id={`${id}-status`} aria-live="polite">
@@ -154,7 +154,7 @@ export function ConnectionSignIn({
               ? "Sign-in failed. Check the registration and try again."
               : state === "cancelled"
                 ? "Sign-in cancelled."
-                : "Confirm destinations and scopes before signing in."}
+                : ""}
       </output>
       {pending && state === "waiting" ? (
         <>
@@ -165,6 +165,7 @@ export function ConnectionSignIn({
             onClick={() => {
               void call("connection.auth.cancel", { id: pending.id }, crypto.randomUUID()).then(
                 () => setState("cancelled"),
+                () => setState("failed"),
               );
             }}
           >

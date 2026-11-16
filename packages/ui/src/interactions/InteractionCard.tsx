@@ -211,17 +211,13 @@ export function InteractionCard({
                     : "Review this request")}
           </h2>
         </div>
-        <Chip
-          tone={request.state === "pending" ? "attention" : "neutral"}
-          dot={request.state === "pending"}
-        >
-          {request.state === "pending" ? request.type : request.state}
-        </Chip>
+        {request.state !== "pending" ? <Chip>{request.state}</Chip> : null}
       </header>
       {request.chain.length ? (
-        <p className="interaction-chain">
-          Asked through {request.chain.map((actor) => `${actor.kind}: ${actor.id}`).join(" → ")}
-        </p>
+        <details className="interaction-chain">
+          <summary>Request origin</summary>
+          {request.chain.map((actor) => `${actor.kind}: ${actor.id}`).join(" → ")}
+        </details>
       ) : null}
       {actions.error ? (
         <p className="interaction-error" role="alert">

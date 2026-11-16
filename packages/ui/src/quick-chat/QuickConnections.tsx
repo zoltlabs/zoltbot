@@ -1,6 +1,6 @@
 import { type QuickConnection, type QuickSettings, quickTools } from "@zoltbot/protocol";
 import { useState } from "react";
-import { Button, Chip, Field, Input, Select } from "../components/primitives.js";
+import { Button, Chip, Dialog, Field, Input, Select } from "../components/primitives.js";
 import {
   billingLabel,
   connectionStatus,
@@ -31,6 +31,7 @@ export function QuickConnections({
 }) {
   const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string }>();
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<QuickConnection>();
   const [view, setView] = useState<"connections" | "tools" | "fallback">("connections");
   const [keyForm, setKeyForm] = useState({ provider: "openai", label: "", apiKey: "" });
   const [localForm, setLocalForm] = useState({
@@ -65,7 +66,41 @@ export function QuickConnections({
   );
   const fallbackTarget = connections.find((row) => row.id === fallback.connectionId);
   return (
-    <section className="quick-connections" aria-label="Quick Chat connections">
+    <section className="quick-connections" aria-label="AI connections">
+      <Dialog
+        open={!!removing}
+        title={`Remove ${removing?.label ?? "connection"}?`}
+        description="New messages will need another provider. Existing chats stay saved."
+        onClose={() => {
+          if (!busy) setRemoving(undefined);
+        }}
+        actions={
+          <>
+            <Button disabled={busy} onClick={() => setRemoving(undefined)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={() => {
+                if (!removing) return;
+                void run(async () => {
+                  await connection.call(
+                    "quickConnection.remove",
+                    { id: removing.id, confirmed: true },
+                    commandId(),
+                  );
+                  setRemoving(undefined);
+                }, "Connection removed.");
+              }}
+            >
+              {busy ? "Removing…" : "Remove connection"}
+            </Button>
+          </>
+        }
+      >
+        {notice?.tone === "danger" ? <p role="alert">{notice.text}</p> : null}
+      </Dialog>
       <nav className="quick-settings-nav" aria-label="Quick Chat settings sections">
         {(["connections", "tools", "fallback"] as const).map((item) => (
           <Button
@@ -88,10 +123,7 @@ export function QuickConnections({
         </p>
       ) : null}
       <div className="quick-settings-section" hidden={view !== "connections"}>
-        <p className="quick-muted">
-          Signed-in coding tools on {hostName} connect automatically. Usage stays on your own plan
-          or key.
-        </p>
+        <p className="quick-muted">{hostName}</p>
         <ul className="quick-connection-list">
           {connections.map((row) => (
             <li key={row.id}>
@@ -117,22 +149,7 @@ export function QuickConnections({
               >
                 Refresh
               </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                disabled={busy}
-                onClick={() =>
-                  run(
-                    () =>
-                      connection.call(
-                        "quickConnection.remove",
-                        { id: row.id, confirmed: true },
-                        commandId(),
-                      ),
-                    "Connection removed.",
-                  )
-                }
-              >
+              <Button size="sm" variant="danger" disabled={busy} onClick={() => setRemoving(row)}>
                 Remove
               </Button>
             </li>

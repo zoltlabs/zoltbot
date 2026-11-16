@@ -83,11 +83,6 @@ export function AppCatalog({
         />
       ) : (
         <>
-          <h3>Connect your apps</h3>
-          <p className="settings-hint">
-            Bring the services you use into your agents’ work. Choose access per{" "}
-            {terms.workspace.one} and {terms.profile.one}.
-          </p>
           <Field label="Search apps">
             <Input
               type="search"
@@ -148,11 +143,6 @@ export function AppCatalog({
               No apps match your search. <Button onClick={() => setSearch("")}>Clear search</Button>
             </p>
           ) : null}
-
-          <p className="settings-hint">
-            Credentials stay in your Mac Keychain. Supported native Claude and Codex profiles
-            receive tools in new sessions.
-          </p>
         </>
       )}
     </div>

@@ -129,3 +129,46 @@
 .app-connect a {
   color: var(--zb-accent-text);
 }
+.connections-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-3);
+}
+.connections-settings > ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.connections-settings > ul > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-3);
+  padding-block: var(--zb-space-3);
+}
+.connection-scope {
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+.connection-details {
+  display: grid;
+  gap: var(--zb-space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connection-details fieldset {
+  display: grid;
+  gap: var(--zb-space-2);
+}
+.connection-details > label {
+  display: flex;
+  align-items: start;
+  gap: var(--zb-space-2);
+}
+.connection-details :is(input, select) {
+  max-width: 100%;
+  min-width: 0;
+}

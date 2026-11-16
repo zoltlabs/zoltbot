@@ -275,8 +275,9 @@ button {
   flex: none;
   align-items: center;
   gap: var(--zb-space-3);
-  height: var(--zb-statusbar-height);
-  padding: 0 var(--zb-space-3);
+  min-height: var(--zb-statusbar-height);
+  flex-wrap: wrap;
+  padding: var(--zb-space-1) var(--zb-space-3);
   border-top: 1px solid var(--zb-border-subtle);
   color: var(--zb-text-muted);
   font-size: var(--zb-text-sm);

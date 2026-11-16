@@ -80,7 +80,7 @@ export function ApprovalActions({
                 void submit({ action: "accept", choice: "allow_once", ...withFeedback(feedback) })
               }
             >
-              Approve <span className="kbd">Y</span>
+              Approve once <span className="kbd">Y</span>
             </button>
           ) : null}
           <span className="interaction-more" ref={moreBox}>

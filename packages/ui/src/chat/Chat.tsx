@@ -18,6 +18,7 @@ import { CompletionCard } from "./CompletionCard.js";
 import { Composer } from "./Composer.js";
 import { EditDialog } from "./EditDialog.js";
 import { ForkControl, ForkHistory } from "./ForkControl.js";
+import { ModelPicker } from "./ModelPicker.js";
 import { ModePicker, useModeControl } from "./ModePicker.js";
 import { permissionLabel, sessionModes, sessionSafeModes } from "./mode-data.js";
 import { OrchestrationRuns } from "./OrchestrationRuns.js";
@@ -38,15 +39,14 @@ import { waitingState } from "./waiting-state.js";
 import "./chat.css";
 import "./context.css";
 import {
-  Avatar,
   Button,
   Chip,
   EmptyState,
   IconButton,
+  Menu,
   PropertyList,
   SectionLabel,
 } from "../components/primitives.js";
-import { Icon } from "../shell/icons.js";
 import { useShell } from "../state.js";
 import { scopeLabel } from "../workspaces/activity.js";
 import { emptyRows } from "../workspaces/view.js";
@@ -64,8 +64,9 @@ export default function Chat({
   const [showContext, setShowContext] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [showFork, setShowFork] = useState(false);
+  const [modelPending, setModelPending] = useState(false);
   const view = useThreadView();
-  const terminalToggle = useRef<HTMLButtonElement>(null);
   const [targetSelection, setTargetSelection] = useState<{
     threadId: string;
     target: ArtifactTarget;
@@ -235,8 +236,7 @@ export default function Chat({
     tool = text(definition?.displayName) || "Coding tool";
   // Where the chat lives, as on Overview's recent chats; the coding tool sits with the profile.
   const place =
-    scopeLabel(thread, entities.project ?? emptyRows, entities.subproject ?? emptyRows) ||
-    `Not in a ${terms.workspace.one}`;
+    scopeLabel(thread, entities.project ?? emptyRows, entities.subproject ?? emptyRows) || "";
   const permissions = permissionLabel(text(profile?.permissionProfile));
   const letters = view === "letters" && !compareReadOnly;
   return (
@@ -249,43 +249,36 @@ export default function Chat({
           onClick={toggleSidebar}
         />
         <div className="chat-title">
-          <span className="chat-place truncate" title={place}>
-            <bdi>{place}</bdi>
-          </span>
-          <Icon name="ChevronRight" size="sm" />
+          {place ? (
+            <span className="chat-place">
+              <bdi>{place}</bdi>
+            </span>
+          ) : null}
           <h1>{text(thread.title) || "Conversation"}</h1>
         </div>
-        {waiting ? (
-          <Chip tone={["request", "provider"].includes(waiting.kind) ? "attention" : "neutral"}>
+        {waiting?.kind === "request" ? (
+          <button
+            type="button"
+            className="btn sm chat-request-jump"
+            onClick={(event) => {
+              const root = event.currentTarget.closest(".chat-workspace");
+              const reveal = root?.querySelector<HTMLButtonElement>(".chat-held-request button");
+              reveal?.click();
+              requestAnimationFrame(() => {
+                const request = root?.querySelector<HTMLElement>(".interaction-card.attention");
+                request?.scrollIntoView({ block: "nearest" });
+                request?.focus();
+              });
+            }}
+          >
             {waiting.label}
-          </Chip>
+          </button>
         ) : busy ? (
           <Chip tone="accent" dot>
             Working
           </Chip>
-        ) : session?.state === "ready" ? (
-          <Chip>Ready</Chip>
         ) : null}
         <span className="sp" />
-        {!compareReadOnly && session?.cwd && profile?.permissionProfile !== "read_only" ? (
-          <IconButton
-            ref={terminalToggle}
-            icon="Terminal"
-            label={showTerminal ? "Hide terminal" : "Show terminal"}
-            aria-expanded={showTerminal}
-            size="sm"
-            onClick={() => {
-              setShowTerminal((value) => !value);
-              setShowResults(false);
-              setShowContext(false);
-            }}
-          />
-        ) : null}
-        <ForkControl
-          connection={connection}
-          threadId={threadId}
-          title={text(thread.title) || "Conversation"}
-        />
         {activeTurn && ["native", "kill"].includes(text(caps.interrupt)) ? (
           <Button
             size="sm"
@@ -306,16 +299,6 @@ export default function Chat({
             {stopping || stopRequested ? "Stopping…" : "Stop"}
           </Button>
         ) : null}
-        {compareReadOnly ? null : (
-          <Button
-            size="sm"
-            aria-pressed={letters}
-            title="Read this chat as letters, like the Inbox"
-            onClick={() => setThreadView(letters ? "chat" : "letters")}
-          >
-            Letters
-          </Button>
-        )}
         <Button
           size="sm"
           aria-expanded={showResults}
@@ -327,28 +310,60 @@ export default function Chat({
         >
           Results
         </Button>
-        <IconButton
-          icon="Info"
-          size="sm"
-          label={showContext ? "Hide conversation details" : "Show conversation details"}
-          aria-expanded={showContext}
-          onClick={() => {
-            setShowContext((value) => !value);
-            setShowTerminal(false);
-            setShowResults(false);
+        <Menu
+          label="Conversation actions"
+          items={[
+            {
+              label: "Conversation details",
+              icon: "Info",
+              onSelect: () => {
+                setShowContext(!showContext);
+                setShowTerminal(false);
+                setShowResults(false);
+              },
+            },
+            ...(!compareReadOnly
+              ? [
+                  { label: "Fork conversation", onSelect: () => setShowFork(true) },
+                  {
+                    label: letters ? "Show chat" : "Read as letters",
+                    onSelect: () => setThreadView(letters ? "chat" : "letters"),
+                  },
+                  ...(session?.cwd && profile?.permissionProfile !== "read_only"
+                    ? [
+                        {
+                          label: showTerminal ? "Hide terminal" : "Show terminal",
+                          icon: "Terminal",
+                          onSelect: () => {
+                            setShowTerminal(!showTerminal);
+                            setShowResults(false);
+                            setShowContext(false);
+                          },
+                        },
+                      ]
+                    : []),
+                ]
+              : []),
+          ]}
+        />
+      </header>
+      {showFork ? (
+        <ForkControl
+          connection={connection}
+          threadId={threadId}
+          title={text(thread.title) || "Conversation"}
+          initiallyOpen
+          onClose={() => {
+            setShowFork(false);
+            requestAnimationFrame(() => {
+              if (useShell.getState().threadId === threadId)
+                document
+                  .querySelector<HTMLButtonElement>('button[aria-label="Conversation actions"]')
+                  ?.focus();
+            });
           }}
         />
-        <div className="chat-profile" title={`${name} · ${tool}`}>
-          <Avatar
-            name={name}
-            id={text(profile?.id) || name}
-            size={20}
-            tool={text(definition?.id)}
-          />
-          <span>{name}</span>
-        </div>
-        <Chip>{permissions || "Permissions not reported"}</Chip>
-      </header>
+      ) : null}
       {error ? (
         <p className="chat-error" role="alert">
           {error}
@@ -426,6 +441,7 @@ export default function Chat({
             <QueueStrip connection={connection} threadId={threadId} items={queued} />
           ) : null}
           <SessionBanner
+            key={`${threadId}:${text(session?.id)}:${text(session?.state)}`}
             connection={connection}
             threadId={threadId}
             session={session}
@@ -462,12 +478,27 @@ export default function Chat({
               name={name}
               {...(project?.name ? { projectName: text(project.name) } : {})}
               busy={busy}
+              configurationPending={modelPending || !!modeControl.pending}
               steer={caps.steer === "native"}
               images={caps.images === true}
               {...(commands ? { commands } : {})}
-              {...(!compareReadOnly && modes.length && modeControl.current
+              {...(!compareReadOnly
                 ? {
-                    modeControl: <ModePicker control={modeControl} />,
+                    modeControl: (
+                      <div className="chat-execution-controls">
+                        <ModelPicker
+                          key={text(session?.id) || threadId}
+                          connection={connection}
+                          threadId={threadId}
+                          session={session}
+                          tool={tool}
+                          onPendingChange={setModelPending}
+                        />
+                        {modes.length && modeControl.current ? (
+                          <ModePicker control={modeControl} />
+                        ) : null}
+                      </div>
+                    ),
                     onCycleMode: modeControl.cycle,
                   }
                 : {})}
@@ -488,7 +519,9 @@ export default function Chat({
               threadId={threadId}
               onClose={() => {
                 setShowTerminal(false);
-                terminalToggle.current?.focus();
+                document
+                  .querySelector<HTMLButtonElement>('button[aria-label="Conversation actions"]')
+                  ?.focus();
               }}
             />
           </Suspense>
@@ -504,7 +537,18 @@ export default function Chat({
         ) : null}
         {showContext ? (
           <section className="chat-context" aria-label="Conversation context">
-            <h2 className="chat-context-title">Context</h2>
+            <h2 className="chat-context-title">Conversation details</h2>
+            <PropertyList
+              items={[
+                { label: "Agent", value: name },
+                { label: "Coding tool", value: tool },
+                {
+                  label: "Model",
+                  value: text(session?.model) || text(profile?.model) || "Tool default",
+                },
+                { label: "Permissions", value: permissions || "Not reported" },
+              ]}
+            />
             <section className="chat-context-section" aria-label="Native session">
               <SectionLabel>Native session</SectionLabel>
               <PropertyList

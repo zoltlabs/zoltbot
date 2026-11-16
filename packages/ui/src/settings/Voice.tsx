@@ -69,10 +69,6 @@ export function VoiceSettings() {
   return (
     <section className="zb-card settings-panel" aria-labelledby={`${id}-heading`}>
       <h2 id={`${id}-heading`}>Voice and dictation</h2>
-      <p className="settings-hint">
-        Hold a key or press Dictate, speak, edit the transcript, and send it as an ordinary message.
-        Audio stays on this computer and adds zero context tokens.
-      </p>
       <output aria-label="Dictation readiness">{formatReadiness(status)}</output>
       {window.zoltDesktop?.dictation ? (
         <div className="r wrap">
@@ -157,7 +153,6 @@ export function VoiceSettings() {
         id={`${id}-practice`}
         rows={2}
         value={practice}
-        placeholder="Hold Option + Space or click Test dictation to try your microphone here."
         onKeyDown={(event) => {
           practiceDictation.handleKeyDown(event);
         }}

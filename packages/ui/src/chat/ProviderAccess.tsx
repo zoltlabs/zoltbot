@@ -26,15 +26,9 @@ export function ProviderAccess({
   return (
     <section className="chat-context-section" aria-label="Provider sign-in">
       <h3>{label} sign-in</h3>
-      <p className="dim sm">
-        Zoltbot uses your existing coding tool sign-in. Reconnect this chat to use it.
-      </p>
       {info ? (
         <>
-          <p className="sm">
-            If your coding tool needs a fresh sign-in, run this command in your terminal, then
-            reconnect.
-          </p>
+          <p className="sm">Run in your terminal, then reconnect.</p>
           <pre className="chat-command">
             <code>{info.command}</code>
           </pre>

@@ -23,7 +23,7 @@ import { AllChats } from "./AllChats.js";
 import { CommandPalette } from "./CommandPalette.js";
 import { Icon } from "./icons.js";
 import { Overview } from "./Overview.js";
-import { SettingsPage } from "./SettingsPage.js";
+import { SettingsPage, settingsRoutes, settingsTabs } from "./SettingsPage.js";
 import { Sidebar, useSidebarDrawer } from "./Sidebar.js";
 
 const ViewPage = lazy(() => import("../views/ViewPage.js"));
@@ -198,6 +198,10 @@ export function App() {
         "Doctor",
         "Connections",
         "ViewsSettings",
+        "ModelsSettings",
+        "SkillsSettings",
+        "DevicesSettings",
+        "VoiceSettings",
         "Setup",
         "Chief",
         ...(import.meta.env.DEV ? ["Components"] : []),
@@ -459,11 +463,7 @@ export function App() {
               icon="Settings"
               size="sm"
               label="Settings"
-              className={
-                ["Settings", "Doctor", "Connections", "Rules", "ViewsSettings"].includes(route)
-                  ? "on"
-                  : undefined
-              }
+              className={settingsRoutes.includes(route) ? "on" : undefined}
               onClick={() => {
                 navigate("Settings");
                 drawer.close();
@@ -614,19 +614,9 @@ export function App() {
                   onDoctor={() => navigate("Doctor")}
                 />
               </Suspense>
-            ) : ["Settings", "Doctor", "Connections", "Rules", "ViewsSettings"].includes(route) ? (
+            ) : settingsRoutes.includes(route) ? (
               <SettingsPage
-                tab={
-                  route === "ViewsSettings"
-                    ? "views"
-                    : route === "Doctor"
-                      ? "agents"
-                      : route === "Connections"
-                        ? "connections"
-                        : route === "Rules"
-                          ? "rules"
-                          : "general"
-                }
+                tab={settingsTabs.find((entry) => entry.route === route)?.id ?? "general"}
                 connection={connection}
                 settings={entities.settings ?? emptyRows}
                 devices={entities.device ?? emptyRows}

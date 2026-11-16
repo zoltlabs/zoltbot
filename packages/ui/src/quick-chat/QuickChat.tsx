@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { composingKey } from "../chat/composer-editing.js";
 import { Markdown } from "../chat/Markdown.js";
 import { MessageDetails } from "../chat/MessageDetails.js";
-import { Button, Chip, Dialog, Field, IconButton, Select } from "../components/primitives.js";
+import { Button, Chip, Dialog, IconButton, Select } from "../components/primitives.js";
 import { Icon } from "../shell/icons.js";
 import { useShell } from "../state.js";
 import { ContextPicker } from "./ContextPicker.js";
@@ -278,26 +278,6 @@ export default function QuickChat({ connection }: { connection: QuickConnectionP
             </Button>
           }
         >
-          {selected ? (
-            <div className="quick-model-row">
-              <Field label="Model">
-                <Select
-                  value={selection?.model ?? ""}
-                  onChange={(event) => choose(selected.id, event.target.value)}
-                >
-                  {models.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <p className="quick-muted">
-                Used by {selected.label} for new messages.{" "}
-                {billingLabel({ ...selected, hostName: selected.host.name })}.
-              </p>
-            </div>
-          ) : null}
           {showConnections ? (
             <QuickConnections
               connection={connection}
@@ -454,6 +434,23 @@ export default function QuickChat({ connection }: { connection: QuickConnectionP
               >
                 {selected.label}
               </span>
+            ) : null}
+            {selected ? (
+              <div className="quick-model-picker">
+                <span className="sr-only">Model</span>
+                <Select
+                  aria-label="Model"
+                  value={selection?.model ?? ""}
+                  disabled={sending || !!streaming || !online || !models.length}
+                  onChange={(event) => choose(selected.id, event.target.value)}
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             ) : null}
             <ContextPicker
               connection={connection}

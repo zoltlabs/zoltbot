@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { ProviderAccess } from "../chat/ProviderAccess.js";
 import type { ChatConnection } from "../chat/types.js";
 import {
   capabilityRows,
@@ -46,9 +47,6 @@ export default function Doctor({
       <header className="doctor-heading">
         <div>
           <h2>Coding agents</h2>
-          <p className="dim">
-            See which coding tools are connected and check your local workspace.
-          </p>
         </div>
         <div className="r wrap">
           <button className="btn" type="button" onClick={onSetup}>
@@ -66,9 +64,7 @@ export default function Doctor({
       </header>
       {pending ? (
         <output className="doctor-status">
-          {scan.isPending
-            ? "Checking installed tools and login state. No model prompt is sent."
-            : "Loading diagnostics…"}
+          {scan.isPending ? "Checking installed tools…" : "Loading diagnostics…"}
         </output>
       ) : null}
       {report.isError || scan.isError ? (
@@ -78,10 +74,7 @@ export default function Doctor({
         </p>
       ) : null}
       {report.dataUpdatedAt ? (
-        <p className="sm dim">
-          Last report: {new Date(report.dataUpdatedAt).toLocaleTimeString()}. Run the scan again
-          after changing an install.
-        </p>
+        <p className="sm dim">Updated {new Date(report.dataUpdatedAt).toLocaleTimeString()}</p>
       ) : null}
       {agents.length ? (
         <div className="doctor-agents">
@@ -92,6 +85,9 @@ export default function Doctor({
               ? install.candidates.map(record)
               : [];
             const runtime = record(agent.runtime);
+            const profile = connection.snapshot.entities.agent?.find(
+              (row) => row.definitionId === agent.definitionId && !row.archived && !row.hidden,
+            );
             return (
               <article
                 className="card doctor-tool"
@@ -100,41 +96,53 @@ export default function Doctor({
               >
                 <header>
                   <h3>{label(agent.displayName)}</h3>
-                  <span className="chip">{loginLabel(agent.login)}</span>
+                  <span className="chip">
+                    {typeof selected.path === "string" ? loginLabel(agent.login) : "Not installed"}
+                  </span>
                 </header>
-                <dl className="doctor-facts">
-                  <div>
-                    <dt>Install</dt>
-                    <dd>
-                      {typeof selected.path === "string" ? (
-                        <>
-                          <code>{selected.path}</code>
-                          <br />
-                          {label(selected.version, "Version unknown")} ·{" "}
-                          {supportLabel(selected.support)}
-                        </>
-                      ) : agent.unavailableReason === "unverified_integration" ? (
-                        "Integration not verified"
-                      ) : (
-                        "Not found"
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Runtime</dt>
-                    <dd>{stateLabel(runtime.state)}</dd>
-                  </div>
-                  <div>
-                    <dt>Host tools</dt>
-                    <dd>{stateLabel(agent.hostTools)}</dd>
-                  </div>
-                  {agent.overridden === true ? (
+                {profile && record(agent.login).state !== "signed_in" ? (
+                  <ProviderAccess
+                    connection={connection}
+                    profileId={String(profile.id)}
+                    provider={label(agent.definitionId)}
+                  />
+                ) : null}
+                <details>
+                  <summary>Installation details</summary>
+                  <dl className="doctor-facts">
                     <div>
-                      <dt>Definition</dt>
-                      <dd>User override</dd>
+                      <dt>Install</dt>
+                      <dd>
+                        {typeof selected.path === "string" ? (
+                          <>
+                            <code>{selected.path}</code>
+                            <br />
+                            {label(selected.version, "Version unknown")} ·{" "}
+                            {supportLabel(selected.support)}
+                          </>
+                        ) : agent.unavailableReason === "unverified_integration" ? (
+                          "Integration not verified"
+                        ) : (
+                          "Not found"
+                        )}
+                      </dd>
                     </div>
-                  ) : null}
-                </dl>
+                    <div>
+                      <dt>Runtime</dt>
+                      <dd>{stateLabel(runtime.state)}</dd>
+                    </div>
+                    <div>
+                      <dt>Host tools</dt>
+                      <dd>{stateLabel(agent.hostTools)}</dd>
+                    </div>
+                    {agent.overridden === true ? (
+                      <div>
+                        <dt>Definition</dt>
+                        <dd>User override</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </details>
                 {candidates.length > 1 ||
                 candidates.some((candidate) => candidate.state === "broken") ? (
                   <details>

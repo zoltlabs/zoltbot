@@ -2,7 +2,7 @@ import type { Connection } from "@zoltbot/protocol";
 import { terms } from "@zoltbot/protocol";
 import { useCallback, useEffect, useId, useState } from "react";
 import type { Row } from "../chat/types.js";
-import { Button, Field, Input } from "../components/primitives.js";
+import { Button, Chip, Dialog, Field, Input } from "../components/primitives.js";
 
 import { AppCatalog } from "./AppCatalog.js";
 import { ConnectionSignIn } from "./ConnectionSignIn.js";
@@ -40,6 +40,8 @@ export function Connections({
   const id = useId();
   const [items, setItems] = useState<Connection[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -52,10 +54,14 @@ export function Connections({
   const [confirmAccess, setConfirmAccess] = useState(false);
   const [disconnect, setDisconnect] = useState<{ item: Connection; sessionIds: string[] }>();
   const [stopSessions, setStopSessions] = useState(false);
-  const reload = useCallback(
-    async () => setItems(((await call("connection.list", {})) as { items: Connection[] }).items),
-    [call],
-  );
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      setItems(((await call("connection.list", {})) as { items: Connection[] }).items);
+    } finally {
+      setLoading(false);
+    }
+  }, [call]);
   const connected = useCallback(async () => {
     await reload();
     setSelected(undefined);
@@ -82,27 +88,48 @@ export function Connections({
       className="zb-card settings-panel connections-settings"
       aria-labelledby={`${id}-title`}
     >
-      <h2 id={`${id}-title`}>Connections</h2>
-      <p className="settings-hint">
-        Choose which MCP servers profiles can use. Running sessions keep the versions attached at
-        start.
-      </p>
+      <div className="connections-heading">
+        <h2 id={`${id}-title`}>Connected apps</h2>
+        <Button disabled={!online} onClick={() => setCatalogOpen(true)}>
+          Add app
+        </Button>
+      </div>
       <output id={`${id}-status`} aria-live="polite">
         {busy
           ? "Saving connection…"
           : !online
-            ? "Connect to the daemon to make changes."
-            : "Changes apply to new sessions."}
+            ? "Reconnect to your host to manage apps."
+            : loading
+              ? "Loading connections…"
+              : ""}
       </output>
-      {error ? <p role="alert">{error}</p> : null}
-      <AppCatalog
-        call={call}
-        projects={projects}
-        profiles={profiles}
-        online={online}
-        onChanged={reload}
-      />
-      <h3>Connected and installed</h3>
+      {error ? (
+        <div role="alert">
+          <p>{error}</p>
+          <Button
+            disabled={unavailable}
+            onClick={() => {
+              setError("");
+              void reload().catch(() =>
+                setError("Could not load connections. Check your host and retry."),
+              );
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      ) : null}
+      <Dialog open={catalogOpen} title="Add app" onClose={() => setCatalogOpen(false)}>
+        {catalogOpen ? (
+          <AppCatalog
+            call={call}
+            projects={projects}
+            profiles={profiles}
+            online={online}
+            onChanged={reload}
+          />
+        ) : null}
+      </Dialog>
       <ul aria-label="Installed connections">
         {items.map((item) => (
           <li key={item.id}>
@@ -111,33 +138,35 @@ export function Connections({
               onClick={() => {
                 setSelected(item);
                 setConfirmAccess(false);
+                setConfirmExecution(false);
               }}
             >
               {serviceName(item.source) ?? item.name}
             </Button>
-            <span>
-              {" "}
-              · {item.enabled ? labels[item.credentialStatus] : "Disabled"} · v{item.version} ·{" "}
-              {item.health === "not_checked" ? "Not checked" : item.health}
+            <Chip
+              tone={
+                item.enabled && item.credentialStatus === "needs_sign_in" ? "attention" : "neutral"
+              }
+            >
+              {!item.enabled
+                ? "Disabled"
+                : item.credentialStatus === "needs_sign_in"
+                  ? "Sign in needed"
+                  : item.health === "unavailable"
+                    ? "Check connection"
+                    : labels[item.credentialStatus]}
+            </Chip>
+            <span className="connection-scope">
+              {String(
+                projects.find((project) => project.id === item.projectId)?.name ?? "Workspace",
+              )}
             </span>
-            <p className="settings-hint">
-              {serviceName(item.source)
-                ? `${String(projects.find((p) => p.id === item.projectId)?.name ?? "Workspace")} · ${item.name}`
-                : item.source}{" "}
-              ·{" "}
-              {item.transport.kind === "https"
-                ? serviceName(item.source)
-                  ? new URL(item.transport.url).host + new URL(item.transport.url).pathname
-                  : new URL(item.transport.url).host
-                : "Local command"}{" "}
-              · {item.profileIds.length} profiles
-            </p>
           </li>
         ))}
       </ul>
-      {!items.length ? <p>No connections yet. Choose an app above or add an MCP server.</p> : null}
+      {!items.length && !loading && !error && online ? <p>No apps connected.</p> : null}
       <details>
-        <summary>Advanced MCP · Add or import a server</summary>
+        <summary>Add MCP server</summary>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -236,12 +265,12 @@ export function Connections({
                 ))}
             </select>
           </Field>
-          <Button type="submit" aria-disabled={unavailable} aria-describedby={`${id}-status`}>
-            Add disabled connection
+          <Button type="submit" disabled={unavailable} aria-describedby={`${id}-status`}>
+            Add server
           </Button>
         </form>
         <Button
-          aria-disabled={unavailable || !projectId}
+          disabled={unavailable || !projectId}
           onClick={() => {
             if (!projectId) {
               setError("Choose a project before importing detected configuration.");
@@ -252,177 +281,194 @@ export function Connections({
             });
           }}
         >
-          Import detected HTTPS configuration as disabled
+          Import detected servers
         </Button>
       </details>
       {selected ? (
-        <section aria-label={`Access for ${selected.name}`}>
-          <h3>{serviceName(selected.source) ?? selected.name} · Profile access</h3>
-          {selected.transport.kind === "https" ? (
-            <ConnectionSignIn
-              key={selected.id}
-              connectionId={selected.id}
-              service={serviceName(selected.source)}
-              call={call}
-              onConnected={connected}
-            />
-          ) : (
-            <label>
-              <input
-                type="checkbox"
-                checked={confirmExecution}
-                onChange={(e) => setConfirmExecution(e.target.checked)}
-              />{" "}
-              I approve running {selected.transport.command} with these literal arguments when a
-              native session starts.
-            </label>
-          )}
-          <p>
-            Only selected {terms.profile.many} in this {terms.workspace.one} can use this connection
-            with a supported provider.
-          </p>
-          <label>
-            <input
-              type="checkbox"
-              checked={selected.enabled}
-              onChange={(e) => setSelected({ ...selected, enabled: e.target.checked })}
-            />{" "}
-            Enabled for new sessions
-          </label>
-          <fieldset>
-            <legend>Profiles that can use this</legend>
-            {profiles
-              .filter((p) => !p.archived)
-              .map((profile) => (
-                <label key={String(profile.id)}>
-                  <input
-                    type="checkbox"
-                    checked={selected.profileIds.includes(String(profile.id))}
-                    onChange={(e) =>
-                      setSelected({
-                        ...selected,
-                        profileIds: e.target.checked
-                          ? [...selected.profileIds, String(profile.id)]
-                          : selected.profileIds.filter((p) => p !== profile.id),
-                      })
-                    }
-                  />
-                  {String(profile.name)}
-                </label>
-              ))}
-          </fieldset>
-          <label>
-            <input
-              type="checkbox"
-              checked={confirmAccess}
-              onChange={(e) => setConfirmAccess(e.target.checked)}
-            />{" "}
-            I approve giving these profiles access to this server’s tools.
-          </label>
-          <Button
-            aria-disabled={unavailable}
-            onClick={() =>
-              void run(async () => {
-                const saved = await call(
-                  "connection.save",
-                  {
-                    value: selected,
-                    expectedVersion: selected.version,
-                    confirmed: confirmAccess,
-                    executionConfirmed: confirmExecution,
-                  },
-                  crypto.randomUUID(),
-                );
-                setSelected(saved as Connection);
-                setConfirmAccess(false);
-              })
-            }
-          >
-            Save access
-          </Button>
-          <Button
-            aria-disabled={unavailable}
-            onClick={() =>
-              void run(async () => {
-                await call("connection.test", { id: selected.id }, crypto.randomUUID());
-                setSelected(undefined);
-              })
-            }
-          >
-            Test connection
-          </Button>
-          <Button
-            aria-disabled={unavailable}
-            onClick={() =>
-              void run(async () => {
-                const result = (await call("connection.affectedSessions", { id: selected.id })) as {
-                  sessionIds: string[];
-                };
-                setDisconnect({ item: selected, ...result });
-                setStopSessions(false);
-              })
-            }
-          >
-            Disconnect…
-          </Button>
-          <Button onClick={() => setSelected(undefined)}>Close details</Button>
-        </section>
-      ) : null}
-      {disconnect ? (
-        <section aria-label="Confirm disconnect">
-          <h3>Disconnect {disconnect.item.name}?</h3>
-          <p>New sessions lose access. This does not revoke authorization at the remote service.</p>
-          {disconnect.sessionIds.length ? (
-            <>
-              <p>{disconnect.sessionIds.length} native sessions received this connection:</p>
-              <ul>
-                {disconnect.sessionIds.map((session) => (
-                  <li key={session}>{session}</li>
-                ))}
-              </ul>
+        <Dialog
+          open
+          title={serviceName(selected.source) ?? selected.name}
+          onClose={() => {
+            if (!busy) setSelected(undefined);
+          }}
+        >
+          <div className="connection-details">
+            {error ? <p role="alert">{error}</p> : null}
+            <p className="settings-hint">Changes apply to new sessions.</p>
+            {selected.transport.kind === "https" ? (
+              <ConnectionSignIn
+                key={selected.id}
+                connectionId={selected.id}
+                service={serviceName(selected.source)}
+                call={call}
+                onConnected={connected}
+              />
+            ) : (
               <label>
                 <input
                   type="checkbox"
-                  checked={stopSessions}
-                  onChange={(e) => setStopSessions(e.target.checked)}
+                  checked={confirmExecution}
+                  onChange={(e) => setConfirmExecution(e.target.checked)}
                 />{" "}
-                Stop these sessions and disconnect
+                I approve running {selected.transport.command} with these literal arguments when a
+                native session starts.
               </label>
-            </>
-          ) : (
-            <p>No active native sessions received this connection.</p>
-          )}
-          <Button
-            variant="danger"
-            aria-disabled={unavailable || (disconnect.sessionIds.length > 0 && !stopSessions)}
-            onClick={() => {
-              if (disconnect.sessionIds.length && !stopSessions) return;
-              void run(async () => {
-                await call(
-                  "connection.disconnect",
-                  {
-                    id: disconnect.item.id,
-                    confirmed: true,
-                    stopSessions,
-                    expectedVersion: disconnect.item.version,
-                    expectedSessionIds: disconnect.sessionIds,
-                  },
-                  crypto.randomUUID(),
-                );
-                setDisconnect(undefined);
-                setSelected(undefined);
-              });
-            }}
-          >
-            Confirm disconnect
-          </Button>
-          <Button onClick={() => setDisconnect(undefined)}>Cancel</Button>
-        </section>
+            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={selected.enabled}
+                onChange={(e) => setSelected({ ...selected, enabled: e.target.checked })}
+              />{" "}
+              Enabled for new sessions
+            </label>
+            <fieldset>
+              <legend>Profiles that can use this</legend>
+              {profiles
+                .filter((p) => !p.archived)
+                .map((profile) => (
+                  <label key={String(profile.id)}>
+                    <input
+                      type="checkbox"
+                      checked={selected.profileIds.includes(String(profile.id))}
+                      onChange={(e) =>
+                        setSelected({
+                          ...selected,
+                          profileIds: e.target.checked
+                            ? [...selected.profileIds, String(profile.id)]
+                            : selected.profileIds.filter((p) => p !== profile.id),
+                        })
+                      }
+                    />
+                    {String(profile.name)}
+                  </label>
+                ))}
+            </fieldset>
+            <label>
+              <input
+                type="checkbox"
+                checked={confirmAccess}
+                onChange={(e) => setConfirmAccess(e.target.checked)}
+              />{" "}
+              I approve giving these profiles access to this server’s tools.
+            </label>
+            <Button
+              disabled={unavailable}
+              onClick={() =>
+                void run(async () => {
+                  const saved = await call(
+                    "connection.save",
+                    {
+                      value: selected,
+                      expectedVersion: selected.version,
+                      confirmed: confirmAccess,
+                      executionConfirmed: confirmExecution,
+                    },
+                    crypto.randomUUID(),
+                  );
+                  setSelected(saved as Connection);
+                  setConfirmAccess(false);
+                })
+              }
+            >
+              Save access
+            </Button>
+            <Button
+              disabled={unavailable}
+              onClick={() =>
+                void run(async () => {
+                  await call("connection.test", { id: selected.id }, crypto.randomUUID());
+                  setSelected(undefined);
+                })
+              }
+            >
+              Test connection
+            </Button>
+            <Button
+              disabled={unavailable}
+              onClick={() =>
+                void run(async () => {
+                  const result = (await call("connection.affectedSessions", {
+                    id: selected.id,
+                  })) as {
+                    sessionIds: string[];
+                  };
+                  setDisconnect({ item: selected, ...result });
+                  setStopSessions(false);
+                })
+              }
+            >
+              Disconnect…
+            </Button>
+            <Button disabled={busy} onClick={() => setSelected(undefined)}>
+              Done
+            </Button>
+          </div>
+        </Dialog>
       ) : null}
-      <p className="settings-hint">
-        Catalog apps use browser sign-in when their service registration is enabled. Advanced MCP
-        remains available for other services.
-      </p>
+      {disconnect ? (
+        <Dialog
+          open
+          title={`Disconnect ${disconnect.item.name}?`}
+          onClose={() => {
+            if (!busy) setDisconnect(undefined);
+          }}
+        >
+          <div className="connection-details">
+            {error ? <p role="alert">{error}</p> : null}
+            <p>
+              New sessions lose access. This does not revoke authorization at the remote service.
+            </p>
+            {disconnect.sessionIds.length ? (
+              <>
+                <p>{disconnect.sessionIds.length} native sessions received this connection:</p>
+                <ul>
+                  {disconnect.sessionIds.map((session) => (
+                    <li key={session}>{session}</li>
+                  ))}
+                </ul>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={stopSessions}
+                    onChange={(e) => setStopSessions(e.target.checked)}
+                  />{" "}
+                  Stop these sessions and disconnect
+                </label>
+              </>
+            ) : (
+              <p>No active native sessions received this connection.</p>
+            )}
+            <Button
+              variant="danger"
+              disabled={unavailable || (disconnect.sessionIds.length > 0 && !stopSessions)}
+              onClick={() => {
+                if (disconnect.sessionIds.length && !stopSessions) return;
+                void run(async () => {
+                  await call(
+                    "connection.disconnect",
+                    {
+                      id: disconnect.item.id,
+                      confirmed: true,
+                      stopSessions,
+                      expectedVersion: disconnect.item.version,
+                      expectedSessionIds: disconnect.sessionIds,
+                    },
+                    crypto.randomUUID(),
+                  );
+                  setDisconnect(undefined);
+                  setSelected(undefined);
+                });
+              }}
+            >
+              Confirm disconnect
+            </Button>
+            <Button disabled={busy} onClick={() => setDisconnect(undefined)}>
+              Cancel
+            </Button>
+          </div>
+        </Dialog>
+      ) : null}
     </section>
   );
 }

@@ -23,13 +23,21 @@ export function ForkControl({
   connection,
   threadId,
   title,
+  initiallyOpen = false,
+  onClose,
 }: {
   connection: ChatConnection;
   threadId: string;
   title: string;
+  initiallyOpen?: boolean;
+  onClose?(): void;
 }) {
   const call = connection.call;
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(initiallyOpen);
+  const setOpen = (value: boolean) => {
+    setOpenState(value);
+    if (!value) onClose?.();
+  };
   const [name, setName] = useState("");
   const [preview, setPreview] = useState<Row>();
   const [destinations, setDestinations] = useState<Row[]>([]);
@@ -126,14 +134,16 @@ export function ForkControl({
   }
   return (
     <>
-      <button
-        className="btn sm"
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={connection.status !== "online"}
-      >
-        Fork conversation
-      </button>
+      {!initiallyOpen ? (
+        <button
+          className="btn sm"
+          type="button"
+          onClick={() => setOpen(true)}
+          disabled={connection.status !== "online"}
+        >
+          Fork conversation
+        </button>
+      ) : null}
       {open ? (
         <Dialog
           open

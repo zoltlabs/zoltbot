@@ -353,3 +353,82 @@
   background: var(--zb-danger-soft);
   color: var(--zb-danger);
 }
+
+/* Keep identity, work status and secondary actions in separate, wrapping groups. */
+.chat-header {
+  height: auto;
+  min-height: var(--zb-header-height);
+  flex-wrap: wrap;
+  padding-block: var(--zb-space-2);
+}
+.chat-title {
+  flex: 1 1 14rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--zb-space-0-5);
+  overflow-wrap: anywhere;
+}
+.chat-title h1 {
+  margin: 0;
+  white-space: normal;
+  overflow: visible;
+  font-weight: var(--zb-weight-medium);
+}
+.chat-title .chat-place {
+  max-width: 100%;
+  font-size: var(--zb-text-sm);
+  line-height: var(--zb-leading-sm);
+}
+.chat-header > .sp {
+  display: none;
+}
+.chat-header > .zb-float-root {
+  flex: none;
+}
+.chat-request-jump {
+  white-space: normal;
+}
+.chat-execution-controls,
+.chat-model-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.chat-execution-controls {
+  padding-block-start: var(--zb-space-2);
+}
+.chat-model-field,
+.chat-model-field select,
+.quick-model-picker,
+.quick-model-picker select {
+  min-width: 0;
+  max-width: 100%;
+}
+.chat-agent-name,
+.chat-model-managed {
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+.chat-model-controls .chat-mode-error {
+  flex-basis: 100%;
+}
+.chat-recovery-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.chat-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  flex: none;
+}
+.chat-session-banner {
+  flex-wrap: wrap;
+}
+.chat-recovery-content .chat-context-section {
+  padding-inline: 0;
+}

@@ -40,9 +40,6 @@ export function AccountSettings() {
   return (
     <section className="zb-card settings-panel">
       <h2>Account</h2>
-      <p className="settings-hint">
-        Sign in for your Zoltbot account. Your local projects stay on this Mac.
-      </p>
       {error && <p role="alert">{error}</p>}
       {!status && !error && <output>Checking account…</output>}
       {status && !status.configured && <p>Online accounts are not configured in this build.</p>}
