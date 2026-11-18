@@ -49,6 +49,7 @@ export function CreationForm({
 }) {
   const label = useId(),
     nameRef = useRef<HTMLInputElement>(null),
+    folderPickerRef = useRef<HTMLButtonElement>(null),
     profileRef = useRef<HTMLSelectElement>(null);
   const [name, setName] = useState(""),
     [folder, setFolder] = useState(""),
@@ -64,6 +65,7 @@ export function CreationForm({
     else nameRef.current?.focus();
   }, [mode]);
   const needsProfile = mode === "manager" || mode === "chat";
+  const canPickFolder = !!window.zoltDesktop?.pickFolders;
   return (
     <form
       className="card scope-form"
@@ -202,41 +204,77 @@ export function CreationForm({
       ) : null}
       {mode === "workspace" ? (
         <>
-          <label htmlFor={`${label}-folder`}>Code folder (optional)</label>
-          <input
-            id={`${label}-folder`}
-            value={folder}
-            disabled={pending || picking}
-            placeholder="/absolute/path/to/code"
-            onChange={(event) => setFolder(event.target.value)}
-          />
-          <p className="dim sm">
-            Leave this empty to give each {chat.one} a private app folder. {team.Many} inherit this{" "}
-            {workspace.one}’s selected code folder.
+          {canPickFolder ? (
+            <span className="dim">Code folder (optional)</span>
+          ) : (
+            <label htmlFor={`${label}-folder`}>Code folder (optional)</label>
+          )}
+          {canPickFolder ? (
+            <>
+              <button
+                ref={folderPickerRef}
+                id={`${label}-folder`}
+                type="button"
+                className="btn"
+                aria-describedby={`${label}-folder-hint`}
+                disabled={pending}
+                aria-disabled={picking || undefined}
+                onClick={async () => {
+                  if (picking) return;
+                  setPicking(true);
+                  setError("");
+                  try {
+                    const selected = await window.zoltDesktop?.pickFolders?.();
+                    if (selected?.length === 1) setFolder(selected[0] ?? "");
+                    else if (selected?.length)
+                      setError(`Choose one code folder for this ${workspace.one}.`);
+                  } catch {
+                    setError("Could not choose a folder. Try again.");
+                  } finally {
+                    setPicking(false);
+                  }
+                }}
+              >
+                {picking
+                  ? "Choosing folder…"
+                  : folder
+                    ? "Change code folder"
+                    : "Choose code folder"}
+              </button>
+              <output
+                className="dim sm scope-root"
+                aria-label="Selected code folder"
+                hidden={!folder}
+              >
+                {folder}
+              </output>
+              {folder ? (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={pending || picking}
+                  onClick={() => {
+                    setFolder("");
+                    folderPickerRef.current?.focus();
+                  }}
+                >
+                  Clear code folder
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <input
+              id={`${label}-folder`}
+              value={folder}
+              disabled={pending}
+              placeholder="/absolute/path/to/code"
+              aria-describedby={`${label}-folder-hint`}
+              onChange={(event) => setFolder(event.target.value)}
+            />
+          )}
+          <p id={`${label}-folder-hint`} className="dim sm">
+            Without a code folder, each {chat.one} gets a private app folder.
           </p>
-          {window.zoltDesktop?.pickFolders ? (
-            <button
-              type="button"
-              className="btn"
-              disabled={pending || picking}
-              onClick={async () => {
-                setPicking(true);
-                setError("");
-                try {
-                  const selected = await window.zoltDesktop?.pickFolders?.();
-                  if (selected?.length === 1) setFolder(selected[0] ?? "");
-                  else if (selected?.length)
-                    setError(`Choose one code folder for this ${workspace.one}.`);
-                } catch {
-                  setError("Could not choose a folder. Enter its absolute path or try again.");
-                } finally {
-                  setPicking(false);
-                }
-              }}
-            >
-              {picking ? "Choosing folder…" : "Choose code folder"}
-            </button>
-          ) : null}
         </>
       ) : null}
       {needsProfile ? (

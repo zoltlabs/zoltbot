@@ -96,14 +96,6 @@ export default function Workspaces({ connection }: { connection: ChatConnection 
               Details
             </button>
           ) : null}
-          <button
-            type="button"
-            className="btn"
-            disabled={!online || !!creating}
-            onClick={(event) => begin("workspace", event.currentTarget)}
-          >
-            New {terms.workspace.one}
-          </button>
         </div>
       </header>
       {creating ? (
