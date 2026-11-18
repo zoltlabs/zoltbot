@@ -33,6 +33,7 @@
     "theme:mobile": "TSX_DISABLE_CACHE=1 node --import tsx apps/mobile/scripts/build-theme.ts",
     "test:results": "playwright test --config tests/results/playwright.config.ts",
     "test:shipping": "playwright test --config playwright.shipping.config.ts",
+    "test:sidebar": "playwright test --config playwright.sidebar.config.ts",
     "test:compare": "playwright test --config playwright.compare.config.ts",
     "postinstall": "node scripts/postinstall.mjs",
     "check:boundary": "node scripts/public-boundary.mjs",

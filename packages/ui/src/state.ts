@@ -3,10 +3,11 @@ import { create } from "zustand";
 import { needsOnboarding } from "./setup/onboarding-state.js";
 import type { WorkspaceScope } from "./workspaces/view.js";
 export const routes = ["Overview", "Inbox", "Tasks", "Routines", "Projects", "Sessions"] as const;
-/** Inbox is labelled "Needs you" in the sidebar, and Projects "Workspaces". */
+/** Inbox is labelled "Needs you" in the sidebar, and Projects "Repos". */
 export const navRoutes = ["Overview", "Inbox", "Tasks", "Routines"] as const;
 export const routeLabels: Partial<Record<Route, string>> = {
   Inbox: "Needs you",
+  Chief: "Zolt",
   Projects: terms.workspace.Many,
   Sessions: "All chats",
   Doctor: "Settings",
@@ -82,6 +83,10 @@ export const useShell = create<{
   /** The request the Inbox opens on, when it was opened from the Overview. */
   requestId: string | undefined;
   openRequest: (id: string) => void;
+  scopeCreation: { mode: "direction" | "chat"; scope: WorkspaceScope; key: number } | undefined;
+  beginScopeCreation(mode: "direction" | "chat", scope: WorkspaceScope): void;
+  workspaceCreation: number;
+  beginWorkspaceCreation(): void;
   scope: WorkspaceScope | undefined;
   openScope: (scope: WorkspaceScope) => void;
   openThread: (id: string) => void;
@@ -148,12 +153,26 @@ export const useShell = create<{
   route:
     typeof location !== "undefined" && !location.hash.slice(1) && needsOnboarding()
       ? "Setup"
-      : "Overview",
+      : "Chief",
   threadId: undefined,
   requestId: undefined,
   openRequest: (id) => {
     location.hash = "inbox";
     set({ route: "Inbox", requestId: id, palette: false });
+  },
+  scopeCreation: undefined,
+  beginScopeCreation: (mode, scope) => {
+    location.hash = `projects/${scope.type}/${encodeURIComponent(scope.id)}`;
+    set({ route: "Projects", scope, scopeCreation: { mode, scope, key: Date.now() } });
+  },
+  workspaceCreation: 0,
+  beginWorkspaceCreation: () => {
+    location.hash = "projects";
+    set((s) => ({
+      route: "Projects",
+      scope: undefined,
+      workspaceCreation: s.workspaceCreation + 1,
+    }));
   },
   scope: undefined,
   openScope: (scope) => {
@@ -175,7 +194,7 @@ export const useShell = create<{
   },
   palette: false,
   sidebar: true,
-  width: 240,
+  width: 280,
   navigate: (route) => {
     location.hash = route.toLowerCase();
     // The hash listener re-navigates to the current route, so keep the request it opened on.

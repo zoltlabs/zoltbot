@@ -7,15 +7,9 @@ import {
   createThreadActions,
 } from "../components/ChatRowActions.js";
 import { avatarHue } from "../components/identity.js";
-import { Chip, StatusDot, statusLabels } from "../components/primitives.js";
+import { Chip, IconButton, statusLabels } from "../components/primitives.js";
 import { Icon } from "../shell/icons.js";
-import {
-  type ChatStatus,
-  type RowStatus,
-  rowStatusLabels,
-  statusRank,
-  threadProject,
-} from "./activity.js";
+import { type ChatStatus, type RowStatus, rowStatusLabels, statusRank } from "./activity.js";
 import { chatTitle, unnamedManager } from "./manager-view.js";
 import { atScope, type WorkspaceScope } from "./view.js";
 import "./workspaces.css";
@@ -93,6 +87,8 @@ export const WorkspaceTree = memo(function WorkspaceTree({
   currentChat,
   onScope,
   onChat,
+  onNavigate,
+  onCreate,
 }: {
   projects: Row[];
   directions: Row[];
@@ -106,6 +102,8 @@ export const WorkspaceTree = memo(function WorkspaceTree({
   currentChat: string | undefined;
   onScope(scope: WorkspaceScope): void;
   onChat(id: string): void;
+  onNavigate?(): void;
+  onCreate?(mode: "direction" | "chat", scope: WorkspaceScope): void;
 }) {
   const [expansion, setExpansion] = useState<Record<string, boolean>>(() => {
       try {
@@ -118,6 +116,32 @@ export const WorkspaceTree = memo(function WorkspaceTree({
       }
     }),
     [expandedOlder, setExpandedOlder] = useState(new Set<string>());
+  // Reveal the active employee after navigation without preventing manual collapse.
+  useEffect(() => {
+    const thread = threads.find((row) => row.id === currentChat);
+    const scope = selected ?? (thread?.node as WorkspaceScope | undefined);
+    if (!scope?.id) return;
+    const keys = new Set<string>();
+    if (scope.type === "project") keys.add(`project:${scope.id}`);
+    else {
+      let id = scope.id;
+      while (id && !keys.has(`subproject:${id}`)) {
+        keys.add(`subproject:${id}`);
+        const row = directions.find((row) => row.id === id);
+        if (!row) break;
+        keys.add(`project:${text(row.projectId)}`);
+        id = text(row.parentId);
+      }
+    }
+    setExpansion((old) =>
+      [...keys].every((key) => old[key])
+        ? old
+        : {
+            ...old,
+            ...Object.fromEntries([...keys].map((key) => [key, true])),
+          },
+    );
+  }, [currentChat, selected, threads, directions]);
   const status = (thread: Row) => statuses.get(text(thread.id)) ?? "idle";
   const rowStatus = (thread: Row) => rows.get(text(thread.id)) ?? "idle";
   const hints = useJumpKeys(onChat);
@@ -160,6 +184,7 @@ export const WorkspaceTree = memo(function WorkspaceTree({
       (chat, index) =>
         showOlder ||
         index < visibleChats ||
+        chat.id === currentChat ||
         chat.kind === "manager" ||
         Boolean(chat.pinned) ||
         status(chat) !== "idle",
@@ -176,7 +201,7 @@ export const WorkspaceTree = memo(function WorkspaceTree({
       isSelected ||
       chats.some((chat) => chat.id === currentChat) ||
       children.some((child) => child.containsCurrent);
-    const expanded = expansion[key] ?? containsCurrent;
+    const expanded = expansion[key] ?? (containsCurrent || depth < 2);
     const view = (
       <li key={key}>
         <div className={`scope-tree-row${scope.type === "project" ? " project" : ""}`}>
@@ -205,7 +230,10 @@ export const WorkspaceTree = memo(function WorkspaceTree({
             type="button"
             className={`item scope-node${isSelected ? " on" : ""}`}
             aria-current={isSelected ? "page" : undefined}
-            onClick={() => onScope(scope)}
+            onClick={() => {
+              onScope(scope);
+              onNavigate?.();
+            }}
             title={text(row.name)}
             aria-description={needs ? `${needs} ${needs === 1 ? "needs" : "need"} you` : undefined}
           >
@@ -213,7 +241,9 @@ export const WorkspaceTree = memo(function WorkspaceTree({
               <span className={`scope-project-mark h${avatarHue(scope.id)}`} aria-hidden="true">
                 {projectInitial(text(row.name))}
               </span>
-            ) : null}
+            ) : (
+              <Icon name="Projects" size="sm" />
+            )}
             <bdi className="truncate grow">{text(row.name)}</bdi>
             {needs ? (
               <span aria-hidden="true">
@@ -225,9 +255,27 @@ export const WorkspaceTree = memo(function WorkspaceTree({
               </span>
             ) : null}
           </button>
+          {onCreate ? (
+            <span className="scope-add">
+              <IconButton
+                icon="Plus"
+                size="sm"
+                label={
+                  scope.type === "project"
+                    ? `Add project to ${text(row.name)}`
+                    : `Add employee to ${text(row.name)}`
+                }
+                onClick={() => onCreate(scope.type === "project" ? "direction" : "chat", scope)}
+              />
+            </span>
+          ) : null}
         </div>
         {expandable && expanded ? (
           <ul>
+            {children.map((child) => child.view)}
+            {scope.type === "project" && shown.length ? (
+              <li className="scope-repo-chats-label">Repo chats</li>
+            ) : null}
             {shown.map((chat) => {
               const id = text(chat.id),
                 current = currentChat === id,
@@ -259,6 +307,7 @@ export const WorkspaceTree = memo(function WorkspaceTree({
                       onClick={() => {
                         onScope(scope);
                         onChat(id);
+                        onNavigate?.();
                       }}
                       title={title}
                       data-chat={id}
@@ -270,10 +319,12 @@ export const WorkspaceTree = memo(function WorkspaceTree({
                         .join(", ")
                         .toLowerCase()}
                     >
-                      <StatusDot
-                        status={rowStatus(chat) === "failed" ? "error" : status(chat)}
-                        label={false}
-                      />
+                      <span
+                        className={`scope-employee-avatar h${avatarHue(id)}`}
+                        aria-hidden="true"
+                      >
+                        {projectInitial(title)}
+                      </span>
                       <bdi className="truncate grow">{title}</bdi>
                       {badge ? (
                         <span className="scope-lead" aria-hidden="true">
@@ -308,26 +359,16 @@ export const WorkspaceTree = memo(function WorkspaceTree({
                 </button>
               </li>
             ) : null}
-            {children.map((child) => child.view)}
           </ul>
         ) : null}
       </li>
     );
     return { view, needs, containsCurrent };
   }
-  // Workspaces with the most recent chat activity come first, as in the launch rule.
-  const latest = new Map<string, string>();
-  for (const thread of threads) {
-    const id = threadProject(thread, directions),
-      at = text(thread.lastActivityAt);
-    if (id && at > (latest.get(id) ?? "")) latest.set(id, at);
-  }
-  const recency = (row: Row) => latest.get(text(row.id)) ?? text(row.createdAt);
+  // Stable ordering keeps repository rows from jumping while employees report progress.
   const active = projects
     .filter((row) => !row.archived)
-    .sort(
-      (a, b) => recency(b).localeCompare(recency(a)) || text(a.name).localeCompare(text(b.name)),
-    );
+    .sort((a, b) => text(a.name).localeCompare(text(b.name)));
   return active.length ? (
     <ul className="scope-tree">
       {active
@@ -335,8 +376,6 @@ export const WorkspaceTree = memo(function WorkspaceTree({
         .map((project) => node({ type: "project", id: text(project.id) }, project, 0).view)}
     </ul>
   ) : (
-    <p className="tree-empty">
-      Your {terms.workspace.many}, {terms.team.many} and {terms.chat.many} will appear here.
-    </p>
+    <p className="tree-empty">Add a repo to build your team.</p>
   );
 });

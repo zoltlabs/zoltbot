@@ -64,7 +64,8 @@ export function CommandPalette({ entities }: { entities: Record<string, Row[] | 
           label: String(row.name),
           run: () => useShell.getState().openView(String(row.id)),
         })),
-      { key: "page:quick", icon: "Sessions", label: "Quick chat", run: () => openQuickChat() },
+      { key: "page:chief", icon: "Chief", label: "Zolt", run: () => navigate("Chief") },
+      { key: "page:quick", icon: "Sessions", label: "Other chats", run: () => openQuickChat() },
       ...[...routes, "Settings", "Doctor", "Rules"].map((name) => ({
         key: `page:${name}`,
         icon: name === "Doctor" || name === "Rules" ? "Settings" : name,

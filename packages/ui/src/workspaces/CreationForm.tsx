@@ -9,13 +9,13 @@ const titles = {
   workspace: `New ${workspace.one}`,
   direction: `New ${team.one}`,
   manager: `Assign ${manager.one}`,
-  chat: `New ${chat.one}`,
+  chat: "Add employee",
 };
 const actions = {
   workspace: `Create ${workspace.one}`,
   direction: `Create ${team.one}`,
   manager: `Save ${manager.one}`,
-  chat: `Create ${chat.one}`,
+  chat: "Add employee",
 };
 const errors: Record<string, string> = {
   manager_already_assigned: `This ${team.one} already has a ${manager.one}.`,
@@ -187,7 +187,7 @@ export function CreationForm({
               ? `${workspace.One} name`
               : mode === "direction"
                 ? `${team.One} name`
-                : `${chat.One} title`}
+                : "Employee name"}
           </label>
           <input
             ref={nameRef}

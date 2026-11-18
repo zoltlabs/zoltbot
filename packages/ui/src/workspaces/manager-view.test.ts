@@ -83,9 +83,9 @@ it("orders the manager's starting context from workspace to profile, skipping bl
     profiles[0],
   );
   expect(layers.map((layer) => `${layer.source}:${layer.name}`)).toEqual([
-    "Workspace:Company",
-    "Team:Marketing",
-    "Team:Paid ads",
+    "Repo:Company",
+    "Project:Marketing",
+    "Project:Paid ads",
     "Profile:Planner",
   ]);
   expect(layers[0]?.parts).toEqual([

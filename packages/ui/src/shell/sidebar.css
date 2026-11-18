@@ -1,0 +1,181 @@
+/* One primary chat, then the repository tree. Only the tree scrolls. */
+.workspace-sidebar {
+  gap: var(--zb-space-6);
+  padding: var(--zb-space-4) var(--zb-space-3) var(--zb-space-3);
+  overflow: visible;
+}
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  flex: none;
+}
+.sidebar-zolt {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-3);
+  flex: 1;
+  min-width: 0;
+  min-height: var(--zb-control-lg);
+  padding: var(--zb-space-2);
+  border: 0;
+  border-radius: var(--zb-radius-md);
+  background: transparent;
+  color: var(--zb-text);
+  font-size: var(--zb-text-lg);
+  font-weight: var(--zb-weight-semibold);
+  text-align: start;
+}
+.sidebar-zolt:hover,
+.sidebar-zolt.on,
+.sidebar-inbox:hover,
+.sidebar-inbox.on,
+.sidebar-settings:hover {
+  background: var(--zb-bg-selected);
+}
+.sidebar-zolt img {
+  flex: none;
+}
+.sidebar-zolt .grow {
+  overflow-wrap: anywhere;
+}
+.sidebar-repos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  gap: var(--zb-space-2);
+}
+.sidebar-repos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-2);
+  padding-inline: var(--zb-space-2);
+}
+.sidebar-repos-heading > button {
+  min-height: var(--zb-control-sm);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  font-weight: var(--zb-weight-medium);
+}
+.workspace-sidebar .sidebar-repo-list {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--zb-space-1);
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.sidebar-bottom {
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  margin-top: 0;
+}
+.sidebar-inbox,
+.sidebar-settings {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  min-height: var(--zb-control-md);
+  padding: var(--zb-space-2);
+  border: 0;
+  border-radius: var(--zb-radius-sm);
+  background: transparent;
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-sm);
+  text-align: start;
+}
+.sidebar-utilities {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-2);
+}
+.sidebar-settings {
+  flex: 1;
+}
+.sidebar-utilities .zb-menu {
+  top: auto;
+  bottom: calc(100% + var(--zb-space-2));
+  right: 0;
+  max-height: 60dvh;
+  overflow: auto;
+}
+.sidebar-collapsed .sidebar-top,
+.sidebar-collapsed .sidebar-utilities {
+  flex-direction: column;
+}
+.sidebar-collapsed .sidebar-zolt,
+.sidebar-collapsed .sidebar-inbox,
+.sidebar-collapsed .sidebar-settings {
+  padding-inline: 0;
+  justify-content: center;
+}
+.sidebar-collapsed .sidebar-inbox .zb-chip {
+  display: none;
+}
+.sidebar-collapsed .sidebar-bottom {
+  margin-top: auto;
+}
+.sidebar-collapsed .sidebar-utilities .zb-menu {
+  left: 100%;
+  right: auto;
+}
+/* Nesting uses a single indentation step and a quiet avatar for each employee. */
+.sidebar-repo-list .scope-tree > li + li {
+  margin-top: var(--zb-space-4);
+}
+.sidebar-repo-list .scope-tree ul {
+  padding-inline-start: var(--zb-space-3);
+}
+.sidebar-repo-list .scope-node,
+.sidebar-repo-list .scope-chat {
+  height: auto;
+  min-height: var(--zb-control-md);
+  padding-block: var(--zb-space-2);
+}
+.sidebar-repo-list .scope-chat .truncate,
+.sidebar-repo-list .scope-node .truncate {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.scope-add {
+  flex: none;
+  opacity: 0;
+}
+.scope-tree-row:hover .scope-add,
+.scope-tree-row:focus-within .scope-add {
+  opacity: 1;
+}
+@media (hover: none) {
+  .scope-add {
+    opacity: 1;
+  }
+}
+.scope-employee-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--zb-control-xs);
+  height: var(--zb-control-xs);
+  min-width: var(--zb-space-5);
+  min-height: var(--zb-space-5);
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius-sm);
+  background: var(--zb-bg-raised);
+  color: var(--zb-text-secondary);
+  font-size: var(--zb-text-xs);
+  font-weight: var(--zb-weight-medium);
+}
+.scope-repo-chats-label {
+  padding: var(--zb-space-2) var(--zb-space-1-5) var(--zb-space-1);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-xs);
+}

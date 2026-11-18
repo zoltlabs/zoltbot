@@ -6,7 +6,16 @@ import {
   parse,
   terms,
 } from "@zoltbot/protocol";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { artifactRevisionAvailable } from "../artifacts/OutputControl.js";
 import { CompareCeiling } from "../compare/CompareCeiling.js";
 import { ThreadLetters } from "../inbox/ThreadLetters.js";
@@ -47,6 +56,7 @@ import {
   PropertyList,
   SectionLabel,
 } from "../components/primitives.js";
+import { SidebarControlContext } from "../shell/Sidebar.js";
 import { useShell } from "../state.js";
 import { scopeLabel } from "../workspaces/activity.js";
 import { emptyRows } from "../workspaces/view.js";
@@ -76,6 +86,7 @@ export default function Chat({
   const setArtifactTarget = (target: ArtifactTarget | undefined) =>
     setTargetSelection(target ? { threadId, target } : undefined);
   const onRevise = artifactRevisionAvailable(connection, threadId) ? setArtifactTarget : undefined;
+  const sidebarControl = useContext(SidebarControlContext);
   const toggleSidebar = useShell((s) => s.toggleSidebar),
     sidebar = useShell((s) => s.sidebar);
   const thread = entities.thread?.find((row) => row.id === threadId),
@@ -245,8 +256,8 @@ export default function Chat({
         <IconButton
           icon="Menu"
           size="sm"
-          label={sidebar ? "Hide sidebar" : "Show sidebar"}
-          onClick={toggleSidebar}
+          label={sidebarControl?.label ?? (sidebar ? "Hide sidebar" : "Show sidebar")}
+          onClick={sidebarControl?.toggle ?? toggleSidebar}
         />
         <div className="chat-title">
           {place ? (

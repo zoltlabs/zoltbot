@@ -6,22 +6,21 @@ type Sample = { name: string; manager: string; chats: [string, ChatStatus][]; te
 
 // A made-up company, drawn with the same marks the sidebar tree uses.
 const sample: Sample = {
-  name: "Acme",
-  manager: "Plan the Q3 launch",
+  name: "acme-app",
+  manager: "Project lead",
   chats: [],
   teams: [
     {
-      name: "Marketing",
-      manager: "Weekly campaign plan",
-      chats: [["Landing page copy", "needs_you"]],
-      teams: [{ name: "Paid ads", manager: "Ad budget", chats: [["Ad variants", "working"]] }],
+      name: "Website launch",
+      manager: "Designer",
+      chats: [["Copywriter", "needs_you"]],
     },
     {
-      name: "Engineering",
-      manager: "Release checklist",
+      name: "Checkout",
+      manager: "Developer",
       chats: [
-        ["Fix checkout bug", "working"],
-        ["Update docs", "idle"],
+        ["QA", "working"],
+        ["Technical writer", "idle"],
       ],
     },
   ],
@@ -70,11 +69,9 @@ export function WorkspacesIntro({
         </ul>
       </div>
       <div className="wi-copy">
-        <h1>Run your work as a {terms.workspace.one}</h1>
+        <h1>Add your first repo</h1>
         <p className="dim">
-          A {terms.workspace.one} holds {terms.team.many}, like Marketing or Engineering. Each{" "}
-          {terms.team.one} has a {terms.manager.one} that plans the work and hands it to its own{" "}
-          {terms.chat.many}, so you only step in when something needs you.
+          Group projects under a repo, then add AI employees. Each employee has their own chat.
         </p>
         <button
           type="button"

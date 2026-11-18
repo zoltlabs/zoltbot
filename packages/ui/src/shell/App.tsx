@@ -1,21 +1,17 @@
 import "../context/TaskConnectionsContextSection.js";
-import { terms } from "@zoltbot/protocol";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Chat from "../chat/Chat.js";
 import { ChiefPage } from "../chief/ChiefPage.js";
 import { chiefName, chiefThreadId } from "../chief/data.js";
-import { CompareSidebar } from "../compare/CompareSidebar.js";
 import { assignHues, ProfileHues } from "../components/identity.js";
-import { Chip, EmptyState, IconButton, Kbd, ListRow, StatusDot } from "../components/primitives.js";
+import { Chip, EmptyState, IconButton, Menu, StatusDot } from "../components/primitives.js";
 import { inboxFromSnapshot } from "../inbox/data.js";
 import { markRead, mergeSeen, useSeenMigration } from "../inbox/read-state.js";
-import { QuickHistory } from "../quick-chat/QuickHistory.js";
 import { completeOnboarding, needsOnboarding } from "../setup/onboarding-state.js";
 import { UpdateNotice } from "../setup/UpdateNotice.js";
-import { navRoutes, routeLabels, routes, useShell } from "../state.js";
+import { routeLabels, routes, useShell } from "../state.js";
 import { useConnection } from "../use-connection.js";
-import { ViewsNav } from "../views/ViewsNav.js";
-import { chatStatuses, mostRecentProject, rowStatuses } from "../workspaces/activity.js";
+import { chatStatuses, rowStatuses } from "../workspaces/activity.js";
 import { markSeen, useSeen } from "../workspaces/seen.js";
 import { emptyRows } from "../workspaces/view.js";
 import { WorkspaceTree } from "../workspaces/WorkspaceTree.js";
@@ -24,7 +20,7 @@ import { CommandPalette } from "./CommandPalette.js";
 import { Icon } from "./icons.js";
 import { Overview } from "./Overview.js";
 import { SettingsPage, settingsRoutes, settingsTabs } from "./SettingsPage.js";
-import { Sidebar, useSidebarDrawer } from "./Sidebar.js";
+import { Sidebar, SidebarControlContext, useSidebarDrawer } from "./Sidebar.js";
 
 const ViewPage = lazy(() => import("../views/ViewPage.js"));
 const CompareView = lazy(() => import("../compare/CompareView.js"));
@@ -36,26 +32,6 @@ const Setup = lazy(() => import("../setup/Setup.js"));
 const Workspaces = lazy(() => import("../workspaces/Workspaces.js"));
 const Routines = lazy(() => import("../tasks/Routines.js"));
 const Tasks = lazy(() => import("../tasks/Tasks.js"));
-function useStoredFlag(key: string, initial: boolean) {
-  const [value, setValue] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved === null ? initial : saved === "1";
-    } catch {
-      return initial;
-    }
-  });
-  const set = useCallback(
-    (next: boolean) => {
-      setValue(next);
-      try {
-        localStorage.setItem(key, next ? "1" : "0");
-      } catch {}
-    },
-    [key],
-  );
-  return [value, set] as const;
-}
 export function App() {
   const connection = useConnection();
   const threadId = useShell((s) => s.threadId),
@@ -124,13 +100,13 @@ export function App() {
         }
         if (event.key === "j") {
           event.preventDefault();
-          openQuickChat();
+          navigate("Chief");
         }
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [navigate, setPalette, toggleSidebar, openQuickChat]);
+  }, [navigate, setPalette, toggleSidebar]);
   useEffect(() => {
     const hash = () => {
       const raw = location.hash.slice(1);
@@ -212,24 +188,13 @@ export function App() {
     window.addEventListener("hashchange", hash);
     return () => window.removeEventListener("hashchange", hash);
   }, [navigate, openThread, openScope, scope, route, openQuickChat]);
-  // Opening the app with no page in the URL lands on the most recent workspace, ready to start a
-  // chat. Without a workspace it stays on Overview.
+  // Start with the orchestrator; deep links continue to open their requested page.
   const launched = useRef(Boolean(location.hash.slice(1)));
   useEffect(() => {
     if (launched.current || connection.status !== "online") return;
     launched.current = true;
-    if (location.hash.slice(1)) return;
-    if (needsOnboarding()) {
-      navigate("Setup");
-      return;
-    }
-    const project = mostRecentProject(
-      entities.project ?? emptyRows,
-      entities.thread ?? emptyRows,
-      entities.subproject ?? emptyRows,
-    );
-    if (project) openScope({ type: "project", id: String(project.id) });
-  }, [connection.status, entities, openScope, navigate]);
+    if (!location.hash.slice(1)) navigate(needsOnboarding() ? "Setup" : "Chief");
+  }, [connection.status, navigate]);
   // A chat on screen counts as read, including turns that finish while you watch it.
   const seen = useSeen();
   // useConnection returns a new object each render, and markSeen re-renders App, so depending on
@@ -269,16 +234,6 @@ export function App() {
   }, [route, threadId, hasTurns, latestEnded, connectionStatus]);
   useSeenMigration(connection, seen);
   const inboxCounts = useMemo(() => inboxFromSnapshot(entities).counts, [entities]);
-  // Sections remember what you set; landing on a page inside one only opens it, never closes it.
-  const [moreOpen, setMoreOpen] = useStoredFlag("zoltbot.sidebar.more.v1", false);
-  const [workspaceTreeOpen, setWorkspaceTreeOpen] = useStoredFlag(
-    "zoltbot.sidebar.workspaces.v1",
-    true,
-  );
-  useEffect(() => {
-    if (route === "Tasks" || route === "Routines") setMoreOpen(true);
-    if (route === "Chat" || route === "Projects") setWorkspaceTreeOpen(true);
-  }, [route, setMoreOpen, setWorkspaceTreeOpen]);
   const online = connection.status === "online";
   const statuses = useMemo(() => chatStatuses(entities), [entities]);
   const chiefLabel = chiefName(entities);
@@ -309,343 +264,340 @@ export function App() {
       ),
     [entities.agent],
   );
-  const navigationRow = (name: (typeof navRoutes)[number] | "Projects") => (
-    <ListRow
-      key={name}
-      icon={name}
-      label={<span className="sidebar-label">{routeLabels[name] ?? name}</span>}
-      aria-label={routeLabels[name] ?? name}
-      title={routeLabels[name] ?? name}
-      current={route === name}
-      trailing={
-        // Conversations that need you or finished unread, plus tasks waiting for review.
-        name === "Inbox" && inboxTotal > 0 ? (
-          <span className="sidebar-label">
-            <Chip tone="attention">{inboxTotal}</Chip>
-          </span>
-        ) : name === "Tasks" && reviews > 0 ? (
-          <span className="sidebar-label">
-            <Chip tone="attention">{reviews}</Chip>
-          </span>
-        ) : undefined
-      }
-      onClick={() => {
-        navigate(name);
-        drawer.close();
-      }}
-    />
-  );
   return (
     <ProfileHues.Provider value={hues}>
-      <div
-        className={`zb workspace-shell${drawer.narrow ? " sidebar-overlay" : sidebar ? "" : " sidebar-collapsed"}`}
-        style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}
+      <SidebarControlContext.Provider
+        value={{
+          label: drawer.narrow || !sidebar ? "Show sidebar" : "Hide sidebar",
+          toggle: drawer.narrow ? drawer.show : toggleSidebar,
+        }}
       >
-        <a className="skip-link zb-button secondary" href="#main-content">
-          Skip to content
-        </a>
-        <Sidebar narrow={drawer.narrow} open={drawer.open} onClose={drawer.close}>
-          <button
-            type="button"
-            className="brand"
-            onClick={() => {
-              openQuickChat();
-              drawer.close();
-            }}
-            aria-label="Zoltbot: open quick chat"
-            title="Open quick chat"
-          >
-            <span className="logo" aria-hidden="true">
-              <img src="./zoltbot.svg" alt="" width="20" height="20" />
-            </span>
-            <strong className="sidebar-label">Zoltbot</strong>
-          </button>
-          <button
-            type="button"
-            className={`sidebar-quick-chat sidebar-chief${route === "Chief" ? " on" : ""}`}
-            onClick={() => {
-              navigate("Chief");
-              drawer.close();
-            }}
-            aria-label={chiefLabel}
-            title={`${chiefLabel}: your main agent across every ${terms.workspace.one}`}
-          >
-            <Icon name="Chief" />
-            <span className="sidebar-label grow">{chiefLabel}</span>
-          </button>
-          <button
-            type="button"
-            className={`sidebar-quick-chat${route === "QuickChat" ? " on" : ""}`}
-            onClick={() => {
-              openQuickChat();
-              drawer.close();
-            }}
-            aria-label="Quick chat"
-            title="Quick chat: ask anything without choosing a workspace"
-          >
-            <Icon name="Sessions" />
-            <span className="sidebar-label grow">Quick chat</span>
-            <span className="sidebar-label">
-              <Kbd>⌘J</Kbd>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="sidebar-search"
-            onClick={() => setPalette(true)}
-            aria-label="Search and commands"
-            title="Search and commands"
-          >
-            <Icon name="Search" />
-            <span className="sidebar-label grow">Search</span>
-            <span className="sidebar-label">
-              <Kbd>⌘K</Kbd>
-            </span>
-          </button>
-          <nav aria-label="Workspace">
-            {navRoutes.filter((name) => name === "Overview" || name === "Inbox").map(navigationRow)}
-            {expandedSidebar ? null : (
-              <>
-                {navRoutes
-                  .filter((name) => name !== "Overview" && name !== "Inbox")
-                  .map(navigationRow)}
-                {navigationRow("Projects")}
-              </>
-            )}
-            <details
-              className="sidebar-section"
-              open={moreOpen}
-              onToggle={(event) => setMoreOpen(event.currentTarget.open)}
-            >
-              <summary>More</summary>
-              {navRoutes
-                .filter((name) => name !== "Overview" && name !== "Inbox")
-                .map(navigationRow)}
-            </details>
-          </nav>
-          <ViewsNav views={entities.view ?? emptyRows} />
-          {expandedSidebar ? <QuickHistory connection={connection} /> : null}
-          <div className="project-tree-wrap grow sidebar-label">
-            {/* Sits beside the summary rather than inside it, so it never toggles the section. */}
-            <span className="tree-add">
-              <IconButton
-                icon="Plus"
-                size="sm"
-                label={`Manage ${terms.workspace.many}`}
-                onClick={() => navigate("Projects")}
-              />
-            </span>
-            <details
-              className="project-tree sidebar-section"
-              aria-label={`${terms.workspace.One} tree`}
-              open={workspaceTreeOpen}
-              onToggle={(event) => setWorkspaceTreeOpen(event.currentTarget.open)}
-            >
-              <summary>{terms.workspace.Many}</summary>
-              <WorkspaceTree
-                projects={entities.project ?? emptyRows}
-                directions={entities.subproject ?? emptyRows}
-                threads={sidebarThreads}
-                statuses={statuses}
-                rows={rows}
-                turns={entities.turn ?? emptyRows}
-                call={callRpc}
-                selected={route === "Projects" ? scope : undefined}
-                currentChat={route === "Chat" ? threadId : undefined}
-                onScope={openScope}
-                onChat={openThread}
-              />
-              <CompareSidebar connection={connection} />
-            </details>
-          </div>
-          <div className="sidebar-bottom">
-            <IconButton
-              icon="Settings"
-              size="sm"
-              label="Settings"
-              className={settingsRoutes.includes(route) ? "on" : undefined}
-              onClick={() => {
-                navigate("Settings");
-                drawer.close();
-              }}
-            />
-          </div>
-          {sidebar && !drawer.narrow ? (
-            <hr
-              className="sidebar-resizer"
-              tabIndex={0}
-              aria-label="Sidebar width"
-              aria-orientation="vertical"
-              aria-valuemin={220}
-              aria-valuemax={360}
-              aria-valuenow={width}
-              onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
-              onPointerMove={(e) => {
-                if (e.currentTarget.hasPointerCapture(e.pointerId)) setWidth(e.clientX);
-              }}
-              onPointerUp={(e) => e.currentTarget.releasePointerCapture(e.pointerId)}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  setWidth(width + (e.key === "ArrowRight" ? 8 : -8));
-                }
-              }}
-            />
-          ) : null}
-        </Sidebar>
         <div
-          className={`workspace-body${route === "Chat" || route === "QuickChat" || route === "Chief" || route === "Compare" ? " chat-route" : ""}`}
+          className={`zb workspace-shell${drawer.narrow ? " sidebar-overlay" : sidebar ? "" : " sidebar-collapsed"}`}
+          style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}
         >
-          <header className="workspace-header">
-            <IconButton
-              icon="Menu"
-              size="sm"
-              onClick={drawer.narrow ? drawer.show : toggleSidebar}
-              aria-expanded={drawer.narrow ? drawer.open : sidebar}
-              aria-controls="workspace-sidebar"
-              label={drawer.narrow || !sidebar ? "Show sidebar" : "Hide sidebar"}
-            />
-            <nav className="breadcrumb" aria-label="Breadcrumb">
-              <span>Zoltbot</span>
-              <Icon name="ChevronRight" size="sm" />
-              <span className="page-title" aria-current="page">
-                {routeLabels[route] ?? route}
-              </span>
-            </nav>
-            <span className="sp" />
-            <IconButton
-              icon={dark ? "Sun" : "Moon"}
-              size="sm"
-              onClick={() => setTheme(dark ? "light" : "dark")}
-              label={dark ? "Use light theme" : "Use dark theme"}
-            />
-          </header>
-          {!online ? (
-            <section className="offline-banner" aria-live="polite" aria-label="Daemon connection">
-              <StatusDot status="blocked" label={false} />
-              <div>
-                <strong>Reconnecting to the Zoltbot daemon</strong>
-                <p>The workspace will reconnect automatically.</p>
-              </div>
-            </section>
-          ) : null}
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className={`main-content${route === "Chat" || route === "QuickChat" || route === "Chief" || route === "Compare" ? " chat-page" : route === "Inbox" ? " inbox-page" : ""}`}
-          >
-            {import.meta.env.DEV && route === "Components" ? (
-              <Suspense fallback={<p>Loading components</p>}>
-                <Gallery />
-              </Suspense>
-            ) : route === "Overview" ? (
-              <Overview
-                connection={connection}
-                statuses={statuses}
-                rowStatuses={rows}
-                navigate={navigate}
-                openThread={openThread}
-                openRequest={openRequest}
+          <a className="skip-link zb-button secondary" href="#main-content">
+            Skip to content
+          </a>
+          <Sidebar narrow={drawer.narrow} open={drawer.open} onClose={drawer.close}>
+            <div className="sidebar-top">
+              <button
+                type="button"
+                className={`sidebar-zolt${route === "Chief" ? " on" : ""}`}
+                aria-label={chiefLabel}
+                aria-current={route === "Chief" ? "page" : undefined}
+                title={chiefLabel}
+                onClick={() => {
+                  navigate("Chief");
+                  drawer.close();
+                }}
+              >
+                <img src="./zoltbot.svg" alt="" width="28" height="28" />
+                <span className="sidebar-label grow">{chiefLabel}</span>
+              </button>
+              <IconButton
+                icon="Search"
+                label="Search and commands"
+                onClick={() => setPalette(true)}
               />
-            ) : route === "View" ? (
-              <Suspense fallback={<p>Loading view…</p>}>
-                <ViewPage id={viewId ?? ""} connection={connection} />
-              </Suspense>
-            ) : route === "Artifact" ? (
-              <Suspense fallback={<p>Loading artifact…</p>}>
-                <ArtifactPage key={artifactId} connection={connection} id={artifactId ?? ""} />
-              </Suspense>
-            ) : route === "Chief" ? (
-              <ChiefPage
-                connection={connection}
-                statuses={statuses}
-                openThread={openThread}
-                openRequest={openRequest}
-              />
-            ) : route === "QuickChat" ? (
-              <Suspense fallback={<p>Loading quick chat</p>}>
-                <QuickChat connection={connection} />
-              </Suspense>
-            ) : route === "Compare" && compareId ? (
-              <Suspense fallback={<p>Loading compare…</p>}>
-                <CompareView key={compareId} connection={connection} id={compareId} />
-              </Suspense>
-            ) : route === "Chat" && threadId ? (
-              <Suspense fallback={<p>Loading conversation</p>}>
-                <Chat key={threadId} connection={connection} threadId={threadId} />
-              </Suspense>
-            ) : route === "Sessions" ? (
-              <AllChats
-                wakes={entities.wake ?? emptyRows}
-                threads={entities.thread ?? emptyRows}
-                projects={entities.project ?? emptyRows}
-                directions={entities.subproject ?? emptyRows}
-                connection={connection}
-                turns={entities.turn ?? emptyRows}
-                rowStatuses={rows}
-                openThread={openThread}
-                openQuickChat={() => openQuickChat()}
-              />
-            ) : route === "Inbox" ? (
-              <Suspense fallback={<p>Loading Inbox</p>}>
-                <Inbox connection={connection} />
-              </Suspense>
-            ) : route === "Routines" ? (
-              <Suspense fallback={<p>Loading routines</p>}>
-                <Routines connection={connection} />
-              </Suspense>
-            ) : route === "Tasks" ? (
-              <Suspense fallback={<p>Loading tasks</p>}>
-                <Tasks connection={connection} />
-              </Suspense>
-            ) : route === "Projects" ? (
-              <Suspense fallback={<p>Loading workspaces</p>}>
-                <Workspaces connection={connection} />
-              </Suspense>
-            ) : route === "Setup" ? (
-              <Suspense fallback={<p>Loading setup</p>}>
-                <Setup
-                  connection={connection}
-                  onOpen={openThread}
-                  onSkip={() => {
-                    completeOnboarding();
-                    navigate("Overview");
+              {drawer.narrow ? (
+                <IconButton icon="Close" label="Close sidebar" onClick={drawer.close} autoFocus />
+              ) : null}
+            </div>
+            <div className="sidebar-repos sidebar-label">
+              <div className="sidebar-repos-heading">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("Projects");
+                    drawer.close();
                   }}
-                  onDoctor={() => navigate("Doctor")}
+                >
+                  Repos
+                </button>
+                <IconButton
+                  icon="Plus"
+                  size="sm"
+                  label="Add repo"
+                  onClick={() => {
+                    useShell.getState().beginWorkspaceCreation();
+                    drawer.close();
+                  }}
                 />
-              </Suspense>
-            ) : settingsRoutes.includes(route) ? (
-              <SettingsPage
-                tab={settingsTabs.find((entry) => entry.route === route)?.id ?? "general"}
-                connection={connection}
-                settings={entities.settings ?? emptyRows}
-                devices={entities.device ?? emptyRows}
-                fontScale={fontScale}
-                setFontScale={setFontScale}
-                theme={theme}
-                setTheme={setTheme}
-                navigate={navigate}
+              </div>
+              <nav aria-label="Repos and projects" className="sidebar-repo-list">
+                <WorkspaceTree
+                  projects={entities.project ?? emptyRows}
+                  directions={entities.subproject ?? emptyRows}
+                  threads={sidebarThreads}
+                  statuses={statuses}
+                  rows={rows}
+                  turns={entities.turn ?? emptyRows}
+                  call={callRpc}
+                  selected={route === "Projects" ? scope : undefined}
+                  currentChat={route === "Chat" ? threadId : undefined}
+                  onScope={openScope}
+                  onChat={openThread}
+                  onNavigate={drawer.close}
+                  onCreate={(mode, scope) => {
+                    useShell.getState().beginScopeCreation(mode, scope);
+                    drawer.close();
+                  }}
+                />
+              </nav>
+            </div>
+            {!expandedSidebar ? (
+              <IconButton icon="Projects" label="Repos" onClick={() => navigate("Projects")} />
+            ) : null}
+            <div className="sidebar-bottom">
+              <button
+                type="button"
+                className={`sidebar-inbox${route === "Inbox" ? " on" : ""}`}
+                aria-label={inboxTotal ? `Needs you, ${inboxTotal}` : "Needs you"}
+                title="Needs you"
+                onClick={() => {
+                  navigate("Inbox");
+                  drawer.close();
+                }}
+              >
+                <Icon name="Inbox" />
+                <span className="sidebar-label grow">Needs you</span>
+                {inboxTotal > 0 ? <Chip tone="attention">{inboxTotal}</Chip> : null}
+              </button>
+              <div className="sidebar-utilities">
+                <button
+                  type="button"
+                  className="sidebar-settings"
+                  aria-label="Settings"
+                  title="Settings"
+                  onClick={() => {
+                    navigate("Settings");
+                    drawer.close();
+                  }}
+                >
+                  <Icon name="Settings" />
+                  <span className="sidebar-label">Settings</span>
+                </button>
+                <Menu
+                  label="Workspace tools"
+                  items={[
+                    ...(["Overview", "Tasks", "Routines", "Sessions"] as const).map((name) => ({
+                      label: routeLabels[name] ?? name,
+                      icon: name,
+                      onSelect: () => {
+                        navigate(name);
+                        drawer.close();
+                      },
+                    })),
+                    {
+                      label: "Other chats",
+                      icon: "Sessions",
+                      onSelect: () => {
+                        openQuickChat();
+                        drawer.close();
+                      },
+                    },
+                    ...(entities.compare ?? emptyRows)
+                      .filter((compare) => compare.state !== "closed")
+                      .map((compare) => ({
+                        label: `Compare: ${String(compare.title)}`,
+                        icon: "Compare",
+                        onSelect: () => {
+                          useShell.getState().openCompare(String(compare.id));
+                          drawer.close();
+                        },
+                      })),
+                    ...(entities.view ?? emptyRows)
+                      .filter((view) => view.enabled)
+                      .map((view) => ({
+                        label: String(view.name),
+                        icon: "Projects",
+                        onSelect: () => {
+                          useShell.getState().openView(String(view.id));
+                          drawer.close();
+                        },
+                      })),
+                  ]}
+                />
+              </div>
+            </div>
+            {sidebar && !drawer.narrow ? (
+              <hr
+                className="sidebar-resizer"
+                tabIndex={0}
+                aria-label="Sidebar width"
+                aria-orientation="vertical"
+                aria-valuemin={220}
+                aria-valuemax={360}
+                aria-valuenow={width}
+                onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+                onPointerMove={(e) => {
+                  if (e.currentTarget.hasPointerCapture(e.pointerId)) setWidth(e.clientX);
+                }}
+                onPointerUp={(e) => e.currentTarget.releasePointerCapture(e.pointerId)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setWidth(width + (e.key === "ArrowRight" ? 8 : -8));
+                  }
+                }}
               />
-            ) : (
-              <section className="zb-card empty-page">
-                <EmptyState level={1} icon={route} title={routeLabels[route] ?? route} />
+            ) : null}
+          </Sidebar>
+          <div
+            className={`workspace-body${route === "Chat" || route === "QuickChat" || route === "Chief" || route === "Compare" ? " chat-route" : ""}`}
+          >
+            <header className="workspace-header">
+              <IconButton
+                icon="Menu"
+                size="sm"
+                onClick={drawer.narrow ? drawer.show : toggleSidebar}
+                aria-expanded={drawer.narrow ? drawer.open : sidebar}
+                aria-controls="workspace-sidebar"
+                label={drawer.narrow || !sidebar ? "Show sidebar" : "Hide sidebar"}
+              />
+              <nav className="breadcrumb" aria-label="Breadcrumb">
+                <span>Zoltbot</span>
+                <Icon name="ChevronRight" size="sm" />
+                <span className="page-title" aria-current="page">
+                  {routeLabels[route] ?? route}
+                </span>
+              </nav>
+              <span className="sp" />
+              <IconButton
+                icon={dark ? "Sun" : "Moon"}
+                size="sm"
+                onClick={() => setTheme(dark ? "light" : "dark")}
+                label={dark ? "Use light theme" : "Use dark theme"}
+              />
+            </header>
+            {!online ? (
+              <section className="offline-banner" aria-live="polite" aria-label="Daemon connection">
+                <StatusDot status="blocked" label={false} />
+                <div>
+                  <strong>Reconnecting to the Zoltbot daemon</strong>
+                  <p>The workspace will reconnect automatically.</p>
+                </div>
               </section>
-            )}
-          </main>
-          <footer className="workspace-status" aria-live="polite">
-            <span className="r" data-connection-status={connection.status}>
-              <StatusDot status={online ? "idle" : "blocked"} label={false} />
-              {online ? "Connected to local daemon" : "Reconnecting"}
-            </span>
-            <span className="sp" />
-            <span>{running} running</span>
-            <span className="status-separator" />
-            <span>Local computer</span>
-          </footer>
+            ) : null}
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className={`main-content${route === "Chat" || route === "QuickChat" || route === "Chief" || route === "Compare" ? " chat-page" : route === "Inbox" ? " inbox-page" : ""}`}
+            >
+              {import.meta.env.DEV && route === "Components" ? (
+                <Suspense fallback={<p>Loading components</p>}>
+                  <Gallery />
+                </Suspense>
+              ) : route === "Overview" ? (
+                <Overview
+                  connection={connection}
+                  statuses={statuses}
+                  rowStatuses={rows}
+                  navigate={navigate}
+                  openThread={openThread}
+                  openRequest={openRequest}
+                />
+              ) : route === "View" ? (
+                <Suspense fallback={<p>Loading view…</p>}>
+                  <ViewPage id={viewId ?? ""} connection={connection} />
+                </Suspense>
+              ) : route === "Artifact" ? (
+                <Suspense fallback={<p>Loading artifact…</p>}>
+                  <ArtifactPage key={artifactId} connection={connection} id={artifactId ?? ""} />
+                </Suspense>
+              ) : route === "Chief" ? (
+                <ChiefPage
+                  connection={connection}
+                  statuses={statuses}
+                  openThread={openThread}
+                  openRequest={openRequest}
+                />
+              ) : route === "QuickChat" ? (
+                <Suspense fallback={<p>Loading quick chat</p>}>
+                  <QuickChat connection={connection} />
+                </Suspense>
+              ) : route === "Compare" && compareId ? (
+                <Suspense fallback={<p>Loading compare…</p>}>
+                  <CompareView key={compareId} connection={connection} id={compareId} />
+                </Suspense>
+              ) : route === "Chat" && threadId ? (
+                <Suspense fallback={<p>Loading conversation</p>}>
+                  <Chat key={threadId} connection={connection} threadId={threadId} />
+                </Suspense>
+              ) : route === "Sessions" ? (
+                <AllChats
+                  wakes={entities.wake ?? emptyRows}
+                  threads={entities.thread ?? emptyRows}
+                  projects={entities.project ?? emptyRows}
+                  directions={entities.subproject ?? emptyRows}
+                  connection={connection}
+                  turns={entities.turn ?? emptyRows}
+                  rowStatuses={rows}
+                  openThread={openThread}
+                  openQuickChat={() => openQuickChat()}
+                />
+              ) : route === "Inbox" ? (
+                <Suspense fallback={<p>Loading Inbox</p>}>
+                  <Inbox connection={connection} />
+                </Suspense>
+              ) : route === "Routines" ? (
+                <Suspense fallback={<p>Loading routines</p>}>
+                  <Routines connection={connection} />
+                </Suspense>
+              ) : route === "Tasks" ? (
+                <Suspense fallback={<p>Loading tasks</p>}>
+                  <Tasks connection={connection} />
+                </Suspense>
+              ) : route === "Projects" ? (
+                <Suspense fallback={<p>Loading workspaces</p>}>
+                  <Workspaces connection={connection} />
+                </Suspense>
+              ) : route === "Setup" ? (
+                <Suspense fallback={<p>Loading setup</p>}>
+                  <Setup
+                    connection={connection}
+                    onOpen={openThread}
+                    onSkip={() => {
+                      completeOnboarding();
+                      navigate("Overview");
+                    }}
+                    onDoctor={() => navigate("Doctor")}
+                  />
+                </Suspense>
+              ) : settingsRoutes.includes(route) ? (
+                <SettingsPage
+                  tab={settingsTabs.find((entry) => entry.route === route)?.id ?? "general"}
+                  connection={connection}
+                  settings={entities.settings ?? emptyRows}
+                  devices={entities.device ?? emptyRows}
+                  fontScale={fontScale}
+                  setFontScale={setFontScale}
+                  theme={theme}
+                  setTheme={setTheme}
+                  navigate={navigate}
+                />
+              ) : (
+                <section className="zb-card empty-page">
+                  <EmptyState level={1} icon={route} title={routeLabels[route] ?? route} />
+                </section>
+              )}
+            </main>
+            <footer className="workspace-status" aria-live="polite">
+              <span className="r" data-connection-status={connection.status}>
+                <StatusDot status={online ? "idle" : "blocked"} label={false} />
+                {online ? "Connected to local daemon" : "Reconnecting"}
+              </span>
+              <span className="sp" />
+              <span>{running} running</span>
+              <span className="status-separator" />
+              <span>Local computer</span>
+            </footer>
+          </div>
+          <UpdateNotice connection={connection} settings={entities.settings ?? emptyRows} />
+          <CommandPalette entities={entities} />
         </div>
-        <UpdateNotice connection={connection} settings={entities.settings ?? emptyRows} />
-        <CommandPalette entities={entities} />
-      </div>
+      </SidebarControlContext.Provider>
     </ProfileHues.Provider>
   );
 }

@@ -35,7 +35,7 @@ export default function Workspaces({ connection }: { connection: ChatConnection 
     if (scope) heading.current?.focus();
   }, [scope]);
   useEffect(() => {
-    if (focusReturn) trigger.current?.focus();
+    if (focusReturn) (trigger.current?.isConnected ? trigger.current : heading.current)?.focus();
   }, [focusReturn]);
   const online = connection.status === "online",
     depth = selected?.directions.length ?? 0;
@@ -43,6 +43,20 @@ export default function Workspaces({ connection }: { connection: ChatConnection 
     trigger.current = button;
     setCreating(mode);
   };
+  const workspaceCreation = useShell((state) => state.workspaceCreation);
+  useEffect(() => {
+    if (workspaceCreation) {
+      setCreating("workspace");
+      useShell.setState({ workspaceCreation: 0 });
+    }
+  }, [workspaceCreation]);
+  const scopeCreation = useShell((state) => state.scopeCreation);
+  useEffect(() => {
+    if (scopeCreation && scope?.id === scopeCreation.scope.id) {
+      setCreating(scopeCreation.mode);
+      useShell.setState({ scopeCreation: undefined });
+    }
+  }, [scopeCreation, scope]);
   const empty = !selected && !projects.some((row) => !row.archived);
   return (
     <section className="workspaces-page" aria-label={terms.workspace.Many}>
@@ -67,9 +81,7 @@ export default function Workspaces({ connection }: { connection: ChatConnection 
           {selected ? (
             <p className="dim scope-root">{rootLabel(selected.project)}</p>
           ) : (
-            <p className="dim">
-              Each {terms.workspace.one} is a code folder and the {terms.chat.many} working in it.
-            </p>
+            <p className="dim">Organize projects and AI employees around your code.</p>
           )}
         </div>
         <div className="r wrap">

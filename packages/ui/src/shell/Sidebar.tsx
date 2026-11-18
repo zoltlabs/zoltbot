@@ -1,5 +1,8 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { IconButton } from "../components/primitives.js";
+import { createContext, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+
+export const SidebarControlContext = createContext<{ label: string; toggle(): void } | undefined>(
+  undefined,
+);
 
 // Below this width, reserve the whole window for content instead of a sidebar column.
 const narrowQuery = "(max-width: 700px)";
@@ -48,12 +51,6 @@ export function Sidebar({
   }, [narrow, open]);
   const content = (
     <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
-      {narrow ? (
-        <div className="sidebar-drawer-header">
-          <strong>Workspace</strong>
-          <IconButton icon="Close" label="Close sidebar" onClick={onClose} autoFocus />
-        </div>
-      ) : null}
       {children}
     </aside>
   );
