@@ -70,9 +70,6 @@ export function WorkspacesIntro({
       </div>
       <div className="wi-copy">
         <h1>Add your first repo</h1>
-        <p className="dim">
-          Group projects under a repo, then add AI employees. Each employee has their own chat.
-        </p>
         <button
           type="button"
           className="btn pri"

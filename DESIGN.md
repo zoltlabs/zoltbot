@@ -5,6 +5,7 @@ These rules apply to all product interfaces, websites, and new or updated design
 - Do not use eyebrows: small labels or kicker text placed above a heading.
 - Use sentence case for headings. Never use all-capital heading text or apply uppercase styling to headings.
 - Establish hierarchy through typography, spacing, and layout instead of eyebrows or capitalization.
+- Omit subtitles and explanatory captions by default. Let headings, labels and controls carry the interface. Keep supporting text only when users need it to act: errors, empty states, units, compatibility limits or action consequences.
 
 ## Sources of truth
 

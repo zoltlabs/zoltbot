@@ -109,10 +109,6 @@ function ChiefStart({ connection }: { connection: ChatConnection }) {
           across your {terms.workspace.many} is doing, and can start, message or stop chats once you
           approve.
         </p>
-        <p className="chief-muted">
-          Each message you send carries a fresh status summary, so {name} answers from what is
-          happening now. Use Quick chat for side questions.
-        </p>
         {profiles.length ? (
           <>
             <Field label="Runs on">
@@ -297,11 +293,12 @@ function ChiefWakeups({ connection, name }: { connection: ChatConnection; name: 
         />
         Wake on its own
       </label>
-      <p className="chief-muted">
-        {enabled
-          ? `${wake.used} of ${wake.allowance} wake-ups today${wake.used ? ` · ${wake.useful} useful` : ""}. ${name} wakes only when something needs a decision, and never in quiet hours.`
-          : `${name} wakes only for the morning brief, if it is on.`}
-      </p>
+      {enabled ? (
+        <p className="chief-muted">
+          {wake.used} of {wake.allowance} wake-ups today
+          {wake.used ? ` · ${wake.useful} useful` : ""}
+        </p>
+      ) : null}
       <div className="chief-brief">
         <label className="chief-wake-toggle">
           <input
@@ -324,11 +321,6 @@ function ChiefWakeups({ connection, name }: { connection: ChatConnection; name: 
           />
         ) : null}
       </div>
-      <p className="chief-muted">
-        {brief.enabled
-          ? `Each day at ${brief.time}, a short brief of what finished and what needs you. Skipped when nothing happened.`
-          : "A short daily brief of what finished and what needs you."}
-      </p>
       {agreement.total ? (
         <p className="chief-muted">
           Your calls matched {name}'s on {agreement.agreed} of {agreement.total} this week.

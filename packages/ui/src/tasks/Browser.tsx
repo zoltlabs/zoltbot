@@ -47,7 +47,6 @@ export function BrowserSettings({ connection }: { connection: ChatConnection }) 
   return (
     <section className="zb-card settings-panel">
       <h2>Browser</h2>
-      <p>Set up Chromium for local browser checks. The download is stored on this Mac.</p>
       <output>{status}</output>
       <Button
         disabled={pending || connection.status !== "online"}

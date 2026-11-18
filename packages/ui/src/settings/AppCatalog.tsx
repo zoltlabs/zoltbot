@@ -313,7 +313,6 @@ function CatalogConnect({
           <h3 id={`${id}-title`} ref={heading} tabIndex={-1}>
             {step === "done" ? `${recipe.name} connected` : `Connect ${recipe.name}`}
           </h3>
-          <p className="settings-hint">Official hosted service · Claude and Codex</p>
         </div>
       </div>
       <ol className="app-connect-steps" aria-label="Connection steps">

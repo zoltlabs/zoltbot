@@ -288,12 +288,6 @@
   flex-direction: column;
   gap: var(--zb-space-2);
 }
-.onb-sub {
-  margin: 0;
-  color: var(--zb-text-muted);
-  max-width: 60ch;
-  text-wrap: pretty;
-}
 .onb-progress {
   display: flex;
   align-items: center;
@@ -332,9 +326,6 @@
   font-size: var(--zb-text-display);
   line-height: var(--zb-leading-display);
   letter-spacing: var(--zb-tracking-display);
-}
-.onb-welcome .onb-sub {
-  font-size: var(--zb-text-lede);
 }
 .onb-trust {
   list-style: none;

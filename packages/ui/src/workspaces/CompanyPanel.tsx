@@ -81,9 +81,6 @@ export function CompanyPanel({
       <summary>
         Organization and work{pending.length ? ` · ${pending.length} awaiting review` : ""}
       </summary>
-      <p className="dim">
-        Shape the organization as work grows. You can always start a chat or task directly.
-      </p>
       <div className="r wrap">
         {(["organization", "work", "reports"] as const).map((v) => (
           <button

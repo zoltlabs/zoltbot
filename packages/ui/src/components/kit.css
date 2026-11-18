@@ -574,6 +574,16 @@
 .zb-menu:focus {
   outline: none;
 }
+.zb-menu[popover] {
+  position: fixed;
+  margin: 0;
+  border: 1px solid transparent;
+  min-width: min(200px, calc(100dvw - var(--zb-space-4)));
+  max-width: calc(100dvw - var(--zb-space-4));
+  max-height: calc(100dvh - var(--zb-space-4));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 .zb-menu-item {
   display: flex;
   align-items: center;

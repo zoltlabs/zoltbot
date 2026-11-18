@@ -6,7 +6,6 @@ import {
   inbox,
   type Mailbox,
   mailboxes,
-  mailboxHints,
   mailboxLabels,
   pendingLine,
   snoozeTimes,
@@ -78,9 +77,6 @@ export default function Inbox() {
             );
           })}
         </ScrollView>
-        <Txt v="meta" tone="muted">
-          {mailboxHints[box]}
-        </Txt>
         {rows.length ? (
           <Group>
             {rows.map((row, index) => {

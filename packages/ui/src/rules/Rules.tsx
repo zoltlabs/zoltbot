@@ -109,9 +109,6 @@ export default function Rules({ connection }: { connection: ChatConnection }) {
           <h1 ref={heading} tabIndex={-1}>
             Approval rules
           </h1>
-          <p className="dim">
-            Manage saved decisions for {terms.profile.many} and {terms.workspace.many}.
-          </p>
         </div>
         <div className="rules-actions">
           <button

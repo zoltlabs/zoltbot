@@ -91,10 +91,6 @@ export function Devices({
     <section className="zb-card settings-panel devices" aria-labelledby={`${id}-title`}>
       <div>
         <h2 id={`${id}-title`}>Devices</h2>
-        <p className="settings-hint">
-          Use Zoltbot from your phone. Messages pass through the relay encrypted, so the relay
-          cannot read them.
-        </p>
       </div>
       <form
         className="device-relay"

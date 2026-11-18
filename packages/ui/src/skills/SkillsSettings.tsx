@@ -114,9 +114,6 @@ export function SkillsSettings({ connection }: { connection: ChatConnection }) {
   return (
     <section className="zb-card settings-panel skills-settings" aria-labelledby={title}>
       <h2 id={title}>Skills</h2>
-      <p className="settings-hint">
-        Reusable instructions, files and scripts. Versions used by sessions stay fixed.
-      </p>
       <div className="r">
         <Button onClick={() => setTab("library")} aria-pressed={tab === "library"}>
           Local library

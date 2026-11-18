@@ -56,7 +56,6 @@ export default function RulePreview({
   return (
     <section className="card rules-preview" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>Check a command</h2>
-      <p className="dim">Preview which saved approval rule applies.</p>
       <form
         aria-label="Command rule preview"
         onSubmit={(event) => {

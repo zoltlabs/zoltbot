@@ -78,11 +78,7 @@ export default function Workspaces({ connection }: { connection: ChatConnection 
           <h1 ref={heading} tabIndex={-1}>
             {selected ? <bdi>{text(selected.current.name)}</bdi> : terms.workspace.Many}
           </h1>
-          {selected ? (
-            <p className="dim scope-root">{rootLabel(selected.project)}</p>
-          ) : (
-            <p className="dim">Organize projects and AI employees around your code.</p>
-          )}
+          {selected ? <p className="dim scope-root">{rootLabel(selected.project)}</p> : null}
         </div>
         <div className="r wrap">
           {selected ? (

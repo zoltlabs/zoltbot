@@ -6,6 +6,7 @@ import {
   type RefObject,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -430,8 +431,38 @@ export function Menu({
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root, trigger);
-  useEffect(() => {
-    if (open) list.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+  useLayoutEffect(() => {
+    const menu = list.current;
+    const button = trigger.current;
+    if (!open || !menu || !button) return;
+    // Use the browser's top layer so adjacent panes cannot cover or clip menus.
+    menu.showPopover();
+    const position = () => {
+      const anchor = button.getBoundingClientRect();
+      const bounds = menu.getBoundingClientRect();
+      const margin = 8;
+      const gap = 4;
+      const left = Math.max(margin, Math.min(anchor.left, innerWidth - bounds.width - margin));
+      const top =
+        anchor.bottom + gap + bounds.height <= innerHeight - margin
+          ? anchor.bottom + gap
+          : Math.max(margin, anchor.top - gap - bounds.height);
+      Object.assign(menu.style, {
+        left: `${left}px`,
+        top: `${top}px`,
+        right: "auto",
+        bottom: "auto",
+      });
+    };
+    position();
+    menu.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+      if (menu.matches(":popover-open")) menu.hidePopover();
+    };
   }, [open]);
   return (
     <div className="zb-float-root" ref={root}>
@@ -447,6 +478,7 @@ export function Menu({
       {open ? (
         <div
           className="zb-menu"
+          popover="manual"
           role="menu"
           id={id}
           aria-label={label}
@@ -462,8 +494,10 @@ export function Menu({
               event.preventDefault();
               entries[(at + step + entries.length) % entries.length]?.focus();
             }
-            if (event.key === "Home") entries[0]?.focus();
-            if (event.key === "End") entries.at(-1)?.focus();
+            if (event.key === "Home" || event.key === "End") {
+              event.preventDefault();
+              (event.key === "Home" ? entries[0] : entries.at(-1))?.focus();
+            }
             if (event.key === "Tab") setOpen(false);
           }}
         >

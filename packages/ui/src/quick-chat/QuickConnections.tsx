@@ -260,9 +260,6 @@ export function QuickConnections({
               }}
             >
               <h3>Local model</h3>
-              <p className="quick-muted">
-                An OpenAI compatible server such as Ollama or LM Studio.
-              </p>
               <Field label="Name">
                 <Input
                   value={localForm.label}

@@ -77,7 +77,6 @@ export function ModelSettings({ connection }: { connection: ChatConnection }) {
       </section>
       <section className="zb-card settings-panel" aria-label="Workspace model defaults">
         <h3>Workspace defaults</h3>
-        <p className="settings-hint">Used for new workspace chats.</p>
         {(connection.snapshot.entities.agent ?? [])
           .filter((row) => !row.archived && !row.hidden)
           .map((profile) => (

@@ -311,7 +311,6 @@ export function Timeline({
           ) : (
             <div className="chat-empty">
               <h2>Start a conversation</h2>
-              <p className="dim">Your profile uses its coding tool’s own session.</p>
             </div>
           )}
         </section>

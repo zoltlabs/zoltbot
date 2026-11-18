@@ -266,7 +266,6 @@ export default function Setup({
   const n = steps.indexOf(step);
   const frame = (
     title: string,
-    sub: string,
     body: ReactNode,
     next: {
       label: string;
@@ -292,7 +291,6 @@ export default function Setup({
         <h1 ref={heading} tabIndex={-1}>
           {title}
         </h1>
-        <p className="onb-sub">{sub}</p>
       </header>
       {body}
       <footer className="onb-foot">
@@ -331,10 +329,6 @@ export default function Setup({
         <h1 ref={heading} tabIndex={-1}>
           Your coding agents, working as one team
         </h1>
-        <p className="onb-sub">
-          Zoltbot runs Claude Code, Codex and others side by side. It uses each tool’s own login and
-          sessions, so nothing changes in the apps you already use.
-        </p>
         <ul className="onb-trust">
           <li>No account needed. Everything stays on this Mac unless you save something online.</li>
           <li>Read only. Zoltbot never writes to ~/.claude or ~/.codex.</li>
@@ -363,9 +357,6 @@ export default function Setup({
     const found = agentList.filter((row) => row.path).length;
     view = frame(
       "Connect your coding agents",
-      scan.isPending
-        ? "Looking for coding agents on this Mac…"
-        : `Found ${plural(found, "coding agent")} on this Mac. Each one keeps its own login.`,
       <section className="card onb-card" aria-label="Detected coding agents">
         <div className="onb-card-head">
           Detected agents <span className="onb-n">{found}</span>
@@ -411,7 +402,6 @@ export default function Setup({
       },
     );
   } else if (step === "sessions") {
-    const total = groups.reduce((sum, group) => sum + group.sessions.length, 0);
     const toggle = (ids: string[], on: boolean) => {
       if (on)
         setRepositories(
@@ -449,9 +439,6 @@ export default function Setup({
     const sources = historySources(connected.map((row) => row.id)).map(sourceName);
     view = frame(
       "Select repositories and sessions",
-      items
-        ? `${plural(total, "session")} ${range === "all" ? "" : `from the last ${range} days `}in ${sources.join(" and ")}`
-        : "List past sessions here so you can pick them up again from Zoltbot.",
       <>
         {!items ? (
           <section className="card onb-card onb-consent" aria-label="Read session history">
@@ -613,7 +600,6 @@ export default function Setup({
   } else if (step === "tools")
     view = frame(
       "Bring your tools along",
-      "MCP servers you already set up. Every connected agent can use the ones you keep.",
       <>
         <section className="card onb-card" aria-label="MCP servers">
           <div className="onb-card-head">
@@ -675,7 +661,6 @@ export default function Setup({
   else if (step === "defaults") {
     view = frame(
       "How should agents work?",
-      "You can change this per project or per agent later.",
       <OnboardingDefaults
         connection={connection}
         approval={approval}
@@ -708,7 +693,6 @@ export default function Setup({
           <h1 ref={heading} tabIndex={-1}>
             You’re all set
           </h1>
-          <p className="onb-sub">Pick a project and tell an agent what to work on.</p>
         </header>
         <div className="onb-summary">
           <div>

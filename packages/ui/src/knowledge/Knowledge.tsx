@@ -131,11 +131,6 @@ export default function Knowledge({
       <header className="r wrap">
         <div className="sp">
           <h2>Knowledge</h2>
-          <p className="dim sm">
-            {viewingUser
-              ? "Your preferences and lessons, shared with every workspace that uses them."
-              : "Decisions and constraints shared with new task and chat sessions."}
-          </p>
         </div>
         <Button
           onClick={(event) => {
