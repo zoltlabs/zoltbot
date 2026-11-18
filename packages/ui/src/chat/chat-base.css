@@ -1,4 +1,4 @@
-/* Chat: a 720 px reading column, compact tool rows, a floating composer and a quiet side panel. */
+/* Chat workspace: compact tool rows, a floating composer and a quiet side panel. */
 .main-content.chat-page {
   padding: 0;
   overflow: hidden;

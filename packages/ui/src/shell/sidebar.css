@@ -159,21 +159,6 @@
     opacity: 1;
   }
 }
-.scope-employee-avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--zb-control-xs);
-  height: var(--zb-control-xs);
-  min-width: var(--zb-space-5);
-  min-height: var(--zb-space-5);
-  border: 1px solid var(--zb-border);
-  border-radius: var(--zb-radius-sm);
-  background: var(--zb-bg-raised);
-  color: var(--zb-text-secondary);
-  font-size: var(--zb-text-xs);
-  font-weight: var(--zb-weight-medium);
-}
 .scope-repo-chats-label {
   padding: var(--zb-space-2) var(--zb-space-1-5) var(--zb-space-1);
   color: var(--zb-text-muted);

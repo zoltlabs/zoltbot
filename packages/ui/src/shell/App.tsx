@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import Chat from "../chat/Chat.js";
 import { ChiefPage } from "../chief/ChiefPage.js";
 import { chiefName, chiefThreadId } from "../chief/data.js";
+import { BotAvatar } from "../components/BotAvatar.js";
 import { assignHues, ProfileHues } from "../components/identity.js";
 import { Chip, EmptyState, IconButton, Menu, StatusDot } from "../components/primitives.js";
 import { inboxFromSnapshot } from "../inbox/data.js";
@@ -254,16 +255,17 @@ export function App() {
   );
   const inboxTotal = (inboxCounts.needs_you ?? 0) + (inboxCounts.review ?? 0) + reviews;
   const running = [...statuses.values()].filter((status) => status === "working").length;
-  const hues = useMemo(
-    () =>
-      assignHues(
-        (entities.agent ?? emptyRows).map((profile) => ({
-          id: String(profile.id),
-          createdAt: typeof profile.createdAt === "string" ? profile.createdAt : undefined,
-        })),
-      ),
-    [entities.agent],
-  );
+  const hues = useMemo(() => {
+    const identity = (rows: typeof emptyRows) =>
+      rows.map((row) => ({
+        id: String(row.id),
+        createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
+      }));
+    return new Map([
+      ...assignHues(identity(entities.agent ?? emptyRows)),
+      ...assignHues(identity(entities.thread ?? emptyRows)),
+    ]);
+  }, [entities.agent, entities.thread]);
   return (
     <ProfileHues.Provider value={hues}>
       <SidebarControlContext.Provider
@@ -292,7 +294,12 @@ export function App() {
                   drawer.close();
                 }}
               >
-                <img src="./zoltbot.svg" alt="" width="28" height="28" />
+                <BotAvatar
+                  id="zolt"
+                  zolt
+                  size="md"
+                  state={statuses.get(chiefThreadId(entities) ?? "") ?? "idle"}
+                />
                 <span className="sidebar-label grow">{chiefLabel}</span>
               </button>
               <IconButton

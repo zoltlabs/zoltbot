@@ -47,6 +47,8 @@ import { WakeControl } from "./WakeControl.js";
 import { waitingState } from "./waiting-state.js";
 import "./chat.css";
 import "./context.css";
+import { chiefThreadId } from "../chief/data.js";
+import { BotAvatar } from "../components/BotAvatar.js";
 import {
   Button,
   Chip,
@@ -258,6 +260,11 @@ export default function Chat({
           size="sm"
           label={sidebarControl?.label ?? (sidebar ? "Hide sidebar" : "Show sidebar")}
           onClick={sidebarControl?.toggle ?? toggleSidebar}
+        />
+        <BotAvatar
+          id={chiefThreadId(entities) === threadId ? "zolt" : threadId}
+          zolt={chiefThreadId(entities) === threadId}
+          state={busy ? "working" : "idle"}
         />
         <div className="chat-title">
           {place ? (

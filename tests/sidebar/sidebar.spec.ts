@@ -96,6 +96,40 @@ test("navigate and grow a repo's project team, with accessible responsive naviga
     await expect(sidebar.getByRole("button", { name: "Quick chat", exact: true })).toHaveCount(0);
     await sidebar.getByRole("button", { name: "Designer", exact: true }).click();
     await expect(page).toHaveURL(/#chat\/thread$/);
+    await expect(page.locator(".sidebar-collapsed")).toHaveCount(0);
+    await expect(sidebar.locator(".bot-avatar")).toHaveCount(2);
+    const originalFace = await sidebar
+      .getByRole("button", { name: "Designer", exact: true })
+      .locator(".bot-silhouette")
+      .getAttribute("d");
+    const layout = await page.locator(".chat-conversation").evaluate((pane) => {
+      const composer = pane.querySelector(".chat-composer")?.getBoundingClientRect();
+      if (!composer) throw new Error("Composer missing");
+      const bounds = pane.getBoundingClientRect();
+      return { gap: composer.left - bounds.left, ratio: composer.width / bounds.width };
+    });
+    expect(layout.gap).toBeLessThan(35);
+    expect(layout.ratio).toBeGreaterThan(0.9);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await sidebar.getByRole("button", { name: "Designer", exact: true }).hover();
+    expect(
+      await sidebar
+        .getByRole("button", { name: "Designer", exact: true })
+        .locator(".bot-eyes")
+        .evaluate((node) => getComputedStyle(node).animationName),
+    ).toBe("bot-blink");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(
+      await sidebar
+        .getByRole("button", { name: "Designer", exact: true })
+        .locator(".bot-eyes")
+        .evaluate((node) => getComputedStyle(node).animationName),
+    ).toBe("none");
+    await expect(page.locator(".chat-header .bot-silhouette")).toHaveAttribute(
+      "d",
+      originalFace ?? "",
+    );
+
     await sidebar.getByRole("button", { name: "Collapse Onboarding", exact: true }).click();
     await expect(sidebar.getByRole("button", { name: "Designer", exact: true })).toHaveCount(0);
     await sidebar.getByRole("button", { name: "Expand Onboarding", exact: true }).focus();
@@ -106,6 +140,13 @@ test("navigate and grow a repo's project team, with accessible responsive naviga
     await page.getByRole("button", { name: "Add employee", exact: true }).click();
     await expect(page).toHaveURL(/#chat\//);
     await expect(sidebar.getByRole("button", { name: "Developer", exact: true })).toBeVisible();
+    const employeeFaces = await sidebar
+      .locator(".scope-chat .bot-avatar")
+      .evaluateAll((nodes) => nodes.map((node) => node.className));
+    expect(new Set(employeeFaces).size).toBe(employeeFaces.length);
+    await expect(
+      sidebar.getByRole("button", { name: "Designer", exact: true }).locator(".bot-silhouette"),
+    ).toHaveAttribute("d", originalFace ?? "");
     const employee = f.daemon.store.record(
       "thread",
       decodeURIComponent(page.url().split("#chat/")[1] ?? ""),
@@ -124,6 +165,37 @@ test("navigate and grow a repo's project team, with accessible responsive naviga
     await expect(page.getByRole("menuitem", { name: "Overview", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(sidebar.getByRole("button", { name: "Workspace tools" })).toBeFocused();
+    await sidebar.getByRole("button", { name: "Designer", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Message First", exact: true })
+      .fill(
+        "Take time to explain the onboarding rollout plan and the checks we should run before launch.",
+      );
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const workingFace = sidebar.locator('.scope-chat .bot-avatar[data-state="working"]');
+    await expect(workingFace).toBeVisible();
+    expect(
+      await workingFace
+        .locator(".bot-body")
+        .evaluate((node) => getComputedStyle(node).animationName),
+    ).toBe("bot-working");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(
+      await workingFace
+        .locator(".bot-body")
+        .evaluate((node) => getComputedStyle(node).animationName),
+    ).toBe("none");
+
+    await expect(page.locator(".chat-timeline")).toContainText("First answer");
+    const messageBounds = await page.locator(".chat-virtual-list").evaluate((node) => {
+      const list = node.getBoundingClientRect();
+      const composer = document.querySelector(".chat-composer")?.getBoundingClientRect();
+      if (!composer) throw new Error("Composer missing");
+      return { left: Math.abs(list.left - composer.left), width: list.width };
+    });
+    expect(messageBounds.left).toBeLessThan(2);
+    expect(messageBounds.width).toBeGreaterThan(720);
     for (const theme of ["dark", "light"]) {
       await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
       await sidebar.getByRole("button", { name: "Designer", exact: true }).click();

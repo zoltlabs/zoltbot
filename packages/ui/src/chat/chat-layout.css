@@ -1,0 +1,30 @@
+/* The conversation belongs to the workspace pane, with one shared leading edge. */
+.chat-workspace {
+  --chat-gutter: var(--zb-space-6);
+}
+.chat-timeline {
+  padding-inline: var(--chat-gutter);
+  scrollbar-gutter: stable;
+}
+.chat-timeline .chat-virtual-list {
+  max-width: none;
+  margin-inline: 0;
+}
+.chat-conversation > :not(.chat-timeline-wrap, dialog) {
+  width: calc(100% - var(--chat-gutter) * 2);
+  max-width: none;
+  margin-inline: var(--chat-gutter);
+}
+.chat-composer {
+  align-self: stretch;
+}
+.chat-empty {
+  max-width: none;
+  margin: var(--zb-space-8) 0;
+  text-align: start;
+}
+@media (max-width: 700px) {
+  .chat-workspace {
+    --chat-gutter: var(--zb-space-3);
+  }
+}

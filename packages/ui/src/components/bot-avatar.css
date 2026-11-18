@@ -1,0 +1,96 @@
+.bot-avatar {
+  display: inline-flex;
+  flex: none;
+  width: var(--zb-control-md);
+  height: var(--zb-control-md);
+  color: var(--zb-character-eye-1);
+}
+.bot-avatar-md {
+  width: var(--zb-control-lg);
+  height: var(--zb-control-lg);
+}
+.bot-avatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.bot-avatar.h2 {
+  color: var(--zb-character-eye-2);
+}
+.bot-avatar.h3 {
+  color: var(--zb-character-eye-3);
+}
+.bot-avatar.h4 {
+  color: var(--zb-character-eye-4);
+}
+.bot-avatar.h5 {
+  color: var(--zb-character-eye-5);
+}
+.bot-avatar.h6 {
+  color: var(--zb-character-eye-6);
+}
+.bot-avatar.h7 {
+  color: var(--zb-character-eye-7);
+}
+.bot-avatar.h8 {
+  color: var(--zb-character-eye-8);
+}
+.bot-avatar.bot-avatar-zolt {
+  color: var(--zb-character-eye-4);
+}
+.bot-silhouette {
+  fill: currentColor;
+}
+.bot-eyes {
+  fill: var(--zb-character-screen);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bot-mouth {
+  fill: none;
+  stroke: var(--zb-character-screen);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.bot-body {
+  transform-origin: center;
+}
+/* Brief reactions finish on their own. Reduced motion always keeps a still face. */
+@media (prefers-reduced-motion: no-preference) {
+  .bot-avatar[data-state="working"] .bot-body {
+    animation: bot-working 800ms ease-in-out 3;
+    animation-delay: var(--bot-delay);
+  }
+  .bot-avatar[data-state="needs_you"] .bot-eyes {
+    animation: bot-blink 1400ms ease-in-out 2;
+  }
+  @media (hover: hover) {
+    button:hover > .bot-avatar .bot-eyes {
+      animation: bot-blink 1200ms ease-in-out 1;
+    }
+  }
+  @keyframes bot-blink {
+    0%,
+    35%,
+    55%,
+    100% {
+      transform: scaleY(1);
+    }
+    45% {
+      transform: scaleY(0.12);
+    }
+  }
+  @keyframes bot-working {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0);
+    }
+    35% {
+      transform: translateY(-1px) rotate(-5deg);
+    }
+    70% {
+      transform: translateY(-1px) rotate(5deg);
+    }
+  }
+}

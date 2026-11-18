@@ -1,6 +1,7 @@
 import { terms } from "@zoltbot/protocol";
 import { memo, useEffect, useState } from "react";
 import { type Row, text } from "../chat/types.js";
+import { BotAvatar } from "../components/BotAvatar.js";
 import {
   type ChatActionCall,
   ChatRowShell,
@@ -319,12 +320,10 @@ export const WorkspaceTree = memo(function WorkspaceTree({
                         .join(", ")
                         .toLowerCase()}
                     >
-                      <span
-                        className={`scope-employee-avatar h${avatarHue(id)}`}
-                        aria-hidden="true"
-                      >
-                        {projectInitial(title)}
-                      </span>
+                      <BotAvatar
+                        id={id}
+                        state={rowStatus(chat) === "failed" ? "failed" : status(chat)}
+                      />
                       <bdi className="truncate grow">{title}</bdi>
                       {badge ? (
                         <span className="scope-lead" aria-hidden="true">
