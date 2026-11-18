@@ -8,24 +8,49 @@ import { newId, useAction } from "../state/actions";
 import { useClient, useSnapshot } from "../state/link";
 import { touch, type as typography, useTheme } from "../theme";
 import { OfflineBanner } from "../ui/chrome";
-import { Button, Group, Row, Txt } from "../ui/kit";
+import { Button, Txt } from "../ui/kit";
 
 export default function ProjectSheet() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, repoId } = useLocalSearchParams<{ id?: string; repoId?: string }>();
   const snapshot = useSnapshot();
-  const project = snapshot.entities.project?.find((row) => row.id === id);
+  const project = snapshot.entities.project?.find(
+    (row) => row.id === (repoId ?? id) && !row.archived,
+  );
   const { c } = useTheme();
   const online = useClient((s) => s.status === "online");
   const { run, busy } = useAction();
-  const [name, setName] = useState(text(project?.name));
+  const [name, setName] = useState(id ? text(project?.name) : "");
   const [folder, setFolder] = useState("");
   const locked = !online || busy;
   const save = async () => {
+    const at = new Date().toISOString();
     const result = id
       ? await run("project.update", { id, changes: { name: name.trim() } })
-      : await run("project.create", {
-          value: newProject(newId("project"), name, folder, new Date().toISOString()),
-        });
+      : repoId
+        ? await run(
+            "subproject.create",
+            {
+              value: {
+                id: newId("project"),
+                projectId: repoId,
+                name: name.trim(),
+                label: "Project",
+                depth: 1,
+                goal: "",
+                instructions: "",
+                archived: false,
+                createdAt: at,
+              },
+            },
+            { key: JSON.stringify(["project", repoId, name.trim()]) },
+          )
+        : await run(
+            "project.create",
+            {
+              value: newProject(newId("repo"), name, folder, at),
+            },
+            { key: JSON.stringify(["repo", name.trim(), folder.trim()]) },
+          );
     if (result) router.back();
   };
   const archive = () =>
@@ -63,12 +88,17 @@ export default function ProjectSheet() {
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <Button kind="plain" label="Cancel" onPress={() => router.back()} />
-        <Txt v="cardTitle">{id ? `Edit ${terms.workspace.one}` : `New ${terms.workspace.one}`}</Txt>
+        <Txt v="cardTitle">
+          {id ? `Edit ${terms.workspace.one}` : repoId ? "New project" : "New repo"}
+        </Txt>
         <Button
           kind="plain"
           label="Save"
           disabled={
-            locked || !name.trim() || (!id && !macFolder(folder)) || Boolean(id && !project)
+            locked ||
+            !name.trim() ||
+            (!id && !repoId && !!folder.trim() && !macFolder(folder)) ||
+            Boolean((id || repoId) && !project)
           }
           onPress={() => void save()}
         />
@@ -78,16 +108,17 @@ export default function ProjectSheet() {
         Name
       </Txt>
       <TextInput
-        accessibilityLabel={`${terms.workspace.One} name`}
+        accessibilityLabel={repoId ? "Project name" : "Repo name"}
+        maxLength={150}
         value={name}
         onChangeText={setName}
         editable={!locked}
         style={field}
       />
-      {!id ? (
+      {!id && !repoId ? (
         <>
           <Txt v="meta" tone="secondary">
-            Folder on your Mac
+            Folder on your Mac (optional)
           </Txt>
           <TextInput
             accessibilityLabel="Folder on your Mac"
@@ -106,9 +137,6 @@ export default function ProjectSheet() {
           </Txt>
         </>
       ) : null}
-      <Group>
-        <Row title="Default profile" meta="Set the profile when starting a chat or task." last />
-      </Group>
       {id ? (
         <Button
           label={`Archive ${terms.workspace.one}`}

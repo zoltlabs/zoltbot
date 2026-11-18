@@ -1,11 +1,12 @@
 import { chiefName } from "@zoltbot/ui/chief/data";
 import { router } from "expo-router";
 import { StyleSheet } from "react-native";
-import { ago, chats, place, profileName, text } from "../../data/view";
-import { useSnapshot } from "../../state/link";
-import { useSharing } from "../../state/sharing";
-import { TabScreen } from "../../ui/chrome";
-import { Avatar, Button, Chip, Group, Row, Txt } from "../../ui/kit";
+import { ago, chats, place, profileName, text } from "../data/view";
+import { useSnapshot } from "../state/link";
+import { useSharing } from "../state/sharing";
+import { BotAvatar } from "../ui/BotAvatar";
+import { BackBar, TabScreen } from "../ui/chrome";
+import { Button, Chip, Group, Row, Txt } from "../ui/kit";
 
 export default function Chats() {
   const snapshot = useSnapshot();
@@ -17,7 +18,7 @@ export default function Chats() {
   );
   const draftCount = useSharing((state) => state.drafts.length);
   return (
-    <TabScreen title="Chats">
+    <TabScreen title="All chats" right={<BackBar label="Home" iconOnly />}>
       <Button label="Quick chat" kind="primary" onPress={() => router.push("/quick")} />
       <Button
         label={`Shared drafts${draftCount ? ` (${draftCount})` : ""}`}
@@ -58,7 +59,7 @@ export default function Chats() {
                       .filter(Boolean)
                       .join(" · ")
               }
-              left={<Avatar id={text(thread.agentId)} />}
+              left={<BotAvatar id={text(thread.id)} zolt={chief} working={working} />}
               right={
                 working ? (
                   <Chip label="Working" tone="accent" dot />

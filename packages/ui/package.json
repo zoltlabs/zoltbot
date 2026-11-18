@@ -11,6 +11,7 @@
     "./chat/types": "./src/chat/types.ts",
     "./chat/tools/tool-data": "./src/chat/tools/tool-data.ts",
     "./quick-chat/data": "./src/quick-chat/data.ts",
+    "./bot-avatar-shapes": "./src/components/bot-avatar-shapes.ts",
     "./chief/data": "./src/chief/data.ts",
     "./inbox/data": "./src/inbox/data.ts",
     "./inbox/letters": "./src/inbox/letters.ts",

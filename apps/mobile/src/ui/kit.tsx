@@ -122,6 +122,7 @@ export function Group({ children }: { children: ReactNode }) {
 
 export function Row({
   title,
+  titleLines = 1,
   meta,
   left,
   right,
@@ -133,6 +134,7 @@ export function Row({
   disabled,
 }: {
   title: string;
+  titleLines?: number;
   meta?: string;
   left?: ReactNode;
   right?: ReactNode;
@@ -149,7 +151,7 @@ export function Row({
     <>
       {left}
       <View style={styles.rowText}>
-        <Txt v="bodyMedium" lines={1}>
+        <Txt v="bodyMedium" lines={titleLines}>
           {title}
         </Txt>
         {meta ? (

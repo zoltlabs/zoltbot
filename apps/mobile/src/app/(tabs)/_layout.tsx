@@ -11,7 +11,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="tasks" />
       <Tabs.Screen name="compose" />
-      <Tabs.Screen name="chats" />
+      <Tabs.Screen name="activity" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );

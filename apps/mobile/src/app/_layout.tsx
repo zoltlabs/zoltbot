@@ -6,6 +6,7 @@ import { View } from "react-native";
 import { useLink } from "../state/link";
 import { startNotificationActions } from "../state/notifications";
 import { useTheme } from "../theme";
+import { BotAvatarPalette } from "../ui/BotAvatar";
 import { SharingLifecycle } from "../ui/SharingLifecycle";
 
 export default function RootLayout() {
@@ -33,76 +34,78 @@ export default function RootLayout() {
   };
   if (!booted) return <View style={{ flex: 1, backgroundColor: c["bg-page"] }} />;
   return (
-    <ThemeProvider value={theme}>
-      <SharingLifecycle />
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          statusBarStyle: scheme === "dark" ? "light" : "dark",
-          contentStyle: { backgroundColor: c["bg-page"] },
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="pair" options={{ gestureEnabled: false }} />
-        <Stack.Screen
-          name="project-sheet"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
+    <BotAvatarPalette>
+      <ThemeProvider value={theme}>
+        <SharingLifecycle />
+        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            statusBarStyle: scheme === "dark" ? "light" : "dark",
+            contentStyle: { backgroundColor: c["bg-page"] },
           }}
-        />
-        <Stack.Screen name="new" options={{ presentation: "modal" }} />
-        <Stack.Screen
-          name="chat/fork"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="chat/edit"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="zolt-settings"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="chat/send"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="knowledge-edit"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="profile/[id]"
-          options={{
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.92],
-            sheetGrabberVisible: true,
-          }}
-        />
-      </Stack>
-    </ThemeProvider>
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="pair" options={{ gestureEnabled: false }} />
+          <Stack.Screen
+            name="project-sheet"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen name="new" options={{ presentation: "modal" }} />
+          <Stack.Screen
+            name="chat/fork"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
+            name="chat/edit"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
+            name="zolt-settings"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
+            name="chat/send"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
+            name="knowledge-edit"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
+            name="profile/[id]"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+        </Stack>
+      </ThemeProvider>
+    </BotAvatarPalette>
   );
 }

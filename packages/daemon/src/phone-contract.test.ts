@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { Value } from "@sinclair/typebox/value";
-import { macOnlyMethods, methodCatalog, unservedMethods } from "@zoltbot/protocol";
+import { macOnlyMethods, methodCatalog, parseEvent, unservedMethods } from "@zoltbot/protocol";
 import { afterEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { ConnectionRegistry } from "../../connections/src/registry.js";
@@ -137,6 +137,119 @@ describe("phone contract", () => {
       ),
     ).rejects.toThrow(/mac_only/);
     expect(daemon.store.database.prepare("SELECT * FROM view_grants").all()).toEqual([]);
+  });
+
+  it("creates a repo, project and employee chat from a paired phone", async () => {
+    const { phone, daemon } = await setup({ relay: true });
+    if (!phone) throw new Error("no phone");
+    const create = (kind: string, value: Record<string, unknown>) =>
+      phone.call(`${kind}.create`, { value }, randomUUID());
+    const at = "2026-11-08T00:00:00.000Z";
+    await create("project", {
+      id: "repo",
+      name: "Acme",
+      goal: "",
+      instructions: "",
+      constraints: "",
+      roots: [],
+      hierarchyDepth: 3,
+      tags: [],
+      requireCodeReview: true,
+      skipFinalGateWhenReviewed: false,
+      archived: false,
+      createdAt: at,
+    });
+    await create("subproject", {
+      id: "launch",
+      projectId: "repo",
+      name: "Launch",
+      label: "Project",
+      goal: "",
+      instructions: "",
+      depth: 1,
+      archived: false,
+      createdAt: at,
+    });
+    // The paired phone uses a profile already configured on the Mac.
+    daemon.store.dispatch("seed-profile", () => ({
+      events: [
+        parseEvent({
+          eventId: "seed-profile:definition",
+          commandId: "seed-profile",
+          aggregateType: "agentDefinition",
+          aggregateId: "claude",
+          type: "agentDefinition.created",
+          occurredAt: at,
+          payload: {
+            id: "claude",
+            displayName: "Claude",
+            adapter: "acp",
+            binaryNames: [],
+            versionCommand: [],
+            launch: { command: "echo", args: [], env: {} },
+            testedVersions: "fixture",
+            defaults: { permissionProfile: "workspace_write" },
+            staticCapabilities: {},
+            nativeSessionRoots: [],
+            experimental: false,
+          },
+        }),
+        parseEvent({
+          eventId: "seed-profile:0",
+          commandId: "seed-profile",
+          aggregateType: "agent",
+          aggregateId: "profile",
+          type: "agent.created",
+          occurredAt: at,
+          payload: {
+            id: "profile",
+            definitionId: "claude",
+            name: "Designer",
+            avatar: "D",
+            kind: "profile",
+            permissionProfile: "workspace_write",
+            instructions: "",
+            hidden: false,
+            archived: false,
+          },
+        }),
+      ],
+      result: {},
+    }));
+    const employee = {
+      id: "employee",
+      agentId: "profile",
+      projectId: "repo",
+      node: { type: "subproject", id: "launch" },
+      kind: "side",
+      title: "Designer",
+      titleSource: "human",
+      pinned: false,
+      archived: false,
+      createdAt: at,
+      lastActivityAt: at,
+    };
+    expect(await create("thread", employee)).toEqual(employee);
+    expect(daemon.store.record("thread", employee.id)).toEqual(employee);
+    const chief = {
+      id: "zolt",
+      agentId: "profile",
+      kind: "main",
+      title: "Zolt",
+      titleSource: "human",
+      pinned: false,
+      archived: false,
+      createdAt: at,
+      lastActivityAt: at,
+    };
+    await create("thread", chief);
+    await expect(
+      phone.call(
+        "settings.set",
+        { key: "chief.thread", value: chief.id, expected: {} },
+        randomUUID(),
+      ),
+    ).resolves.toEqual({ ok: true });
   });
 
   it("lets a phone fork a chat and change its model and effort (Release 2)", async () => {

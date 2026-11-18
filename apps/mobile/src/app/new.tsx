@@ -1,4 +1,5 @@
 import { terms } from "@zoltbot/protocol";
+import { chiefDefaultProfile, chiefKeys, chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -14,7 +15,7 @@ import {
   text,
 } from "../data/view";
 import { newId, useAction } from "../state/actions";
-import { useClient, useSnapshot } from "../state/link";
+import { useClient, useLink, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
 import { Attachments } from "../ui/Attachments";
 import { OfflineBanner } from "../ui/chrome";
@@ -48,17 +49,32 @@ export default function NewWork() {
   const [showDoneWhen, setShowDoneWhen] = useState(false);
   const [doneWhen, setDoneWhen] = useState("");
 
-  const task = mode === "task";
-  const selectedPlace = resolvePlace(snapshot, groups, whereKey || params.place);
+  const chief = params.mode === "zolt";
+  const employee = params.mode === "employee";
+  const task = mode === "task" && !chief && !employee;
+  const name = chiefName(snapshot.entities);
+  const resolved = resolvePlace(snapshot, groups, whereKey || params.place);
+  const selectedPlace = employee && resolved?.key !== params.place ? undefined : resolved;
   const who =
     userPickedProfile.current && people.some((profile) => text(profile.id) === pickedProfileId)
       ? pickedProfileId
-      : defaultProfileForPlace(snapshot, selectedPlace);
+      : chief
+        ? (chiefDefaultProfile(snapshot.entities) ?? "")
+        : defaultProfileForPlace(snapshot, selectedPlace);
   const derivedTitle = deriveTaskTitle(message);
   const locked = !online || busy || Boolean(createdThreadId);
   const ready =
     online &&
-    Boolean(selectedPlace && who && (task ? derivedTitle : message.trim() || attachments.length));
+    Boolean(
+      who &&
+        (chief ||
+          (selectedPlace &&
+            (employee
+              ? message.trim()
+              : task
+                ? derivedTitle
+                : message.trim() || attachments.length))),
+    );
 
   const choosePlace = (place: DispatchPlace) => {
     setWhereKey(place.key);
@@ -77,8 +93,15 @@ export default function NewWork() {
   };
 
   const start = async () => {
-    if (!ready || !selectedPlace) return;
-    const { node, projectId } = selectedPlace;
+    if (!ready) return;
+    const current = useLink.getState().client?.getState().snapshot ?? snapshot;
+    const existing = chief ? chiefThreadId(current.entities) : undefined;
+    if (existing) {
+      router.replace(`/chat/${existing}`);
+      return;
+    }
+    const { node, projectId } = selectedPlace ?? {};
+    if (!chief && !node) return;
     if (task) {
       const created = await run("task.create", {
         title: derivedTitle,
@@ -104,29 +127,55 @@ export default function NewWork() {
     const id = createdThreadId ?? newId("thread");
     const created =
       createdThreadId ||
-      (await run("thread.create", {
-        value: {
-          id,
-          agentId: who,
-          projectId,
-          node,
-          kind: "side",
-          title: derivedTitle || "New chat",
-          titleSource: "auto",
-          pinned: false,
-          archived: false,
-          createdAt: at,
-          lastActivityAt: at,
+      (await run(
+        "thread.create",
+        {
+          value: {
+            id,
+            agentId: who,
+            ...(chief ? {} : { projectId, node }),
+            kind: chief ? "main" : "side",
+            title: chief ? name : employee ? message.trim() : derivedTitle || "New chat",
+            titleSource: chief || employee ? "human" : "auto",
+            pinned: false,
+            archived: false,
+            createdAt: at,
+            lastActivityAt: at,
+          },
         },
-      }));
+        {
+          key: JSON.stringify([
+            "create-chat",
+            params.mode,
+            who,
+            node,
+            message,
+            attachments.map((attachment) => attachment.id),
+          ]),
+        },
+      ));
     if (!created) return;
-    setCreatedThreadId(id);
+    const savedId = createdThreadId ?? (text((created as { id?: string }).id) || id);
+    setCreatedThreadId(savedId);
+    if (chief) {
+      const value = current.entities.settings?.find((row) => row.key === chiefKeys.thread)?.value;
+      const result = await run("settings.set", {
+        key: chiefKeys.thread,
+        value: savedId,
+        expected: value === undefined ? {} : { value },
+      });
+      if (!result) return;
+    }
+    if (chief || employee) {
+      router.replace(`/chat/${savedId}`);
+      return;
+    }
     const sent = await run("turn.send", {
-      threadId: id,
+      threadId: savedId,
       input: composeInput(message, attachments),
       mode: "queue",
     });
-    if (sent) router.replace(`/chat/${id}`);
+    if (sent) router.replace(`/chat/${savedId}`);
   };
 
   const drilledGroup = pickerProjectId
@@ -152,11 +201,11 @@ export default function NewWork() {
           style={styles.barButton}
         />
         <Txt v="cardTitle" accessibilityRole="header">
-          {task ? "New task" : "New chat"}
+          {chief ? `Set up ${name}` : employee ? "Add employee" : task ? "New task" : "New chat"}
         </Txt>
         <Button
           kind="plain"
-          label="Start"
+          label={employee ? "Add" : "Start"}
           disabled={!ready || busy}
           onPress={() => void start()}
           style={styles.barButton}
@@ -168,127 +217,131 @@ export default function NewWork() {
         keyboardShouldPersistTaps="handled"
       >
         <OfflineBanner />
-        <Segmented
-          label="Kind"
-          disabled={locked}
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "chat", label: "Chat" },
-            { value: "task", label: "Task" },
-          ]}
-        />
-        <Txt v="meta" tone="muted" style={styles.note}>
-          {task
-            ? "Runs on its own in a fresh conversation and comes back for your review."
-            : "Talk with an agent while it works, back and forth."}
-        </Txt>
-        <View style={[styles.group, { backgroundColor: c["bg-raised"], borderColor: c.border }]}>
-          <Pressable
-            disabled={locked || !groups.length}
-            onPress={togglePicker}
-            accessibilityRole="button"
-            accessibilityState={{
-              expanded: pickerOpen,
-              disabled: locked || !groups.length,
-            }}
-            accessibilityLabel={`Where: ${whereLabel}`}
-            style={[
-              styles.line,
-              { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth },
+        {people.length === 0 ? (
+          <Txt tone="muted">Set up a coding profile on your Mac first.</Txt>
+        ) : null}
+        {!chief && !employee ? (
+          <Segmented
+            label="Kind"
+            disabled={locked}
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "chat", label: "Chat" },
+              { value: "task", label: "Task" },
             ]}
-          >
-            <Txt tone="muted" style={styles.key}>
-              Where
-            </Txt>
-            <Txt style={styles.flex}>{whereLabel}</Txt>
-            <View style={{ transform: [{ rotate: pickerOpen ? "90deg" : "0deg" }] }}>
-              <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
-            </View>
-          </Pressable>
-          {pickerOpen && groups.length ? (
-            <View
-              style={{
-                backgroundColor: c["bg-sunken"],
-                borderBottomColor: c.border,
-                borderBottomWidth: StyleSheet.hairlineWidth,
-              }}
-            >
-              {drilledGroup ? (
-                <>
-                  <Row
-                    title={terms.workspace.Many}
-                    left={<Icon name="back" size={16} stroke={2} color={c["accent-text"]} />}
-                    label={`Back to ${terms.workspace.many}`}
-                    onPress={() => setPickerProjectId(undefined)}
-                  />
-                  <Row
-                    title={`All of ${drilledGroup.name}`}
-                    {...(drilledGroup.path ? { meta: drilledGroup.path, mono: true } : {})}
-                    checked={selectedPlace?.key === drilledGroup.root.key}
-                    right={
-                      selectedPlace?.key === drilledGroup.root.key ? (
-                        <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
-                      ) : undefined
-                    }
-                    last={!drilledGroup.teams.length}
-                    onPress={() => choosePlace(drilledGroup.root)}
-                  />
-                  {drilledGroup.teams.map((team, index) => {
-                    const on = selectedPlace?.key === team.key;
-                    return (
+          />
+        ) : null}
+        <View style={[styles.group, { backgroundColor: c["bg-raised"], borderColor: c.border }]}>
+          {!chief ? (
+            <>
+              <Pressable
+                disabled={locked || employee || !groups.length}
+                onPress={togglePicker}
+                accessibilityRole="button"
+                accessibilityState={{
+                  expanded: pickerOpen,
+                  disabled: locked || employee || !groups.length,
+                }}
+                accessibilityLabel={`Where: ${whereLabel}`}
+                style={[
+                  styles.line,
+                  { borderBottomColor: c.border, borderBottomWidth: StyleSheet.hairlineWidth },
+                ]}
+              >
+                <Txt tone="muted" style={styles.key}>
+                  Where
+                </Txt>
+                <Txt style={styles.flex}>{whereLabel}</Txt>
+                <View style={{ transform: [{ rotate: pickerOpen ? "90deg" : "0deg" }] }}>
+                  <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
+                </View>
+              </Pressable>
+              {pickerOpen && groups.length ? (
+                <View
+                  style={{
+                    backgroundColor: c["bg-sunken"],
+                    borderBottomColor: c.border,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                  }}
+                >
+                  {drilledGroup ? (
+                    <>
                       <Row
-                        key={team.key}
-                        title={team.label}
-                        checked={on}
+                        title={terms.workspace.Many}
+                        left={<Icon name="back" size={16} stroke={2} color={c["accent-text"]} />}
+                        label={`Back to ${terms.workspace.many}`}
+                        onPress={() => setPickerProjectId(undefined)}
+                      />
+                      <Row
+                        title={`All of ${drilledGroup.name}`}
+                        {...(drilledGroup.path ? { meta: drilledGroup.path, mono: true } : {})}
+                        checked={selectedPlace?.key === drilledGroup.root.key}
                         right={
-                          on ? (
+                          selectedPlace?.key === drilledGroup.root.key ? (
                             <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
                           ) : undefined
                         }
-                        last={index === drilledGroup.teams.length - 1}
-                        onPress={() => choosePlace(team)}
+                        last={!drilledGroup.teams.length}
+                        onPress={() => choosePlace(drilledGroup.root)}
                       />
-                    );
-                  })}
-                </>
-              ) : (
-                groups.map((group, index) => {
-                  const meta = group.teams.length
-                    ? [
-                        group.path,
-                        `${group.teams.length} ${group.teams.length === 1 ? terms.team.one : terms.team.many}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
-                    : group.path;
-                  const on = group.directSelect && selectedPlace?.key === group.root.key;
-                  return (
-                    <Row
-                      key={group.projectId}
-                      title={group.name}
-                      {...(meta ? { meta, mono: !group.teams.length } : {})}
-                      {...(group.directSelect ? { checked: on } : {})}
-                      right={
-                        group.directSelect ? (
-                          on ? (
-                            <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
-                          ) : undefined
-                        ) : (
-                          <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
-                        )
-                      }
-                      last={index === groups.length - 1}
-                      onPress={() =>
-                        group.directSelect
-                          ? choosePlace(group.root)
-                          : setPickerProjectId(group.projectId)
-                      }
-                    />
-                  );
-                })
-              )}
-            </View>
+                      {drilledGroup.teams.map((team, index) => {
+                        const on = selectedPlace?.key === team.key;
+                        return (
+                          <Row
+                            key={team.key}
+                            title={team.label}
+                            checked={on}
+                            right={
+                              on ? (
+                                <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
+                              ) : undefined
+                            }
+                            last={index === drilledGroup.teams.length - 1}
+                            onPress={() => choosePlace(team)}
+                          />
+                        );
+                      })}
+                    </>
+                  ) : (
+                    groups.map((group, index) => {
+                      const meta = group.teams.length
+                        ? [
+                            group.path,
+                            `${group.teams.length} ${group.teams.length === 1 ? terms.team.one : terms.team.many}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : group.path;
+                      const on = group.directSelect && selectedPlace?.key === group.root.key;
+                      return (
+                        <Row
+                          key={group.projectId}
+                          title={group.name}
+                          {...(meta ? { meta, mono: !group.teams.length } : {})}
+                          {...(group.directSelect ? { checked: on } : {})}
+                          right={
+                            group.directSelect ? (
+                              on ? (
+                                <Icon name="check" size={18} stroke={2} color={c["accent-text"]} />
+                              ) : undefined
+                            ) : (
+                              <Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />
+                            )
+                          }
+                          last={index === groups.length - 1}
+                          onPress={() =>
+                            group.directSelect
+                              ? choosePlace(group.root)
+                              : setPickerProjectId(group.projectId)
+                          }
+                        />
+                      );
+                    })
+                  )}
+                </View>
+              ) : null}
+            </>
           ) : null}
           <View style={styles.line}>
             <Txt tone="muted" style={styles.key}>
@@ -327,26 +380,34 @@ export default function NewWork() {
           </View>
         </View>
 
-        {!task || kind === "fake" ? (
+        {!chief && !employee && (!task || kind === "fake") ? (
           <Attachments value={attachments} onChange={setAttachments} disabled={busy} />
         ) : null}
 
-        <View style={styles.labelled}>
-          <Txt v="meta" tone="secondary">
-            {task ? "Goal" : "Message"}
-          </Txt>
-          <TextInput
-            editable={online && !busy}
-            value={message}
-            onChangeText={setMessage}
-            maxLength={task ? 4000 : undefined}
-            placeholder={task ? "What should the agent do?" : "What do you want to work on?"}
-            placeholderTextColor={c["text-dim"]}
-            multiline
-            accessibilityLabel={task ? "Goal" : "Message"}
-            style={[...field, styles.area]}
-          />
-        </View>
+        {!chief ? (
+          <View style={styles.labelled}>
+            <Txt v="meta" tone="secondary">
+              {employee ? "Employee name" : task ? "Goal" : "Message"}
+            </Txt>
+            <TextInput
+              editable={online && !busy}
+              value={message}
+              onChangeText={setMessage}
+              maxLength={employee ? 150 : task ? 4000 : undefined}
+              placeholder={
+                employee
+                  ? "Designer"
+                  : task
+                    ? "What should the agent do?"
+                    : "What do you want to work on?"
+              }
+              placeholderTextColor={c["text-dim"]}
+              multiline={!employee}
+              accessibilityLabel={employee ? "Employee name" : task ? "Goal" : "Message"}
+              style={employee ? field : [...field, styles.area]}
+            />
+          </View>
+        ) : null}
 
         {task ? (
           showDoneWhen || Boolean(doneWhen) ? (
@@ -394,7 +455,6 @@ const styles = StyleSheet.create({
   },
   barButton: { paddingHorizontal: 12 },
   body: { padding: 20, paddingTop: 8, gap: 16 },
-  note: { marginTop: -6, marginHorizontal: 4 },
   group: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
   line: {
     minHeight: 52,

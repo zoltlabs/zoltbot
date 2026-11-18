@@ -8,10 +8,10 @@ import { Icon, type IconName } from "./icons";
 import { Txt } from "./kit";
 
 const tabs: Record<string, { label: string; icon: IconName }> = {
-  index: { label: "Overview", icon: "overview" },
+  index: { label: "Home", icon: "overview" },
   tasks: { label: "Tasks", icon: "tasks" },
   compose: { label: "New chat", icon: "plus" },
-  chats: { label: "Chats", icon: "chats" },
+  activity: { label: "Activity", icon: "chats" },
   settings: { label: "Settings", icon: "settings" },
 };
 
@@ -37,7 +37,7 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
         if (!tab) return null;
         const focused = index === state.index;
         const primary = route.name === "compose";
-        const badge = route.name === "index" && count > 0 ? String(count) : "";
+        const badge = route.name === "activity" && count > 0 ? String(count) : "";
         const color = focused ? c["accent-text"] : c["text-muted"];
         const press = () => {
           if (primary) {

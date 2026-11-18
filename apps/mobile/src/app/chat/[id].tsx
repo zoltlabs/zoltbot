@@ -1,4 +1,5 @@
 import type { ArtifactTarget } from "@zoltbot/protocol";
+import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
@@ -34,12 +35,13 @@ import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
+import { BotAvatar } from "../../ui/BotAvatar";
 import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
-import { BackBar } from "../../ui/chrome";
+import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
-import { Avatar, Button, Chip, Segmented, Txt } from "../../ui/kit";
+import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { ShippingContext } from "../../ui/ShippingContext";
 import { Message } from "../../ui/Transcript";
@@ -71,6 +73,9 @@ export default function Chat() {
   const rows = transcript(snapshot, id);
   const turn = runningTurn(snapshot, id);
   const who = profileName(snapshot, thread?.agentId);
+  const chief = chiefThreadId(snapshot.entities) === id;
+  const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
+  const location = place(snapshot, thread);
   const session = threadSession(snapshot, id);
   const compareMember = snapshot.entities.compareMember?.find((m) => m.threadId === id);
   const compare = snapshot.entities.compare?.find(
@@ -126,14 +131,16 @@ export default function Chat() {
           accessibilityHint={`Opens ${who}’s profile`}
           style={styles.who}
         >
-          <Avatar id={text(thread?.agentId)} />
+          <BotAvatar id={id} zolt={chief} working={!!turn} />
           <View style={styles.title}>
-            <Txt v="cardTitle" lines={1} accessibilityRole="header">
-              {text(thread?.title) || "Chat"}
+            <Txt v="cardTitle" lines={2} accessibilityRole="header">
+              {title}
             </Txt>
-            <Txt v="meta" tone="muted" lines={1}>
-              {[who, place(snapshot, thread)].filter(Boolean).join(" · ")}
-            </Txt>
+            {location ? (
+              <Txt v="meta" tone="muted" lines={2}>
+                {location}
+              </Txt>
+            ) : null}
           </View>
         </Pressable>
         <Pressable
@@ -151,6 +158,8 @@ export default function Chat() {
       <ScrollView
         ref={scroll}
         contentContainerStyle={styles.body}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         scrollEventThrottle={100}
         onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
           const nearEnd = contentSize.height - layoutMeasurement.height - contentOffset.y < 80;
@@ -161,6 +170,12 @@ export default function Chat() {
           if (followLatest.current) scroll.current?.scrollToEnd({ animated: false });
         }}
       >
+        <OfflineBanner />
+        {!thread ? (
+          <Txt tone="muted">Chat unavailable.</Txt>
+        ) : rows.length === 0 ? (
+          <Txt tone="muted">Send a message to {title}.</Txt>
+        ) : null}
         <WakeStatus
           rows={(snapshot.entities.wake ?? []).filter((w) => w.threadId === id)}
           online={online}
@@ -273,7 +288,7 @@ export default function Chat() {
           styles.composer,
           { borderTopColor: c.border, paddingBottom: Math.max(insets.bottom, 10) },
         ]}
-        accessibilityLabel={`Message ${who}`}
+        accessibilityLabel={`Message ${title}`}
       >
         {artifactTarget ? (
           <View style={{ gap: 8 }}>
@@ -305,10 +320,10 @@ export default function Chat() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={`Message ${who}`}
+            placeholder="Message"
             placeholderTextColor={c["text-dim"]}
             multiline
-            editable={online}
+            editable={online && !!thread}
             accessibilityLabel="Message"
             style={[
               styles.input,
@@ -328,7 +343,7 @@ export default function Chat() {
           ) : (
             <Pressable
               onPress={() => void send()}
-              disabled={!online || busy || (!draft.trim() && !attachments.length)}
+              disabled={!online || !thread || busy || (!draft.trim() && !attachments.length)}
               accessibilityRole="button"
               accessibilityLabel="Send"
               style={[
@@ -354,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingRight: 16,
+    paddingEnd: 12,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -362,13 +377,13 @@ const styles = StyleSheet.create({
   controls: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   who: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minHeight: touch },
   title: { flex: 1, minWidth: 0 },
-  body: { padding: 16, gap: 14, flexGrow: 1, justifyContent: "flex-end" },
+  body: { paddingHorizontal: 16, paddingVertical: 16, gap: 16, flexGrow: 1 },
   pinned: { flexGrow: 0, borderTopWidth: StyleSheet.hairlineWidth },
-  pinnedBody: { padding: 12 },
+  pinnedBody: { padding: 16 },
   composer: {
     gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },

@@ -6,7 +6,7 @@ export function macFolder(value: string): string | undefined {
 }
 export function newProject(id: string, name: string, folder: string, at: string): Project {
   const path = macFolder(folder);
-  if (!path || !name.trim())
+  if ((!path && folder.trim()) || !name.trim())
     throw new Error("Enter a name and an absolute folder path on your Mac.");
   return {
     id,
@@ -14,8 +14,8 @@ export function newProject(id: string, name: string, folder: string, at: string)
     goal: "",
     instructions: "",
     constraints: "",
-    roots: [{ path, label: name.trim() }],
-    hierarchyDepth: 1,
+    roots: path ? [{ path, label: name.trim() }] : [],
+    hierarchyDepth: 3,
     tags: [],
     requireCodeReview: true,
     skipFinalGateWhenReviewed: false,

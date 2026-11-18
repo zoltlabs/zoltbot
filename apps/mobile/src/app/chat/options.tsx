@@ -69,7 +69,7 @@ export default function ChatOptions() {
         disabled={!online || busy}
         onPress={() => {
           void run("thread.settle", { id }).then((result) => {
-            if (result) router.replace("/(tabs)/chats");
+            if (result) router.replace("/chats");
           });
         }}
       />

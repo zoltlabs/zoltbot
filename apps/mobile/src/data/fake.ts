@@ -363,6 +363,8 @@ export class FakeTransport implements Transport {
         return searchSampleFiles(String(p.query), Number(p.limit ?? 20));
       case "project.create":
         return this.put("project", p.value as Row, "created");
+      case "subproject.create":
+        return this.put("subproject", p.value as Row, "created");
       case "project.archive":
         if (!p.confirmed) throw new Error("Confirm archiving this project.");
         this.put("project", { ...this.find("project", p.id), archived: true });
