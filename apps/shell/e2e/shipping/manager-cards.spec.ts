@@ -236,6 +236,17 @@ function payments(fixture: Fixture) {
         createdAt: minutesAgo(8),
       },
     ],
+    // The owner's follow-ups: one waiting in the queue and one that failed to send.
+    item("follow-up", 5, {
+      kind: "user",
+      createdAt: minutesAgo(6),
+      body: { input: text("Also cover refunds in yen"), origin: "human", queueState: "queued" },
+    }),
+    item("retry", 6, {
+      kind: "user",
+      createdAt: minutesAgo(5),
+      body: { input: text("Check the refund limits"), origin: "human", queueState: "failed" },
+    }),
     [
       "settings",
       "team.wait.thread",
@@ -291,6 +302,7 @@ test("a manager's chat shows assigned work, results and waits, and acts on them"
     await expect(page.getByText("· waiting for a reply")).toBeVisible();
     await expect(page.getByText("is waiting for", { exact: true })).toBeVisible();
     await expect(page.getByText("2 tasks", { exact: true })).toBeVisible();
+    await expect(page.locator(".message-status")).toHaveText(["Queued #1", "Failed"]);
 
     expect(await axeViolations(page)).toEqual([]);
     await page.screenshot({ path: test.info().outputPath("manager-cards.png"), fullPage: true });

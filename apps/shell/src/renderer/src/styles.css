@@ -3624,7 +3624,7 @@ textarea {
 }
 
 .user-bubble .message-status {
-  color: rgba(20, 20, 20, 0.5);
+  color: var(--text-user-bubble-meta);
 }
 
 .done-label {

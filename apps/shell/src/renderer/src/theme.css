@@ -78,6 +78,8 @@
   --text-info-strong: rgba(221, 233, 255, 0.94);
   --text-file-badge: #ff9d69;
   --text-warning: #f0c46a;
+  /* Status text on the owner's light message bubble, the same in both themes. */
+  --text-user-bubble-meta: #666664;
 
   /* Brand and status colors. */
   --openbot-teal: #54b9a6;
