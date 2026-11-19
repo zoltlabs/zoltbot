@@ -108,3 +108,12 @@ Each feature lands as its own commits. Each needs:
 - axe in both themes
 - the feel check
 - the repository checks in `AGENTS.md`
+
+## Status
+
+All five features are built and in the shell. Known limits:
+- The folders an employee may edit go into its instructions, but nothing enforces them yet.
+- A manager's standing allowance is stored in settings. It isn't stored with the approved-authority records.
+- Switching to another account always starts a new session that carries the conversation over as a copy. The original session can't be resumed under a different config folder.
+- Real Claude and Codex sign-ins, real limit errors and reset times have been tested only with fake providers.
+- An @mention goes to the member who was active most recently when two members share a name.
