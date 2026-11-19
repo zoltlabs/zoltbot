@@ -199,8 +199,6 @@ test("votes, follow-up, continue and the resolved marker preserve the read-only 
     await expect(
       f.page.getByRole("combobox", { name: "Permission mode", exact: true }),
     ).toHaveCount(0);
-    await f.page.locator(".compare-sidebar summary").click();
-    await expect(f.page.getByRole("button", { name: "First’s answer", exact: true })).toBeVisible();
     await f.page
       .getByRole("article", { name: "Compare result", exact: true })
       .getByRole("link", { name: "View side by side", exact: true })

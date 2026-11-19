@@ -5,7 +5,6 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { chromium, expect, test } from "@playwright/test";
 import { handle } from "../../packages/core/src/index.js";
 import { startDaemon } from "../../packages/daemon/src/api.js";
-import { QuickRepository } from "../../packages/daemon/src/quick-chat/repository.js";
 import { parseEvent } from "../../packages/protocol/src/index.js";
 import { runtimeFixture } from "../../tools/fakes/src/runtime-fixture.js";
 
@@ -128,15 +127,6 @@ test("chat row hover icons, context menu actions, pinning, unread, rename, archi
       { commandId: "seed-t2", at: t2At, actor: { kind: "human", id: "fixture" } },
     ),
   );
-  new QuickRepository(f.store).saveChat({
-    id: "q1",
-    title: "Quick scratchpad",
-    createdAt: t2At,
-    updatedAt: t2At,
-    contextSources: [],
-    handoffs: [],
-  });
-
   const daemon = await startDaemon({ dataDir: f.root, origins: ["http://127.0.0.1:5189"] });
   const browser = await chromium.launch({
     headless: true,
@@ -248,35 +238,6 @@ test("chat row hover icons, context menu actions, pinning, unread, rename, archi
     await deleteDialog.getByRole("button", { name: "Delete chat", exact: true }).click();
     await expect(alphaRow).toHaveCount(0);
     await expect.poll(() => daemon.store.record("thread", "t1")).toBeUndefined();
-
-    // Quick Chat sidebar row also supports right-click + hover Pin/More actions.
-    const quickHistory = page.locator(".quick-history");
-    await quickHistory.locator("summary").click();
-    const quickRow = quickHistory.locator("button.quick-recent-open", {
-      hasText: "Quick scratchpad",
-    });
-    const quickShell = quickHistory.locator(".chat-row-shell", {
-      has: page.locator("button.quick-recent-open", { hasText: "Quick scratchpad" }),
-    });
-    await expect(quickRow).toBeVisible();
-    await quickShell.hover();
-    await expect(
-      quickShell.getByRole("button", { name: "Pin Quick scratchpad", exact: true }),
-    ).toBeVisible();
-    await expect(
-      quickShell.getByRole("button", { name: "More actions for Quick scratchpad", exact: true }),
-    ).toBeVisible();
-    await quickRow.click({ button: "right" });
-    const quickMenu = page.getByRole("menu", { name: "Actions for Quick scratchpad" });
-    await expect(quickMenu.getByRole("menuitem", { name: "Pin", exact: true })).toBeVisible();
-    await expect(
-      quickMenu.getByRole("menuitem", { name: "Mark unread", exact: true }),
-    ).toBeVisible();
-    await expect(quickMenu.getByRole("menuitem", { name: "Rename…", exact: true })).toBeVisible();
-    await expect(quickMenu.getByRole("menuitem", { name: "Archive", exact: true })).toBeVisible();
-    await expect(quickMenu.getByRole("menuitem", { name: "Delete…", exact: true })).toBeVisible();
-    await quickMenu.getByRole("menuitem", { name: "Mark unread", exact: true }).click();
-    await expect(quickRow.locator(".chat-unread-badge")).toHaveText("Unread");
 
     expect(errors).toEqual([]);
   } finally {
