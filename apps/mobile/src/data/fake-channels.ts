@@ -9,6 +9,8 @@ const projectId = "acme-web";
 const mira = "thread-mira";
 const sam = "thread-sam";
 const theo = "thread-theo";
+const ada = "thread-ada";
+const teamId = "team-web";
 const members = [mira, sam, theo];
 /** Smaller than zoltd's 200, so the sample shows Show earlier. */
 const samplePage = 6;
@@ -32,7 +34,7 @@ export function sampleChannelRows(now: number): Record<string, Row[]> {
     id,
     agentId,
     projectId,
-    node: { type: "project", id: projectId },
+    node: id === ada ? { type: "project", id: projectId } : { type: "subproject", id: teamId },
     ...(taskId ? { taskId } : {}),
     kind,
     title,
@@ -45,7 +47,7 @@ export function sampleChannelRows(now: number): Record<string, Row[]> {
   const task = (id: string, title: string, threadId: string, owner: string, minutes: number) => ({
     id,
     projectId,
-    node: { type: "project", id: projectId },
+    node: { type: "subproject", id: teamId },
     rootId: id,
     title,
     brief: title,
@@ -121,8 +123,27 @@ export function sampleChannelRows(now: number): Record<string, Row[]> {
         createdAt: ago(60 * 24 * 30),
       },
     ],
-    agent: [agent("agent-mira", "Mira"), agent("agent-sam", "Sam"), agent("agent-theo", "Theo")],
+    subproject: [
+      {
+        id: teamId,
+        projectId,
+        name: "Web",
+        label: "Team",
+        goal: "The store front end.",
+        instructions: "",
+        depth: 1,
+        archived: false,
+        createdAt: ago(60 * 24 * 30),
+      },
+    ],
+    agent: [
+      agent("agent-ada", "Ada"),
+      agent("agent-mira", "Mira"),
+      agent("agent-sam", "Sam"),
+      agent("agent-theo", "Theo"),
+    ],
     thread: [
+      thread(ada, "agent-ada", "Ada", "manager"),
       thread(mira, "agent-mira", "Mira", "manager"),
       thread(sam, "agent-sam", "Sam", "main"),
       thread(theo, "agent-theo", "Theo", "main"),
@@ -143,10 +164,21 @@ export function sampleChannelRows(now: number): Record<string, Row[]> {
       {
         id: sampleChannelId,
         projectId,
-        kind: "project",
+        kind: "team",
+        teamId,
         name: "web",
         leadThreadId: mira,
         memberThreadIds: members,
+        createdAt: ago(60 * 24 * 20),
+        updatedAt: ago(60 * 24 * 20),
+      },
+      {
+        id: "channel-acme-all",
+        projectId,
+        kind: "project",
+        name: "acme-web",
+        leadThreadId: ada,
+        memberThreadIds: [ada, ...members],
         createdAt: ago(60 * 24 * 20),
         updatedAt: ago(60 * 24 * 20),
       },

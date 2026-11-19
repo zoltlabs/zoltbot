@@ -101,7 +101,7 @@ describe("task views", () => {
   it("filters by team and owner and lists the choices by name", () => {
     const views = taskViews(companySnapshot());
     expect(filterOptions(views, "owner").map((o) => o.name)).toEqual(["Builder", "Sam", "Theo"]);
-    expect(filterOptions(views, "team").map((o) => o.name)).toEqual(["App", "Backend"]);
+    expect(filterOptions(views, "team").map((o) => o.name)).toEqual(["App", "Backend", "Web"]);
     const sam = filterTasks(views, { ownerId: "agent-sam", projectId: "acme-web" });
     expect(sam.map((t) => t.title)).toEqual([
       "Fix checkout tax rounding",
@@ -117,9 +117,9 @@ describe("task views", () => {
       ["review", "failed", "blocked", "running", "queued"].map((s) => taskPill(s)?.label),
     ).toEqual(["Review", "Failed", "Blocked", undefined, undefined]);
     const [queued] = taskViews(companySnapshot()).filter((t) => t.id === "task-receipts");
-    expect(queued && taskMeta(queued, now)).toBe("Sam · At limit");
+    expect(queued && taskMeta(queued, now)).toBe("Sam · Web · At limit");
     const [running] = taskViews(companySnapshot()).filter((t) => t.id === "task-rounding");
-    expect(running && taskMeta(running, now)).toBe("Sam · 35m");
+    expect(running && taskMeta(running, now)).toBe("Sam · Web · 35m");
   });
 });
 
@@ -128,7 +128,8 @@ describe("drawer", () => {
     const snapshot = companySnapshot();
     const people = drawerPeople(snapshot, "acme-web", taskViews(snapshot));
     expect(people.map((p) => [p.name, p.role, p.meta, p.tasks.length])).toEqual([
-      ["Mira", "ceo", "CEO · Waiting on 2 tasks", 0],
+      ["Ada", "ceo", "CEO", 0],
+      ["Mira", "manager", "Waiting on 2 tasks", 0],
       ["Sam", "employee", "1 running · 1 to review · 1 queued", 3],
       ["Theo", "employee", "2 running · 1 failed", 3],
     ]);
@@ -171,7 +172,10 @@ describe("drawer", () => {
         snapshot.entities.channelRequest ?? [],
         "acme-web",
       ),
-    ).toEqual([{ id: "channel-acme-web", name: "web", active: 1 }]);
+    ).toEqual([
+      { id: "channel-acme-all", name: "acme-web", active: 0 },
+      { id: "channel-acme-web", name: "web", active: 1 },
+    ]);
     const channels: Row[] = [
       { id: "t", projectId: "p", kind: "team", name: "data" },
       { id: "old", projectId: "p", kind: "team", name: "old", archivedAt: at(1) },

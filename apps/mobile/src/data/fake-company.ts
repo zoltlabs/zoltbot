@@ -43,7 +43,7 @@ export function sampleCompany(now: number): Record<string, Row[]> {
   ): Row => ({
     id,
     projectId,
-    node,
+    node: { type: "subproject", id: "team-web" },
     rootId: id,
     title,
     brief: title,
