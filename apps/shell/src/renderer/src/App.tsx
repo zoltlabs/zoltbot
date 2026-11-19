@@ -802,6 +802,7 @@ function toBotMessage(message: ConversationMessage): BotMessage {
     senderBotId: exchangeSenderId,
     replyToMessageId: message.replyToMessageId,
     attachments: message.attachments,
+    artifacts: message.artifacts,
     exchange: message.exchange,
     reaction: message.reaction,
     status: message.exchange

@@ -143,6 +143,9 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         exportData: async () => ({ saved: false }),
         exportDiagnostics: async () => ({ saved: false }),
       },
+      artifacts: {
+        prepare: call(channels.artifactPrepare),
+      },
     };
   }, IPC_CHANNELS);
   await page.goto(`${SHELL_ORIGIN}/index.html`);

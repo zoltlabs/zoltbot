@@ -126,6 +126,9 @@ const openbotApi: OpenBotDesktopApi = {
     exportData: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportData),
     exportDiagnostics: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportDiagnostics),
   },
+  artifacts: {
+    prepare: (manifestHash) => ipcRenderer.invoke(IPC_CHANNELS.artifactPrepare, manifestHash),
+  },
 };
 
 contextBridge.exposeInMainWorld("openbot", openbotApi);

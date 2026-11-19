@@ -37,6 +37,7 @@
     "test:feel": "electron-vite build && playwright test"
   },
   "dependencies": {
+    "@zoltbot/artifact-kit": "workspace:*",
     "@zoltbot/daemon": "workspace:*",
     "@zoltbot/protocol": "workspace:*",
     "solid-js": "1.9.14",

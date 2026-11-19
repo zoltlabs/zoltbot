@@ -2,6 +2,7 @@ import {
   type AgentExchangeSummary,
   type AgentModelId,
   type AgentReasoningEffort,
+  type ArtifactSummary,
   type AttachmentSummary,
   BOT_AVATAR_COLORS,
   BOT_AVATAR_SHAPES,
@@ -32,6 +33,7 @@ export interface BotMessage {
   senderBotId?: string;
   replyToMessageId?: string | null;
   attachments?: AttachmentSummary[];
+  artifacts?: ArtifactSummary[];
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
   items?: string[];

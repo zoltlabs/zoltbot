@@ -5,6 +5,7 @@ import type {
   AgentModelOption,
   AgentReasoningEffort,
   AgentStatus,
+  ArtifactSummary,
   AttachmentSummary,
   BotAvatarColor,
   BotAvatarShape,
@@ -20,6 +21,13 @@ import { MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../data";
 import { AVATAR_COLORS, AVATAR_SHAPES } from "../data";
 import { AgentAvatar } from "./AgentAvatar";
+import {
+  ARTIFACT_PANEL_DEFAULT,
+  ARTIFACT_PANEL_MAX,
+  ARTIFACT_PANEL_MIN,
+  ArtifactCards,
+  ArtifactPanel,
+} from "./ArtifactPanel";
 import { ComposerEditor, expandComposerMentions } from "./ComposerEditor";
 import { ChoiceCard, PromptCard } from "./ConversationPrompts";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./PanelResizer";
@@ -81,7 +89,7 @@ interface MediaPreview {
   error: string | null;
 }
 
-type RightPanelMode = "none" | "browser" | "settings";
+type RightPanelMode = "none" | "browser" | "settings" | "artifact";
 
 const EMPTY_DRAFT: ComposerDraft = { text: "", attachments: [], replyToMessageId: null };
 const ONBOARDING_CHOICES = [
@@ -98,6 +106,7 @@ const BROWSER_PANEL_STORAGE_KEY = "openbot:browser-panel-width";
 const BROWSER_PANEL_DEFAULT = 380;
 const BROWSER_PANEL_MIN = 220;
 const BROWSER_PANEL_MAX = 1600;
+const ARTIFACT_PANEL_STORAGE_KEY = "zoltbot:artifact-panel-width";
 const CONVERSATION_PANEL_MIN = 96;
 
 const BROWSER_ACTION_LABELS: Record<BrowserControlAction, string> = {
@@ -457,6 +466,8 @@ function MessageBody(props: {
   onOpenLink: (url: string) => void;
   onPreview: (attachment: AttachmentSummary) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal") => void;
+  openArtifactVersionId: string | null;
+  onOpenArtifact: (artifact: ArtifactSummary) => void;
 }) {
   return (
     <>
@@ -489,6 +500,13 @@ function MessageBody(props: {
           attachments={props.message.attachments ?? []}
           onPreview={props.onPreview}
           onAction={props.onAttachmentAction}
+        />
+      </Show>
+      <Show when={props.message.artifacts?.length}>
+        <ArtifactCards
+          artifacts={props.message.artifacts ?? []}
+          openVersionId={props.openArtifactVersionId}
+          onOpen={props.onOpenArtifact}
         />
       </Show>
     </>
@@ -843,6 +861,15 @@ export function Conversation(props: ConversationProps) {
       BROWSER_PANEL_MAX,
     ),
   );
+  const [artifactPanelWidth, setArtifactPanelWidth] = createSignal(
+    readPanelWidth(
+      ARTIFACT_PANEL_STORAGE_KEY,
+      ARTIFACT_PANEL_DEFAULT,
+      ARTIFACT_PANEL_MIN,
+      ARTIFACT_PANEL_MAX,
+    ),
+  );
+  const [openArtifacts, setOpenArtifacts] = createSignal<Record<string, ArtifactSummary>>({});
   const selectedModel = createMemo(() =>
     props.modelOptions.find((option) => option.id === settingsModel()),
   );
@@ -881,6 +908,11 @@ export function Conversation(props: ConversationProps) {
   });
   const screenOpen = () => activeRightPanel() === "browser";
   const settingsOpen = () => activeRightPanel() === "settings";
+  const openArtifact = () => {
+    const botId = props.bot?.id;
+    return botId ? openArtifacts()[botId] : undefined;
+  };
+  const artifactOpen = () => activeRightPanel() === "artifact" && Boolean(openArtifact());
   const browserTabs = createMemo(() => {
     const bot = props.bot;
     if (!bot) return [];
@@ -1453,6 +1485,18 @@ export function Conversation(props: ConversationProps) {
     void window.openbot.browser.setVisible({ visible: false });
   }
 
+  function showArtifact(artifact: ArtifactSummary) {
+    const botId = props.bot?.id;
+    if (!botId || !artifact.manifestHash) return;
+    if (artifactOpen() && openArtifact()?.versionId === artifact.versionId) {
+      setActiveRightPanel("none");
+      return;
+    }
+    if (screenOpen()) void window.openbot.browser.setVisible({ visible: false });
+    setOpenArtifacts((current) => ({ ...current, [botId]: artifact }));
+    setActiveRightPanel("artifact");
+  }
+
   function setActiveRightPanel(mode: RightPanelMode) {
     const botId = props.bot?.id;
     if (!botId) return;
@@ -1522,8 +1566,9 @@ export function Conversation(props: ConversationProps) {
       classList={{
         "conversation-drop-active": dropActive(),
         "browser-panel-active": screenOpen(),
+        "artifact-panel-active": artifactOpen(),
       }}
-      style={`--settings-panel-width: ${settingsPanelWidth()}px; --browser-panel-width: ${browserPanelWidth()}px`}
+      style={`--settings-panel-width: ${settingsPanelWidth()}px; --browser-panel-width: ${browserPanelWidth()}px; --artifact-panel-width: ${artifactPanelWidth()}px`}
       onDragEnter={(event) => {
         if (event.dataTransfer?.types.includes("Files")) setDropActive(true);
       }}
@@ -1794,6 +1839,10 @@ export function Conversation(props: ConversationProps) {
                                 onOpenLink={(url) => void openMessageLink(url)}
                                 onPreview={(attachment) => void previewAttachment(attachment)}
                                 onAttachmentAction={attachmentAction}
+                                openArtifactVersionId={
+                                  artifactOpen() ? (openArtifact()?.versionId ?? null) : null
+                                }
+                                onOpenArtifact={showArtifact}
                               />
                             </div>
                             <MessageActions
@@ -2231,6 +2280,27 @@ export function Conversation(props: ConversationProps) {
             </Show>
           </div>
         </aside>
+      </Show>
+
+      <Show when={artifactOpen() ? openArtifact() : undefined}>
+        {(artifact) => (
+          <ArtifactPanel
+            artifact={artifact()}
+            width={artifactPanelWidth()}
+            maxWidth={() =>
+              Math.min(
+                ARTIFACT_PANEL_MAX,
+                Math.max(
+                  ARTIFACT_PANEL_MIN,
+                  (conversationPanel?.clientWidth || window.innerWidth) - CONVERSATION_PANEL_MIN,
+                ),
+              )
+            }
+            onResize={setArtifactPanelWidth}
+            onResizeEnd={(value) => savePanelWidth(ARTIFACT_PANEL_STORAGE_KEY, value)}
+            onClose={() => setActiveRightPanel("none")}
+          />
+        )}
       </Show>
 
       <Show when={settingsOpen() && props.bot}>
