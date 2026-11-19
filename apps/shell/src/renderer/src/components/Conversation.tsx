@@ -22,6 +22,7 @@ import { AVATAR_COLORS, AVATAR_SHAPES } from "../data";
 import { AgentAvatar } from "./AgentAvatar";
 import { ComposerEditor, expandComposerMentions } from "./ComposerEditor";
 import { ChoiceCard, PromptCard } from "./ConversationPrompts";
+import { createDictation, DictationButton } from "./Dictation";
 import { OrganizationIcon, OrganizationPanel } from "./OrganizationPanel";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./PanelResizer";
 import { ProviderModelPicker } from "./ProviderModelPicker";
@@ -1054,6 +1055,13 @@ export function Conversation(props: ConversationProps) {
     setDrafts((current) => ({ ...current, [id]: { ...(current[id] ?? EMPTY_DRAFT), ...patch } }));
   };
 
+  const dictation = createDictation({
+    scope: () => props.bot?.id,
+    draft: () => currentDraft().text,
+    onDraft: (text) => updateCurrentDraft({ text }),
+    onError: setComposerError,
+  });
+
   onMount(() => {
     const unsubscribeImport = window.openbot.agent.onAttachmentImport((event) => {
       if (event.type === "started") {
@@ -2029,6 +2037,14 @@ export function Conversation(props: ConversationProps) {
               onSubmit={() => void submitMessage()}
             />
           </div>
+          <Show when={dictation.available()}>
+            <DictationButton
+              dictation={dictation}
+              disabled={
+                props.agentPickerOpen || submitting() || !agentReady() || onboardingModelRequired()
+              }
+            />
+          </Show>
           <Show
             when={props.activeTurnId}
             fallback={

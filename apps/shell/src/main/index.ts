@@ -11,11 +11,14 @@ import {
   protocol,
   session,
   shell,
+  systemPreferences,
+  type WebContents,
 } from "electron";
 import {
   type AgentEvent,
   type AppInfo,
   type AppSetupState,
+  type DictationAccessStatus,
   type ExportResult,
   IPC_CHANNELS,
 } from "../shared/ipc";
@@ -31,6 +34,7 @@ import {
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
@@ -60,6 +64,59 @@ let isQuitting = false;
 let shutdownStarted = false;
 
 const SETUP_FILE = "zoltbot-shell-setup-v1.json";
+
+// The desktop build compiles the speech helper; ZOLTBOT_SPEECH_HELPER points tests at a fake.
+const speechHelperPath =
+  process.env.ZOLTBOT_SPEECH_HELPER ??
+  (app.isPackaged
+    ? join(app.getAppPath(), "bin/zoltbot-speech")
+    : join(paths.root, ".cache/native/zoltbot-speech"));
+const speechIsScript = /\.[cm]?js$/.test(speechHelperPath);
+const dictation = createDictationController({
+  command: speechIsScript
+    ? (process.env.ZOLTBOT_NODE_BINARY ?? process.execPath)
+    : speechHelperPath,
+  ...(speechIsScript ? { args: [speechHelperPath] } : {}),
+  cwd: app.isPackaged ? paths.dataDir : paths.root,
+  microphoneStatus: (): DictationAccessStatus => {
+    if (process.env.ZOLTBOT_SPEECH_HELPER || process.platform !== "darwin") return "not_determined";
+    try {
+      const raw = systemPreferences.getMediaAccessStatus("microphone");
+      if (raw === "granted") return "authorized";
+      if (raw === "denied") return "denied";
+      if (raw === "restricted") return "restricted";
+      return "not_determined";
+    } catch {
+      return "not_determined";
+    }
+  },
+  requestMicrophoneAccess: async () => {
+    if (process.env.ZOLTBOT_SPEECH_HELPER || process.platform !== "darwin") return true;
+    try {
+      return await systemPreferences.askForMediaAccess("microphone");
+    } catch {
+      return false;
+    }
+  },
+  onEvent: (payload) => {
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send(IPC_CHANNELS.dictationEvent, payload);
+  },
+});
+
+function localeParam(params: unknown): unknown {
+  return isObject(params) ? params.locale : undefined;
+}
+
+function isMainFrame(sender: WebContents, frame: Electron.WebFrameMain | null): boolean {
+  return (
+    !!mainWindow &&
+    !mainWindow.isDestroyed() &&
+    sender === mainWindow.webContents &&
+    frame === mainWindow.webContents.mainFrame &&
+    isTrustedRendererUrl(frame?.url)
+  );
+}
 
 function configureContentSecurityPolicy(): void {
   const developmentSources = app.isPackaged ? "" : " http://localhost:* ws://localhost:*";
@@ -171,6 +228,29 @@ function registerIpcHandlers(setupFile: string): void {
     if (error) throw new Error(error);
   });
 
+  handleTrusted(IPC_CHANNELS.dictationStatus, (params: unknown) =>
+    dictation.status({ locale: localeParam(params) }),
+  );
+  handleTrusted(IPC_CHANNELS.dictationRequestPermission, (params: unknown) =>
+    dictation.requestPermission({ locale: localeParam(params) }),
+  );
+  handleTrusted(IPC_CHANNELS.dictationStart, (options: unknown) =>
+    dictation.start(isObject(options) ? (options as DictationStartOptions) : undefined),
+  );
+  ipcMain.on(IPC_CHANNELS.dictationAudio, (event, sessionId: unknown, pcm16le: unknown) => {
+    try {
+      if (!isMainFrame(event.sender, event.senderFrame)) return;
+      if (typeof sessionId !== "string" || !(pcm16le instanceof Uint8Array)) return;
+      dictation.writeAudio(sessionId, pcm16le);
+    } catch {}
+  });
+  handleTrusted(IPC_CHANNELS.dictationStop, async (sessionId: unknown) => {
+    if (typeof sessionId === "string") await dictation.stop(sessionId);
+  });
+  handleTrusted(IPC_CHANNELS.dictationCancel, (sessionId: unknown) => {
+    dictation.cancel(typeof sessionId === "string" ? sessionId : undefined);
+  });
+
   // Zoltbot agents use their own browser tools; the shell has no embedded browser yet.
   handleTrusted(IPC_CHANNELS.browserOpen, () => {
     throw new Error("The built-in browser isn't available yet.");
@@ -226,6 +306,7 @@ function createWindow(): BrowserWindow {
     if (mainWindow === window) mainWindow = null;
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("render-process-gone", () => dictation.cancel());
   window.webContents.on("will-navigate", (event, targetUrl) => {
     if (!isTrustedRendererUrl(targetUrl)) event.preventDefault();
   });
@@ -404,6 +485,7 @@ app.on("before-quit", (event) => {
   if (shutdownStarted) return;
   event.preventDefault();
   shutdownStarted = true;
+  dictation.cancel();
   void service
     .stop()
     .then(() => daemonHost.stop())

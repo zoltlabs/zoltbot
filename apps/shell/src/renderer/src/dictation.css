@@ -1,0 +1,23 @@
+.dictation-button-active,
+.dictation-button-active:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--openbot-white);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  animation: dictation-listening 1.6s ease-in-out infinite;
+}
+
+@keyframes dictation-listening {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictation-button-active {
+    animation: none;
+  }
+}
