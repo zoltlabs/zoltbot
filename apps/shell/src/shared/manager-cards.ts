@@ -1,5 +1,7 @@
 /** What a manager's chat shows about the work it hands out, beside the ordinary messages. */
 
+import type { StaffCard } from "./staff";
+
 /** One compact centered line: a message between agents, a supervision notice or a wait. */
 export interface ConversationNotice {
   kind: "team" | "supervision" | "wait" | "waiting";
@@ -59,7 +61,8 @@ export type ManagerCard =
       costUsd?: number;
       budgetUsd?: number;
       note?: string;
-    };
+    }
+  | StaffCard;
 
 export type TaskActionInput =
   | { action: "stop"; taskId: string }

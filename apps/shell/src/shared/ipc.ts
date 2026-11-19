@@ -1,6 +1,9 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 
 export type * from "./manager-cards";
+export type * from "./staff";
+
+import type { StaffActionInput, StaffOverview } from "./staff";
 
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
@@ -51,6 +54,8 @@ export const IPC_CHANNELS = {
   agentTaskAction: "agent:task-action",
   agentListTasks: "agent:list-tasks",
   agentReviewTask: "agent:review-task",
+  agentReadStaff: "agent:read-staff",
+  agentStaffAction: "agent:staff-action",
   agentEvent: "agent:event",
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
@@ -757,6 +762,10 @@ export interface AgentDesktopApi {
   listTasks: () => Promise<TaskSummary[]>;
   /** Accepts a task waiting for review, or sends it back with what to change. */
   reviewTask: (input: ReviewTaskInput) => Promise<void>;
+  /** Pending staff approvals (one project, or all with null) and the project's people. */
+  readStaff: (projectId: string | null) => Promise<StaffOverview>;
+  /** Answers a staff approval, or changes, archives or sets the allowance of a person. */
+  staffAction: (input: StaffActionInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

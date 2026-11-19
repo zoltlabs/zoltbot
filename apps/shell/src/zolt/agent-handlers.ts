@@ -13,6 +13,7 @@ import {
   parseUpdateBot,
   requireString,
 } from "./parsers";
+import { parseStaffAction } from "./staff-view";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -61,5 +62,8 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentTaskAction]: (input) => service.taskAction(parseTaskAction(input)),
     [IPC_CHANNELS.agentListTasks]: () => service.listTasks(),
     [IPC_CHANNELS.agentReviewTask]: (input) => service.reviewTask(parseReviewTask(input)),
+    [IPC_CHANNELS.agentReadStaff]: (projectId) =>
+      service.readStaff(projectId === null ? null : requireString(projectId, "projectId")),
+    [IPC_CHANNELS.agentStaffAction]: (input) => service.staffAction(parseStaffAction(input)),
   };
 }

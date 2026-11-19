@@ -7,6 +7,7 @@ import type {
   TaskStatus,
 } from "../shared/ipc";
 import type { Row, Snapshot } from "./daemon-client";
+import { withStaffCards } from "./staff-view";
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 const body = (row: Row | undefined): Row =>
@@ -324,7 +325,7 @@ export function withManagerCards(
       }),
     );
   }
-  return list;
+  return withStaffCards(snapshot, threadId, list);
 }
 
 /** Chats whose conversation shows a changed row, beyond the row's own chat. */
