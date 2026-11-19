@@ -261,6 +261,7 @@ describe("Zoltbot connected desktop shell", () => {
           respondToPrompt: vi.fn().mockResolvedValue(undefined),
           listTasks: vi.fn().mockResolvedValue([]),
           reviewTask: vi.fn().mockResolvedValue(undefined),
+          listChannels: vi.fn().mockResolvedValue([]),
           onEvent: vi.fn((listener) => {
             emitAgentEvent = listener;
             return () => undefined;
