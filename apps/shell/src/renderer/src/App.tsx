@@ -31,6 +31,7 @@ import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
 import { TasksPage } from "./components/TasksPage";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
+import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
 
 const FALLBACK_STATUS: AgentStatus = {
@@ -95,6 +96,7 @@ export function App() {
   const [tasksOpen, setTasksOpen] = createSignal(false);
   const [tasksProject, setTasksProject] = createSignal<string | null>(null);
   const tasks = createTasksStore();
+  const staff = createStaffStore(() => null);
   const [modelsOpen, setModelsOpen] = createSignal(false);
   const channels = createChannelsStore();
   const channelOpen = () => channels.openId() !== null;
@@ -754,6 +756,7 @@ export function App() {
             <Sidebar
               bots={botList()}
               tasks={tasks.tasks()}
+              staffApprovals={staff.approvals().length}
               activeBotId={
                 mapOpen() || tasksOpen() || modelsOpen() || channelOpen()
                   ? ""

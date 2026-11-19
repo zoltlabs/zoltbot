@@ -90,6 +90,8 @@ test("staff approvals and the organization's Edit and Archive", async ({ page })
     shell = await shellSession(fixture.daemon);
     await shell.open(page);
     await expect(page.getByRole("button", { name: /Robin/ }).first()).toBeVisible();
+    // The sidebar's Tasks row counts both approvals as Needs you.
+    await expect(page.getByRole("button", { name: /^Tasks\s*2 need you$/ })).toBeVisible();
     await page.keyboard.press("Meta+t");
     const tasks = page.getByRole("main", { name: "Tasks" });
     const needsYou = tasks.getByRole("region", { name: /^Needs you/ });
@@ -107,6 +109,7 @@ test("staff approvals and the organization's Edit and Archive", async ({ page })
     await expect.poll(() => threadId(fixture, "Nova")).not.toBe("");
     await change.getByRole("button", { name: "Decline: Change Ivy" }).click();
     await expect(needsYou).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Tasks$/ })).toBeVisible();
     await expect
       .poll(() =>
         (fixture.daemon.store.snapshot(["settings"]).settings ?? []).some(

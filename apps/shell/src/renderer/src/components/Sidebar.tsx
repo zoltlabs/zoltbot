@@ -46,6 +46,8 @@ interface SidebarProps {
   bots: BotProfile[];
   /** Every task, for the Needs you count and employees running several tasks. */
   tasks: TaskSummary[];
+  /** Pending staff approvals, which also count toward Needs you. */
+  staffApprovals?: number;
   activeBotId: string;
   mapOpen: boolean;
   tasksOpen: boolean;
@@ -159,7 +161,7 @@ export function Sidebar(props: SidebarProps) {
   );
   const firstBot = (entry: SidebarEntry | undefined) =>
     entry?.kind === "employee" ? entry.employee.bots[0] : entry?.bot;
-  const needsYou = createMemo(() => needsYouCount(props.tasks));
+  const needsYou = createMemo(() => needsYouCount(props.tasks) + (props.staffApprovals ?? 0));
   /** Rows start a new group where the project changes, unless the list is filtered. */
   const groupHeading = (index: number) => {
     if (query().trim()) return undefined;

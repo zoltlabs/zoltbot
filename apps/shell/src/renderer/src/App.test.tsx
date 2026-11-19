@@ -800,6 +800,33 @@ describe("Zoltbot connected desktop shell", () => {
     expect(screen.getByRole("main", { name: "Tasks" })).toBeVisible();
   });
 
+  it("counts pending staff approvals in the Tasks row", async () => {
+    vi.mocked(window.openbot.agent.readStaff).mockResolvedValue({
+      approvals: [
+        {
+          kind: "staff",
+          requestId: "staff-approval-1",
+          action: "add",
+          state: "pending",
+          title: "Add Nova to Payments",
+          name: "Nova",
+          projectId: "acme",
+          botId: "mira-thread",
+          requestedBy: "Mira",
+          fields: [],
+          moves: [],
+          running: 0,
+          sharedWith: 0,
+          allowance: null,
+        },
+      ],
+      people: [],
+    });
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    expect(await screen.findByRole("button", { name: /^Tasks.*1.*need you$/ })).toBeVisible();
+  });
+
   it("opens a new agent ready to message, without OpenBot's specialty question", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
