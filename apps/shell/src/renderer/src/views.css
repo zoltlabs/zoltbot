@@ -14,7 +14,7 @@
 
 .sidebar-map-button {
   min-height: 34px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgb(var(--ink) / calc(0.72 * var(--ink-text-boost)));
   font-size: 13px;
 }
 
@@ -104,11 +104,11 @@
 
 .map-action {
   min-height: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(var(--ink) / 0.16);
   border-radius: 8px;
-  background: #ececea;
+  background: var(--button-primary-bg);
   padding: 6px 16px;
-  color: #171717;
+  color: var(--button-primary-text);
   font-size: 13px;
   font-weight: 620;
   transition:
@@ -117,7 +117,7 @@
 }
 
 .map-action:hover:not(:disabled) {
-  background: #fff;
+  background: var(--button-primary-hover);
 }
 
 .map-action:active:not(:disabled) {

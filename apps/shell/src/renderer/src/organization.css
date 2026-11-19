@@ -23,7 +23,7 @@
 .organization-notice {
   display: block;
   margin: 0 2px 10px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgb(var(--ink) / calc(0.6 * var(--ink-text-boost)));
   font-size: 11px;
   line-height: 16px;
 }
@@ -31,7 +31,7 @@
 .organization-empty,
 .organization-muted {
   margin: 0;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(var(--ink) / calc(0.5 * var(--ink-text-boost)));
   font-size: 12px;
   line-height: 17px;
   text-wrap: pretty;
@@ -47,9 +47,9 @@
 
 .organization-list {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid rgb(var(--ink) / 0.11);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.045);
+  background: rgb(var(--ink) / 0.045);
 }
 
 .organization-person {
@@ -67,7 +67,7 @@
 }
 
 button.organization-person:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(var(--ink) / 0.06);
 }
 
 .organization-person-vacant {
@@ -101,14 +101,14 @@ button.organization-person:hover {
 }
 
 .organization-person-text span {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(var(--ink) / calc(0.5 * var(--ink-text-boost)));
   font-size: 11px;
   line-height: 16px;
 }
 
 .organization-count {
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgb(var(--ink) / calc(0.5 * var(--ink-text-boost)));
   font-size: 11px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
@@ -117,13 +117,13 @@ button.organization-person:hover {
 .organization-section {
   margin: 0 0 14px;
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--ink) / 0.1);
   padding: 12px;
 }
 
 .organization-section h3 {
   margin: 0 0 8px;
-  color: #f1f1ee;
+  color: var(--text-heading);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -149,7 +149,7 @@ button.organization-person:hover {
 
 .organization-plan + .organization-plan {
   margin-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgb(var(--ink) / 0.08);
   padding-top: 12px;
 }
 
@@ -171,7 +171,7 @@ button.organization-person:hover {
 .organization-initiatives li {
   display: grid;
   gap: 2px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgb(var(--ink) / calc(0.82 * var(--ink-text-boost)));
   font-size: 12px;
   line-height: 17px;
 }
@@ -196,10 +196,10 @@ button.organization-person:hover {
 
 .organization-button {
   height: 32px;
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border: 0.5px solid rgb(var(--ink) / 0.12);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.055);
-  color: rgba(255, 255, 255, 0.82);
+  background: rgb(var(--ink) / 0.055);
+  color: rgb(var(--ink) / calc(0.82 * var(--ink-text-boost)));
   font-size: 13px;
   font-weight: 500;
   transition:
@@ -208,7 +208,7 @@ button.organization-person:hover {
 }
 
 .organization-button:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgb(var(--ink) / 0.09);
 }
 
 .organization-button:active {
@@ -217,12 +217,12 @@ button.organization-person:hover {
 
 .organization-button-primary {
   border-color: transparent;
-  background: #ececea;
-  color: #171717;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .organization-button-primary:hover {
-  background: #fff;
+  background: var(--button-primary-hover);
 }
 
 .organization-link {
@@ -230,11 +230,11 @@ button.organization-person:hover {
   border: 0;
   background: transparent;
   padding: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgb(var(--ink) / calc(0.72 * var(--ink-text-boost)));
   font-size: 12px;
   line-height: 17px;
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.24);
+  text-decoration-color: rgb(var(--ink) / 0.24);
   text-underline-offset: 2px;
 }
 
@@ -244,7 +244,7 @@ button.organization-person:hover {
 
 .organization-brief {
   margin: 0 0 6px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgb(var(--ink) / calc(0.82 * var(--ink-text-boost)));
   font-size: 12px;
   line-height: 18px;
   white-space: pre-wrap;
@@ -252,7 +252,7 @@ button.organization-person:hover {
 }
 
 .organization-list > li + li {
-  border-top: 1px solid rgba(255, 255, 255, 0.075);
+  border-top: 1px solid rgb(var(--ink) / 0.075);
 }
 
 @media (prefers-reduced-motion: reduce) {

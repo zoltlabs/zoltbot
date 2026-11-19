@@ -40,24 +40,46 @@ export async function shellSession(daemon: DaemonAddress) {
   };
 }
 
-/**
- * Axe rules the shell fails today, kept visible here instead of disabled: each one is reported
- * in NOT-PORTED.md. A violation of any other rule fails the test.
- */
-export const KNOWN_SHELL_A11Y = new Set(["color-contrast", "region"]);
+/** Color schemes the shell supports; axe checks run in each. */
+export const COLOR_SCHEMES = ["dark", "light"] as const;
 
-/** Runs axe on the page and returns each violation of a rule outside `known`, with its nodes. */
+/**
+ * Runs axe on the page in each color scheme and returns every violation, with its nodes. The
+ * page is left in `colorScheme` afterwards.
+ */
 export async function axeViolations(
   page: Page,
-  known: ReadonlySet<string> = KNOWN_SHELL_A11Y,
+  colorScheme: (typeof COLOR_SCHEMES)[number] = "dark",
 ): Promise<string[]> {
-  const result = await new AxeBuilder({ page }).analyze();
-  const lines = result.violations.map(
-    (violation) =>
-      `${violation.id}: ${violation.nodes
-        .map((node) => `${node.target.join(" ")} (${node.any.map((c) => c.message).join("; ")})`)
-        .join(", ")}`,
-  );
+  const lines: string[] = [];
+  for (const scheme of COLOR_SCHEMES) {
+    await settleColorScheme(page, scheme);
+    const result = await new AxeBuilder({ page }).analyze();
+    for (const violation of result.violations) {
+      lines.push(
+        `${scheme} ${violation.id}: ${violation.nodes
+          .map((node) => `${node.target.join(" ")} (${node.any.map((c) => c.message).join("; ")})`)
+          .join(", ")}`,
+      );
+    }
+  }
+  await settleColorScheme(page, colorScheme);
   if (process.env.ZOLTBOT_AXE_LOG) for (const line of lines) console.log(`axe ${line}`);
-  return lines.filter((line) => !known.has(line.slice(0, line.indexOf(":"))));
+  return lines;
+}
+
+/** Switches the page's color scheme and waits for the color transitions it starts to end. */
+export async function settleColorScheme(
+  page: Page,
+  colorScheme: (typeof COLOR_SCHEMES)[number],
+): Promise<void> {
+  await page.emulateMedia({ colorScheme });
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
 }

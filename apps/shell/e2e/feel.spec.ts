@@ -109,7 +109,7 @@ test("switching, sending, streaming and answering feel immediate", async ({ page
         .first()
         .click();
       await expect(page.getByRole("textbox", { name: "Message Research" })).toBeVisible();
-      await expect(page.getByRole("region", { name: "Map" })).toHaveCount(0);
+      await expect(page.getByRole("main", { name: "Map" })).toHaveCount(0);
     });
   } finally {
     console.log(`feel timings (ms): ${JSON.stringify(timings)}`);

@@ -9,6 +9,7 @@ import {
   ipcMain,
   Menu,
   Notification,
+  nativeTheme,
   type OpenDialogOptions,
   protocol,
   session,
@@ -52,6 +53,7 @@ import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
+import { followWindowTheme, windowBackground } from "./window-theme";
 import { connectNotifications } from "./zolt-notifications";
 
 if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), "Zoltbot Shell Dev"));
@@ -404,7 +406,7 @@ function createWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 640,
     show: false,
-    backgroundColor: "#0b0d0e",
+    backgroundColor: windowBackground(nativeTheme),
     title: "Zoltbot",
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 13, y: 14 } }
@@ -417,6 +419,7 @@ function createWindow(): BrowserWindow {
       webSecurity: true,
     },
   });
+  const stopFollowingTheme = followWindowTheme(window, nativeTheme);
   window.once("ready-to-show", () => window.show());
   window.on("close", (event) => {
     if (process.platform === "darwin" && !isQuitting) {
@@ -425,6 +428,7 @@ function createWindow(): BrowserWindow {
     }
   });
   window.on("closed", () => {
+    stopFollowingTheme();
     if (mainWindow === window) mainWindow = null;
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

@@ -1,4 +1,13 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import type {
   AccountUsage,
@@ -36,6 +45,8 @@ interface SidebarProps {
   onSignOut: () => Promise<void>;
   onCancelSignIn: () => void;
   onCollapse: () => void;
+  /** Rendered at the end of the sidebar landmark, e.g. its resize handle. */
+  children?: JSX.Element;
 }
 
 export type SidebarAgentState =
@@ -232,6 +243,7 @@ export function Sidebar(props: SidebarProps) {
   const [accountError, setAccountError] = createSignal<string | null>(null);
   const [accountBusy, setAccountBusy] = createSignal<"sign-in" | "sign-out" | null>(null);
   let firstMenuItem: HTMLButtonElement | undefined;
+  let sidebarElement: HTMLElement | undefined;
   let botList: HTMLElement | undefined;
   const filteredBots = createMemo(() => {
     const normalizedQuery = query().trim().toLowerCase();
@@ -449,7 +461,12 @@ export function Sidebar(props: SidebarProps) {
   }
 
   return (
-    <aside id="bot-sidebar" aria-label="Bot navigation" class="sidebar panel-edge">
+    <aside
+      ref={(element) => (sidebarElement = element)}
+      id="bot-sidebar"
+      aria-label="Bot navigation"
+      class="sidebar panel-edge"
+    >
       <div class="window-drag sidebar-topbar">
         <button
           type="button"
@@ -749,7 +766,8 @@ export function Sidebar(props: SidebarProps) {
 
       <Show when={contextMenu()}>
         {(menu) => (
-          <Portal>
+          // Mounted in the sidebar so the menu stays inside its landmark.
+          <Portal mount={sidebarElement}>
             <div
               class="bot-context-menu"
               role="menu"
@@ -840,6 +858,7 @@ export function Sidebar(props: SidebarProps) {
           </Portal>
         )}
       </Show>
+      {props.children}
     </aside>
   );
 }
