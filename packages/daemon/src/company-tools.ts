@@ -3,12 +3,13 @@ import { workspaceAuthority } from "@zoltbot/core";
 import type { ToolActor, ToolInvocation } from "@zoltbot/hostmcp";
 import type { RuntimeContext } from "./api.js";
 import { compactCompanyView, companyApi } from "./company-api.js";
+import { requestStaffChange, staffToolContract } from "./staff-tools.js";
 import { workspaceTools } from "./workspace-tools.js";
 
 export const companyToolDefinition = {
   name: "company_work",
   description:
-    "Organize work. describe returns contracts; read, propose, assign, dispatch, cancel, submit, recover, review, brief. Stable key for writes.",
+    "Organize work. describe returns contracts; read, propose, assign, dispatch, cancel, submit, recover, review, brief, staff (add, change or archive an employee). Stable key for writes.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -28,6 +29,7 @@ export const companyToolDefinition = {
           "create",
           "update",
           "review",
+          "staff",
         ],
       },
       key: { type: "string", maxLength: 100 },
@@ -135,6 +137,7 @@ export function companyTools(context: RuntimeContext) {
             "request {taskId,revision,decision:accept|changes|reject,feedback?,planId}. Stable key. Requires reviewTasks authority and an independent reviewer (never self-review).",
           brief:
             "request {projectId,summary?}. Stable key. Saves dated evidence-backed brief (deduplicating identical same-day retries) and returns a compact receipt.",
+          staff: staffToolContract,
           shape:
             "shape_read lists workspace objects/profiles; create {kind:project|subproject|chat,name,parent?,goal?,profileId?,manager?}; update {target:{type,id},changes:{field:string}}.",
           changes: {
@@ -162,6 +165,8 @@ export function companyTools(context: RuntimeContext) {
         });
       }
       if (!args.key && args.action !== "read") throw Error("stable_key_required");
+      if (args.action === "staff")
+        return requestStaffChange(context, call.actor, args.request ?? {}, String(args.key));
       const commandId = args.key
         ? `company-tool:${createHash("sha256")
             .update(JSON.stringify([call.actor.threadId, args.action, args.key]))

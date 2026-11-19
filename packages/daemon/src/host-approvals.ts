@@ -13,6 +13,7 @@ export function respondHostApproval(
         chiefAction?: unknown;
         chiefIdea?: unknown;
         viewProposal?: string;
+        staffChange?: unknown;
       }
     | undefined;
   if (input?.cuaSession)
@@ -31,6 +32,10 @@ export function respondHostApproval(
   if (input?.viewProposal)
     return import("./views/tool-save.js").then((tools) =>
       tools.respondViewApproval(context, request, answer),
+    );
+  if (input?.staffChange)
+    return import("./staff-tools.js").then((tools) =>
+      tools.respondStaffApproval(context, request, answer),
     );
   return import("./workspace-tools.js").then((tools) =>
     tools.respondWorkspaceApproval(context, request, answer),
