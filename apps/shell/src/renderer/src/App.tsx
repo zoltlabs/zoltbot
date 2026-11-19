@@ -20,12 +20,15 @@ import type {
   UpdateBotInput,
   UpdateStatus,
 } from "../../shared/ipc";
+import { createChannelsStore } from "./channels-store";
+import { ChannelPage } from "./components/ChannelPage";
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
 import { ModelsSettings } from "./components/ModelsSettings";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
+import { SidebarChannels } from "./components/SidebarChannels";
 import { TasksPage } from "./components/TasksPage";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
 import { createTasksStore } from "./tasks-store";
@@ -93,6 +96,8 @@ export function App() {
   const [tasksProject, setTasksProject] = createSignal<string | null>(null);
   const tasks = createTasksStore();
   const [modelsOpen, setModelsOpen] = createSignal(false);
+  const channels = createChannelsStore();
+  const channelOpen = () => channels.openId() !== null;
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
   const [uiErrors, setUiErrors] = createSignal<Record<string, BotMessage[]>>({});
   const [conversationLoaded, setConversationLoaded] = createSignal<Record<string, boolean>>({});
@@ -156,6 +161,7 @@ export function App() {
     setModelsOpen(false);
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
+    channels.open(null);
     setTasksOpen(true);
   }
 
@@ -433,6 +439,7 @@ export function App() {
   }
 
   function selectBot(botId: string) {
+    channels.open(null);
     setMapOpen(false);
     setTasksOpen(false);
     setModelsOpen(false);
@@ -747,10 +754,29 @@ export function App() {
             <Sidebar
               bots={botList()}
               tasks={tasks.tasks()}
-              activeBotId={mapOpen() || tasksOpen() || modelsOpen() ? "" : (activeBot()?.id ?? "")}
+              activeBotId={
+                mapOpen() || tasksOpen() || modelsOpen() || channelOpen()
+                  ? ""
+                  : (activeBot()?.id ?? "")
+              }
               mapOpen={mapOpen()}
               tasksOpen={tasksOpen()}
+              projectRows={(projectId, projectName) => (
+                <SidebarChannels
+                  projectName={projectName}
+                  channels={channels.channels().filter((row) => row.projectId === projectId)}
+                  activeChannelId={channels.openId()}
+                  onOpenChannel={(channelId) => {
+                    setMapOpen(false);
+                    setTasksOpen(false);
+                    setModelsOpen(false);
+                    setAgentPickerOpen(false);
+                    channels.open(channelId);
+                  }}
+                />
+              )}
               onOpenMap={() => {
+                channels.open(null);
                 setTasksOpen(false);
                 setModelsOpen(false);
                 setMapOpen(true);
@@ -758,6 +784,7 @@ export function App() {
               onOpenTasks={() => openTasks()}
               modelsOpen={modelsOpen()}
               onOpenModels={() => {
+                channels.open(null);
                 setMapOpen(false);
                 setTasksOpen(false);
                 setModelsOpen(true);
@@ -800,7 +827,7 @@ export function App() {
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
           <div
             class="conversation-slot"
-            inert={mapOpen() || tasksOpen() || modelsOpen() || undefined}
+            inert={mapOpen() || tasksOpen() || modelsOpen() || channelOpen() || undefined}
           >
             <Conversation
               agentStatus={agentStatus()}
@@ -845,6 +872,16 @@ export function App() {
               sidebarCollapsed={leftPanelCollapsed()}
               onShowSidebar={() => setSidebarCollapsed(false)}
               onOpenChat={selectBot}
+            />
+          </Show>
+          <Show when={channelOpen()}>
+            <ChannelPage
+              store={channels}
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+              onOpenChat={(threadId) => {
+                if (botList().some((bot) => bot.id === threadId)) selectBot(threadId);
+              }}
             />
           </Show>
           <Show when={mapOpen()}>

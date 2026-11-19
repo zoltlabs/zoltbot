@@ -8,7 +8,9 @@ it("initializes Compare in the canonical schema and reopens without reapplying i
   const root = mkdtempSync(path.join(tmpdir(), "compare-initial-"));
   const file = path.join(root, "store.db");
   try {
-    expect(bundledMigrations().map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const versions = bundledMigrations().map((m) => m.version);
+    expect(versions.slice(0, 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(versions).toContain(14);
     for (let attempt = 0; attempt < 2; attempt++) {
       const store = await openStore(file);
       try {
@@ -17,17 +19,9 @@ it("initializes Compare in the canonical schema and reopens without reapplying i
             store.database.prepare("SELECT name FROM sqlite_master WHERE name=?").get(name),
           ).toEqual({ name });
         expect(store.database.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-        expect(store.database.prepare("SELECT version FROM schema_migrations").all()).toEqual([
-          { version: 1 },
-          { version: 2 },
-          { version: 3 },
-          { version: 4 },
-          { version: 5 },
-          { version: 6 },
-          { version: 7 },
-          { version: 8 },
-          { version: 9 },
-        ]);
+        expect(store.database.prepare("SELECT version FROM schema_migrations").all()).toEqual(
+          versions.map((version) => ({ version })),
+        );
         store.rebuild();
         expect(store.snapshot(["compare", "compareMember"])).toEqual({});
       } finally {

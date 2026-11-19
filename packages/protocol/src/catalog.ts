@@ -11,6 +11,12 @@ import {
 import { backupModelMethods } from "./backup-models.js";
 import { BrowserSelectionSchema, browserMethods } from "./browser.js";
 import {
+  ChannelPostSchema,
+  ChannelRequestSchema,
+  ChannelSchema,
+  channelMethods,
+} from "./channels.js";
+import {
   CloudProjectCreateSchema,
   CloudProjectListParamsSchema,
   CloudUsageSchema,
@@ -100,6 +106,9 @@ export const entitySchemas = {
   managerRemit: ManagerRemitSchema,
   companyPlan: CompanyPlanSchema,
   projectBrief: ProjectBriefSchema,
+  channel: ChannelSchema,
+  channelPost: ChannelPostSchema,
+  channelRequest: ChannelRequestSchema,
   wake: WakeSchema,
   compare: CompareSchema,
   compareMember: CompareMemberSchema,
@@ -186,6 +195,7 @@ const rawMethodCatalog = {
   "cloud.mac.output": entry(object({ taskId: Id, requestId: Id }), MacOutputSnapshotSchema),
   ...viewMethods,
   ...companyMethods,
+  ...channelMethods,
   ...wakeMethods,
   ...terminalMethods,
   ...inboxMethods,

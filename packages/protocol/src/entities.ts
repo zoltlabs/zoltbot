@@ -196,6 +196,8 @@ export const TaskSchema = object({
   dependencies: Type.Optional(Type.Array(Id)),
   planned: Type.Optional(Type.Boolean()),
   authorityPlanId: Type.Optional(Id),
+  /** The channel request whose lead assigned this task. */
+  requestId: Type.Optional(Id),
   phaseExecution: Type.Optional(PhaseExecutionSchema),
   outputMode: Type.Optional(OutputModeSchema),
   id: Id,

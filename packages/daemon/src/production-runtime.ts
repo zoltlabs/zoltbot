@@ -9,6 +9,7 @@ import { accountHomeKey } from "./backup-models/records.js";
 import { ownedBrowser } from "./browser/evidence.js";
 import { browserObserver } from "./browser/observation.js";
 import { browserBinding, browserReadiness } from "./browser/runtime.js";
+import { inChannel } from "./channel-tools.js";
 import { isChief } from "./chief/identity.js";
 import { connectionsRuntime } from "./connections-runtime.js";
 import { CuaRuntime } from "./cua/runtime.js";
@@ -54,6 +55,7 @@ export function productionRuntime(
           artifactBrowserToolDefinitions,
           indirectRuntimeToolDefinitions,
           managerIndirectToolDefinitions,
+          channelIndirectToolDefinitions,
           chiefProviderToolDefinitions,
           runtimeTools,
         },
@@ -161,6 +163,10 @@ export function productionRuntime(
                 ...(browser ? [] : indirectRuntimeToolDefinitions),
                 // Waiting on and listing delegated work only matters to a chat that delegates.
                 ...(managesWork(thread?.id) ? managerIndirectToolDefinitions : []),
+                // Reading a channel only matters to its members; posting rides on team_message.
+                ...(!browser && inChannel(context, thread?.id)
+                  ? channelIndirectToolDefinitions
+                  : []),
               ]),
         prepareArtifacts(input, cwd) {
           if (isChief(context.store, input.thread.id)) return undefined;

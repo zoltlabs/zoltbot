@@ -1,5 +1,8 @@
 export * from "./approval-rules.js";
 export * from "./budgets.js";
+export * from "./channel-posts.js";
+export * from "./channel-requests.js";
+export * from "./channels.js";
 export * from "./commands.js";
 export * from "./company.js";
 export { companyRecord } from "./company-changes.js";

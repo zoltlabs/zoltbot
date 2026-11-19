@@ -2,6 +2,12 @@ import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager
 
 export type * from "./manager-cards";
 
+import type {
+  ChannelDetail,
+  ChannelRequestInput,
+  ChannelSummary,
+  PostChannelInput,
+} from "./channels";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
@@ -52,6 +58,10 @@ export const IPC_CHANNELS = {
   agentTaskAction: "agent:task-action",
   agentListTasks: "agent:list-tasks",
   agentReviewTask: "agent:review-task",
+  agentListChannels: "agent:list-channels",
+  agentReadChannel: "agent:read-channel",
+  agentPostChannel: "agent:post-channel",
+  agentChannelRequest: "agent:channel-request",
   agentEvent: "agent:event",
   ...MODEL_CHANNELS,
   browserOpen: "browser:open",
@@ -761,6 +771,11 @@ export interface AgentDesktopApi {
   listTasks: () => Promise<TaskSummary[]>;
   /** Accepts a task waiting for review, or sends it back with what to change. */
   reviewTask: (input: ReviewTaskInput) => Promise<void>;
+  /** Team channels in every project, for the sidebar. */
+  listChannels: () => Promise<ChannelSummary[]>;
+  readChannel: (channelId: string) => Promise<ChannelDetail>;
+  postChannel: (input: PostChannelInput) => Promise<void>;
+  channelRequest: (input: ChannelRequestInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

@@ -76,6 +76,8 @@ interface SidebarProps {
   onCollapse: () => void;
   /** Rendered at the end of the sidebar landmark, e.g. its resize handle. */
   children?: JSX.Element;
+  /** Rendered under a project's heading, e.g. its channels. */
+  projectRows?: (projectId: string, projectName: string) => JSX.Element;
 }
 
 export type SidebarAgentState =
@@ -544,6 +546,11 @@ export function Sidebar(props: SidebarProps) {
                         </Show>
                       </div>
                     )}
+                  </Show>
+                  <Show when={groupHeading(index())?.projectId}>
+                    {(projectId) =>
+                      props.projectRows?.(projectId(), groupHeading(index())?.name ?? "")
+                    }
                   </Show>
                   {entry.kind === "employee" ? (
                     <SidebarEmployeeRow

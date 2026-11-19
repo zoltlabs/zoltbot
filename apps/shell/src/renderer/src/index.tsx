@@ -9,6 +9,7 @@ import "./artifacts.css";
 import "./views.css";
 import "./tasks.css";
 import "./models.css";
+import "./channels.css";
 import "./account.css";
 
 const root = document.getElementById("root");

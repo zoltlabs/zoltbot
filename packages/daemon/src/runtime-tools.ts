@@ -4,6 +4,7 @@ import type { ToolActor, ToolAudit, ToolInvocation } from "@zoltbot/hostmcp";
 import type { RuntimeContext } from "./api.js";
 import { artifactToolDefinition, artifactTools, frozenArtifactBinding } from "./artifacts/tools.js";
 import { browserToolDefinition, browserTools } from "./browser/tools.js";
+import { channelToolDefinitions, channelToolNames, channelTools } from "./channel-tools.js";
 import { chiefToolDefinitions, chiefToolNames, chiefTools } from "./chief/tools.js";
 import { companyToolDefinition, companyTools } from "./company-tools.js";
 import { cuaToolDefinition } from "./cua/policy.js";
@@ -68,6 +69,7 @@ export function runtimeTools(
   const views = viewTools(context);
   const team = teamTools(context, options);
   const teamWait = teamWaitTools(context);
+  const channel = channelTools(context);
   const chief = chiefTools(context);
   const company = companyTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
@@ -119,6 +121,7 @@ export function runtimeTools(
     if (workspaceToolNames.has(name)) return workspace.authorize(actor);
     if (teamToolNames.has(name)) return team.authorize(actor, name, args);
     if (teamWaitToolNames.has(name)) return teamWait.authorize(actor);
+    if (channelToolNames.has(name)) return channel.authorize(actor);
     return false;
   }
   return {
@@ -136,6 +139,7 @@ export function runtimeTools(
       ["team_write_knowledge", knowledgeWrite.call],
       ...team.tools,
       ...teamWait.tools,
+      ...channel.tools,
       // `learned` rides on a report or message and passes through the same write policy.
       ...(["team_report", "team_message"] as const).map(
         (name) =>
@@ -228,11 +232,12 @@ const artifactDescriptions: Record<string, string> = {
     "Delegate tracked work in scope: taskId dispatches planned work, or pass title/teamId or chatId with brief. Stable key.",
   team_report: "Send a result, update or question to your nearest manager above. Stable key.",
   team_message:
-    'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it.',
+    'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it. channelId posts in a channel.',
   team_read_thread: "Read bounded output of chats you manage or assignments you own.",
   team_requests: "List what this chat sent and whether each is open, answered or done.",
   team_wait:
     "Wait for your delegated taskIds or managed chatIds to finish, then wake. Stable key. Else chat_wake.",
+  team_channels: "Your team channels; channelId reads posts, requests and owed replies.",
   workspace_read: "List workspace objects and ids within your authority before workspace_write.",
   workspace_write:
     "Scoped create/update: kind,name,parent or target,changes. Stable key. Human approval for wider authority or instructions.",
@@ -384,6 +389,8 @@ export const indirectRuntimeToolDefinitions = [
 ];
 /** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
 export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
+/** A compact hint for chats that belong to a team channel. */
+export const channelIndirectToolDefinitions = channelToolDefinitions.map(compactTool);
 export const artifactRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter(
     (t) => !["workspace_create", "workspace_update", "workspace_write"].includes(t.name),
@@ -434,6 +441,7 @@ export const allRuntimeToolDefinitions = [
   eventRoutineToolDefinition,
   wakeToolDefinition,
   ...teamWaitToolDefinitions,
+  ...channelToolDefinitions,
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,

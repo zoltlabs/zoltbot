@@ -3,6 +3,7 @@ export * from "./artifacts.js";
 export * from "./backup-models.js";
 export * from "./browser.js";
 export * from "./catalog.js";
+export * from "./channels.js";
 export * from "./cloud.js";
 export * from "./command-prefix.js";
 export * from "./common.js";
