@@ -1,0 +1,337 @@
+/* Delegation and result cards and notice lines in a manager's chat. Colors come from theme.css. */
+
+.manager-notice-entry {
+  display: grid;
+  width: 100%;
+  justify-items: center;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+
+.manager-notice {
+  display: flex;
+  max-width: min(88%, 640px);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  border: 1px solid var(--openbot-line);
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.03);
+  padding: 3px 12px;
+  color: rgb(var(--ink) / calc(0.6 * var(--ink-text-boost)));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.manager-notice-text {
+  min-width: 0;
+  max-width: 36ch;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manager-notice-meta {
+  white-space: nowrap;
+}
+
+.manager-notice-name,
+.manager-link {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 2px;
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.manager-notice-name:hover,
+.manager-link:hover {
+  color: var(--text-primary);
+}
+
+.manager-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.manager-link:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+
+.manager-notice-waiting {
+  border-style: dashed;
+}
+
+.manager-notice-detail {
+  max-width: min(88%, 640px);
+  margin: 0;
+  border-radius: 10px;
+  background: rgb(var(--ink) / 0.05);
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.manager-card {
+  display: grid;
+  width: min(560px, 92%);
+  gap: 8px;
+  margin: 10px 0 4px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.manager-card-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.manager-card-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.manager-avatar.bot-avatar {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.manager-avatar .agent-mark {
+  width: 24px;
+  height: 24px;
+}
+
+.manager-notice-to {
+  white-space: nowrap;
+}
+
+.manager-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manager-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--openbot-line);
+  padding: 7px 0;
+}
+
+.manager-row:first-child {
+  border-top: 0;
+}
+
+.manager-row-text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.manager-row-title {
+  color: var(--text-primary);
+  font-size: 12.5px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
+
+.manager-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 16px;
+}
+
+.manager-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.manager-dot-running {
+  background: var(--text-accent);
+  box-shadow: 0 0 0 3px rgb(var(--ink) / 0.06);
+}
+
+.manager-dot-review,
+.manager-dot-blocked {
+  background: var(--text-warning);
+}
+
+.manager-dot-completed {
+  background: var(--text-success);
+}
+
+.manager-dot-failed {
+  background: var(--text-danger);
+}
+
+.manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.manager-confirm-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.manager-button {
+  min-height: 26px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-popover);
+  padding: 3px 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: background 120ms ease;
+}
+
+.manager-button:hover {
+  background: var(--surface-pill-hover);
+}
+
+.manager-button:active {
+  transform: scale(0.97);
+}
+
+.manager-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.manager-button-primary {
+  border-color: transparent;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.manager-button-primary:hover {
+  background: var(--button-primary-hover);
+}
+
+.manager-button-danger {
+  color: var(--text-danger);
+}
+
+.manager-button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.manager-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.manager-pill-review {
+  color: var(--text-warning);
+}
+
+.manager-fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.manager-fields dt {
+  color: var(--text-muted);
+}
+
+.manager-fields dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.manager-send-back {
+  display: grid;
+  gap: 6px;
+}
+
+.manager-send-back label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.manager-send-back textarea {
+  min-height: 60px;
+  resize: vertical;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-field);
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.manager-error {
+  margin: 0;
+  color: var(--text-danger);
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .manager-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .manager-row .manager-actions {
+    grid-column: 2;
+  }
+
+  .manager-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manager-button {
+    transition: none;
+  }
+
+  .manager-button:active {
+    transform: none;
+  }
+}

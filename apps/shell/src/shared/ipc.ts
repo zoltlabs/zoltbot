@@ -1,3 +1,7 @@
+import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
+
+export type * from "./manager-cards";
+
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
   getSetupState: "app:get-setup-state",
@@ -42,6 +46,7 @@ export const IPC_CHANNELS = {
   agentReadCompany: "agent:read-company",
   agentDecidePlan: "agent:decide-plan",
   agentRefreshBrief: "agent:refresh-brief",
+  agentTaskAction: "agent:task-action",
   agentEvent: "agent:event",
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
@@ -469,6 +474,8 @@ export interface ConversationMessage {
   delivery?: Pick<QueueDelivery, "id" | "status" | "position">;
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
+  notice?: ConversationNotice;
+  card?: ManagerCard;
 }
 
 export const MESSAGE_REACTIONS = ["👍", "👎", "❤️", "😂", "🎉", "😮"] as const;
@@ -740,6 +747,8 @@ export interface AgentDesktopApi {
   decidePlan: (input: DecidePlanInput) => Promise<CompanyOverview>;
   /** Writes a fresh project brief, then returns the project's company as it is now. */
   refreshBrief: (projectId: string) => Promise<CompanyOverview>;
+  /** Stops, accepts or sends back a delegated task, or wakes a waiting chat. */
+  taskAction: (input: TaskActionInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

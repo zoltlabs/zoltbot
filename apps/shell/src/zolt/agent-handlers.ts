@@ -1,4 +1,5 @@
 import { IPC_CHANNELS } from "../shared/ipc";
+import { parseTaskAction } from "./manager-cards";
 import {
   parseCancelQueuedMessage,
   parseCreateBot,
@@ -56,5 +57,6 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentDecidePlan]: (input) => service.decidePlan(parseDecidePlan(input)),
     [IPC_CHANNELS.agentRefreshBrief]: (projectId) =>
       service.refreshBrief(requireString(projectId, "projectId")),
+    [IPC_CHANNELS.agentTaskAction]: (input) => service.taskAction(parseTaskAction(input)),
   };
 }

@@ -31,6 +31,7 @@ import {
 import { ComposerEditor, expandComposerMentions } from "./ComposerEditor";
 import { ChoiceCard, PromptCard } from "./ConversationPrompts";
 import { createDictation, DictationButton } from "./Dictation";
+import { ManagerEntry } from "./ManagerEntry";
 import { OrganizationIcon, OrganizationPanel } from "./OrganizationPanel";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./PanelResizer";
 import { ProviderModelPicker } from "./ProviderModelPicker";
@@ -1839,6 +1840,14 @@ export function Conversation(props: ConversationProps) {
           </Show>
           <For each={props.messages}>
             {(message) => {
+              if (message.card || message.notice)
+                return (
+                  <ManagerEntry
+                    message={message}
+                    bots={props.bots}
+                    onSelectAgent={props.onSelectAgent}
+                  />
+                );
               const animateEntrance = message.animate === true && markMessageSeen(message.id);
               return (
                 <Show

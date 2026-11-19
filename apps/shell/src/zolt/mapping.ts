@@ -12,6 +12,7 @@ import type {
 import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
 import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
 import type { Row, Snapshot } from "./daemon-client";
+import { noticeFor, withManagerCards } from "./manager-cards";
 
 export const body = (row: Row | undefined): Row =>
   row?.body && typeof row.body === "object" && !Array.isArray(row.body) ? (row.body as Row) : {};
@@ -159,11 +160,13 @@ export function toMessages(
       const fromAgent = value.origin === "agent";
       const queueState = text(value.queueState);
       const delivery = QUEUE_STATES[queueState];
+      const notice = noticeFor(snapshot, item);
       messages.push({
         id: text(item.id),
         ...(item.turnId ? { turnId: text(item.turnId) } : {}),
+        ...(notice ? { notice } : {}),
         author: fromAgent ? "agent" : "user",
-        source: fromAgent ? "agent" : "user",
+        source: notice ? "system" : fromAgent ? "agent" : "user",
         text: words,
         createdAt: text(item.createdAt),
         status: queueState === "failed" ? "failed" : "completed",
@@ -202,7 +205,7 @@ export function toMessages(
     });
   }
   attachArtifacts(messages, artifactsByTurn(snapshot, threadId));
-  return messages;
+  return withManagerCards(snapshot, threadId, messages);
 }
 
 /** The thread's live artifacts, keyed by the turn that produced each version. */

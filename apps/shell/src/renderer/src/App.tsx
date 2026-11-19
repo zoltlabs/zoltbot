@@ -869,6 +869,8 @@ function toBotMessage(message: ConversationMessage): BotMessage {
     artifacts: message.artifacts,
     exchange: message.exchange,
     reaction: message.reaction,
+    ...(message.notice ? { notice: message.notice } : {}),
+    ...(message.card ? { card: message.card } : {}),
     status: message.exchange
       ? undefined
       : message.delivery?.status === "queued"
@@ -941,7 +943,8 @@ function botMessagesEqual(left: BotMessage, right: BotMessage): boolean {
     left.reaction === right.reaction &&
     JSON.stringify(left.attachments) === JSON.stringify(right.attachments) &&
     JSON.stringify(left.exchange) === JSON.stringify(right.exchange) &&
-    JSON.stringify(left.items) === JSON.stringify(right.items)
+    JSON.stringify(left.items) === JSON.stringify(right.items) &&
+    JSON.stringify([left.notice, left.card]) === JSON.stringify([right.notice, right.card])
   );
 }
 

@@ -77,6 +77,7 @@
   --text-info: #a9c8ff;
   --text-info-strong: rgba(221, 233, 255, 0.94);
   --text-file-badge: #ff9d69;
+  --text-warning: #f0c46a;
 
   /* Brand and status colors. */
   --openbot-teal: #54b9a6;
@@ -163,6 +164,7 @@
     --text-info: #1f5fc4;
     --text-info-strong: #1a4a9e;
     --text-file-badge: #a8471a;
+    --text-warning: #855500;
 
     --danger: #b8463d;
     --avatar-neutral: #2a2a28;

@@ -20,12 +20,14 @@ import type {
   RespondToPromptInput,
   SendMessageInput,
   SetMessageReactionInput,
+  TaskActionInput,
   UpdateBotInput,
 } from "../shared/ipc";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { companyTree } from "./company-tree";
 import { type CompanyReadResult, toCompanyOverview } from "./company-view";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
+import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
   type BotPreferences,
   body,
@@ -514,6 +516,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     );
   }
 
+  taskAction(input: TaskActionInput): Promise<void> {
+    return runTaskAction((method, params, id) => this.client.call(method, params, id), input);
+  }
+
   /** Keeps a picked file as a draft; the agent reads it from its path when the message is sent. */
   addDraft(path: string, size: number): DraftAttachment {
     const mimeType = IMAGE_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
@@ -635,6 +641,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         this.markBots();
       if (COMPANY_ROWS.has(change.aggregateType)) this.markCompany(change.aggregateType, row);
       if (threadId) this.dirty.add(threadId);
+      for (const id of relatedThreads(this.client.snapshot, change.aggregateType, row))
+        this.dirty.add(id);
     }
     this.scheduleFlush();
   }

@@ -8,6 +8,8 @@ import {
   BOT_AVATAR_SHAPES,
   type BotAvatarColor,
   type BotAvatarShape,
+  type ConversationNotice,
+  type ManagerCard,
   type MessageReaction,
 } from "../../shared/ipc";
 
@@ -37,6 +39,8 @@ export interface BotMessage {
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
   items?: string[];
+  notice?: ConversationNotice;
+  card?: ManagerCard;
 }
 
 export interface BotProfile {
