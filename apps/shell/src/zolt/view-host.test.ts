@@ -35,6 +35,7 @@ function mapRecord(granted: string[]): Row {
     granted,
     overridesBuiltin: false,
     enabled: true,
+    shortcuts: [{ id: "next-alert", keys: "Space", label: "Go to the latest alert" }],
   };
 }
 
@@ -110,27 +111,81 @@ function setup(granted = ["read"]) {
   };
 }
 
-it("finds the command map and grants only read when asked", async () => {
+it("finds the command map and grants the permissions the person chose", async () => {
   const f = setup([]);
   expect(await f.handlers["view:get-map"]?.(undefined)).toEqual({
     id: COMMAND_MAP_ID,
     name: "Command map",
     enabled: true,
     canRead: false,
+    requested: ["read", "act", "approve"],
+    granted: [],
+    pending: ["read", "act", "approve"],
+    shortcuts: [{ id: "next-alert", keys: "Space", label: "Go to the latest alert" }],
     error: null,
   });
   await expect(f.handlers["view:prepare"]?.(COMMAND_MAP_ID)).rejects.toThrow("can't read");
   expect(() =>
     f.handlers["view:connect"]?.({ viewId: COMMAND_MAP_ID, theme, locale: "en" }),
   ).toThrow("can't read");
-  await f.handlers["view:allow-read"]?.(COMMAND_MAP_ID);
+  await f.handlers["view:set-grants"]?.({
+    viewId: COMMAND_MAP_ID,
+    permissions: ["approve", "read", "read"],
+  });
   expect(f.client.call).toHaveBeenCalledWith(
     "view.setGrants",
-    { id: COMMAND_MAP_ID, permissions: ["read"], confirmed: true },
+    { id: COMMAND_MAP_ID, permissions: ["read", "approve"], confirmed: true },
     expect.any(String),
   );
   f.entities.view = [];
   expect(f.host.mapView()).toBeNull();
+});
+
+it("rejects permissions the view didn't ask for or the shell doesn't know", async () => {
+  const f = setup(["read"]);
+  const record = f.entities.view?.[0] as Row;
+  record.requested = ["read", "approve"];
+  await expect(
+    f.handlers["view:set-grants"]?.({ viewId: COMMAND_MAP_ID, permissions: ["act"] }),
+  ).rejects.toThrow("didn't ask");
+  expect(() =>
+    f.handlers["view:set-grants"]?.({ viewId: COMMAND_MAP_ID, permissions: ["owner"] }),
+  ).toThrow("Invalid view permissions.");
+  expect(() => f.handlers["view:set-grants"]?.(COMMAND_MAP_ID)).toThrow(
+    "Invalid view permissions.",
+  );
+  expect(f.client.call).not.toHaveBeenCalled();
+
+  // Revoking is a grant of fewer permissions.
+  await f.handlers["view:set-grants"]?.({ viewId: COMMAND_MAP_ID, permissions: [] });
+  expect(f.client.call).toHaveBeenCalledWith(
+    "view.setGrants",
+    { id: COMMAND_MAP_ID, permissions: [], confirmed: true },
+    expect.any(String),
+  );
+});
+
+it("asks again only for permissions the person hasn't reviewed, and always for read", () => {
+  const f = setup(["read"]);
+  const record = f.entities.view?.[0] as Row;
+  record.reviewed = ["read", "act"];
+  expect(f.host.mapView()).toMatchObject({ granted: ["read"], pending: ["approve"] });
+  record.reviewed = ["read", "act", "approve"];
+  expect(f.host.mapView()?.pending).toEqual([]);
+  record.granted = [];
+  expect(f.host.mapView()).toMatchObject({ canRead: false, pending: ["read"] });
+});
+
+it("forwards only the view's own shortcuts while it can read", async () => {
+  const f = setup();
+  const { sessionId } = await f.connect();
+  f.events.length = 0;
+  const messages = viewMessages(f.host);
+  messages["view:shortcut"]?.(sessionId, "next-alert");
+  messages["view:shortcut"]?.(sessionId, "delete-everything");
+  messages["view:shortcut"]?.("other-session", "next-alert");
+  expect(f.sent(sessionId)).toEqual([{ t: "event", name: "shortcut", value: "next-alert" }]);
+  expect(() => messages["view:shortcut"]?.(sessionId, 4)).toThrow("shortcutId is required.");
 });
 
 it("sends ready and subscribed topic data built from the daemon snapshot", async () => {

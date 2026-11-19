@@ -1,6 +1,8 @@
 import {
   IPC_CHANNELS,
+  VIEW_PERMISSIONS,
   type ViewConnectInput,
+  type ViewPermission,
   type ViewTheme,
   type ViewUpdateInput,
 } from "../shared/ipc";
@@ -16,7 +18,13 @@ import type { ViewHost } from "./view-host";
 export function viewHandlers(host: ViewHost): Record<string, Handler> {
   return {
     [IPC_CHANNELS.viewGetMap]: () => host.mapView(),
-    [IPC_CHANNELS.viewAllowRead]: (id) => host.allowRead(requireString(id, "viewId")),
+    [IPC_CHANNELS.viewSetGrants]: (input) => {
+      if (!isObject(input)) throw new Error("Invalid view permissions.");
+      return host.setGrants(
+        requireString(input.viewId, "viewId"),
+        parsePermissions(input.permissions),
+      );
+    },
     [IPC_CHANNELS.viewTurnOn]: (id) => host.turnOn(requireString(id, "viewId")),
     [IPC_CHANNELS.viewPrepare]: (id) => host.prepare(requireString(id, "viewId")),
     [IPC_CHANNELS.viewConnect]: (input) => host.connect(parseViewConnect(input)),
@@ -30,7 +38,19 @@ export function viewMessages(host: ViewHost): Record<string, (...values: unknown
     },
     [IPC_CHANNELS.viewUpdate]: (input) => host.update(parseViewUpdate(input)),
     [IPC_CHANNELS.viewClose]: (sessionId) => host.close(requireString(sessionId, "sessionId")),
+    [IPC_CHANNELS.viewShortcut]: (sessionId, shortcutId) =>
+      host.shortcut(requireString(sessionId, "sessionId"), requireString(shortcutId, "shortcutId")),
   };
+}
+
+export function parsePermissions(value: unknown): ViewPermission[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > VIEW_PERMISSIONS.length ||
+    !value.every((item) => VIEW_PERMISSIONS.includes(item))
+  )
+    throw new Error("Invalid view permissions.");
+  return [...new Set(value as ViewPermission[])];
 }
 
 export function parseViewConnect(value: unknown): ViewConnectInput {
