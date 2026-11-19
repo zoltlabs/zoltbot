@@ -1,5 +1,5 @@
 import { IPC_CHANNELS } from "../shared/ipc";
-import type { BackupEntryView, BackupRole } from "../shared/models";
+import { type BackupEntryView, type BackupRole, RUNNING_LIMIT } from "../shared/models";
 import { requireString } from "./parsers";
 import type { ZoltService } from "./zolt-service";
 
@@ -34,6 +34,17 @@ export function modelHandlers(service: ZoltService): Record<string, (input: unkn
       const role = ROLES.find((item) => item === row.role);
       if (!role) throw new Error("Choose employees, managers or the CEO.");
       return service.accounts.setOrder({ role, entries: parseEntries(row.entries) });
+    },
+    [IPC_CHANNELS.modelsRunningLimit]: () => service.accounts.runningLimit(),
+    [IPC_CHANNELS.modelsSetRunningLimit]: (input) => {
+      if (
+        typeof input !== "number" ||
+        !Number.isInteger(input) ||
+        input < RUNNING_LIMIT.min ||
+        input > RUNNING_LIMIT.max
+      )
+        throw new Error(`Choose ${RUNNING_LIMIT.min} to ${RUNNING_LIMIT.max} tasks.`);
+      return service.accounts.setRunningLimit(input);
     },
   };
 }

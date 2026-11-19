@@ -350,3 +350,11 @@
     transition: none;
   }
 }
+
+.models-field .models-limit-input {
+  width: 96px;
+}
+
+.models-field-error {
+  margin: 0;
+}

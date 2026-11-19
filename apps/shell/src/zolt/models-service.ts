@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { TASK_RUNNING_LIMIT_SETTING } from "@zoltbot/protocol";
 import type { ConversationMessage } from "../shared/ipc";
-import type {
-  AddModelAccountInput,
-  BackupEntryView,
-  BackupOrdersView,
-  ModelAccountView,
-  ModelSignIn,
-  ModelSwitchDialog,
-  ModelsDesktopApi,
-  SetBackupOrderInput,
+import {
+  type AddModelAccountInput,
+  type BackupEntryView,
+  type BackupOrdersView,
+  type ModelAccountView,
+  type ModelSignIn,
+  type ModelSwitchDialog,
+  type ModelsDesktopApi,
+  RUNNING_LIMIT,
+  type SetBackupOrderInput,
 } from "../shared/models";
 import type { DaemonClient, Row } from "./daemon-client";
 
@@ -60,7 +62,18 @@ export function toOrders(value: unknown): BackupOrdersView {
   };
 }
 
-/** Accounts and backup orders, read and changed through the daemon. */
+/** The running-task limit in a settings row: the stored value when valid, else the default. */
+export function runningLimitFrom(settings: Row[]): number {
+  const value = settings.find((row) => row.key === TASK_RUNNING_LIMIT_SETTING)?.value;
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= RUNNING_LIMIT.min &&
+    value <= RUNNING_LIMIT.max
+    ? value
+    : RUNNING_LIMIT.default;
+}
+
+/** Accounts, backup orders and the running-task limit, read and changed through the daemon. */
 export function modelsService(client: DaemonClient): ModelsDesktopApi {
   const view = (row: unknown) => toAccountView(row as Row, client.rows("agentDefinition"));
   const signIn = (value: unknown): ModelSignIn => {
@@ -100,6 +113,17 @@ export function modelsService(client: DaemonClient): ModelsDesktopApi {
           randomUUID(),
         ),
       );
+    },
+    async runningLimit() {
+      return runningLimitFrom(client.rows("settings"));
+    },
+    async setRunningLimit(limit: number) {
+      await client.call(
+        "settings.set",
+        { key: TASK_RUNNING_LIMIT_SETTING, value: limit },
+        randomUUID(),
+      );
+      return limit;
     },
   };
 }

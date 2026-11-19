@@ -1,10 +1,11 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
-import type {
-  BackupEntryView,
-  BackupRole,
-  ModelAccountView,
-  ModelSignIn,
-  ModelsOverview,
+import {
+  type BackupEntryView,
+  type BackupRole,
+  type ModelAccountView,
+  type ModelSignIn,
+  type ModelsOverview,
+  RUNNING_LIMIT,
 } from "../../../shared/models";
 import { SidebarToggleIcon } from "./Sidebar";
 
@@ -50,6 +51,13 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
   const [removing, setRemoving] = createSignal("");
   const [role, setRole] = createSignal<BackupRole>("employee");
   const [candidate, setCandidate] = createSignal("");
+  const [limit, setLimit] = createSignal<number | null>(null);
+  const [limitDraft, setLimitDraft] = createSignal("");
+  const draftLimit = () => Number(limitDraft());
+  const limitValid = () =>
+    /^\d+$/.test(limitDraft().trim()) &&
+    draftLimit() >= RUNNING_LIMIT.min &&
+    draftLimit() <= RUNNING_LIMIT.max;
 
   const accounts = () => overview()?.accounts ?? [];
   const tools = createMemo(() => accounts().filter((account) => account.isDefault));
@@ -73,6 +81,25 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
     }
   }
   onMount(() => void run(async () => undefined, "Accounts couldn't load. Try again."));
+  onMount(() => {
+    void models
+      .runningLimit()
+      .then((value) => {
+        setLimit(value);
+        setLimitDraft(String(value));
+      })
+      .catch(() => setError("The task limit couldn't load. Try again."));
+  });
+
+  function saveLimit(event: SubmitEvent) {
+    event.preventDefault();
+    if (!limitValid()) return;
+    const next = draftLimit();
+    void run(
+      async () => setLimit(await models.setRunningLimit(next)),
+      "The limit couldn't be saved.",
+    );
+  }
 
   const saveOrder = (entries: BackupEntryView[] | null) =>
     run(() => models.setOrder({ role: role(), entries }), "The order couldn't be saved.");
@@ -433,6 +460,44 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
               </Show>
             </div>
           </Show>
+        </section>
+
+        <section class="models-section" aria-labelledby="models-limit">
+          <h2 id="models-limit" class="models-heading">
+            Parallel tasks
+          </h2>
+          <form class="models-form" onSubmit={saveLimit}>
+            <label class="models-field">
+              <span>Tasks each employee runs at once</span>
+              <input
+                type="number"
+                class="models-limit-input"
+                inputmode="numeric"
+                min={RUNNING_LIMIT.min}
+                max={RUNNING_LIMIT.max}
+                step="1"
+                value={limitDraft()}
+                disabled={limit() === null}
+                aria-invalid={limitDraft() !== "" && !limitValid()}
+                aria-describedby={limitValid() ? undefined : "models-limit-error"}
+                onInput={(event) => setLimitDraft(event.currentTarget.value)}
+              />
+            </label>
+            <div class="models-actions">
+              <button
+                type="submit"
+                class="models-button models-button-primary"
+                disabled={busy() || !limitValid() || draftLimit() === limit()}
+              >
+                Save
+              </button>
+            </div>
+            <Show when={limit() !== null && !limitValid()}>
+              <p id="models-limit-error" class="models-error models-field-error">
+                Enter a whole number from {RUNNING_LIMIT.min} to {RUNNING_LIMIT.max}.
+              </p>
+            </Show>
+          </form>
         </section>
       </div>
     </main>

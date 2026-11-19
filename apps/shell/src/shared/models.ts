@@ -71,7 +71,13 @@ export interface ModelsDesktopApi {
   check: (accountId: string) => Promise<ModelAccountView>;
   remove: (accountId: string) => Promise<void>;
   setOrder: (input: SetBackupOrderInput) => Promise<BackupOrdersView>;
+  /** How many tasks one employee runs at once. */
+  runningLimit: () => Promise<number>;
+  setRunningLimit: (limit: number) => Promise<number>;
 }
+
+/** The bounds of the per-employee running-task limit; the daemon enforces the same. */
+export const RUNNING_LIMIT = { min: 1, max: 20, default: 2 } as const;
 
 export const MODEL_CHANNELS = {
   modelsRead: "models:read",
@@ -80,4 +86,6 @@ export const MODEL_CHANNELS = {
   modelsCheck: "models:check",
   modelsRemove: "models:remove",
   modelsSetOrder: "models:set-order",
+  modelsRunningLimit: "models:running-limit",
+  modelsSetRunningLimit: "models:set-running-limit",
 } as const;

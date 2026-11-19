@@ -101,6 +101,22 @@ test("models settings and the switch to another provider stay usable", async ({ 
     await expect(
       models.getByText("Run this in Terminal to sign in to Claude · Personal:"),
     ).toBeVisible();
+
+    // The running-task limit is saved to the real daemon; values outside 1 to 20 aren't.
+    const limit = models.getByRole("spinbutton", { name: "Tasks each employee runs at once" });
+    await expect(limit).toHaveValue("2");
+    const save = models.getByRole("button", { name: "Save", exact: true });
+    await expect(save).toBeDisabled();
+    await limit.fill("25");
+    await expect(models.getByText("Enter a whole number from 1 to 20.")).toBeVisible();
+    await expect(limit).toHaveAttribute("aria-invalid", "true");
+    await expect(save).toBeDisabled();
+    await limit.fill("4");
+    await save.click();
+    await expect
+      .poll(() => fixture.daemon.store.record("settings", "tasks.runningLimit")?.value)
+      .toBe(4);
+    await expect(save).toBeDisabled();
     expect(await axeViolations(page)).toEqual([]);
     await page.screenshot({ path: test.info().outputPath("models.png") });
 

@@ -173,6 +173,8 @@ const openbotApi: OpenBotDesktopApi = {
     check: (accountId) => ipcRenderer.invoke(IPC_CHANNELS.modelsCheck, accountId),
     remove: (accountId) => ipcRenderer.invoke(IPC_CHANNELS.modelsRemove, accountId),
     setOrder: (input) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetOrder, input),
+    runningLimit: () => ipcRenderer.invoke(IPC_CHANNELS.modelsRunningLimit),
+    setRunningLimit: (limit) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetRunningLimit, limit),
   },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
