@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
   type AgentEvent,
   type AttachmentImportEvent,
+  type DictationEvent,
   type ImportAttachmentsInput,
   IPC_CHANNELS,
   type OpenBotDesktopApi,
@@ -125,6 +126,22 @@ const openbotApi: OpenBotDesktopApi = {
   maintenance: {
     exportData: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportData),
     exportDiagnostics: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportDiagnostics),
+  },
+  dictation: {
+    status: (params) => ipcRenderer.invoke(IPC_CHANNELS.dictationStatus, params),
+    requestPermission: (params) =>
+      ipcRenderer.invoke(IPC_CHANNELS.dictationRequestPermission, params),
+    start: (options) => ipcRenderer.invoke(IPC_CHANNELS.dictationStart, options),
+    sendAudio: (sessionId, pcm16le) =>
+      ipcRenderer.send(IPC_CHANNELS.dictationAudio, sessionId, pcm16le),
+    stop: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.dictationStop, sessionId),
+    cancel: (sessionId) => ipcRenderer.invoke(IPC_CHANNELS.dictationCancel, sessionId),
+    onEvent: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: DictationEvent) =>
+        listener(payload);
+      ipcRenderer.on(IPC_CHANNELS.dictationEvent, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.dictationEvent, handler);
+    },
   },
 };
 

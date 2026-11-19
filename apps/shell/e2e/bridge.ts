@@ -143,6 +143,30 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         exportData: async () => ({ saved: false }),
         exportDiagnostics: async () => ({ saved: false }),
       },
+      // Headless runs have no speech helper, so the composer hides the microphone.
+      dictation: {
+        status: async () => ({
+          available: false,
+          onDevice: false,
+          locale: "en-US",
+          microphone: "not_determined",
+          speech: "not_determined",
+        }),
+        requestPermission: async () => ({
+          available: false,
+          onDevice: false,
+          locale: "en-US",
+          microphone: "not_determined",
+          speech: "not_determined",
+        }),
+        start: async () => {
+          throw new Error("Dictation isn't available.");
+        },
+        sendAudio: () => undefined,
+        stop: async () => undefined,
+        cancel: async () => undefined,
+        onEvent: () => () => undefined,
+      },
     };
   }, IPC_CHANNELS);
   await page.goto(`${SHELL_ORIGIN}/index.html`);
