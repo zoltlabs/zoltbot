@@ -7,6 +7,7 @@ import {
   IPC_CHANNELS,
   type OpenBotDesktopApi,
   type UpdateStatus,
+  type ViewHostEvent,
 } from "../shared/ipc";
 
 const attachmentImportListeners = new Set<(event: AttachmentImportEvent) => void>();
@@ -148,6 +149,22 @@ const openbotApi: OpenBotDesktopApi = {
   },
   artifacts: {
     prepare: (manifestHash) => ipcRenderer.invoke(IPC_CHANNELS.artifactPrepare, manifestHash),
+  },
+  views: {
+    getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
+    allowRead: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewAllowRead, viewId),
+    turnOn: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewTurnOn, viewId),
+    prepare: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewPrepare, viewId),
+    connect: (input) => ipcRenderer.invoke(IPC_CHANNELS.viewConnect, input),
+    post: (sessionId, message) => ipcRenderer.send(IPC_CHANNELS.viewPost, sessionId, message),
+    update: (input) => ipcRenderer.send(IPC_CHANNELS.viewUpdate, input),
+    close: (sessionId) => ipcRenderer.send(IPC_CHANNELS.viewClose, sessionId),
+    onEvent: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: ViewHostEvent) =>
+        listener(payload);
+      ipcRenderer.on(IPC_CHANNELS.viewEvent, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.viewEvent, handler);
+    },
   },
 };
 

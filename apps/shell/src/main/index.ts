@@ -32,12 +32,16 @@ import {
   parseOpenAttachment,
   requireString,
 } from "../zolt/parsers";
+import { viewHandlers, viewMessages } from "../zolt/view-handlers";
+import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
+import { frameRequestAllowed } from "./desktop/frame-isolation";
+import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
@@ -56,6 +60,10 @@ protocol.registerSchemesAsPrivileged([
   },
   {
     scheme: "zoltbot-artifact",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
+  {
+    scheme: "zoltbot-view",
     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
   },
 ]);
@@ -88,6 +96,34 @@ const artifacts = artifactProtocol({
 });
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+const viewServer = desktopViewProtocol(rendererOrigin, paths.root, daemonHost.connection);
+let answerConfirmationOpen = false;
+const viewHost = new ViewHost({
+  client,
+  prepare: (hash) => viewServer.prepare(hash),
+  send: (event) => {
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send(IPC_CHANNELS.viewEvent, event);
+  },
+  // A view never sees this dialog. It runs in main, outside the window the view shares.
+  async confirm(request, choice) {
+    if (answerConfirmationOpen || !mainWindow || mainWindow.isDestroyed()) return false;
+    answerConfirmationOpen = true;
+    try {
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        message: request.title,
+        detail: [request.context?.command, choice.label].filter(Boolean).join("\n\n"),
+        buttons: ["Confirm", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      return result.response === 0;
+    } finally {
+      answerConfirmationOpen = false;
+    }
+  },
+});
 let mainWindow: BrowserWindow | null = null;
 let visibleBotId: string | undefined;
 let isQuitting = false;
@@ -158,13 +194,18 @@ function configureContentSecurityPolicy(): void {
     "font-src 'self' data:",
     `connect-src 'self'${developmentSources}`,
     "object-src 'none'",
-    `frame-src 'self' openbot-attachment: ${artifactScheme}`,
+    `frame-src 'self' openbot-attachment: ${artifactScheme} zoltbot-view:`,
     "base-uri 'none'",
   ].join("; ");
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     // Artifact responses carry their own sandboxed policy.
     if (details.url.startsWith(artifactScheme)) {
       callback({});
+      return;
+    }
+    // A view's own response carries its stricter policy; the shell's must not replace it.
+    if (details.url.startsWith(viewScheme)) {
+      callback({ responseHeaders: details.responseHeaders });
       return;
     }
     callback({
@@ -221,6 +262,17 @@ function registerIpcHandlers(setupFile: string): void {
 
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(viewMessages(viewHost)))
+    ipcMain.on(channel, (event, ...values: unknown[]) => {
+      if (!isTrustedRendererUrl(event.senderFrame?.url)) return;
+      try {
+        handler(...values);
+      } catch {
+        // A malformed one-way message is dropped; nothing waits for a reply.
+      }
+    });
   const pickProjectFolder = folderPicker(() => {
     const options: OpenDialogOptions = {
       title: "Choose the project folder",
@@ -420,6 +472,19 @@ function configureAttachmentProtocol(): void {
   });
 }
 
+function configureViewProtocol(): void {
+  session.defaultSession.protocol.handle("zoltbot-view", (request) => viewServer.handle(request));
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    callback({
+      cancel: !frameRequestAllowed(
+        details.frame?.url ?? details.referrer,
+        details.url,
+        details.resourceType,
+      ),
+    });
+  });
+}
+
 function configureApplicationProtocol(): void {
   const rendererRoot = resolve(__dirname, "../renderer");
   session.defaultSession.protocol.handle("openbot-app", async (request) => {
@@ -480,6 +545,8 @@ if (!hasSingleInstanceLock) {
       session.defaultSession.protocol.handle("zoltbot-artifact", (request) =>
         artifacts.handle(request),
       );
+      configureViewProtocol();
+      viewHost.start();
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {
@@ -527,6 +594,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   shutdownStarted = true;
   dictation.cancel();
+  viewHost.stop();
   void service
     .stop()
     .then(() => daemonHost.stop())

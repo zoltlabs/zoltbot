@@ -52,7 +52,70 @@ export const IPC_CHANNELS = {
   dictationCancel: "dictation:cancel",
   dictationEvent: "dictation:event",
   artifactPrepare: "artifact:prepare",
+  viewGetMap: "view:get-map",
+  viewAllowRead: "view:allow-read",
+  viewTurnOn: "view:turn-on",
+  viewPrepare: "view:prepare",
+  viewConnect: "view:connect",
+  viewPost: "view:post",
+  viewUpdate: "view:update",
+  viewClose: "view:close",
+  viewEvent: "view:event",
 } as const;
+
+/** An installed Zoltbot view, as the shell shows it. */
+export interface ViewSummary {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** The view may read chats; without it the view isn't loaded. */
+  canRead: boolean;
+  error: string | null;
+}
+
+/** The look a view copies from the shell, matching the view API's theme message. */
+export interface ViewTheme {
+  scheme: "light" | "dark";
+  tokens: Record<string, string>;
+  fontSans: string;
+  fontMono: string;
+  fontScale: number;
+}
+
+export interface ViewConnectInput {
+  viewId: string;
+  theme: ViewTheme;
+  locale: string;
+  reducedMotion: boolean;
+}
+
+export interface ViewUpdateInput {
+  sessionId: string;
+  visible?: boolean;
+  theme?: ViewTheme;
+}
+
+export type ViewHostEvent =
+  | { type: "views-changed" }
+  /** A message main sends to the view's frame. */
+  | { type: "message"; sessionId: string; message: unknown }
+  | { type: "closed"; sessionId: string; failed: boolean }
+  /** The view asked to open a chat, or another page when `chatId` is null. */
+  | { type: "open"; chatId: string | null }
+  | { type: "key"; combo: string };
+
+export interface ViewsDesktopApi {
+  getMap: () => Promise<ViewSummary | null>;
+  allowRead: (viewId: string) => Promise<void>;
+  turnOn: (viewId: string) => Promise<void>;
+  prepare: (viewId: string) => Promise<{ url: string }>;
+  connect: (input: ViewConnectInput) => Promise<{ sessionId: string }>;
+  /** Relays a message from the view's frame to main, which validates it. */
+  post: (sessionId: string, message: unknown) => void;
+  update: (input: ViewUpdateInput) => void;
+  close: (sessionId: string) => void;
+  onEvent: (listener: (event: ViewHostEvent) => void) => () => void;
+}
 
 export type DesktopPlatform = "darwin" | "win32" | "linux";
 
@@ -678,6 +741,7 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
 }

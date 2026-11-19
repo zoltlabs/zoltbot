@@ -21,6 +21,7 @@ import type {
 } from "../../shared/ipc";
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
+import { MapView } from "./components/MapView";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
@@ -86,6 +87,7 @@ export function App() {
   const [botList, setBotList] = createSignal<BotProfile[]>([]);
   const [modelOptions, setModelOptions] = createSignal<AgentModelOption[]>([]);
   const [activeBotId, setActiveBotId] = createSignal("");
+  const [mapOpen, setMapOpen] = createSignal(false);
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
   const [uiErrors, setUiErrors] = createSignal<Record<string, BotMessage[]>>({});
   const [conversationLoaded, setConversationLoaded] = createSignal<Record<string, boolean>>({});
@@ -395,6 +397,7 @@ export function App() {
   }
 
   function selectBot(botId: string) {
+    setMapOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -675,7 +678,9 @@ export function App() {
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}
-              activeBotId={activeBot()?.id ?? ""}
+              activeBotId={mapOpen() ? "" : (activeBot()?.id ?? "")}
+              mapOpen={mapOpen()}
+              onOpenMap={() => setMapOpen(true)}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -706,39 +711,53 @@ export function App() {
               onResizeEnd={(value) => savePanelWidth(LEFT_PANEL_STORAGE_KEY, value)}
             />
           </Show>
-          <Conversation
-            agentStatus={agentStatus()}
-            bot={activeBot()}
-            bots={botList()}
-            modelOptions={modelOptions()}
-            messages={activeMessages()}
-            loaded={activeBot() ? conversationLoaded()[activeBot()?.id ?? ""] === true : false}
-            queue={activeQueue()}
-            browserTabs={browserTabs()}
-            activeBrowserTabId={activeBrowserTabId()}
-            browserControlState={browserControlState()}
-            leftSidebarCollapsed={leftPanelCollapsed()}
-            prompt={activeBot() ? pendingPrompts()[activeBot()?.id ?? ""] : undefined}
-            activeTurnId={activeBot() ? activeTurns()[activeBot()?.id ?? ""] : null}
-            agentPickerOpen={agentPickerOpen()}
-            creatingAgent={creatingAgent()}
-            settingsRequest={settingsRequest()}
-            onboardingRequest={onboardingRequest()}
-            onCloseAgentPicker={() => setAgentPickerOpen(false)}
-            onCreateAgent={() => void createAgent()}
-            onSelectAgent={selectBot}
-            onUpdateBot={updateBot}
-            onSendMessage={sendMessage}
-            onCompleteOnboarding={completeOnboarding}
-            onAnswerPrompt={answerPrompt}
-            onCancelQueuedMessage={cancelQueuedMessage}
-            onResumeQueue={resumeQueue}
-            onActivateBrowserTab={activateBrowserTab}
-            onCloseBrowserTab={closeBrowserTab}
-            onToggleLeftSidebar={() => setSidebarCollapsed(false)}
-            onOpenAgentSetup={() => window.openbot.openExternal("agent-setup")}
-            onStop={stopActiveTurn}
-          />
+          {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
+          <div class="conversation-slot" inert={mapOpen() || undefined}>
+            <Conversation
+              agentStatus={agentStatus()}
+              bot={activeBot()}
+              bots={botList()}
+              modelOptions={modelOptions()}
+              messages={activeMessages()}
+              loaded={activeBot() ? conversationLoaded()[activeBot()?.id ?? ""] === true : false}
+              queue={activeQueue()}
+              browserTabs={browserTabs()}
+              activeBrowserTabId={activeBrowserTabId()}
+              browserControlState={browserControlState()}
+              leftSidebarCollapsed={leftPanelCollapsed()}
+              prompt={activeBot() ? pendingPrompts()[activeBot()?.id ?? ""] : undefined}
+              activeTurnId={activeBot() ? activeTurns()[activeBot()?.id ?? ""] : null}
+              agentPickerOpen={agentPickerOpen()}
+              creatingAgent={creatingAgent()}
+              settingsRequest={settingsRequest()}
+              onboardingRequest={onboardingRequest()}
+              onCloseAgentPicker={() => setAgentPickerOpen(false)}
+              onCreateAgent={() => void createAgent()}
+              onSelectAgent={selectBot}
+              onUpdateBot={updateBot}
+              onSendMessage={sendMessage}
+              onCompleteOnboarding={completeOnboarding}
+              onAnswerPrompt={answerPrompt}
+              onCancelQueuedMessage={cancelQueuedMessage}
+              onResumeQueue={resumeQueue}
+              onActivateBrowserTab={activateBrowserTab}
+              onCloseBrowserTab={closeBrowserTab}
+              onToggleLeftSidebar={() => setSidebarCollapsed(false)}
+              onOpenAgentSetup={() => window.openbot.openExternal("agent-setup")}
+              onStop={stopActiveTurn}
+            />
+          </div>
+          <Show when={mapOpen()}>
+            <MapView
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+              onToggleSidebar={() => setSidebarCollapsed(!leftPanelCollapsed())}
+              onOpenChat={(chatId) => {
+                if (chatId && botList().some((bot) => bot.id === chatId)) selectBot(chatId);
+                else setMapOpen(false);
+              }}
+            />
+          </Show>
           <Show when={permissionsOpen()}>
             <InitialSetup
               reviewing

@@ -99,6 +99,18 @@ test("switching, sending, streaming and answering feel immediate", async ({ page
       await expect(panel.getByRole("button", { name: /CEO/ })).toBeVisible();
     });
     await page.screenshot({ path: test.info().outputPath("organization.png") });
+    timings.openMap = await timed(page, async () => {
+      await page.getByRole("button", { name: "Map" }).click();
+      await expect(page.getByText("The command map isn't installed.")).toBeVisible();
+    });
+    timings.mapToChat = await timed(page, async () => {
+      await page
+        .getByRole("button", { name: /Research/ })
+        .first()
+        .click();
+      await expect(page.getByRole("textbox", { name: "Message Research" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Map" })).toHaveCount(0);
+    });
   } finally {
     console.log(`feel timings (ms): ${JSON.stringify(timings)}`);
     await test.info().attach("timings", { body: JSON.stringify(timings, null, 2) });
