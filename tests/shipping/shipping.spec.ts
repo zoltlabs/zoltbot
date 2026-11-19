@@ -83,13 +83,8 @@ test("publish → durable approval → PR → selected feedback → original tas
     await expect
       .poll(() => f.daemon.store.snapshot(["interaction"]).interaction?.[0]?.state)
       .toBe("answered");
-    // More stays open once a page inside it has been visited; only open it if it is closed.
-    const more = page
-      .getByRole("navigation", { name: "Workspace", exact: true })
-      .locator("details");
-    if (!(await more.evaluate((el) => (el as HTMLDetailsElement).open)))
-      await more.locator("summary").click();
-    await page.getByRole("button", { name: "Tasks", exact: true }).click();
+    await page.getByRole("button", { name: "Workspace tools", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Tasks", exact: true }).click();
     await page.getByRole("button", { name: "Open shipping for Fix login timeout" }).click();
     await panel.getByRole("button", { name: "Reconcile operation", exact: true }).click();
     await expect(panel.getByText("PR #482 · Draft · open", { exact: true })).toBeVisible();

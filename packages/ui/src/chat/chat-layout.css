@@ -2,8 +2,9 @@
 .chat-workspace {
   --chat-gutter: var(--zb-space-6);
 }
+/* Compare columns have no .chat-workspace, so keep the base timeline padding there. */
 .chat-timeline {
-  padding-inline: var(--chat-gutter);
+  padding-inline: var(--chat-gutter, var(--zb-space-4));
   scrollbar-gutter: stable;
 }
 .chat-timeline .chat-virtual-list {
