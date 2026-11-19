@@ -387,9 +387,6 @@ async function startOwnedDaemon(
     definitions: setupService ? () => setupService.definitions() : undefined,
   });
   const company = companyApi(runtimeContext);
-  const channels = channelApi(runtimeContext, {
-    cancelTask: (id, cmd) => ownedTasks.api("task.cancel", { id, confirmed: true }, cmd),
-  });
   const companyWatch = await startCompanySupervisor(runtimeContext, {
     onError: (code) => logger.write("warn", code),
   });
@@ -601,7 +598,7 @@ async function startOwnedDaemon(
         const result =
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
-          (await channels(request.method, params, commandId)) ??
+          (await channelApi(runtimeContext, ownedTasks)(request.method, params, commandId)) ??
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??

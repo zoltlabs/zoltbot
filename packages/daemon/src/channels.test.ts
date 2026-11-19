@@ -156,11 +156,12 @@ it("posts, routes, tags tasks with the request and stops them, across a restart"
     const cancelled: string[] = [];
     const context = contextFor(store, woken);
     await companySupervisor(context, { now: () => at }).tick();
-    const api = channelApi(context, {
-      async cancelTask(id) {
-        cancelled.push(id);
+    const tasks = {
+      async api(method: string, params: Record<string, unknown>) {
+        if (method === "task.cancel") cancelled.push(String(params.id));
       },
-    });
+    };
+    const api = channelApi(context, tasks);
     const listed = (await api("channel.list", { projectId: "co" })) as { items: unknown[] };
     expect(listed.items).toEqual([
       expect.objectContaining({
@@ -225,11 +226,7 @@ it("posts, routes, tags tasks with the request and stops them, across a restart"
     const before = store.lastSeq();
     await companySupervisor(restarted, { now: () => at }).tick();
     expect(store.lastSeq()).toBe(before);
-    const again = channelApi(restarted, {
-      async cancelTask(id) {
-        cancelled.push(id);
-      },
-    });
+    const again = channelApi(restarted, tasks);
     const view = (await again("channel.read", { id: pay })) as {
       requests: { revision: number; state: string }[];
       posts: unknown[];

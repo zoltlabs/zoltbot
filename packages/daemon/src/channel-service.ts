@@ -58,10 +58,15 @@ export function reconcileChannels(context: RuntimeContext, at: string) {
   run("settle", settleChannelRequests);
 }
 
-/** The owner's channel RPCs: list, read, post and act on requests. */
+/**
+ * The owner's channel RPCs: list, read, post and act on requests. `tasks` is the task runner;
+ * Stop cancels each open task through its ordinary task.cancel.
+ */
 export function channelApi(
   context: RuntimeContext,
-  options: { cancelTask(taskId: string, commandId: string): Promise<unknown> },
+  tasks: {
+    api(method: string, params: Record<string, unknown>, commandId?: string): Promise<unknown>;
+  },
 ) {
   async function wakeAll(threadIds: string[]) {
     for (const threadId of threadIds) await context.wake(threadId).catch(() => undefined);
@@ -128,7 +133,9 @@ export function channelApi(
     const result = receipt.result as { request: unknown; cancel: string[]; wake: string[] };
     // The owner confirmed Stop; each task stops through the ordinary task.cancel path.
     for (const taskId of result.cancel)
-      await options.cancelTask(taskId, `${id}:cancel:${taskId}`).catch(() => undefined);
+      await tasks
+        .api("task.cancel", { id: taskId, confirmed: true }, `${id}:cancel:${taskId}`)
+        .catch(() => undefined);
     await wakeAll(result.wake);
     return result.request;
   };
