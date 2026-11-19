@@ -92,6 +92,13 @@ test("switching, sending, streaming and answering feel immediate", async ({ page
     await header.getByRole("button", { name: /New chat in launch-/ }).click();
     await expect(page.locator(".bot-row-role").filter({ hasText: "CEO" })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("project.png") });
+
+    timings.openOrganization = await timed(page, async () => {
+      await page.getByRole("button", { name: "Organization" }).click();
+      const panel = page.getByRole("complementary", { name: "Organization" });
+      await expect(panel.getByRole("button", { name: /CEO/ })).toBeVisible();
+    });
+    await page.screenshot({ path: test.info().outputPath("organization.png") });
   } finally {
     console.log(`feel timings (ms): ${JSON.stringify(timings)}`);
     await test.info().attach("timings", { body: JSON.stringify(timings, null, 2) });

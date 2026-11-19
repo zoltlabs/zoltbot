@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -127,6 +128,84 @@ describe("ZoltService against a real daemon", () => {
     expect(bots.findIndex((row) => row.id === chat.id)).toBeGreaterThan(
       bots.findIndex((row) => row.id === ceo.id),
     );
+  });
+
+  it("shows a proposed plan, applies it on approval and writes a project brief", async () => {
+    const { service, events, fixture } = await setup();
+    const ceo = await service.createProject(mkdtempSync(join(tmpdir(), "company-")));
+    const projectId = ceo.projectId as string;
+    const empty = await service.readCompany(projectId);
+    expect(empty).toMatchObject({ ceo: { botId: ceo.id }, teams: [], pendingPlans: [] });
+
+    const teamId = randomUUID();
+    const leadId = randomUUID();
+    const proposer = new DaemonClient(async () => ({
+      url: fixture.daemon.url,
+      token: fixture.daemon.token,
+    }));
+    await proposer.start();
+    try {
+      await proposer.call(
+        "company.propose",
+        {
+          id: randomUUID(),
+          projectId,
+          title: "Add a design team",
+          explanation: "Design work needs its own lead.",
+          changes: [
+            {
+              kind: "team",
+              id: teamId,
+              name: "Design",
+              parent: { type: "project", id: projectId },
+              why: "Design is growing",
+            },
+            {
+              kind: "chat",
+              id: leadId,
+              title: "Design lead",
+              parent: { type: "subproject", id: teamId },
+              profileId: "profile",
+              manager: true,
+              why: "The team needs a manager",
+            },
+          ],
+        },
+        randomUUID(),
+      );
+    } finally {
+      proposer.stop();
+    }
+
+    await until(() =>
+      events.find((event) => event.type === "company-changed" && event.projectId === projectId),
+    );
+    const proposed = await service.readCompany(projectId);
+    expect(proposed.pendingPlans).toHaveLength(1);
+    const [plan] = proposed.pendingPlans;
+    expect(plan?.changes.map((change) => change.summary)).toEqual([
+      `Create the Design team under ${proposed.projectName}`,
+      "Hire Design lead as manager in Design",
+    ]);
+
+    const applied = await service.decidePlan({
+      projectId,
+      planId: plan?.id as string,
+      version: plan?.version as number,
+      approve: true,
+    });
+    expect(applied.pendingPlans).toHaveLength(0);
+    expect(applied.teams).toEqual([
+      {
+        id: teamId,
+        name: "Design",
+        manager: { botId: leadId, name: "Design lead" },
+        employees: 0,
+      },
+    ]);
+
+    const briefed = await service.refreshBrief(projectId);
+    expect(briefed.brief?.summary).toContain(proposed.projectName);
   });
 
   it("renames and archives a chat through the daemon", async () => {

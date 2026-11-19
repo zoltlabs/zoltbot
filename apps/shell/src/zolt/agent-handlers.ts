@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from "../shared/ipc";
 import {
   parseCancelQueuedMessage,
   parseCreateBot,
+  parseDecidePlan,
   parseInterrupt,
   parseMessageReaction,
   parsePromptResponse,
@@ -49,5 +50,10 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     },
     [IPC_CHANNELS.agentRespondToPrompt]: (input) =>
       service.respondToPrompt(parsePromptResponse(input)),
+    [IPC_CHANNELS.agentReadCompany]: (projectId) =>
+      service.readCompany(requireString(projectId, "projectId")),
+    [IPC_CHANNELS.agentDecidePlan]: (input) => service.decidePlan(parseDecidePlan(input)),
+    [IPC_CHANNELS.agentRefreshBrief]: (projectId) =>
+      service.refreshBrief(requireString(projectId, "projectId")),
   };
 }

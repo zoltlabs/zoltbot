@@ -3,6 +3,7 @@ import {
   type BrowserOpenInput,
   type BrowserVisibilityInput,
   type CancelQueuedMessageInput,
+  type DecidePlanInput,
   type ImportAttachmentsInput,
   type InterruptTurnInput,
   isAgentModel,
@@ -46,6 +47,19 @@ export function parseSendMessage(value: unknown): SendMessageInput {
     text: value.text,
     attachmentDraftIds,
     replyToMessageId: replyToMessageId?.trim() || null,
+  };
+}
+
+export function parseDecidePlan(value: unknown): DecidePlanInput {
+  if (!isObject(value)) throw new Error("Invalid plan decision.");
+  if (typeof value.approve !== "boolean") throw new Error("approve is required.");
+  if (!Number.isInteger(value.version) || Number(value.version) < 1)
+    throw new Error("version is required.");
+  return {
+    projectId: requireString(value.projectId, "projectId"),
+    planId: requireString(value.planId, "planId"),
+    version: Number(value.version),
+    approve: value.approve,
   };
 }
 

@@ -22,6 +22,7 @@ import { AVATAR_COLORS, AVATAR_SHAPES } from "../data";
 import { AgentAvatar } from "./AgentAvatar";
 import { ComposerEditor, expandComposerMentions } from "./ComposerEditor";
 import { ChoiceCard, PromptCard } from "./ConversationPrompts";
+import { OrganizationIcon, OrganizationPanel } from "./OrganizationPanel";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./PanelResizer";
 import { ProviderModelPicker } from "./ProviderModelPicker";
 import { SidebarToggleIcon } from "./Sidebar";
@@ -81,7 +82,7 @@ interface MediaPreview {
   error: string | null;
 }
 
-type RightPanelMode = "none" | "browser" | "settings";
+type RightPanelMode = "none" | "browser" | "settings" | "organization";
 
 const EMPTY_DRAFT: ComposerDraft = { text: "", attachments: [], replyToMessageId: null };
 const ONBOARDING_CHOICES = [
@@ -881,6 +882,7 @@ export function Conversation(props: ConversationProps) {
   });
   const screenOpen = () => activeRightPanel() === "browser";
   const settingsOpen = () => activeRightPanel() === "settings";
+  const organizationOpen = () => activeRightPanel() === "organization";
   const browserTabs = createMemo(() => {
     const bot = props.bot;
     if (!bot) return [];
@@ -1453,6 +1455,13 @@ export function Conversation(props: ConversationProps) {
     void window.openbot.browser.setVisible({ visible: false });
   }
 
+  /** Opens a chat from the Organization panel and keeps the panel open beside it. */
+  function openFromOrganization(botId: string) {
+    if (botId !== props.bot?.id)
+      setRightPanels((current) => ({ ...current, [botId]: "organization" }));
+    props.onSelectAgent(botId);
+  }
+
   function setActiveRightPanel(mode: RightPanelMode) {
     const botId = props.bot?.id;
     if (!botId) return;
@@ -1588,6 +1597,20 @@ export function Conversation(props: ConversationProps) {
                     }
                     onChange={(model) => void selectAndConfirmModel(model)}
                   />
+                </Show>
+                <Show when={props.bot?.projectId}>
+                  <button
+                    type="button"
+                    class="header-panel-toggle computer-button"
+                    aria-label="Organization"
+                    aria-controls="organization-side-panel"
+                    aria-expanded={organizationOpen()}
+                    onClick={() =>
+                      setActiveRightPanel(organizationOpen() ? "none" : "organization")
+                    }
+                  >
+                    <OrganizationIcon />
+                  </button>
                 </Show>
                 <button
                   type="button"
@@ -2231,6 +2254,43 @@ export function Conversation(props: ConversationProps) {
             </Show>
           </div>
         </aside>
+      </Show>
+
+      <Show when={organizationOpen() && props.bot?.projectId} keyed>
+        {(projectId) => (
+          <aside
+            id="organization-side-panel"
+            class="agent-settings-panel organization-panel"
+            aria-label="Organization"
+          >
+            <PanelResizer
+              class="right-panel-resizer"
+              label="Resize right panel"
+              controls="organization-side-panel"
+              direction="right"
+              value={settingsPanelWidth()}
+              defaultValue={SETTINGS_PANEL_DEFAULT}
+              min={SETTINGS_PANEL_MIN}
+              max={() =>
+                Math.min(
+                  SETTINGS_PANEL_MAX,
+                  Math.max(
+                    SETTINGS_PANEL_MIN,
+                    (conversationPanel?.clientWidth || window.innerWidth) - CONVERSATION_PANEL_MIN,
+                  ),
+                )
+              }
+              onResize={setSettingsPanelWidth}
+              onResizeEnd={(value) => savePanelWidth(SETTINGS_PANEL_STORAGE_KEY, value)}
+            />
+            <OrganizationPanel
+              projectId={projectId}
+              bots={props.bots}
+              onOpenChat={openFromOrganization}
+              onClose={() => setActiveRightPanel("none")}
+            />
+          </aside>
+        )}
       </Show>
 
       <Show when={settingsOpen() && props.bot}>

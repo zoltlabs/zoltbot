@@ -34,6 +34,9 @@ export const IPC_CHANNELS = {
   agentSetQueuePaused: "agent:set-queue-paused",
   agentInterrupt: "agent:interrupt",
   agentRespondToPrompt: "agent:respond-to-prompt",
+  agentReadCompany: "agent:read-company",
+  agentDecidePlan: "agent:decide-plan",
+  agentRefreshBrief: "agent:refresh-brief",
   agentEvent: "agent:event",
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
@@ -456,9 +459,75 @@ export type AgentEvent =
       questions: AgentPromptQuestion[];
     }
   | { type: "prompt-cleared"; botId: string }
+  /** Company rows changed. A null project means every project may have changed. */
+  | { type: "company-changed"; projectId: string | null }
   | { type: "browser-changed"; tabs: BrowserTab[]; activeTabId: string | null }
   | { type: "browser-control-changed"; state: BrowserControlState }
   | { type: "error"; botId?: string; code: string; message: string };
+
+/** Someone in a project's company, linked to their chat. */
+export interface CompanyPerson {
+  botId: string;
+  name: string;
+}
+
+export interface CompanyTeam {
+  id: string;
+  name: string;
+  manager: CompanyPerson | null;
+  employees: number;
+}
+
+export interface CompanyPlanChange {
+  summary: string;
+  why: string;
+}
+
+export interface CompanyPlanSummary {
+  id: string;
+  title: string;
+  explanation: string;
+  version: number;
+  changes: CompanyPlanChange[];
+}
+
+export interface CompanyInitiative {
+  id: string;
+  title: string;
+  outcome: string;
+  priority: string;
+  state: string;
+  owner: CompanyPerson | null;
+  finished: number;
+  total: number;
+}
+
+export interface CompanyBrief {
+  day: string;
+  revision: number;
+  summary: string;
+  createdAt: string;
+}
+
+/** What the Organization panel shows for one project. */
+export interface CompanyOverview {
+  projectId: string;
+  projectName: string;
+  ceo: CompanyPerson | null;
+  /** Employees reporting straight to the CEO. */
+  ceoEmployees: number;
+  teams: CompanyTeam[];
+  pendingPlans: CompanyPlanSummary[];
+  initiatives: CompanyInitiative[];
+  brief: CompanyBrief | null;
+}
+
+export interface DecidePlanInput {
+  projectId: string;
+  planId: string;
+  version: number;
+  approve: boolean;
+}
 
 export interface BrowserTab {
   id: string;
@@ -540,6 +609,11 @@ export interface AgentDesktopApi {
   setQueuePaused: (input: SetQueuePausedInput) => Promise<void>;
   interrupt: (input: InterruptTurnInput) => Promise<void>;
   respondToPrompt: (input: RespondToPromptInput) => Promise<void>;
+  readCompany: (projectId: string) => Promise<CompanyOverview>;
+  /** Approves or declines a pending plan, then returns the project's company as it is now. */
+  decidePlan: (input: DecidePlanInput) => Promise<CompanyOverview>;
+  /** Writes a fresh project brief, then returns the project's company as it is now. */
+  refreshBrief: (projectId: string) => Promise<CompanyOverview>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

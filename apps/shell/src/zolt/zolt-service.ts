@@ -9,8 +9,10 @@ import type {
   AgentStatus,
   AttachmentSummary,
   BotSummary,
+  CompanyOverview,
   ConversationMessage,
   ConversationSnapshot,
+  DecidePlanInput,
   DraftAttachment,
   MessageReaction,
   QueuedMessageReceipt,
@@ -21,6 +23,7 @@ import type {
   UpdateBotInput,
 } from "../shared/ipc";
 import { companyTree } from "./company-tree";
+import { type CompanyReadResult, toCompanyOverview } from "./company-view";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import {
   type BotPreferences,
@@ -50,6 +53,19 @@ interface Conversation {
   loaded: boolean;
 }
 
+/** Rows that change what a project's Organization panel shows. */
+const COMPANY_ROWS = new Set([
+  "project",
+  "subproject",
+  "thread",
+  "task",
+  "taskResult",
+  "companyPlan",
+  "projectBrief",
+  "initiativeRecord",
+  "managerRemit",
+]);
+
 const IMAGE_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -72,6 +88,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private lastBots = "";
   private dirty = new Set<string>();
   private botsDirty = false;
+  /** Projects whose company changed since the last flush; null stands for every project. */
+  private companyDirty = new Set<string | null>();
   private flushScheduled = false;
   private models: AgentModelOption[] = [];
 
@@ -294,6 +312,46 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     return toBotSummary(this.client.snapshot, this.thread(input.botId), local);
   }
 
+  /** Reads one project's company: its people, pending plans, initiatives and latest brief. */
+  async readCompany(projectId: string): Promise<CompanyOverview> {
+    const read = (await this.client.call("company.read", { projectId })) as CompanyReadResult;
+    return toCompanyOverview(projectId, read, this.client.snapshot);
+  }
+
+  /** The person's decision on a plan. The daemon refuses it if the plan or company changed. */
+  async decidePlan(input: DecidePlanInput): Promise<CompanyOverview> {
+    const read = (await this.client.call("company.read", {
+      projectId: input.projectId,
+    })) as CompanyReadResult;
+    const plan = (read.plans ?? []).find((row) => row.id === input.planId);
+    if (!plan || plan.state !== "proposed") throw new Error("This plan was already decided.");
+    if (Number(plan.version) !== input.version)
+      throw new Error("This plan changed. Review it again.");
+    try {
+      await this.client.call(
+        "company.decide",
+        {
+          id: input.planId,
+          version: input.version,
+          baseline: plan.baseline,
+          approve: input.approve,
+        },
+        `shell:decide:${input.planId}:${input.version}:${input.approve ? "approve" : "decline"}`,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("stale_plan"))
+        throw new Error("The company changed since this plan was made. Ask for a new plan.");
+      throw error;
+    }
+    return this.readCompany(input.projectId);
+  }
+
+  /** Writes a new project brief from the current work, then returns the updated company. */
+  async refreshBrief(projectId: string): Promise<CompanyOverview> {
+    await this.client.call("company.brief", { projectId }, randomUUID());
+    return this.readCompany(projectId);
+  }
+
   async deleteBot(botId: string): Promise<void> {
     await this.client.call("thread.archive", { id: botId, confirmed: true }, randomUUID());
     this.conversations.delete(botId);
@@ -507,6 +565,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     if (change.kind === "status" || change.kind === "reset") {
       this.emit("event", { type: "status", status: this.getStatus() });
       this.markBots();
+      this.companyDirty.add(null);
       for (const thread of visibleThreads(this.client.snapshot)) this.dirty.add(text(thread.id));
       this.scheduleFlush();
       return;
@@ -523,6 +582,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         )
       )
         this.markBots();
+      if (COMPANY_ROWS.has(change.aggregateType)) this.markCompany(change.aggregateType, row);
       if (threadId) this.dirty.add(threadId);
     }
     this.scheduleFlush();
@@ -561,6 +621,15 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     this.scheduleFlush();
   }
 
+  private markCompany(kind: string, row: Row): void {
+    const projectId =
+      kind === "project"
+        ? text(row.id)
+        : text(row.projectId) ||
+          text(this.client.rows("thread").find((thread) => thread.id === row.threadId)?.projectId);
+    this.companyDirty.add(projectId || null);
+  }
+
   private scheduleFlush(): void {
     if (this.flushScheduled) return;
     this.flushScheduled = true;
@@ -580,6 +649,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         this.emit("event", { type: "bots-changed", bots });
       }
     }
+    const company = this.companyDirty;
+    this.companyDirty = new Set();
+    if (company.has(null)) this.emit("event", { type: "company-changed", projectId: null });
+    else
+      for (const projectId of company) this.emit("event", { type: "company-changed", projectId });
     const dirty = this.dirty;
     this.dirty = new Set();
     for (const botId of dirty) {
