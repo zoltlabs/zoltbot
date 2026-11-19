@@ -92,7 +92,10 @@ export function TasksPage(props: TasksPageProps) {
   );
   const groups = createMemo(() => groupTasks(visible()));
   const projectName = createMemo(
-    () => projects().find((option) => option.id === project())?.name ?? "",
+    () =>
+      projects().find((option) => option.id === project())?.name ??
+      (project() ? props.bots.find((bot) => bot.projectId === project())?.projectName : "") ??
+      "",
   );
   const botFor = (task: TaskSummary) => props.bots.find((bot) => bot.id === task.threadId);
 

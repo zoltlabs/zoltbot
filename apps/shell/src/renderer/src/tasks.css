@@ -224,7 +224,7 @@
   display: grid;
   min-width: 0;
   flex: 1 1 360px;
-  grid-template-columns: 7px minmax(0, 1fr) minmax(0, 180px) minmax(0, max-content) 40px;
+  grid-template-columns: 7px minmax(0, 1fr) minmax(0, 160px) minmax(0, 150px) 40px;
   align-items: center;
   gap: 10px;
   border: 0;
