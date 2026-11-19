@@ -25,6 +25,7 @@ import type {
 } from "../shared/ipc";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
+import { CHANNEL_ROWS, channelService } from "./channel-service";
 import { companyTree } from "./company-tree";
 import { type CompanyReadResult, toCompanyOverview } from "./company-view";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
@@ -69,6 +70,7 @@ const COMPANY_ROWS = new Set([
   "projectBrief",
   "initiativeRecord",
   "managerRemit",
+  ...CHANNEL_ROWS,
 ]);
 
 const IMAGE_TYPES: Record<string, string> = {
@@ -392,6 +394,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   async refreshBrief(projectId: string): Promise<CompanyOverview> {
     await this.client.call("company.brief", { projectId }, randomUUID());
     return this.readCompany(projectId);
+  }
+
+  /** Team channels: list, read, post and act on requests. */
+  get channels() {
+    return channelService(this.client);
   }
 
   listTasks(): TaskSummary[] {
