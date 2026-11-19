@@ -36,7 +36,8 @@ describe("client over the fake transport", () => {
         at: new Date().toISOString(),
       },
     });
-    expect(client.getState().snapshot.counters.pendingInteractions).toBe(2);
+    // Two of the sample's own, plus the manager sample's staff approval and provider question.
+    expect(client.getState().snapshot.counters.pendingInteractions).toBe(4);
     await expect(
       client.getState().call("interaction.answer", {
         id: "approve-tests",
@@ -129,7 +130,13 @@ describe("client over the fake transport", () => {
     expect(await call("thread.forkPreview", { id: "thread-meal-search", boundary })).toMatchObject({
       available: false,
       reason: "fork_requires_idle",
-      destinations: expect.arrayContaining([{ id: "checker", name: "Checker", tool: "codex" }]),
+      // Checker, and the team the manager and channel samples share.
+      destinations: expect.arrayContaining([
+        expect.objectContaining({ id: "checker", name: "Checker" }),
+        expect.objectContaining({ id: "agent-mira" }),
+        expect.objectContaining({ id: "agent-sam" }),
+        expect.objectContaining({ id: "agent-theo" }),
+      ]),
     });
     expect(
       await call("session.rewind", {

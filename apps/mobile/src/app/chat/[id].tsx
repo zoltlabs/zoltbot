@@ -15,10 +15,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { artifactReference } from "../../data/artifacts";
 import { type Attachment, composeInput } from "../../data/attachments";
+import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
 import { latestPlan, modelState, threadSession } from "../../data/session";
+import { isStaffApproval } from "../../data/staff";
 import type { Row } from "../../data/transport";
 import {
   place,
@@ -82,7 +84,8 @@ export default function Chat() {
     (g) => g.id === compareMember?.compareId || g.summaryThreadId === id,
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
-  const pending = pendingFor(snapshot, id);
+  // Staff approvals are cards in the transcript, not the pinned request.
+  const pending = pendingFor(snapshot, id).filter((row) => !isStaffApproval(row));
   const [selected, setSelected] = useState<string>();
   const request = selectedRequest(pending, selected);
   useEffect(() => setSelected(request?.id), [request?.id]);
@@ -302,7 +305,11 @@ export default function Chat() {
           {compareReadOnly ? (
             <Chip label="Read only · Compare" />
           ) : (
-            <ModelChip state={modelState(snapshot, session)} online={online} />
+            <ModelChip
+              state={modelState(snapshot, session)}
+              online={online}
+              account={chatAccount(snapshot, id)}
+            />
           )}
           {canSteer && !compareReadOnly ? (
             <Segmented<"steer" | "queue">
