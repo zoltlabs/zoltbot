@@ -1,6 +1,7 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 
 export type * from "./manager-cards";
+
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
 export const IPC_CHANNELS = {
