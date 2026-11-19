@@ -5,6 +5,7 @@ import { knowledgeScopeHash } from "@zoltbot/knowledge";
 import { AgentDefinitionSchema, parse } from "@zoltbot/protocol";
 import type { OwnedRuntime, RuntimeContext } from "./api.js";
 import { createArtifactBinding } from "./artifacts/binding.js";
+import { accountHomeKey } from "./backup-models/records.js";
 import { ownedBrowser } from "./browser/evidence.js";
 import { browserObserver } from "./browser/observation.js";
 import { browserBinding, browserReadiness } from "./browser/runtime.js";
@@ -265,6 +266,56 @@ export function productionRuntime(
       loaded = undefined;
       throw error;
     }));
+  /** The definition with its sign-in folder set to an account's folder. */
+  const account = (definitionId: string, configDirectory?: string) => {
+    const rows = context.store.snapshot(["agentDefinition"]).agentDefinition;
+    const definition = parse(
+      AgentDefinitionSchema,
+      rows?.find((row) => row.id === definitionId),
+    );
+    const key = accountHomeKey(definition);
+    if (configDirectory && key)
+      definition.launch.env = { ...definition.launch.env, [key]: configDirectory };
+    return definition;
+  };
+  /** The provider's own sign-in command, run with the definition's (or account's) folders. */
+  async function signIn(definitionId: string, configDirectory?: string) {
+    if (closed) throw new Error("runtime_closed");
+    const value = await (await load()).hosts.definition(account(definitionId, configDirectory));
+    const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
+    const keys = [
+      "HOME",
+      "CLAUDE_CONFIG_DIR",
+      "CODEX_HOME",
+      "GEMINI_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+    ];
+    const env = keys.flatMap((key) =>
+      value.launch.env[key] ? [`${key}=${quote(value.launch.env[key] as string)}`] : [],
+    );
+    const args =
+      value.auth?.loginCommand ??
+      (value.adapter === "claude"
+        ? ["auth", "login"]
+        : value.adapter === "codex"
+          ? ["login"]
+          : undefined);
+    if (!args) throw new Error("login_command_unavailable");
+    return {
+      provider: value.adapter,
+      displayName: value.displayName,
+      configDirectory:
+        value.adapter === "claude"
+          ? (value.launch.env.CLAUDE_CONFIG_DIR ??
+            path.join(value.launch.env.HOME ?? "", ".claude"))
+          : value.adapter === "codex"
+            ? (value.launch.env.CODEX_HOME ?? path.join(value.launch.env.HOME ?? "", ".codex"))
+            : (value.launch.env.HOME ?? ""),
+      command: ["env", ...env, quote(value.launch.command), ...args.map(quote)].join(" "),
+    };
+  }
   return {
     async prepare(input, redactor) {
       if (closed) throw new Error("runtime_closed");
@@ -272,47 +323,18 @@ export function productionRuntime(
     },
     async loginInfo(profileId) {
       if (closed) throw new Error("runtime_closed");
-      const state = context.store.snapshot(["agent", "agentDefinition"]),
+      const state = context.store.snapshot(["agent"]),
         profile = state.agent?.find((row) => row.id === profileId && !row.archived);
       if (!profile) throw new Error("profile_unavailable");
-      const definition = parse(
-        AgentDefinitionSchema,
-        state.agentDefinition?.find((row) => row.id === profile.definitionId),
-      );
-      const value = await (await load()).hosts.definition(definition);
-      const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
-      const keys = [
-        "HOME",
-        "CLAUDE_CONFIG_DIR",
-        "CODEX_HOME",
-        "GEMINI_HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_DATA_HOME",
-        "XDG_STATE_HOME",
-      ];
-      const env = keys.flatMap((key) =>
-        value.launch.env[key] ? [`${key}=${quote(value.launch.env[key] as string)}`] : [],
-      );
-      const args =
-        value.auth?.loginCommand ??
-        (value.adapter === "claude"
-          ? ["auth", "login"]
-          : value.adapter === "codex"
-            ? ["login"]
-            : undefined);
-      if (!args) throw new Error("login_command_unavailable");
-      return {
-        provider: value.adapter,
-        displayName: value.displayName,
-        configDirectory:
-          value.adapter === "claude"
-            ? (value.launch.env.CLAUDE_CONFIG_DIR ??
-              path.join(value.launch.env.HOME ?? "", ".claude"))
-            : value.adapter === "codex"
-              ? (value.launch.env.CODEX_HOME ?? path.join(value.launch.env.HOME ?? "", ".codex"))
-              : (value.launch.env.HOME ?? ""),
-        command: ["env", ...env, quote(value.launch.command), ...args.map(quote)].join(" "),
-      };
+      return signIn(String(profile.definitionId));
+    },
+    accountLoginInfo: (definitionId, configDirectory) => signIn(definitionId, configDirectory),
+    async accountLogin(definitionId, configDirectory) {
+      if (closed) throw new Error("runtime_closed");
+      const { hosts } = await load();
+      const value = await hosts.definition(account(definitionId, configDirectory));
+      const { login } = await hosts.probe(value);
+      return login === "signed_in" || login === "signed_out" ? login : "unknown";
     },
     async close() {
       closed = true;

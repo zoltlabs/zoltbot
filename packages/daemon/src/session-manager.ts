@@ -12,7 +12,6 @@ import {
   settleNativeCompaction,
 } from "@zoltbot/core";
 import {
-  AgentDefinitionSchema,
   type AgentEvent,
   compareSessions,
   type Interaction,
@@ -24,6 +23,7 @@ import {
   type UserInput,
 } from "@zoltbot/protocol";
 import { approvalPaths, canonicalApprovalRoot } from "./approval-paths.js";
+import { backupLaunch } from "./backup-models/records.js";
 import { claimManifestOpen, interruptedLaunchConfiguration } from "./connections-delivery.js";
 import { createSessionLaunchIntent } from "./connections-intent.js";
 import { launchPreflight } from "./connections-preflight.js";
@@ -295,17 +295,13 @@ export class SessionManager {
       ThreadSchema,
       state.thread?.find((row) => row.id === threadId && !row.archived),
     );
-    const profile = routineProfile(
+    const isProfile = (row: { id?: unknown; archived?: unknown }) =>
+      row.id === thread.agentId && !row.archived;
+    // After a switch to a backup model, the chat runs on that account and model.
+    const { profile, definition, fresh } = backupLaunch(
       state,
-      thread.taskId,
-      parse(
-        ProfileSchema,
-        state.agent?.find((row) => row.id === thread.agentId && !row.archived),
-      ),
-    );
-    const definition = parse(
-      AgentDefinitionSchema,
-      state.agentDefinition?.find((row) => row.id === profile.definitionId),
+      threadId,
+      routineProfile(state, thread.taskId, parse(ProfileSchema, state.agent?.find(isProfile))),
     );
     if (
       state.session?.some(
@@ -327,7 +323,9 @@ export class SessionManager {
     }
     const previous: Previous | undefined = fork
       ? { ...previousForThread(state, fork.source.sourceThreadId), ...fork.source }
-      : previousForThread(state, threadId);
+      : fresh
+        ? undefined
+        : previousForThread(state, threadId);
     if (previous && previous.provider !== definition.adapter)
       throw Error("native_provider_changed");
     let configurationCheck = runtimeConfigurationFence(state, threadId);

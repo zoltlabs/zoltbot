@@ -11,6 +11,7 @@ function reserved(key: string) {
   return (
     key.startsWith("view.") ||
     key.startsWith("fork.") ||
+    key.startsWith("models.") ||
     key.startsWith("routine.handoff.") ||
     key.startsWith("routine.event.health.") ||
     key.startsWith("runtime.private.") ||
