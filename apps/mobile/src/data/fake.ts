@@ -7,6 +7,7 @@ import {
   unservedMethods,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
+import { answerChannel } from "./fake-channels.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
 import { sampleSnapshot } from "./sample.js";
 import { modeWidens } from "./session.js";
@@ -396,7 +397,8 @@ export class FakeTransport implements Transport {
         return { ok: true };
       }
       default: {
-        const managed = this.manage.answer(method, p);
+        const managed =
+          this.manage.answer(method, p) ?? answerChannel(this.manage.store, method, p);
         if (managed === undefined)
           throw new Error(`The sample data does not answer ${method} yet.`);
         return managed;

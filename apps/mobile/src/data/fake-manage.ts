@@ -135,7 +135,7 @@ export class SampleManagement {
   ]);
   private connections: Row[];
 
-  constructor(private readonly store: FakeRows) {
+  constructor(readonly store: FakeRows) {
     const connection = (id: string, name: string, url: string, extra: Row): Row => ({
       id,
       name,
