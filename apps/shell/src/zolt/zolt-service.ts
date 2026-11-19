@@ -22,6 +22,7 @@ import type {
   SetMessageReactionInput,
   UpdateBotInput,
 } from "../shared/ipc";
+import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { companyTree } from "./company-tree";
 import { type CompanyReadResult, toCompanyOverview } from "./company-view";
@@ -40,6 +41,7 @@ import {
   toResolution,
   visibleThreads,
 } from "./mapping";
+import { toTaskSummaries } from "./tasks-view";
 
 interface Preferences {
   bots: Record<string, BotPreferences>;
@@ -388,6 +390,25 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   async refreshBrief(projectId: string): Promise<CompanyOverview> {
     await this.client.call("company.brief", { projectId }, randomUUID());
     return this.readCompany(projectId);
+  }
+
+  listTasks(): TaskSummary[] {
+    return toTaskSummaries(this.client.snapshot);
+  }
+
+  /** The person's review: clicking Accept or Send back is their confirmation. */
+  async reviewTask(input: ReviewTaskInput): Promise<void> {
+    await this.client.call(
+      "task.review",
+      {
+        id: input.taskId,
+        revision: input.revision,
+        decision: input.decision,
+        ...(input.feedback ? { feedback: input.feedback } : {}),
+        confirmed: true,
+      },
+      `shell:review:${input.taskId}:${input.revision}:${input.decision}`,
+    );
   }
 
   async deleteBot(botId: string): Promise<void> {

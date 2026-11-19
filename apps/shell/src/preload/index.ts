@@ -109,6 +109,8 @@ const openbotApi: OpenBotDesktopApi = {
     readCompany: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.agentReadCompany, projectId),
     decidePlan: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentDecidePlan, input),
     refreshBrief: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.agentRefreshBrief, projectId),
+    listTasks: () => ipcRenderer.invoke(IPC_CHANNELS.agentListTasks),
+    reviewTask: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentReviewTask, input),
     onEvent: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, payload: AgentEvent) => listener(payload);
       ipcRenderer.on(IPC_CHANNELS.agentEvent, handler);

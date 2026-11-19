@@ -18,6 +18,11 @@ import {
   type SetQueuePausedInput,
   type UpdateBotInput,
 } from "../shared/ipc";
+import {
+  type ReviewTaskInput,
+  TASK_REVIEW_DECISIONS,
+  type TaskReviewDecision,
+} from "../shared/tasks";
 
 /** Checks every value the renderer sends before main acts on it. */
 export function requireString(value: unknown, field: string): string {
@@ -60,6 +65,23 @@ export function parseDecidePlan(value: unknown): DecidePlanInput {
     planId: requireString(value.planId, "planId"),
     version: Number(value.version),
     approve: value.approve,
+  };
+}
+
+export function parseReviewTask(value: unknown): ReviewTaskInput {
+  if (!isObject(value)) throw new Error("Invalid task review.");
+  if (!TASK_REVIEW_DECISIONS.includes(value.decision as TaskReviewDecision))
+    throw new Error("decision is required.");
+  if (!Number.isInteger(value.revision) || Number(value.revision) < 1)
+    throw new Error("revision is required.");
+  const feedback = typeof value.feedback === "string" ? value.feedback.trim() : "";
+  if (value.decision === "changes" && !feedback) throw new Error("Say what to change.");
+  if (feedback.length > 2000) throw new Error("Keep the feedback under 2,000 characters.");
+  return {
+    taskId: requireString(value.taskId, "taskId"),
+    revision: Number(value.revision),
+    decision: value.decision as TaskReviewDecision,
+    ...(value.decision === "changes" ? { feedback } : {}),
   };
 }
 

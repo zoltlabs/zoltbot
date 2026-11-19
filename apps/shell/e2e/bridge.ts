@@ -141,6 +141,8 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         readCompany: call(channels.agentReadCompany),
         decidePlan: call(channels.agentDecidePlan),
         refreshBrief: call(channels.agentRefreshBrief),
+        listTasks: call(channels.agentListTasks),
+        reviewTask: call(channels.agentReviewTask),
         onEvent: (listener: (event: unknown) => void) => {
           listeners.add(listener);
           return () => listeners.delete(listener);

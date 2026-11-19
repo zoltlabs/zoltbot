@@ -6,6 +6,7 @@ import {
   parseInterrupt,
   parseMessageReaction,
   parsePromptResponse,
+  parseReviewTask,
   parseSendMessage,
   parseSetQueuePaused,
   parseUpdateBot,
@@ -56,5 +57,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentDecidePlan]: (input) => service.decidePlan(parseDecidePlan(input)),
     [IPC_CHANNELS.agentRefreshBrief]: (projectId) =>
       service.refreshBrief(requireString(projectId, "projectId")),
+    [IPC_CHANNELS.agentListTasks]: () => service.listTasks(),
+    [IPC_CHANNELS.agentReviewTask]: (input) => service.reviewTask(parseReviewTask(input)),
   };
 }

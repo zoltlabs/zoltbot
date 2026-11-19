@@ -1,3 +1,5 @@
+import type { ReviewTaskInput, TaskSummary } from "./tasks";
+
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
   getSetupState: "app:get-setup-state",
@@ -42,6 +44,8 @@ export const IPC_CHANNELS = {
   agentReadCompany: "agent:read-company",
   agentDecidePlan: "agent:decide-plan",
   agentRefreshBrief: "agent:refresh-brief",
+  agentListTasks: "agent:list-tasks",
+  agentReviewTask: "agent:review-task",
   agentEvent: "agent:event",
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
@@ -740,6 +744,10 @@ export interface AgentDesktopApi {
   decidePlan: (input: DecidePlanInput) => Promise<CompanyOverview>;
   /** Writes a fresh project brief, then returns the project's company as it is now. */
   refreshBrief: (projectId: string) => Promise<CompanyOverview>;
+  /** Every task in every project, for the Tasks page and the sidebar. */
+  listTasks: () => Promise<TaskSummary[]>;
+  /** Accepts a task waiting for review, or sends it back with what to change. */
+  reviewTask: (input: ReviewTaskInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 
