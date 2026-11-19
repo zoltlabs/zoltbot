@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentEvent } from "../../../shared/ipc";
+import type { AgentEvent, StaffCard } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
 import { createTasksStore } from "../tasks-store";
 import { TasksPage } from "./TasksPage";
@@ -37,13 +37,19 @@ const TASKS = [
   task("Old work", { state: "completed" }),
 ];
 
+const listeners = new Set<(event: AgentEvent) => void>();
 let emit: ((event: AgentEvent) => void) | undefined;
 const agent = {
   listTasks: vi.fn(),
   reviewTask: vi.fn(),
+  readStaff: vi.fn(),
+  staffAction: vi.fn(),
   onEvent: vi.fn((listener: (event: AgentEvent) => void) => {
-    emit = listener;
-    return () => undefined;
+    listeners.add(listener);
+    emit = (event) => {
+      for (const each of listeners) each(event);
+    };
+    return () => listeners.delete(listener);
   }),
 };
 
@@ -65,13 +71,36 @@ function renderPage() {
   return { onOpenChat };
 }
 
+const ADD: StaffCard = {
+  kind: "staff",
+  requestId: "staff-approval-1",
+  action: "add",
+  state: "pending",
+  title: "Add Nova to Payments",
+  name: "Nova",
+  projectId: "acme",
+  botId: "mira-thread",
+  requestedBy: "Mira",
+  fields: [
+    { label: "Role", after: "Writes tests" },
+    { label: "Model", before: "sonnet", after: "opus" },
+  ],
+  moves: [],
+  running: 0,
+  sharedWith: 0,
+  allowance: 2,
+};
+
 const group = (name: RegExp) => screen.getByRole("region", { name }) as HTMLElement;
 
 describe("TasksPage", () => {
   beforeEach(() => {
     emit = undefined;
+    listeners.clear();
     agent.listTasks.mockReset().mockResolvedValue(TASKS);
     agent.reviewTask.mockReset().mockResolvedValue(undefined);
+    agent.readStaff.mockReset().mockResolvedValue({ approvals: [], people: [] });
+    agent.staffAction.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(window, "openbot", { configurable: true, value: { agent } });
   });
 
@@ -153,5 +182,43 @@ describe("TasksPage", () => {
     agent.listTasks.mockResolvedValue([...TASKS, task("Write the brief")]);
     emit?.({ type: "company-changed", projectId: "acme" });
     await waitFor(() => expect(screen.getByText("Write the brief")).toBeVisible());
+  });
+
+  it("shows a staff approval in Needs you and approves it with the allowance", async () => {
+    agent.readStaff.mockResolvedValue({ approvals: [ADD], people: [] });
+    const { onOpenChat } = renderPage();
+    const card = await screen.findByRole("region", { name: "Add Nova to Payments" });
+    expect(group(/Needs you/)).toHaveTextContent("Needs you · 3");
+    expect(within(card).getByText("Asked by Mira")).toBeVisible();
+    expect(within(card).getByText("sonnet").tagName).toBe("DEL");
+    expect(within(card).getByText("opus").tagName).toBe("INS");
+    await fireEvent.click(within(card).getByRole("button", { name: "Open Mira" }));
+    expect(onOpenChat).toHaveBeenCalledWith("mira-thread");
+    await fireEvent.click(
+      within(card).getByRole("checkbox", {
+        name: "Let Mira add up to 2 more like this without asking",
+      }),
+    );
+    await fireEvent.click(within(card).getByRole("button", { name: "Add Nova" }));
+    expect(within(card).getByText("Approved")).toBeVisible();
+    expect(agent.staffAction).toHaveBeenCalledWith({
+      action: "approve",
+      requestId: "staff-approval-1",
+      grantAllowance: true,
+    });
+  });
+
+  it("brings a staff approval back when the daemon refuses the answer", async () => {
+    agent.readStaff.mockResolvedValue({ approvals: [ADD], people: [] });
+    agent.staffAction.mockRejectedValue(new Error("This request was already answered."));
+    renderPage();
+    const card = await screen.findByRole("region", { name: "Add Nova to Payments" });
+    await fireEvent.click(
+      within(card).getByRole("button", { name: "Decline: Add Nova to Payments" }),
+    );
+    expect(await within(card).findByRole("alert")).toHaveTextContent(
+      "This request was already answered.",
+    );
+    expect(within(card).getByRole("button", { name: "Add Nova" })).toBeVisible();
   });
 });

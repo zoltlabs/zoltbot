@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import type { CompanyOverview, CompanyPerson, CompanyPlanSummary } from "../../../shared/ipc";
 import type { BotProfile } from "../data";
 import { AgentAvatar } from "./AgentAvatar";
+import { StaffPeople } from "./StaffPeople";
 
 interface OrganizationPanelProps {
   projectId: string;
@@ -203,6 +204,8 @@ export function OrganizationPanel(props: OrganizationPanelProps) {
                   </For>
                 </ul>
               </section>
+
+              <StaffPeople projectId={props.projectId} onOpenChat={props.onOpenChat} />
 
               <Show when={pendingPlans().length > 0}>
                 <section class="organization-section" aria-labelledby="organization-plans-heading">

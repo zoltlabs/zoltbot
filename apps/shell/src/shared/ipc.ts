@@ -1,6 +1,9 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 
 export type * from "./manager-cards";
+export type * from "./staff";
+
+import type { StaffActionInput, StaffOverview } from "./staff";
 
 import type {
   ChannelDetail,
@@ -62,6 +65,8 @@ export const IPC_CHANNELS = {
   agentReadChannel: "agent:read-channel",
   agentPostChannel: "agent:post-channel",
   agentChannelRequest: "agent:channel-request",
+  agentReadStaff: "agent:read-staff",
+  agentStaffAction: "agent:staff-action",
   agentEvent: "agent:event",
   ...MODEL_CHANNELS,
   browserOpen: "browser:open",
@@ -776,6 +781,10 @@ export interface AgentDesktopApi {
   readChannel: (channelId: string) => Promise<ChannelDetail>;
   postChannel: (input: PostChannelInput) => Promise<void>;
   channelRequest: (input: ChannelRequestInput) => Promise<void>;
+  /** Pending staff approvals (one project, or all with null) and the project's people. */
+  readStaff: (projectId: string | null) => Promise<StaffOverview>;
+  /** Answers a staff approval, or changes, archives or sets the allowance of a person. */
+  staffAction: (input: StaffActionInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

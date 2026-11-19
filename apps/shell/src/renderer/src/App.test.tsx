@@ -260,6 +260,8 @@ describe("Zoltbot connected desktop shell", () => {
           interrupt: vi.fn().mockResolvedValue(undefined),
           respondToPrompt: vi.fn().mockResolvedValue(undefined),
           listTasks: vi.fn().mockResolvedValue([]),
+          readStaff: vi.fn().mockResolvedValue({ approvals: [], people: [] }),
+          staffAction: vi.fn().mockResolvedValue(undefined),
           reviewTask: vi.fn().mockResolvedValue(undefined),
           listChannels: vi.fn().mockResolvedValue([]),
           onEvent: vi.fn((listener) => {

@@ -71,6 +71,7 @@ import type { SessionManager } from "./session-manager.js";
 import { settingsApi } from "./settings-api.js";
 import { setupApi } from "./setup-api.js";
 import { skillsApi } from "./skills-api.js";
+import { staffApi } from "./staff-tools.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
@@ -387,6 +388,7 @@ async function startOwnedDaemon(
     definitions: setupService ? () => setupService.definitions() : undefined,
   });
   const company = companyApi(runtimeContext);
+  const staff = staffApi(runtimeContext);
   const companyWatch = await startCompanySupervisor(runtimeContext, {
     onError: (code) => logger.write("warn", code),
   });
@@ -596,6 +598,7 @@ async function startOwnedDaemon(
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
           (await channelApi(runtimeContext, ownedTasks)(request.method, params, commandId)) ??
+          (await staff(request.method, params, commandId)) ??
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??

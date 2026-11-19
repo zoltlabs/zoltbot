@@ -10,10 +10,12 @@ import {
 } from "solid-js";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { BotProfile } from "../data";
+import { createStaffStore } from "../staff-store";
 import { groupTasks, statusLabel, TASK_GROUPS, type TaskGroup, taskAge } from "../tasks";
 import type { TasksStore } from "../tasks-store";
 import { AgentAvatar } from "./AgentAvatar";
 import { SidebarToggleIcon } from "./SidebarIcons";
+import { StaffCard } from "./StaffCard";
 
 interface TasksPageProps {
   store: TasksStore;
@@ -91,6 +93,12 @@ export function TasksPage(props: TasksPageProps) {
     ),
   );
   const groups = createMemo(() => groupTasks(visible()));
+  const staff = createStaffStore(() => null);
+  const approvals = createMemo(() =>
+    staff.approvals().filter((card) => !project() || card.projectId === project()),
+  );
+  const count = (group: TaskGroup) =>
+    groups()[group].length + (group === "needs_you" ? approvals().length : 0);
   const projectName = createMemo(
     () =>
       projects().find((option) => option.id === project())?.name ??
@@ -188,7 +196,7 @@ export function TasksPage(props: TasksPageProps) {
         </Show>
         <output class="sr-only">{announcement()}</output>
         <Show
-          when={visible().length > 0}
+          when={visible().length + approvals().length > 0}
           fallback={
             <p class="tasks-empty">
               {props.store.tasks().length
@@ -200,12 +208,12 @@ export function TasksPage(props: TasksPageProps) {
           <div ref={list} class="tasks-groups">
             <For each={TASK_GROUPS}>
               {(group) => (
-                <Show when={groups()[group.id].length > 0}>
+                <Show when={count(group.id) > 0}>
                   <section class="tasks-group" aria-labelledby={`tasks-group-${group.id}`}>
                     <div class="tasks-group-heading">
                       <h2 id={`tasks-group-${group.id}`}>
                         {group.title}
-                        <span class="tasks-group-count"> · {groups()[group.id].length}</span>
+                        <span class="tasks-group-count"> · {count(group.id)}</span>
                       </h2>
                       <Show when={group.id === "done"}>
                         <button
@@ -219,7 +227,16 @@ export function TasksPage(props: TasksPageProps) {
                         </button>
                       </Show>
                     </div>
-                    <Show when={group.id !== "done" || showDone()}>
+                    <Show when={group.id === "needs_you" && approvals().length}>
+                      <div class="staff-needs">
+                        <For each={approvals()}>
+                          {(card) => <StaffCard card={card} onOpenChat={props.onOpenChat} />}
+                        </For>
+                      </div>
+                    </Show>
+                    <Show
+                      when={(group.id !== "done" || showDone()) && groups()[group.id].length > 0}
+                    >
                       <ul
                         class="tasks-list"
                         id={group.id === "done" ? "tasks-done-list" : undefined}

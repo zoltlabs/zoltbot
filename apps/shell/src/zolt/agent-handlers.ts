@@ -15,6 +15,7 @@ import {
   parseUpdateBot,
   requireString,
 } from "./parsers";
+import { parseStaffAction } from "./staff-view";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -69,5 +70,8 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentPostChannel]: (input) => service.channels.post(parsePostChannel(input)),
     [IPC_CHANNELS.agentChannelRequest]: (input) =>
       service.channels.request(parseChannelRequest(input)),
+    [IPC_CHANNELS.agentReadStaff]: (projectId) =>
+      service.readStaff(projectId === null ? null : requireString(projectId, "projectId")),
+    [IPC_CHANNELS.agentStaffAction]: (input) => service.staffAction(parseStaffAction(input)),
   };
 }

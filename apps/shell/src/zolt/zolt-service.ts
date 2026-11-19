@@ -23,6 +23,7 @@ import type {
   TaskActionInput,
   UpdateBotInput,
 } from "../shared/ipc";
+import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
@@ -45,6 +46,7 @@ import {
   visibleThreads,
 } from "./mapping";
 import { modelsService, switchDialogFor } from "./models-service";
+import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
 
 interface Preferences {
@@ -549,6 +551,14 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     );
   }
 
+  readStaff = (projectId: string | null) => toStaffOverview(this.client.snapshot, projectId);
+  staffAction = (input: StaffActionInput) =>
+    runStaffAction(
+      (m, p, id) => this.client.call(m, p, id),
+      this.client.rows("interaction"),
+      input,
+    );
+
   taskAction(input: TaskActionInput): Promise<void> {
     return runTaskAction((method, params, id) => this.client.call(method, params, id), input);
   }
@@ -673,6 +683,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       )
         this.markBots();
       if (COMPANY_ROWS.has(change.aggregateType)) this.markCompany(change.aggregateType, row);
+      const staff = staffProject(change.aggregateType, row);
+      if (staff !== undefined) this.companyDirty.add(staff || null);
       if (threadId) this.dirty.add(threadId);
       for (const id of relatedThreads(this.client.snapshot, change.aggregateType, row))
         this.dirty.add(id);
@@ -780,7 +792,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private promptEvents(botId: string): void {
     const pending = this.client
       .rows("interaction")
-      .filter((row) => row.threadId === botId && row.state === "pending")
+      .filter((row) => row.threadId === botId && row.state === "pending" && !isStaffApproval(row))
       .sort((a, b) => text(a.createdAt).localeCompare(text(b.createdAt)))[0];
     const shown = this.prompts.get(botId);
     if (text(pending?.id) === shown) return;
