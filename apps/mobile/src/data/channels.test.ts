@@ -126,7 +126,7 @@ describe("requests", () => {
     expect(
       stopConfirmation(request({ tasks: [task("a", "running", 3), task("b", "completed", 9)] }))
         ?.message,
-    ).toBe("This cancels 1 task. You can resume the request later.");
+    ).toBe("This cancels 1 task.");
   });
 });
 

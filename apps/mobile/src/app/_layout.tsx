@@ -97,6 +97,14 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="channel/info"
+            options={{
+              presentation: "formSheet",
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            }}
+          />
+          <Stack.Screen
             name="profile/[id]"
             options={{
               presentation: "formSheet",

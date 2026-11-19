@@ -399,7 +399,7 @@ export function stopConfirmation(request: ChannelRequestView) {
   if (!count) return null;
   return {
     title: "Stop this request?",
-    message: `This cancels ${plural(count, "task", "tasks")}. You can resume the request later.`,
+    message: `This cancels ${plural(count, "task", "tasks")}.`,
   };
 }
 
