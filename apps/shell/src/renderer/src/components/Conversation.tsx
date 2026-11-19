@@ -1584,7 +1584,7 @@ export function Conversation(props: ConversationProps) {
                     disabledReason={
                       agentActivity() === "Working"
                         ? "Wait for the current work to finish before changing models."
-                        : "Models are available after an agent CLI connects."
+                        : "Models appear once a coding agent is set up."
                     }
                     onChange={(model) => void selectAndConfirmModel(model)}
                   />
@@ -1685,12 +1685,12 @@ export function Conversation(props: ConversationProps) {
                 <strong>
                   {props.agentStatus.phase === "starting" ||
                   props.agentStatus.phase === "restarting"
-                    ? "Connecting to agent CLIs…"
-                    : "Agent CLI setup required"}
+                    ? "Connecting to Zoltbot…"
+                    : "Set up a coding agent"}
                 </strong>
                 <p>
                   {props.agentStatus.message ??
-                    "Install and sign in to Codex CLI or Claude CLI, then restart Zoltbot."}
+                    "Install or sign in to a coding agent to start chatting."}
                 </p>
               </div>
               <Show
@@ -1708,7 +1708,7 @@ export function Conversation(props: ConversationProps) {
                       )
                   }
                 >
-                  Setup guide
+                  Set up
                 </button>
               </Show>
             </section>
@@ -1994,7 +1994,7 @@ export function Conversation(props: ConversationProps) {
               }
               placeholder={
                 !agentReady()
-                  ? "Complete agent CLI setup to start"
+                  ? "Set up a coding agent to start"
                   : onboardingModelRequired()
                     ? "Choose a model to continue"
                     : replyTarget()
@@ -2374,7 +2374,7 @@ export function Conversation(props: ConversationProps) {
                     disabledReason={
                       agentActivity() === "Working"
                         ? "Wait for the current work to finish before changing models."
-                        : "Models are available after an agent CLI connects."
+                        : "Models appear once a coding agent is set up."
                     }
                     onChange={(model) => void selectAndConfirmModel(model)}
                   />

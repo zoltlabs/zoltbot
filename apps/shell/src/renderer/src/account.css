@@ -1,0 +1,77 @@
+/* Zoltbot cloud account in the account popover, and the agent setup step. */
+
+.account-identity {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 9px 5px 36px;
+}
+
+.account-identity strong {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 590;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-identity span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-setup-empty {
+  margin: 0 2px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.agent-setup-step {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 12px;
+  background: #101010;
+  padding: 11px 12px 12px 14px;
+}
+
+.agent-setup-step p {
+  margin: 0;
+  color: var(--openbot-white);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.agent-setup-command {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.agent-setup-step .agent-setup-command span {
+  color: var(--openbot-muted);
+  font-size: 11px;
+}
+
+.agent-setup-command code {
+  overflow-x: auto;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.065);
+  padding: 6px 8px;
+  color: rgba(255, 255, 255, 0.86);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+  user-select: text;
+}
+
+.agent-setup-link {
+  min-width: 0;
+}

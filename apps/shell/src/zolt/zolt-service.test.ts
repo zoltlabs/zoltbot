@@ -53,6 +53,15 @@ describe("ZoltService against a real daemon", () => {
     const { service } = await setup();
     expect(service.getStatus().phase).toBe("ready");
     expect(service.listBots().map((bot) => bot.id)).toContain("thread");
+    const status = await service.refreshAgents();
+    // This test daemon has no install checks, so each agent says it couldn't be checked.
+    expect(status.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "fake", name: "Fake", state: "error" }),
+        expect.objectContaining({ id: "unavailable", name: "Unavailable tool", state: "error" }),
+      ]),
+    );
+    expect(status.capabilities.chat).toBe("ready");
   });
 
   it("shows a sent message at once, then the streamed reply and the finished turn", async () => {

@@ -20,6 +20,7 @@ import type {
   SetMessageReactionInput,
   UpdateBotInput,
 } from "../shared/ipc";
+import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { companyTree } from "./company-tree";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import {
@@ -74,6 +75,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private botsDirty = false;
   private flushScheduled = false;
   private models: AgentModelOption[] = [];
+  private agentChecks: AgentChecks;
+  private checking: Promise<AgentStatus> | undefined;
 
   constructor(
     private readonly client: DaemonClient,
@@ -97,25 +100,60 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   getStatus(): AgentStatus {
     const online = this.client.status === "online";
-    const definitions = this.client.rows("agentDefinition");
+    const providers = providerStatuses(
+      this.client.rows("agentDefinition"),
+      this.agentChecks,
+      online,
+    );
+    const checked = this.agentChecks instanceof Map;
     return {
       phase: online ? "ready" : this.client.status === "connecting" ? "starting" : "stopped",
       cliVersion: null,
       auth: { kind: "unknown" },
-      providers: definitions.map((definition) => ({
-        id: text(definition.id),
-        state: definition.enabled === false ? "not-installed" : "available",
-        version: text(definition.version) || null,
-        message: null,
-      })),
+      providers,
       capabilities: {
-        chat: online ? "ready" : "unavailable",
+        chat: !online
+          ? "unavailable"
+          : checked && !providers.some((provider) => provider.state === "available")
+            ? "setup-required"
+            : "ready",
         browser: "unavailable",
         computerUse: "unavailable",
       },
       message: online ? null : (this.client.error ?? "Connecting to Zoltbot…"),
       fullAccess: false,
     };
+  }
+
+  /**
+   * Asks the daemon which agents are installed and signed in. With `scan` it looks for installs
+   * again first; without it, it only scans when the daemon hasn't scanned since it started.
+   */
+  refreshAgents(scan = true): Promise<AgentStatus> {
+    if (this.client.status !== "online") return Promise.resolve(this.getStatus());
+    if (this.checking && !scan) return this.checking;
+    const checking: Promise<AgentStatus> = this.readAgentChecks(scan).then(() => {
+      if (this.checking === checking) this.checking = undefined;
+      const status = this.getStatus();
+      this.emit("event", { type: "status", status });
+      return status;
+    });
+    this.checking = checking;
+    return checking;
+  }
+
+  private async readAgentChecks(scan: boolean): Promise<void> {
+    try {
+      if (scan) await this.client.call("detect.scan", {});
+      let checks = agentChecks(await this.client.call("doctor.report", {}));
+      if (!scan && checks.size === 0 && this.client.rows("agentDefinition").length > 0) {
+        await this.client.call("detect.scan", {});
+        checks = agentChecks(await this.client.call("doctor.report", {}));
+      }
+      this.agentChecks = checks;
+    } catch {
+      this.agentChecks = this.client.status === "online" ? "failed" : undefined;
+    }
   }
 
   async getUsage(): Promise<AccountUsage> {
@@ -505,7 +543,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   private changed(change: SnapshotChange): void {
     if (change.kind === "status" || change.kind === "reset") {
+      if (change.kind === "reset" || this.client.status !== "online") this.agentChecks = undefined;
       this.emit("event", { type: "status", status: this.getStatus() });
+      if (this.client.status === "online" && this.agentChecks === undefined)
+        void this.refreshAgents(false);
       this.markBots();
       for (const thread of visibleThreads(this.client.snapshot)) this.dirty.add(text(thread.id));
       this.scheduleFlush();
@@ -515,6 +556,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       for (const item of change.rows) this.streamed(item);
       return;
     }
+    if (change.aggregateType === "agentDefinition") void this.refreshAgents(true);
     for (const row of change.rows) {
       const threadId = change.aggregateType === "thread" ? text(row.id) : text(row.threadId);
       if (

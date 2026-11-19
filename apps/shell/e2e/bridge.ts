@@ -29,8 +29,20 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
     checkedAt: null,
     message: null,
   };
+  // The headless page has no hosted service, so the account reads as not configured.
+  const account = {
+    configured: false,
+    signedIn: false,
+    email: null,
+    name: null,
+    managementUrl: null,
+  };
   return {
     ...agentHandlers(service),
+    [IPC_CHANNELS.accountGetStatus]: () => account,
+    [IPC_CHANNELS.accountSignIn]: () => account,
+    [IPC_CHANNELS.accountSignOut]: () => account,
+    [IPC_CHANNELS.accountCancel]: () => undefined,
     [IPC_CHANNELS.getAppInfo]: () => ({ name: "Zoltbot", version: "0.0.0", platform: "darwin" }),
     [IPC_CHANNELS.getSetupState]: () => ({ completed: true, preferredProvider: "fake" }),
     [IPC_CHANNELS.saveSetup]: (input) => ({ completed: true, ...(input as object) }),
@@ -98,8 +110,15 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       openExternal: async () => undefined,
       openUrl: async () => undefined,
       setVisibleBot: () => undefined,
+      account: {
+        getStatus: call(channels.accountGetStatus),
+        signIn: call(channels.accountSignIn),
+        signOut: call(channels.accountSignOut),
+        cancel: call(channels.accountCancel),
+      },
       agent: {
         getStatus: call(channels.agentGetStatus),
+        refreshAgents: call(channels.agentRefreshAgents),
         getUsage: call(channels.agentGetUsage),
         listModels: call(channels.agentListModels),
         listBots: call(channels.agentListBots),

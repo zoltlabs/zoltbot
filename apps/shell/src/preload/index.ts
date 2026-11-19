@@ -71,8 +71,15 @@ const openbotApi: OpenBotDesktopApi = {
   openExternal: (destination) => ipcRenderer.invoke(IPC_CHANNELS.openExternal, destination),
   openUrl: (url) => ipcRenderer.invoke(IPC_CHANNELS.openUrl, url),
   setVisibleBot: (botId) => ipcRenderer.send(IPC_CHANNELS.setVisibleBot, botId),
+  account: {
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.accountGetStatus),
+    signIn: () => ipcRenderer.invoke(IPC_CHANNELS.accountSignIn),
+    signOut: () => ipcRenderer.invoke(IPC_CHANNELS.accountSignOut),
+    cancel: () => ipcRenderer.invoke(IPC_CHANNELS.accountCancel),
+  },
   agent: {
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.agentGetStatus),
+    refreshAgents: () => ipcRenderer.invoke(IPC_CHANNELS.agentRefreshAgents),
     getUsage: () => ipcRenderer.invoke(IPC_CHANNELS.agentGetUsage),
     listModels: () => ipcRenderer.invoke(IPC_CHANNELS.agentListModels),
     listBots: () => ipcRenderer.invoke(IPC_CHANNELS.agentListBots),

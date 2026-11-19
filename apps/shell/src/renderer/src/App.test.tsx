@@ -2,12 +2,52 @@ import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-lib
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentEvent,
+  AgentStatus,
   AttachmentImportEvent,
   BotSummary,
+  CloudAccountStatus,
   ConversationSnapshot,
   UpdateStatus,
 } from "../../shared/ipc";
 import { App } from "./App";
+
+const READY_STATUS: AgentStatus = {
+  phase: "ready",
+  cliVersion: null,
+  auth: { kind: "unknown" },
+  providers: [
+    { id: "codex", name: "Codex", state: "available", version: "0.144.1", message: null },
+    { id: "claude", name: "Claude Code", state: "available", version: "2.1.231", message: null },
+  ],
+  capabilities: { chat: "ready", browser: "ready", computerUse: "ready" },
+  message: null,
+  fullAccess: true,
+};
+
+/** The daemon knows two agents and neither works yet. */
+const SETUP_STATUS: AgentStatus = {
+  ...READY_STATUS,
+  providers: [
+    {
+      id: "codex",
+      name: "Codex",
+      state: "not-installed",
+      version: null,
+      message: "Codex isn’t installed.",
+      installUrl: "https://example.com/install-codex",
+      installCommand: "npm install -g example-codex",
+    },
+    {
+      id: "claude",
+      name: "Claude Code",
+      state: "sign-in-required",
+      version: "2.1.231",
+      message: "Sign in to Claude Code.",
+      loginCommand: "claude auth login",
+    },
+  ],
+  capabilities: { chat: "setup-required", browser: "ready", computerUse: "ready" },
+};
 
 let emitAgentEvent: ((event: AgentEvent) => void) | undefined;
 let emitAttachmentImport: ((event: AttachmentImportEvent) => void) | undefined;
@@ -101,33 +141,27 @@ describe("Zoltbot connected desktop shell", () => {
         }),
         openExternal: vi.fn().mockResolvedValue(undefined),
         openUrl: vi.fn().mockResolvedValue(undefined),
-        agent: {
+        account: {
           getStatus: vi.fn().mockResolvedValue({
-            phase: "ready",
-            cliVersion: "0.144.1",
-            auth: { kind: "chatgpt", email: "norbert@example.com" },
-            providers: [
-              {
-                id: "codex",
-                state: "available",
-                version: "0.144.1",
-                message: null,
-                email: "norbert@example.com",
-              },
-              {
-                id: "claude",
-                provider: "claude",
-                providerName: "Claude",
-                state: "available",
-                version: "2.1.231",
-                message: null,
-                email: "claude@example.com",
-              },
-            ],
-            capabilities: { chat: "ready", browser: "ready", computerUse: "ready" },
-            message: null,
-            fullAccess: true,
+            configured: true,
+            signedIn: true,
+            email: "sam@example.com",
+            name: "Sam",
+            managementUrl: "https://example.com/account",
           }),
+          signIn: vi.fn(),
+          signOut: vi.fn().mockResolvedValue({
+            configured: true,
+            signedIn: false,
+            email: null,
+            name: null,
+            managementUrl: null,
+          }),
+          cancel: vi.fn().mockResolvedValue(undefined),
+        },
+        agent: {
+          getStatus: vi.fn().mockResolvedValue(READY_STATUS),
+          refreshAgents: vi.fn().mockResolvedValue(READY_STATUS),
           getUsage: vi.fn().mockResolvedValue({
             limits: [
               {
@@ -277,125 +311,106 @@ describe("Zoltbot connected desktop shell", () => {
     });
   });
 
-  it("requires a provider choice before starting agents", async () => {
+  it("skips setup and remembers it when the daemon already has a working agent", async () => {
     vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
       completed: false,
       preferredProvider: null,
     });
     render(() => <App />);
 
-    expect(await screen.findByRole("dialog", { name: "Choose your provider" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Chief" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Chief" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Set up a coding agent" })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(window.openbot.saveSetup).toHaveBeenCalledWith({ preferredProvider: "codex" }),
+    );
+  });
 
-    const providers = screen.getByRole("radiogroup", { name: "Default provider" });
-    const codex = within(providers).getByRole("radio", { name: /Codex.*Available/ });
+  it("lists the daemon's agents and what to do when none works yet", async () => {
+    vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
+      completed: false,
+      preferredProvider: null,
+    });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
+    vi.mocked(window.openbot.agent.refreshAgents).mockResolvedValueOnce(SETUP_STATUS);
+    render(() => <App />);
+
+    expect(
+      await screen.findByRole("dialog", { name: "Set up a coding agent" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Chief" })).not.toBeInTheDocument();
+    const agents = screen.getByRole("radiogroup", { name: "Default agent" });
+    const codex = within(agents).getByRole("radio", { name: /Codex.*Not installed/ });
     expect(codex).toHaveFocus();
-    await fireEvent.click(within(providers).getByRole("radio", { name: /Claude.*Available/ }));
-    await fireEvent.click(screen.getByRole("button", { name: "Continue with Claude" }));
+    expect(screen.getByText("Codex isn’t installed.")).toBeInTheDocument();
+    expect(screen.getByText("npm install -g example-codex")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "How to install Codex" }));
+    expect(window.openbot.openUrl).toHaveBeenCalledWith("https://example.com/install-codex");
+
+    await fireEvent.click(
+      within(agents).getByRole("radio", { name: /Claude Code.*Sign in required/ }),
+    );
+    expect(screen.getByText("claude auth login")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    expect(window.openbot.agent.refreshAgents).toHaveBeenCalledOnce();
+    expect(window.openbot.saveSetup).not.toHaveBeenCalled();
+  });
+
+  it("finishes setup on its own once an agent starts working", async () => {
+    vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
+      completed: false,
+      preferredProvider: null,
+    });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
+    render(() => <App />);
+
+    await screen.findByRole("dialog", { name: "Set up a coding agent" });
+    emitAgentEvent?.({
+      type: "status",
+      status: {
+        ...SETUP_STATUS,
+        providers: [
+          ...(SETUP_STATUS.providers ?? []).slice(0, 1),
+          { id: "claude", name: "Claude Code", state: "available", version: null, message: null },
+        ],
+      },
+    });
+
+    expect(await screen.findByRole("heading", { name: "Chief" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(window.openbot.saveSetup).toHaveBeenCalledWith({ preferredProvider: "claude" }),
+    );
+  });
+
+  it("lets the user continue with an agent that still needs setup", async () => {
+    vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
+      completed: false,
+      preferredProvider: null,
+    });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
+    render(() => <App />);
+
+    const agents = await screen.findByRole("radiogroup", { name: "Default agent" });
+    await fireEvent.click(within(agents).getByRole("radio", { name: /Claude Code/ }));
+    await fireEvent.click(screen.getByRole("button", { name: "Continue with Claude Code" }));
     expect(window.openbot.saveSetup).toHaveBeenCalledWith({ preferredProvider: "claude" });
     expect(await screen.findByRole("heading", { name: "Chief" })).toBeInTheDocument();
   });
 
-  it("lets the user choose a provider while provider checks are running", async () => {
-    vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
-      completed: false,
-      preferredProvider: null,
-    });
-    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce({
-      phase: "starting",
-      cliVersion: null,
-      auth: { kind: "unknown" },
-      providers: [
-        {
-          id: "codex",
-          state: "checking",
-          version: null,
-          message: null,
-          email: null,
-        },
-        {
-          id: "claude",
-          state: "checking",
-          version: null,
-          message: null,
-          email: null,
-        },
-      ],
-      capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
-      message: null,
-      fullAccess: true,
-    });
-    render(() => <App />);
-
-    const providers = await screen.findByRole("radiogroup", { name: "Default provider" });
-    const codex = within(providers).getByRole("radio", { name: /Codex.*Checking/ });
-    const claude = within(providers).getByRole("radio", { name: /Claude.*Checking/ });
-
-    expect(codex).toBeEnabled();
-    expect(claude).toBeEnabled();
-    expect(codex).toHaveFocus();
-
-    await fireEvent.click(claude);
-    expect(claude).toBeChecked();
-    expect(screen.getByRole("button", { name: "Continue with Claude" })).toBeEnabled();
-
-    emitAgentEvent?.({
-      type: "status",
-      status: {
-        phase: "blocked",
-        cliVersion: null,
-        auth: { kind: "unknown" },
-        providers: [
-          {
-            id: "codex",
-            state: "not-installed",
-            version: null,
-            message: "Codex CLI is not installed.",
-            email: null,
-          },
-          {
-            id: "claude",
-            state: "sign-in-required",
-            version: "2.1.231",
-            message: "Sign in to Claude.",
-            email: null,
-          },
-        ],
-        capabilities: {
-          chat: "setup-required",
-          browser: "ready",
-          computerUse: "setup-required",
-        },
-        message: "Choose and configure a provider.",
-        fullAccess: true,
-      },
-    });
-
-    expect(claude).toBeChecked();
-    await fireEvent.click(screen.getByRole("button", { name: "Continue with Claude" }));
-    expect(window.openbot.saveSetup).toHaveBeenCalledWith({ preferredProvider: "claude" });
-  });
-
-  it("lets the user review providers and permissions from the account menu", async () => {
+  it("lets the user review agents and permissions from the account menu", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
 
     await fireEvent.click(screen.getByRole("button", { name: "Open account menu" }));
-    await fireEvent.click(screen.getByRole("menuitem", { name: "Providers & permissions" }));
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Agents & permissions" }));
 
-    expect(screen.getByRole("dialog", { name: "Providers & permissions" })).toBeInTheDocument();
-    const providers = screen.getByRole("radiogroup", { name: "Default provider" });
-    expect(within(providers).getByRole("radio", { name: /Codex.*Available/ })).toBeChecked();
-    expect(within(providers).getByText("norbert@example.com")).toBeInTheDocument();
-    expect(within(providers).getByText("claude@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Agents & permissions" })).toBeInTheDocument();
+    const agents = screen.getByRole("radiogroup", { name: "Default agent" });
+    expect(within(agents).getByRole("radio", { name: /Codex.*Available/ })).toBeChecked();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    await fireEvent.click(within(providers).getByRole("radio", { name: /Claude.*Available/ }));
+    await fireEvent.click(within(agents).getByRole("radio", { name: /Claude Code.*Available/ }));
     await fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(window.openbot.saveSetup).toHaveBeenLastCalledWith({ preferredProvider: "claude" });
-    expect(
-      screen.queryByRole("dialog", { name: "Providers & permissions" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Agents & permissions" })).not.toBeInTheDocument();
   });
 
   it("opens the create-agent picker for a new user with no agents", async () => {
@@ -411,14 +426,14 @@ describe("Zoltbot connected desktop shell", () => {
       completed: false,
       preferredProvider: null,
     });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
     vi.mocked(window.openbot.saveSetup).mockRejectedValueOnce(new Error("Could not save setup."));
     render(() => <App />);
 
     expect(
-      within(await screen.findByRole("radiogroup", { name: "Default provider" })).getByRole(
-        "radio",
-        { name: /Codex.*Available/ },
-      ),
+      within(await screen.findByRole("radiogroup", { name: "Default agent" })).getByRole("radio", {
+        name: /Codex/,
+      }),
     ).toBeChecked();
     await fireEvent.click(screen.getByRole("button", { name: "Continue with Codex" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not save setup.");
@@ -430,6 +445,7 @@ describe("Zoltbot connected desktop shell", () => {
       completed: false,
       preferredProvider: null,
     });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
     vi.mocked(window.openbot.getMacPermissions).mockResolvedValueOnce({
       screenRecording: "not-determined",
       accessibility: "not-determined",
@@ -468,9 +484,12 @@ describe("Zoltbot connected desktop shell", () => {
       version: "0.1.0",
       platform: "win32",
     });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
     render(() => <App />);
 
-    expect(await screen.findByRole("dialog", { name: "Choose your provider" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Set up a coding agent" }),
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Mac permissions")).not.toBeInTheDocument());
     expect(window.openbot.getMacPermissions).not.toHaveBeenCalled();
   });
@@ -502,22 +521,82 @@ describe("Zoltbot connected desktop shell", () => {
       cliVersion: "0.144.1",
       auth: { kind: "signed-out" },
       capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
-      message: "Run `codex login`, then restart Zoltbot.",
+      message: "Sign in to Codex.",
       fullAccess: true,
     });
     render(() => <App />);
 
-    expect(await screen.findByText("Agent CLI setup required")).toBeInTheDocument();
+    expect(await screen.findByText("Set up a coding agent")).toBeInTheDocument();
+    expect(screen.getByText("Sign in to Codex.")).toBeInTheDocument();
     expect(screen.queryByRole("listbox", { name: /helping with most/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Message Chief")).toHaveAttribute("contenteditable", "false");
-    fireEvent.click(screen.getByRole("button", { name: "Setup guide" }));
-    await waitFor(() => expect(window.openbot.openExternal).toHaveBeenCalledWith("agent-setup"));
+    await fireEvent.click(screen.getByRole("button", { name: "Set up" }));
+    expect(screen.getByRole("dialog", { name: "Agents & permissions" })).toBeInTheDocument();
+  });
+
+  it("shows the Zoltbot account and signs out", async () => {
+    render(() => <App />);
+    const accountButton = await screen.findByRole("button", { name: "Open account menu" });
+    await waitFor(() => expect(accountButton).toHaveTextContent("sam@example.com"));
+
+    await fireEvent.click(accountButton);
+    expect(screen.getByText("Sam")).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    expect(window.openbot.account.signOut).toHaveBeenCalledOnce();
+    await waitFor(() => expect(accountButton).toHaveTextContent("Sign in"));
+  });
+
+  it("signs in through the browser and can cancel while waiting", async () => {
+    vi.mocked(window.openbot.account.getStatus).mockResolvedValueOnce({
+      configured: true,
+      signedIn: false,
+      email: null,
+      name: null,
+      managementUrl: null,
+    });
+    const finish: Array<(value: CloudAccountStatus) => void> = [];
+    vi.mocked(window.openbot.account.signIn).mockImplementationOnce(
+      () => new Promise<CloudAccountStatus>((resolve) => finish.push(resolve)),
+    );
+    render(() => <App />);
+    const accountButton = await screen.findByRole("button", { name: "Open account menu" });
+    await waitFor(() => expect(accountButton).toHaveTextContent("Sign in"));
+
+    await fireEvent.click(accountButton);
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Sign in" }));
+    expect(screen.getByRole("menuitem", { name: "Waiting for browser…" })).toBeDisabled();
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Cancel sign-in" }));
+    expect(window.openbot.account.cancel).toHaveBeenCalledOnce();
+
+    finish[0]?.({
+      configured: true,
+      signedIn: true,
+      email: "sam@example.com",
+      name: "Sam",
+      managementUrl: null,
+    });
+    await waitFor(() => expect(accountButton).toHaveTextContent("sam@example.com"));
+  });
+
+  it("hides sign-in when this build has no hosted account service", async () => {
+    vi.mocked(window.openbot.account.getStatus).mockResolvedValueOnce({
+      configured: false,
+      signedIn: false,
+      email: null,
+      name: null,
+      managementUrl: null,
+    });
+    render(() => <App />);
+    const accountButton = await screen.findByRole("button", { name: "Open account menu" });
+    await waitFor(() => expect(window.openbot.account.getStatus).toHaveBeenCalled());
+    expect(accountButton).toHaveTextContent("Zoltbot");
+    await fireEvent.click(accountButton);
+    expect(screen.queryByRole("menuitem", { name: "Sign in" })).not.toBeInTheDocument();
   });
 
   it("shows a compact account menu with weekly usage and contact actions", async () => {
     render(() => <App />);
     const accountButton = await screen.findByRole("button", { name: "Open account menu" });
-    expect(accountButton).toHaveTextContent("norbert@example.com");
 
     fireEvent.click(accountButton);
     await waitFor(() => expect(window.openbot.agent.getUsage).toHaveBeenCalledTimes(1));
@@ -622,13 +701,13 @@ describe("Zoltbot connected desktop shell", () => {
     expect(window.openbot.browser.open).not.toHaveBeenCalled();
   });
 
-  it("refreshes stored history when Codex becomes ready after the window opens", async () => {
+  it("refreshes stored history when the daemon becomes ready after the window opens", async () => {
     vi.mocked(window.openbot.agent.getStatus).mockResolvedValue({
       phase: "starting",
       cliVersion: "0.144.1",
       auth: { kind: "unknown" },
       capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
-      message: "Starting local Codex…",
+      message: "Starting Zoltbot…",
       fullAccess: true,
     });
     vi.mocked(window.openbot.agent.readConversation)
@@ -648,7 +727,7 @@ describe("Zoltbot connected desktop shell", () => {
           {
             id: "restored-answer",
             author: "assistant",
-            text: "Restored after Codex became ready",
+            text: "Restored after the daemon became ready",
             createdAt: "2026-08-12T10:00:00.000Z",
             status: "completed",
           },
@@ -656,20 +735,20 @@ describe("Zoltbot connected desktop shell", () => {
       });
 
     render(() => <App />);
-    await screen.findByText("Connecting to agent CLIs…");
+    await screen.findByText("Connecting to Zoltbot…");
     emitAgentEvent?.({
       type: "status",
       status: {
         phase: "ready",
         cliVersion: "0.144.1",
-        auth: { kind: "chatgpt", email: "norbert@example.com" },
+        auth: { kind: "unknown" },
         capabilities: { chat: "ready", browser: "ready", computerUse: "ready" },
         message: null,
         fullAccess: true,
       },
     });
 
-    expect(await screen.findByText("Restored after Codex became ready")).toBeInTheDocument();
+    expect(await screen.findByText("Restored after the daemon became ready")).toBeInTheDocument();
     expect(window.openbot.agent.readConversation).toHaveBeenCalledTimes(2);
   });
 
@@ -770,7 +849,7 @@ describe("Zoltbot connected desktop shell", () => {
     vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce({
       phase: "ready",
       cliVersion: "0.144.1",
-      auth: { kind: "chatgpt", email: "norbert@example.com" },
+      auth: { kind: "unknown" },
       providers: [
         { id: "codex", state: "available", version: "0.144.1", message: null },
         {
@@ -936,7 +1015,7 @@ describe("Zoltbot connected desktop shell", () => {
     vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce({
       phase: "ready",
       cliVersion: "0.144.1",
-      auth: { kind: "chatgpt", email: "norbert@example.com" },
+      auth: { kind: "unknown" },
       providers: [
         { id: "codex", state: "available", version: "0.144.1", message: null },
         {

@@ -21,6 +21,7 @@ export type Handler = (input: unknown) => unknown;
 export function agentHandlers(service: ZoltService): Record<string, Handler> {
   return {
     [IPC_CHANNELS.agentGetStatus]: () => service.getStatus(),
+    [IPC_CHANNELS.agentRefreshAgents]: () => service.refreshAgents(),
     [IPC_CHANNELS.agentGetUsage]: () => service.getUsage(),
     [IPC_CHANNELS.agentListModels]: () => service.listModels(),
     [IPC_CHANNELS.agentListBots]: () => service.listBots(),
