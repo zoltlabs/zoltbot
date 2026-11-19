@@ -28,10 +28,14 @@ import {
   parseOpenAttachment,
   requireString,
 } from "../zolt/parsers";
+import { viewHandlers, viewMessages } from "../zolt/view-handlers";
+import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { folderPicker } from "./desktop/folder-picker";
+import { frameRequestAllowed } from "./desktop/frame-isolation";
+import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
@@ -48,12 +52,47 @@ protocol.registerSchemesAsPrivileged([
     scheme: "openbot-attachment",
     privileges: { standard: true, secure: true, supportFetchAPI: true },
   },
+  {
+    scheme: "zoltbot-view",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
 ]);
 
 const paths = daemonPaths(app.isPackaged, app.getAppPath());
 const daemonHost = new DaemonHost(paths);
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+const rendererOrigin = process.env.ELECTRON_RENDERER_URL
+  ? new URL(process.env.ELECTRON_RENDERER_URL).origin
+  : "openbot-app://app";
+const viewServer = desktopViewProtocol(rendererOrigin, paths.root, daemonHost.connection);
+let answerConfirmationOpen = false;
+const viewHost = new ViewHost({
+  client,
+  prepare: (hash) => viewServer.prepare(hash),
+  send: (event) => {
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send(IPC_CHANNELS.viewEvent, event);
+  },
+  // A view never sees this dialog. It runs in main, outside the window the view shares.
+  async confirm(request, choice) {
+    if (answerConfirmationOpen || !mainWindow || mainWindow.isDestroyed()) return false;
+    answerConfirmationOpen = true;
+    try {
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        message: request.title,
+        detail: [request.context?.command, choice.label].filter(Boolean).join("\n\n"),
+        buttons: ["Confirm", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      return result.response === 0;
+    } finally {
+      answerConfirmationOpen = false;
+    }
+  },
+});
 let mainWindow: BrowserWindow | null = null;
 let visibleBotId: string | undefined;
 let isQuitting = false;
@@ -71,10 +110,15 @@ function configureContentSecurityPolicy(): void {
     "font-src 'self' data:",
     `connect-src 'self'${developmentSources}`,
     "object-src 'none'",
-    "frame-src 'self' openbot-attachment:",
+    "frame-src 'self' openbot-attachment: zoltbot-view:",
     "base-uri 'none'",
   ].join("; ");
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // A view's own response carries its stricter policy; the shell's must not replace it.
+    if (details.url.startsWith(viewScheme)) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
     callback({
       responseHeaders: { ...details.responseHeaders, "Content-Security-Policy": [policy] },
     });
@@ -126,6 +170,17 @@ function registerIpcHandlers(setupFile: string): void {
 
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(viewMessages(viewHost)))
+    ipcMain.on(channel, (event, ...values: unknown[]) => {
+      if (!isTrustedRendererUrl(event.senderFrame?.url)) return;
+      try {
+        handler(...values);
+      } catch {
+        // A malformed one-way message is dropped; nothing waits for a reply.
+      }
+    });
   const pickProjectFolder = folderPicker(() => {
     const options: OpenDialogOptions = {
       title: "Choose the project folder",
@@ -301,6 +356,19 @@ function configureAttachmentProtocol(): void {
   });
 }
 
+function configureViewProtocol(): void {
+  session.defaultSession.protocol.handle("zoltbot-view", (request) => viewServer.handle(request));
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    callback({
+      cancel: !frameRequestAllowed(
+        details.frame?.url ?? details.referrer,
+        details.url,
+        details.resourceType,
+      ),
+    });
+  });
+}
+
 function configureApplicationProtocol(): void {
   const rendererRoot = resolve(__dirname, "../renderer");
   session.defaultSession.protocol.handle("openbot-app", async (request) => {
@@ -358,6 +426,8 @@ if (!hasSingleInstanceLock) {
       configureContentSecurityPolicy();
       configureApplicationProtocol();
       configureAttachmentProtocol();
+      configureViewProtocol();
+      viewHost.start();
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {
@@ -404,6 +474,7 @@ app.on("before-quit", (event) => {
   if (shutdownStarted) return;
   event.preventDefault();
   shutdownStarted = true;
+  viewHost.stop();
   void service
     .stop()
     .then(() => daemonHost.stop())

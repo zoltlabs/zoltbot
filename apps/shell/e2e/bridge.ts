@@ -143,6 +143,22 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         exportData: async () => ({ saved: false }),
         exportDiagnostics: async () => ({ saved: false }),
       },
+      // The headless page has no view scheme, so it reports no installed map.
+      views: {
+        getMap: async () => null,
+        allowRead: async () => undefined,
+        turnOn: async () => undefined,
+        prepare: async () => {
+          throw new Error("Views need the desktop app.");
+        },
+        connect: async () => {
+          throw new Error("Views need the desktop app.");
+        },
+        post: () => undefined,
+        update: () => undefined,
+        close: () => undefined,
+        onEvent: () => () => undefined,
+      },
     };
   }, IPC_CHANNELS);
   await page.goto(`${SHELL_ORIGIN}/index.html`);

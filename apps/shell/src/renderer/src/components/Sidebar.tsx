@@ -13,12 +13,14 @@ import { AgentAvatar } from "./AgentAvatar";
 interface SidebarProps {
   bots: BotProfile[];
   activeBotId: string;
+  mapOpen: boolean;
   appInfo: AppInfo | null;
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
   updateStatus: UpdateStatus;
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
+  onOpenMap: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -80,6 +82,19 @@ function SearchIcon() {
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <circle cx="8.5" cy="8.5" r="5.5" stroke-width="1.6" />
       <path d="m12.7 12.7 3.6 3.6" stroke-width="1.6" stroke-linecap="round" />
+    </svg>
+  );
+}
+
+function MapIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <path
+        d="m3.5 5.2 4.2-1.7 4.6 1.8 4.2-1.7v11.2l-4.2 1.7-4.6-1.8-4.2 1.7V5.2Z"
+        stroke-width="1.4"
+        stroke-linejoin="round"
+      />
+      <path d="M7.7 3.5v11.3M12.3 5.3v11.3" stroke-width="1.4" />
     </svg>
   );
 }
@@ -413,6 +428,21 @@ export function Sidebar(props: SidebarProps) {
           aria-label="New agent"
         >
           <PlusIcon />
+        </button>
+      </div>
+
+      <div class="sidebar-views">
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.mapOpen }}
+          aria-pressed={props.mapOpen}
+          onClick={props.onOpenMap}
+        >
+          <span class="sidebar-map-icon">
+            <MapIcon />
+          </span>
+          <span class="bot-row-copy">Map</span>
         </button>
       </div>
 

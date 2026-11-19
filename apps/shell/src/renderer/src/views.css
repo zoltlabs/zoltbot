@@ -1,0 +1,145 @@
+/*
+ * Zoltbot views. Views are built against the Zoltbot tokens, so the shell declares them for the
+ * theme it hands each view. No shell style reads a --zb-* token.
+ */
+@import "../../../../../packages/tokens/tokens.css";
+
+.conversation-slot {
+  display: contents;
+}
+
+.sidebar-views {
+  padding: 2px 11px 0;
+}
+
+.sidebar-map-button {
+  min-height: 34px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.sidebar-map-button:hover,
+.sidebar-map-button.bot-row-active {
+  color: var(--openbot-white);
+}
+
+.sidebar-map-icon {
+  display: inline-grid;
+  width: 30px;
+  height: 22px;
+  place-items: center;
+}
+
+.map-panel {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--openbot-main);
+  animation: map-panel-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.map-header {
+  display: flex;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+}
+
+.app-frame-sidebar-collapsed .map-header {
+  padding-left: 112px;
+}
+
+.map-title {
+  margin: 0;
+  color: var(--openbot-white);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-body {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.map-frame {
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  border: 0;
+  border-top: 1px solid var(--openbot-line);
+  background: var(--openbot-main-deep);
+}
+
+.map-loading {
+  flex: 1 1 auto;
+  border-top: 1px solid var(--openbot-line);
+}
+
+.map-message {
+  display: flex;
+  max-width: 360px;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: auto;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.map-message p {
+  margin: 0;
+}
+
+.map-action {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: #ececea;
+  padding: 6px 16px;
+  color: #171717;
+  font-size: 13px;
+  font-weight: 620;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.map-action:hover:not(:disabled) {
+  background: #fff;
+}
+
+.map-action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.map-action:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+@keyframes map-panel-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-panel {
+    animation: none;
+  }
+}
