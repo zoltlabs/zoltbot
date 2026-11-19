@@ -44,7 +44,7 @@ const hosted = hostedOrigins(
   process.env,
   packaged ? readFileSync(path.join(root, "package.json"), "utf8") : undefined,
 );
-const appIcon = nativeImage.createFromPath(file("apps/desktop/assets/zoltbot.png", "zoltbot.png"));
+const appIcon = nativeImage.createFromPath(file("apps/shell/build/zoltbot.png", "zoltbot.png"));
 const dataDir =
   process.env.ZOLTBOT_DATA_DIR ??
   (packaged

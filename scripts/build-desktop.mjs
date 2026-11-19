@@ -1,6 +1,8 @@
 import { build } from "esbuild";
 import { bundleRuntime } from "./bundle-runtime.mjs";
 
+// The old desktop main (apps/desktop) still builds for the legacy app and its Electron e2e specs.
+// The desktop app people run is apps/shell (pnpm build:shell), which starts this daemon.
 await build({
   entryPoints: ["apps/desktop/src/main.ts", "apps/desktop/src/preload.ts"],
   bundle: true,

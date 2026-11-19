@@ -1,3 +1,4 @@
+// Runs the old desktop app (apps/desktop + packages/ui) until the shell covers everything it does.
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";

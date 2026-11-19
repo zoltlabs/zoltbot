@@ -47,12 +47,11 @@ if (relayUrl && !/^wss:\/\/[^\s/]+$/.test(relayUrl))
 rmSync(stage, { recursive: true, force: true });
 mkdirSync(path.join(stage, "bin"), { recursive: true });
 
-run("pnpm", ["build:desktop"]);
-run("pnpm", ["build:ui"]);
-for (const name of ["main.cjs", "preload.cjs"])
-  cpSync(path.join(root, ".cache/desktop", name), path.join(stage, name));
-cpSync(path.join(root, "dist/ui"), path.join(stage, "ui"), { recursive: true });
-cpSync(path.join(root, "apps/desktop/assets/zoltbot.png"), path.join(stage, "zoltbot.png"));
+// The app is the shell (apps/shell): electron-vite builds its main, preload and renderer into out/.
+run("pnpm", ["build:shell"]);
+cpSync(path.join(root, "apps/shell/out"), path.join(stage, "out"), { recursive: true });
+cpSync(path.join(root, "apps/shell/build/zoltbot.png"), path.join(stage, "zoltbot.png"));
+const shellPackage = json("apps/shell/package.json");
 
 // Workspace files the daemon reads next to its source, at the same relative paths.
 const { metafile } = await bundleRuntime(
@@ -81,7 +80,9 @@ writeFileSync(
       version: json("package.json").version,
       description: "Run your coding agents as a team",
       author: "Zolt Labs LLC",
-      main: "main.cjs",
+      main: "out/main/index.js",
+      // The shell's main bundle is an ES module.
+      type: "module",
       ...(hostedOrigin || relayUrl
         ? {
             zoltbot: {
@@ -90,7 +91,8 @@ writeFileSync(
             },
           }
         : {}),
-      dependencies: externalDependencies(metafile),
+      // The shell's main bundle leaves only ws outside; the daemon names its own natives.
+      dependencies: { ...externalDependencies(metafile), ws: shellPackage.dependencies.ws },
     },
     null,
     2,
@@ -112,7 +114,7 @@ for (const entry of globSync("node_modules/@anthropic-ai/claude-agent-sdk-*", { 
 keychainHelper(path.join(stage, "bin/zoltbot-keychain"));
 speechHelper(path.join(stage, "bin/zoltbot-speech"));
 
-const electron = json("apps/desktop/package.json").dependencies.electron;
+const electron = shellPackage.devDependencies.electron;
 await build({
   publish: "never",
   targets: Platform.MAC.createTarget("dmg", arch),
@@ -128,13 +130,13 @@ await build({
     protocols: [{ name: "Zoltbot", schemes: ["zoltbot"] }],
     mac: {
       category: "public.app-category.developer-tools",
-      icon: path.join(root, "apps/desktop/assets/zoltbot.png"),
+      icon: path.join(root, "apps/shell/build/zoltbot.png"),
       minimumSystemVersion: "13.0",
       // Dependencies ship both slices in architecture-named folders; preserve each as-is.
       x64ArchFiles: "**/prebuilds/darwin-{arm64,x64}/**",
       hardenedRuntime: true,
-      entitlements: path.join(root, "apps/desktop/build/entitlements.mac.plist"),
-      entitlementsInherit: path.join(root, "apps/desktop/build/entitlements.mac.plist"),
+      entitlements: path.join(root, "apps/shell/build/entitlements.mac.plist"),
+      entitlementsInherit: path.join(root, "apps/shell/build/entitlements.mac.plist"),
       extendInfo: {
         NSMicrophoneUsageDescription:
           "Zoltbot uses your microphone when you hold to dictate a message or task brief.",
@@ -289,7 +291,7 @@ function keychainHelper(target) {
 
 /** The speech recognition helper for both architectures, compiled like scripts/build-speech.mjs. */
 function speechHelper(target) {
-  compileSwiftHelper("apps/desktop/native/speech.swift", "speech", target);
+  compileSwiftHelper("apps/shell/native/speech.swift", "speech", target);
 }
 
 function compileSwiftHelper(sourceFile, prefix, target) {

@@ -11,10 +11,15 @@ pnpm lint
 pnpm test
 pnpm build:ui
 pnpm build:desktop
+pnpm build:shell
 ```
 
-`pnpm dev:ui` starts the local renderer server. `pnpm dev:desktop` launches the
-native app; do this only when you intend to open a window. Automated browser checks
+`pnpm dev:desktop` builds the daemon and opens the desktop app (`apps/shell`) with hot reload;
+do this only when you intend to open a window. `pnpm --filter @zoltbot/shell test:feel` runs the
+app's renderer headless against a real daemon and records how fast switching, sending and
+answering are. `pnpm dev:legacy-desktop` opens the previous desktop app (`apps/desktop` with
+`packages/ui`), which stays until the new app covers everything it does. `pnpm dev:ui` serves
+that previous renderer in a browser. Automated browser checks
 stay headless. There is no hosted CI. Run Electron acceptance on an isolated display, or obtain
 explicit authorization for that local run. `pnpm check` includes Electron acceptance.
 
@@ -26,7 +31,8 @@ Developer builds leave hosted accounts and broker integrations disabled unless
 configured. See [hosted services](hosted-services.md). Explicit third-party agent
 and API traffic follows the tools and credentials you select.
 
-The desktop shell is in `apps/desktop`, renderer in `packages/ui`, orchestration in
+The desktop app is in `apps/shell` (Electron main, preload and a SolidJS renderer based on
+OpenBot v0.1.11), the previous app in `apps/desktop` and `packages/ui`, orchestration in
 `packages/daemon`, and shared wire types in `packages/protocol`.
 The component gallery is available at the local UI server's `/#components` route.
 Packaging is described in [releasing](releasing.md).

@@ -10,6 +10,7 @@ export interface DaemonPaths {
   root: string;
   dataDir: string;
   entry: string;
+  packaged: boolean;
 }
 
 /**
@@ -26,7 +27,7 @@ export function daemonPaths(packaged: boolean, appPath: string): DaemonPaths {
   const entry =
     process.env.ZOLTBOT_DAEMON_ENTRY ??
     (packaged ? join(root, "daemon.mjs") : join(root, ".cache/desktop/daemon.mjs"));
-  return { root, dataDir, entry };
+  return { root, dataDir, entry, packaged };
 }
 
 /** Starts the daemon, or attaches to one another Zoltbot window already started. */
@@ -43,13 +44,20 @@ export class DaemonHost {
     const logger = new Logger(join(paths.dataDir, "shell.log"), new Redactor());
     this.supervisor = new Supervisor(
       {
-        command: process.env.ZOLTBOT_NODE_BINARY ?? "node",
+        // A packaged app carries its own Node and native helpers in bin/.
+        command:
+          process.env.ZOLTBOT_NODE_BINARY ?? (paths.packaged ? join(paths.root, "bin/node") : "node"),
         args: [paths.entry],
         surviveParentExit: true,
         cwd: paths.root,
         env: {
           ...env,
           ZOLTBOT_DATA_DIR: resolve(paths.dataDir),
+          ...(process.env.ZOLTBOT_KEYCHAIN_HELPER
+            ? { ZOLTBOT_KEYCHAIN_HELPER: process.env.ZOLTBOT_KEYCHAIN_HELPER }
+            : paths.packaged
+              ? { ZOLTBOT_KEYCHAIN_HELPER: join(paths.root, "bin/zoltbot-keychain") }
+              : {}),
           TSX_DISABLE_CACHE: "1",
         },
         frameFile: join(paths.dataDir, "shell-supervisor-frames.jsonl"),

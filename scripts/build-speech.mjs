@@ -24,7 +24,7 @@ if (process.platform !== "darwin") {
       [
         "-module-cache-path",
         path.join(cache, "swift-modules"),
-        path.join(root, "apps/desktop/native/speech.swift"),
+        path.join(root, "apps/shell/native/speech.swift"),
         "-o",
         output,
       ],

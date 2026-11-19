@@ -63,7 +63,8 @@ Each step is one or more commits on `main`. The new shell lives in `apps/shell` 
 3. **Zoltbot essentials.** Projects and workspaces in the sidebar, approvals, settings and accounts, notifications, dictation, cloud account, artifacts. Port the logic from `apps/desktop/src`, not its UI.
 4. **Agent company.** Sidebar becomes project → CEO → managers → employees. Organization panel, plans and approvals, project briefs, using the existing `company.*` RPCs.
 5. **Map view.** The town map from the prototype as a second view over the same state. `packages/views/command-map` is being worked on in parallel; reuse it where it fits.
-6. **Switch over.** Point the shipping and comparison Playwright suites at `apps/shell`, then remove `apps/desktop` and the desktop-only parts of `packages/ui`. `apps/mobile` imports `@zoltbot/ui`, so keep the parts it uses.
+6. **Switch over.** Done in part: `pnpm dev:desktop` and `pnpm package:desktop` now build `apps/shell`; the icon, entitlements and speech helper moved there. `apps/desktop` and the desktop-only parts of `packages/ui` stay, runnable with `pnpm dev:legacy-desktop`, until the shell covers what they still do (see `apps/shell/e2e/NOT-PORTED.md`). Original plan for this step:
+   **Switch over.** Point the shipping and comparison Playwright suites at `apps/shell`, then remove `apps/desktop` and the desktop-only parts of `packages/ui`. `apps/mobile` imports `@zoltbot/ui`, so keep the parts it uses.
 
 ## Keeping the feel
 
