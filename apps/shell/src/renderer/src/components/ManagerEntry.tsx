@@ -8,9 +8,11 @@ import type {
 } from "../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../data";
 import { AgentAvatar } from "./AgentAvatar";
+import { StaffCard } from "./StaffCard";
 import "../manager.css";
 
 type ResultCard = Extract<ManagerCard, { kind: "result" }>;
+type StaffCardData = Extract<ManagerCard, { kind: "staff" }>;
 
 interface EntryProps {
   message: BotMessage;
@@ -33,11 +35,18 @@ export function ManagerEntry(props: EntryProps) {
         <Show
           when={card().kind === "delegation" ? (card() as { rows: DelegationRow[] }) : undefined}
           fallback={
-            <ResultCardView
-              card={card() as ResultCard}
-              bots={props.bots}
-              onSelectAgent={props.onSelectAgent}
-            />
+            <Show
+              when={card().kind === "staff" ? (card() as StaffCardData) : undefined}
+              fallback={
+                <ResultCardView
+                  card={card() as ResultCard}
+                  bots={props.bots}
+                  onSelectAgent={props.onSelectAgent}
+                />
+              }
+            >
+              {(staff) => <StaffCard card={staff()} />}
+            </Show>
           }
         >
           {(delegation) => (

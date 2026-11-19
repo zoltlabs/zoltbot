@@ -1,0 +1,94 @@
+/* Staff approval cards and the Organization panel's Edit and Archive. Colors come from theme.css. */
+
+.staff-fields dd.staff-change {
+  white-space: pre-wrap;
+}
+
+.staff-change del {
+  color: var(--text-danger);
+  text-decoration: line-through;
+}
+
+.staff-change ins {
+  color: var(--text-success);
+  text-decoration: none;
+}
+
+.staff-change-long {
+  max-height: 120px;
+  overflow: auto;
+  border-radius: 6px;
+}
+
+.staff-change-long:focus-visible {
+  outline: 2px solid var(--openbot-line-strong);
+  outline-offset: 2px;
+}
+
+.staff-card-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.staff-card-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.staff-card-check input {
+  margin: 2px 0 0;
+}
+
+.staff-needs {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-person-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.staff-form {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 8px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.staff-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.staff-form input,
+.staff-form select,
+.staff-form textarea {
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-field);
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.staff-form textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.staff-button-danger {
+  color: var(--text-danger);
+}

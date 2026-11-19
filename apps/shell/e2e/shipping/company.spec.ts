@@ -55,8 +55,10 @@ test("organization plans, initiatives, brief and stale approvals stay usable", a
     await approve.focus();
     await page.keyboard.press("Enter");
     await expect(panel.getByText("Approved Launch team.")).toBeVisible();
-    await expect(panel.getByText("Engineering manager", { exact: true })).toBeVisible();
-    await expect(panel.getByText("Engineering lead", { exact: true })).toBeVisible();
+    const lead = panel.getByRole("button", { name: /Engineering lead\s*Engineering manager/ });
+    await expect(lead).toBeVisible();
+    // People lists the new manager too, with Edit and Archive.
+    await expect(panel.getByRole("button", { name: "Edit Engineering lead" })).toBeVisible();
 
     await shell.rpc.call(
       "company.propose",
