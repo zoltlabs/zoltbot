@@ -4,6 +4,7 @@ import { mapTopics, type Request, type TopicValues } from "../../../../packages/
 import type {
   ViewConnectInput,
   ViewHostEvent,
+  ViewPermission,
   ViewSummary,
   ViewTheme,
   ViewUpdateInput,
@@ -93,25 +94,57 @@ export class ViewHost {
       records.find((row) => row.id === COMMAND_MAP_ID) ??
       records[0];
     if (!record) return null;
+    const granted = record.requested.filter((permission) => record.granted.includes(permission));
+    const reviewed = record.reviewed ?? [];
+    const pending = record.requested.filter(
+      (permission) =>
+        !granted.includes(permission) && (permission === "read" || !reviewed.includes(permission)),
+    );
     return {
       id: record.id,
       name: record.name,
       enabled: record.enabled,
-      canRead: record.granted.includes("read"),
+      canRead: granted.includes("read"),
+      requested: record.requested,
+      granted,
+      pending,
+      shortcuts: (record.shortcuts ?? []).map(({ id, keys, label }) => ({ id, keys, label })),
       error: record.error?.message ?? null,
     };
   }
 
-  /** Grants the read permission only. Acting and answering stay as the person set them. */
-  async allowRead(viewId: string): Promise<void> {
+  /**
+   * Replaces a view's grants with what the person chose in the shell. The daemon records every
+   * requested permission as reviewed, so a declined one isn't offered again until the view asks
+   * for something new.
+   */
+  async setGrants(viewId: string, permissions: ViewPermission[]): Promise<void> {
     const record = this.require(viewId);
-    if (record.granted.includes("read")) return;
-    if (!record.requested.includes("read")) throw new Error("This view doesn't read chats.");
+    if (permissions.some((permission) => !record.requested.includes(permission)))
+      throw new Error("This view didn't ask for that permission.");
     await this.options.client.call(
       "view.setGrants",
-      { id: record.id, permissions: [...new Set([...record.granted, "read"])], confirmed: true },
+      {
+        id: record.id,
+        permissions: record.requested.filter((permission) => permissions.includes(permission)),
+        confirmed: true,
+      },
       randomUUID(),
     );
+  }
+
+  /** Runs a shortcut the view declared, pressed while focus is in the shell rather than the view. */
+  shortcut(sessionId: string, shortcutId: string): void {
+    const session = this.sessions.get(sessionId);
+    const record = session && this.record(session.viewId);
+    if (
+      !session ||
+      !record?.enabled ||
+      !record.granted.includes("read") ||
+      !record.shortcuts?.some((shortcut) => shortcut.id === shortcutId)
+    )
+      return;
+    session.bridge.event("shortcut", shortcutId);
   }
 
   async turnOn(viewId: string): Promise<void> {

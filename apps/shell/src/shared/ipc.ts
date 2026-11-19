@@ -58,15 +58,26 @@ export const IPC_CHANNELS = {
   dictationEvent: "dictation:event",
   artifactPrepare: "artifact:prepare",
   viewGetMap: "view:get-map",
-  viewAllowRead: "view:allow-read",
+  viewSetGrants: "view:set-grants",
   viewTurnOn: "view:turn-on",
   viewPrepare: "view:prepare",
   viewConnect: "view:connect",
   viewPost: "view:post",
   viewUpdate: "view:update",
   viewClose: "view:close",
+  viewShortcut: "view:shortcut",
   viewEvent: "view:event",
 } as const;
+
+export const VIEW_PERMISSIONS = ["read", "act", "approve"] as const;
+export type ViewPermission = (typeof VIEW_PERMISSIONS)[number];
+
+/** A key a view declares in its manifest; the shell forwards it while the view is open. */
+export interface ViewShortcut {
+  id: string;
+  keys: string;
+  label: string;
+}
 
 /** An installed Zoltbot view, as the shell shows it. */
 export interface ViewSummary {
@@ -75,6 +86,12 @@ export interface ViewSummary {
   enabled: boolean;
   /** The view may read chats; without it the view isn't loaded. */
   canRead: boolean;
+  /** What the view's manifest asks for, in manifest order. */
+  requested: ViewPermission[];
+  granted: ViewPermission[];
+  /** Requested permissions the person hasn't granted or turned down yet. */
+  pending: ViewPermission[];
+  shortcuts: ViewShortcut[];
   error: string | null;
 }
 
@@ -111,7 +128,8 @@ export type ViewHostEvent =
 
 export interface ViewsDesktopApi {
   getMap: () => Promise<ViewSummary | null>;
-  allowRead: (viewId: string) => Promise<void>;
+  /** Replaces the view's grants with `permissions`, which must be ones it requested. */
+  setGrants: (viewId: string, permissions: ViewPermission[]) => Promise<void>;
   turnOn: (viewId: string) => Promise<void>;
   prepare: (viewId: string) => Promise<{ url: string }>;
   connect: (input: ViewConnectInput) => Promise<{ sessionId: string }>;
@@ -119,6 +137,8 @@ export interface ViewsDesktopApi {
   post: (sessionId: string, message: unknown) => void;
   update: (input: ViewUpdateInput) => void;
   close: (sessionId: string) => void;
+  /** Runs one of the view's own shortcuts, pressed while focus is outside its frame. */
+  shortcut: (sessionId: string, shortcutId: string) => void;
   onEvent: (listener: (event: ViewHostEvent) => void) => () => void;
 }
 

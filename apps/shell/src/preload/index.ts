@@ -159,13 +159,16 @@ const openbotApi: OpenBotDesktopApi = {
   },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
-    allowRead: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewAllowRead, viewId),
+    setGrants: (viewId, permissions) =>
+      ipcRenderer.invoke(IPC_CHANNELS.viewSetGrants, { viewId, permissions }),
     turnOn: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewTurnOn, viewId),
     prepare: (viewId) => ipcRenderer.invoke(IPC_CHANNELS.viewPrepare, viewId),
     connect: (input) => ipcRenderer.invoke(IPC_CHANNELS.viewConnect, input),
     post: (sessionId, message) => ipcRenderer.send(IPC_CHANNELS.viewPost, sessionId, message),
     update: (input) => ipcRenderer.send(IPC_CHANNELS.viewUpdate, input),
     close: (sessionId) => ipcRenderer.send(IPC_CHANNELS.viewClose, sessionId),
+    shortcut: (sessionId, shortcutId) =>
+      ipcRenderer.send(IPC_CHANNELS.viewShortcut, sessionId, shortcutId),
     onEvent: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, payload: ViewHostEvent) =>
         listener(payload);

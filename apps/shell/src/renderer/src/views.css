@@ -129,6 +129,215 @@
   opacity: 0.48;
 }
 
+.map-message:has(.view-grant-card) {
+  max-width: 460px;
+  align-items: stretch;
+  text-align: left;
+}
+
+/* Sits over the running map, which stays usable around it. */
+.map-grant-overlay {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 2;
+  width: min(460px, calc(100% - 32px));
+  transform: translateX(-50%);
+  animation: view-grant-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.view-grant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  background: #242424;
+  padding: 12px;
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.48),
+    0 2px 8px rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: left;
+}
+
+.view-grant-title {
+  margin: 0;
+  padding: 0 2px;
+  color: #f1f1ee;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.view-grant-list {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  padding: 0;
+  list-style: none;
+}
+
+.view-grant-list li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.view-grant-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.view-grant-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.view-grant-option input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  accent-color: #ececea;
+}
+
+.view-grant-option input:disabled {
+  cursor: default;
+}
+
+.view-grant-option strong,
+.view-permissions-row strong {
+  display: block;
+  color: var(--openbot-white);
+  font-weight: 500;
+}
+
+.view-grant-option strong + span,
+.view-permissions-row strong + span {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.view-grant-error {
+  margin: 0;
+  padding: 0 2px;
+  color: #df8982;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.view-grant-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.view-grant-secondary,
+.view-permissions-button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: transparent;
+  padding: 6px 14px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  font-weight: 520;
+  transition: background 140ms ease;
+}
+
+.view-grant-secondary:hover:not(:disabled),
+.view-permissions-button:hover,
+.view-permissions-button[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--openbot-white);
+}
+
+.view-grant-secondary:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.view-grant-card :focus-visible,
+.view-permissions :focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 2px;
+}
+
+.view-permissions {
+  position: relative;
+  margin-left: auto;
+}
+
+.view-permissions-button {
+  min-height: 26px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.view-permissions-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  width: min(320px, calc(100vw - 32px));
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: #1b1b1b;
+  padding: 4px;
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.48),
+    0 2px 8px rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  line-height: 18px;
+  transform-origin: top right;
+  animation: view-grant-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.view-permissions-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 7px;
+  padding: 8px 9px;
+}
+
+.view-permissions-row .settings-switch {
+  margin-top: 1px;
+}
+
+.view-permissions-row .settings-switch[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.view-permissions-popover .view-grant-error {
+  padding: 2px 9px 6px;
+}
+
+@keyframes view-grant-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
 @keyframes map-panel-in {
   from {
     opacity: 0;
@@ -139,7 +348,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-panel {
+  .map-panel,
+  .map-grant-overlay,
+  .view-permissions-popover {
     animation: none;
   }
 }

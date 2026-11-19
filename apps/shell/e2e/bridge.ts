@@ -195,7 +195,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       // The headless page has no view scheme, so it reports no installed map.
       views: {
         getMap: async () => null,
-        allowRead: async () => undefined,
+        setGrants: async () => undefined,
         turnOn: async () => undefined,
         prepare: async () => {
           throw new Error("Views need the desktop app.");
@@ -206,6 +206,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         post: () => undefined,
         update: () => undefined,
         close: () => undefined,
+        shortcut: () => undefined,
         onEvent: () => () => undefined,
       },
     };

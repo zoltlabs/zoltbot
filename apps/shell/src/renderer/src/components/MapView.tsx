@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
-import type { ViewHostEvent, ViewSummary, ViewTheme } from "../../../shared/ipc";
+import type { ViewHostEvent, ViewPermission, ViewSummary, ViewTheme } from "../../../shared/ipc";
 import { SidebarToggleIcon } from "./Sidebar";
+import { GrantCard, PermissionsMenu, shortcutFor } from "./ViewGrants";
 
 interface MapViewProps {
   sidebarCollapsed: boolean;
@@ -37,6 +38,7 @@ export function MapView(props: MapViewProps) {
   const [url, setUrl] = createSignal("");
   const [error, setError] = createSignal("");
   const [busy, setBusy] = createSignal(false);
+  const [grantError, setGrantError] = createSignal("");
   const [attempt, setAttempt] = createSignal(0);
   let frame: HTMLIFrameElement | undefined;
   let session: { id: string; port: MessagePort } | undefined;
@@ -45,6 +47,13 @@ export function MapView(props: MapViewProps) {
   const usableId = createMemo(() => {
     const current = view();
     return current?.enabled && current.canRead ? current.id : "";
+  });
+  /** What the grant card asks about; it starts over whenever this changes. */
+  const pendingKey = createMemo(() => {
+    const current = view();
+    return current?.enabled && !current.error && current.pending.length
+      ? `${current.id}:${current.pending.join()}:${current.granted.join()}`
+      : "";
   });
 
   function refresh() {
@@ -136,11 +145,22 @@ export function MapView(props: MapViewProps) {
     const visibility = () => {
       if (session) views.update({ sessionId: session.id, visible: !document.hidden });
     };
+    // Keys pressed inside the frame go to the view itself; this covers focus in the shell.
+    const keydown = (event: KeyboardEvent) => {
+      const current = view();
+      if (!session || !current) return;
+      const shortcut = shortcutFor(current.shortcuts, event);
+      if (!shortcut) return;
+      event.preventDefault();
+      views.shortcut(session.id, shortcut.id);
+    };
     document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("keydown", keydown);
     refresh();
     onCleanup(() => {
       unsubscribe();
       document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("keydown", keydown);
       disconnect();
     });
   });
@@ -154,6 +174,31 @@ export function MapView(props: MapViewProps) {
       .catch(() => setError("Zoltbot couldn't change the map. Try again."))
       .finally(() => setBusy(false));
   }
+
+  function saveGrants(permissions: ViewPermission[]) {
+    const current = view();
+    if (!current || busy()) return;
+    setBusy(true);
+    setGrantError("");
+    void views
+      .setGrants(current.id, permissions)
+      .then(refresh)
+      .catch(() => setGrantError("Zoltbot couldn't save these permissions. Try again."))
+      .finally(() => setBusy(false));
+  }
+
+  const grantCard = (current: ViewSummary) => (
+    <Show when={pendingKey()} keyed>
+      <GrantCard
+        name={current.name}
+        pending={current.pending}
+        granted={current.granted}
+        busy={busy()}
+        error={grantError()}
+        onSave={saveGrants}
+      />
+    </Show>
+  );
 
   return (
     <section aria-label="Map" class="map-panel">
@@ -172,6 +217,18 @@ export function MapView(props: MapViewProps) {
           </button>
         </Show>
         <h1 class="map-title">{view()?.name ?? "Map"}</h1>
+        <Show when={view()?.enabled && view()?.requested.length ? view() : null}>
+          {(current) => (
+            <PermissionsMenu
+              name={current().name}
+              requested={current().requested}
+              granted={current().granted}
+              busy={busy()}
+              error={grantError()}
+              onSave={saveGrants}
+            />
+          )}
+        </Show>
       </header>
       <div class="map-body">
         <Show when={loaded()}>
@@ -203,15 +260,7 @@ export function MapView(props: MapViewProps) {
                             </>
                           }
                         >
-                          <p>Allow the map to see your chats, projects, requests and spending.</p>
-                          <button
-                            type="button"
-                            class="map-action"
-                            disabled={busy()}
-                            onClick={() => run(views.allowRead)}
-                          >
-                            Allow
-                          </button>
+                          {grantCard(current())}
                         </Show>
                       }
                     >
@@ -241,16 +290,21 @@ export function MapView(props: MapViewProps) {
                   fallback={<output class="map-loading" aria-label="Loading the map" />}
                 >
                   {(src) => (
-                    <iframe
-                      ref={frame}
-                      class="map-frame"
-                      title={current().name}
-                      src={src}
-                      sandbox="allow-scripts"
-                      referrerpolicy="no-referrer"
-                      allow="autoplay; fullscreen 'none'; camera 'none'; microphone 'none'; geolocation 'none'"
-                      onLoad={() => void connect()}
-                    />
+                    <>
+                      <iframe
+                        ref={frame}
+                        class="map-frame"
+                        title={current().name}
+                        src={src}
+                        sandbox="allow-scripts"
+                        referrerpolicy="no-referrer"
+                        allow="autoplay; fullscreen 'none'; camera 'none'; microphone 'none'; geolocation 'none'"
+                        onLoad={() => void connect()}
+                      />
+                      <Show when={pendingKey()}>
+                        <div class="map-grant-overlay">{grantCard(current())}</div>
+                      </Show>
+                    </>
                   )}
                 </Show>
               </Show>
