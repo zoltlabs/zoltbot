@@ -700,55 +700,7 @@ export type { MethodWhere } from "./method-locations.js";
 export const macOnlyMethods: readonly MethodName[] = (
   Object.keys(methodCatalog) as MethodName[]
 ).filter((method) => !methodCatalog[method].pairedPhone);
-/**
- * In the catalog but not served by zoltd yet: a call fails with `method_unavailable`. Clients and
- * fakes read this so they do not offer what the Mac cannot do. A daemon test keeps it honest.
- */
-export const unservedMethods: readonly MethodName[] = [
-  "agent.list",
-  "agent.archive",
-  "agent.duplicate",
-  "thread.list",
-  "thread.history",
-  "thread.search",
-  "turn.retry",
-  "native.reconcile",
-  "grant.list",
-  "grant.set",
-  "audit.list",
-  "team.killSwitch",
-  "project.list",
-  "subproject.list",
-  "subproject.archive",
-  "area.list",
-  "area.create",
-  "area.update",
-  "area.archive",
-  "initiative.list",
-  "initiative.create",
-  "initiative.update",
-  "initiative.archive",
-  "assignment.set",
-  "assignment.end",
-  "routing.rules.list",
-  "routing.rules.set",
-  "limits.get",
-  "limits.set",
-  "task.update",
-  "task.checkpoints",
-  "workflow.list",
-  "workflow.draftFromTask",
-  "workflow.publish",
-  "workflow.run",
-  "workflow.pause",
-  "workflow.runs",
-  "model.refresh",
-  "model.localServers",
-  "workspace.list",
-  "workspace.diff",
-  "workspace.merge",
-  "workspace.cleanup",
-];
+export { unservedMethods } from "./unserved-methods.js";
 
 // Entity events have explicit schemas. Catalog registration also governs the event store.
 export const eventCatalog: Record<string, TSchema> = {};
