@@ -79,8 +79,13 @@ const line = (value: string) => value.replace(/\s+/g, " ").trim();
 export function chatRef(snapshot: Snapshot, id: unknown): ChatRef {
   const thread = find(snapshot, "thread", id);
   const profile = find(snapshot, "agent", thread?.agentId);
+  // A task chat is titled after the task, so it goes by the teammate who owns it.
+  const named =
+    thread?.kind === "task"
+      ? text(profile?.name) || text(thread?.title)
+      : text(thread?.title) || text(profile?.name);
   return {
-    name: text(thread?.title) || text(profile?.name) || "Agent",
+    name: named || "Agent",
     threadId: thread && thread.archived !== true ? text(thread.id) : null,
     agentId: text(thread?.agentId),
   };

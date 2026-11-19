@@ -9,6 +9,7 @@ import {
 import { searchSampleFiles } from "./attachments.js";
 import { answerChannel } from "./fake-channels.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
+import { answerManager, seedManagerSample } from "./fake-manager.js";
 import { sampleSnapshot } from "./sample.js";
 import { modeWidens } from "./session.js";
 import type { Row, Snapshot, Transport, TransportHandlers } from "./transport.js";
@@ -38,6 +39,7 @@ export class FakeTransport implements Transport {
   ) {
     this.snapshot = sampleSnapshot(this.now());
     Object.assign(this.snapshot.entities, sampleManagement(this.now()));
+    seedManagerSample(this.snapshot.entities, this.now());
     this.manage = new SampleManagement({
       rows: (kind) => this.rows(kind),
       find: (kind, id) => this.find(kind, id),
@@ -398,7 +400,9 @@ export class FakeTransport implements Transport {
       }
       default: {
         const managed =
-          this.manage.answer(method, p) ?? answerChannel(this.manage.store, method, p);
+          this.manage.answer(method, p) ??
+          answerChannel(this.manage.store, method, p) ??
+          answerManager(method, p, this.manage.store);
         if (managed === undefined)
           throw new Error(`The sample data does not answer ${method} yet.`);
         return managed;

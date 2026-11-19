@@ -202,8 +202,9 @@ describe("sample channel", () => {
       }),
     ]);
     expect(view.more).toBe(true);
+    // The manager sample shares these tasks and has Theo's ready for review.
     expect(requestMeta(currentRequest(view.requests) as ChannelRequestView, now)).toBe(
-      "2 tasks running",
+      "1 task running",
     );
     expect(
       channelTranscript(view).some(

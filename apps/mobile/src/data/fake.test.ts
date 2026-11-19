@@ -36,7 +36,8 @@ describe("client over the fake transport", () => {
         at: new Date().toISOString(),
       },
     });
-    expect(client.getState().snapshot.counters.pendingInteractions).toBe(2);
+    // Two of the sample's own, plus the manager sample's staff approval and provider question.
+    expect(client.getState().snapshot.counters.pendingInteractions).toBe(4);
     await expect(
       client.getState().call("interaction.answer", {
         id: "approve-tests",
@@ -129,7 +130,13 @@ describe("client over the fake transport", () => {
     expect(await call("thread.forkPreview", { id: "thread-meal-search", boundary })).toMatchObject({
       available: false,
       reason: "fork_requires_idle",
-      destinations: [{ id: "checker", name: "Checker" }],
+      // Checker, and the team the manager and channel samples share.
+      destinations: [
+        { id: "checker", name: "Checker" },
+        { id: "agent-mira" },
+        { id: "agent-sam" },
+        { id: "agent-theo" },
+      ],
     });
     expect(
       await call("session.rewind", {
@@ -225,7 +232,8 @@ describe("client over the fake transport", () => {
     fake.setMacOnline(false);
     expect(client.getState().status).toBe("mac_offline");
     expect(client.getState().lastSeenAt).toBeDefined();
-    expect(client.getState().snapshot.entities.task?.length).toBe(5);
+    // Five sample tasks and the two Mira assigned in the manager sample.
+    expect(client.getState().snapshot.entities.task?.length).toBe(7);
     await expect(client.getState().call("task.retry", { id: "dark-mode" })).rejects.toThrow(
       "offline",
     );
