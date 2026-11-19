@@ -110,7 +110,7 @@ describe("ChannelPage", () => {
     let finish: () => void = () => undefined;
     agent.postChannel.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
     renderPage();
-    const input = (await screen.findByRole("combobox", {
+    const input = (await screen.findByRole("textbox", {
       name: "Message #payments",
     })) as HTMLTextAreaElement;
     input.value = "@T";
@@ -161,7 +161,7 @@ describe("ChannelPage", () => {
   it("rolls back a refused post with an error", async () => {
     agent.postChannel.mockRejectedValue(new Error("mention_not_member"));
     renderPage();
-    const input = (await screen.findByRole("combobox", {
+    const input = (await screen.findByRole("textbox", {
       name: "Message #payments",
     })) as HTMLTextAreaElement;
     input.value = "hello";

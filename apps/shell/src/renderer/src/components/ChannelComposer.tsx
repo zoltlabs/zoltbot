@@ -123,10 +123,8 @@ export function ChannelComposer(props: ChannelComposerProps) {
         class="channel-composer-input"
         rows={1}
         maxLength={4000}
-        role="combobox"
         aria-label={`Message #${props.channelName}`}
         aria-autocomplete="list"
-        aria-expanded={open()}
         aria-controls={open() ? listId : undefined}
         aria-activedescendant={open() ? `${listId}-${active()}` : undefined}
         placeholder={`Message #${props.channelName}`}

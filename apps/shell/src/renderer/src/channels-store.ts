@@ -97,7 +97,8 @@ export function createChannelsStore() {
     const current = detail();
     const value = text.trim();
     if (!current || !value) return false;
-    const postId = `post-${crypto.randomUUID()}`;
+    // randomUUID needs a secure context, which the renderer's page may not be.
+    const postId = `post-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
     const optimistic = optimisticPost(postId, value, current, new Date().toISOString());
     setError("");
     setSending((posts) => [...posts, optimistic]);
