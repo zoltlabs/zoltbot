@@ -138,6 +138,14 @@ export function listAccounts(state: DomainState, now = Date.now()): ModelAccount
     ),
   ];
 }
+/** How notes and asks name an account: the tool for a default sign-in, else tool and label. */
+export function accountTitle(state: DomainState, accountId: string, now = Date.now()) {
+  const account = listAccounts(state, now).find((row) => row.id === accountId);
+  if (!account) return "The account";
+  if (account.isDefault) return account.label;
+  const tool = state.agentDefinition?.find((row) => row.id === account.definitionId);
+  return `${String(tool?.displayName ?? account.provider)} · ${account.label}`;
+}
 export function readOrders(state: DomainState): BackupOrders {
   const value = setting<Partial<BackupOrders>>(state, ordersKey);
   return {

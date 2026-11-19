@@ -160,7 +160,7 @@ it("switches to the next account at a limit, asks before another provider, and m
     resetsAt: iso(60 * minute),
   });
   expect(setting(t.state(), copiedContextKey("thread"))).toBeTruthy();
-  expect(t.notes()).toEqual(["Claude hit its limit. Continuing on Work."]);
+  expect(t.notes()).toEqual(["Claude hit its limit. Continuing on Claude · Work."]);
   expect(t.stopped).toEqual(["thread"]);
 
   // The next launch runs in the work account's folder, in a fresh native session.
@@ -204,7 +204,7 @@ it("switches to the next account at a limit, asks before another provider, and m
     defaultAccountId("codex-tool"),
   );
   expect(setting(t.state(), ackKey("thread:thread"))).toBeTruthy();
-  expect(t.notes().at(-1)).toBe("Work hit its limit. Continuing on Codex.");
+  expect(t.notes().at(-1)).toBe("Claude · Work hit its limit. Continuing on Codex.");
   const codex = backupLaunch(t.state(), "thread", t.profile());
   expect(codex.definition.adapter).toBe("codex");
   expect(codex.fresh).toBe(true);
@@ -229,8 +229,8 @@ it("writes one notice when every backup is at its limit", async () => {
   await t.supervisor.tick();
   await t.supervisor.tick();
   expect(t.notes()).toEqual([
-    "Claude hit its limit. Continuing on Work.",
-    "Work hit its limit. No backup is free.",
+    "Claude hit its limit. Continuing on Claude · Work.",
+    "Claude · Work hit its limit. No backup is free.",
   ]);
   expect(setting<ActiveRecord>(t.state(), activeKey("thread"))?.accountId).toBe(t.work.id);
 });

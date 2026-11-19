@@ -21,6 +21,7 @@ import type { Store } from "@zoltbot/store";
 import { copiedContext, copiedContextKey, visibleForkHistory } from "../copied-fork-context.js";
 import {
   type ActiveRecord,
+  accountTitle,
   ackKey,
   activeKey,
   askedKey,
@@ -31,7 +32,6 @@ import {
   latestNativeSession,
   limitKey,
   limitOf,
-  listAccounts,
   type OrderEntry,
   setting,
 } from "./records.js";
@@ -158,8 +158,7 @@ export function backupSupervisor(host: BackupSupervisorHost) {
       result: { ok: true },
     }));
   }
-  const labelOf = (state: DomainState, accountId: string) =>
-    listAccounts(state, now()).find((row) => row.id === accountId)?.label ?? "The account";
+  const labelOf = (state: DomainState, accountId: string) => accountTitle(state, accountId, now());
   const note = (state: DomainState, threadId: string, body: ModelSwitchNote, at: string) =>
     handle(
       state,
@@ -234,7 +233,7 @@ export function backupSupervisor(host: BackupSupervisorHost) {
         toolInput: {
           backupSwitch: {
             from,
-            to: target.account.label,
+            to: labelOf(state, target.accountId),
             provider,
             ...(until ? { until } : {}),
             ...(project ? { project } : {}),
@@ -245,7 +244,7 @@ export function backupSupervisor(host: BackupSupervisorHost) {
         {
           id: "choice",
           header: "Provider",
-          prompt: `${from} is at its limit. ${target.account.label} can continue now. ${provider} will see this project's code and the conversation so far.`,
+          prompt: `${from} is at its limit. ${labelOf(state, target.accountId)} can continue now. ${provider} will see this project's code and the conversation so far.`,
           options: [
             { id: "continue", label: `Continue on ${provider}`, recommended: true },
             { id: "wait", label: "Wait for the limit to reset" },
