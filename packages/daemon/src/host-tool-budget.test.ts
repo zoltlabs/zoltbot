@@ -8,6 +8,7 @@ import {
   artifactBrowserToolDefinitions,
   artifactRuntimeToolDefinitions,
   browserRuntimeToolDefinitions,
+  channelIndirectToolDefinitions,
   indirectRuntimeToolDefinitions,
   managerArtifactBrowserToolDefinitions,
   managerArtifactToolDefinitions,
@@ -59,6 +60,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
           ...managerArtifactToolDefinitions,
           ...indirectRuntimeToolDefinitions,
           ...managerIndirectToolDefinitions,
+          ...channelIndirectToolDefinitions,
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +

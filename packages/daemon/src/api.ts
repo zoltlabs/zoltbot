@@ -37,6 +37,7 @@ import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
+import { channelApi } from "./channel-service.js";
 import { chiefWaker } from "./chief/proactive.js";
 import { compareApi } from "./compare-api.js";
 import { writeConnectionFile } from "./connection-file.js";
@@ -386,6 +387,9 @@ async function startOwnedDaemon(
     definitions: setupService ? () => setupService.definitions() : undefined,
   });
   const company = companyApi(runtimeContext);
+  const channels = channelApi(runtimeContext, {
+    cancelTask: (id, cmd) => ownedTasks.api("task.cancel", { id, confirmed: true }, cmd),
+  });
   const companyWatch = await startCompanySupervisor(runtimeContext, {
     onError: (code) => logger.write("warn", code),
   });
@@ -597,6 +601,7 @@ async function startOwnedDaemon(
         const result =
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
+          (await channels(request.method, params, commandId)) ??
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??

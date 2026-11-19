@@ -15,6 +15,7 @@ import {
 } from "@zoltbot/core";
 import type { ToolActor, ToolInvocation } from "@zoltbot/hostmcp";
 import type { RuntimeContext } from "./api.js";
+import { postChannelMessage } from "./channel-tools.js";
 import { sendToChief } from "./chief/inbox.js";
 import { refreshTaint } from "./knowledge-taint.js";
 
@@ -61,7 +62,7 @@ export const teamToolDefinitions = [
   {
     name: "team_message",
     description:
-      'Message a chat in your workspace. question: true wakes it for a reply; otherwise it reads the update next turn. to: chat id or exact title, else your nearest manager; "chief" reaches the user\'s main agent, and idea: true marks an idea worth doing outside your brief. Optional taskId records direct task completion. replyTo answers a message you got. Stable key.',
+      'Message a chat in your workspace. question: true wakes it for a reply; otherwise it reads the update next turn. to: chat id or exact title, else your nearest manager; "chief" reaches the user\'s main agent, and idea: true marks an idea worth doing outside your brief. Optional taskId records direct task completion. replyTo answers a message you got. channelId posts in a team channel: @Name reaches members, else the lead. Stable key.',
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -71,6 +72,7 @@ export const teamToolDefinitions = [
         question: { type: "boolean" },
         idea: { type: "boolean" },
         replyTo: { type: "string", minLength: 1, maxLength: 256 },
+        channelId: { type: "string", minLength: 1, maxLength: 256 },
         taskId: { type: "string", minLength: 1, maxLength: 256 },
         files: { type: "array", maxItems: 50, items: { type: "string", maxLength: 500 } },
         learned: { type: "array", maxItems: 5, items: { type: "object" } },
@@ -355,6 +357,7 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
       idea?: boolean;
       taskId?: string;
       files?: string[];
+      channelId?: string;
     };
     if (!authorize(call.actor, "team_message", args)) throw new Error("grant_required");
     // Injected text must not be able to wake another chat with a request.
@@ -363,6 +366,15 @@ export function teamTools(context: RuntimeContext, options: { waitMs?: number } 
         error: "question_not_allowed",
         why: "This chat read content Zoltbot cannot vouch for. Send an update instead.",
       };
+    // A channel post reaches its @mentions or the lead and is kept in the channel transcript.
+    if (args.channelId)
+      return postChannelMessage(context, call.actor, {
+        key: args.key,
+        channelId: args.channelId,
+        text: args.text,
+        ...(args.question ? { question: true } : {}),
+        ...(args.replyTo ? { replyTo: args.replyTo } : {}),
+      });
     const submitted =
       !args.question && !args.idea
         ? await maybeSubmitTask(call.actor, args.key, args.taskId, args.text, args.files)

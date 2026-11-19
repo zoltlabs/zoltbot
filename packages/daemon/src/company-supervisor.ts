@@ -8,6 +8,7 @@ import {
   writeProjectBrief,
 } from "@zoltbot/core";
 import type { RuntimeContext } from "./api.js";
+import { reconcileChannels } from "./channel-service.js";
 import { coveredByTeamWait, settleTeamWaits } from "./team-wait-service.js";
 
 /** Reconciliation uses persisted state and receipts, so missed events and restarts are harmless. */
@@ -29,6 +30,11 @@ export function companySupervisor(
     running = true;
     try {
       await settleTeamWaits(context, now(), options.onError);
+      try {
+        reconcileChannels(context, now());
+      } catch {
+        options.onError?.("channel_reconcile_failed");
+      }
       const state = context.store.snapshot();
       const chief = String(state.settings?.find((r) => r.key === "chief.thread")?.value ?? "");
       const at = now();
