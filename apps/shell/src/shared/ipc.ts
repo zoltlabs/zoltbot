@@ -1,6 +1,7 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 
 export type * from "./manager-cards";
+import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -47,6 +48,8 @@ export const IPC_CHANNELS = {
   agentDecidePlan: "agent:decide-plan",
   agentRefreshBrief: "agent:refresh-brief",
   agentTaskAction: "agent:task-action",
+  agentListTasks: "agent:list-tasks",
+  agentReviewTask: "agent:review-task",
   agentEvent: "agent:event",
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
@@ -749,6 +752,10 @@ export interface AgentDesktopApi {
   refreshBrief: (projectId: string) => Promise<CompanyOverview>;
   /** Stops, accepts or sends back a delegated task, or wakes a waiting chat. */
   taskAction: (input: TaskActionInput) => Promise<void>;
+  /** Every task in every project, for the Tasks page and the sidebar. */
+  listTasks: () => Promise<TaskSummary[]>;
+  /** Accepts a task waiting for review, or sends it back with what to change. */
+  reviewTask: (input: ReviewTaskInput) => Promise<void>;
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 

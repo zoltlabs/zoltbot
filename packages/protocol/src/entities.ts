@@ -235,6 +235,15 @@ export const TaskSchema = object({
   updatedAt: At,
 });
 export type Task = Static<typeof TaskSchema>;
+/**
+ * Settings key for how many tasks one employee may run at once. An employee is the profile that
+ * executes a task (`ownerAgentId`) within the task's project; see `taskEmployee` in core.
+ */
+export const TASK_RUNNING_LIMIT_SETTING = "tasks.runningLimit";
+export const DEFAULT_TASK_RUNNING_LIMIT = 2;
+export const TaskRunningLimitSchema = Type.Integer({ minimum: 1, maximum: 20 });
+/** The hold reason of a queued task whose employee already runs as many tasks as allowed. */
+export const AT_LIMIT_HOLD = "at_limit";
 export const TaskResultSchema = object({
   outcome: Type.Optional(values(["nothing", "actionable", "needs_you"])),
   taskId: Id,
