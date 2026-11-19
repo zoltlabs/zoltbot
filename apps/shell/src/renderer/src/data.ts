@@ -19,7 +19,7 @@ export const AVATAR_SHAPES: BotAvatarShape[] = [...BOT_AVATAR_SHAPES];
 
 export const AVATAR_COLORS: BotAvatarColor[] = [...BOT_AVATAR_COLORS];
 
-export type MessageKind = "text" | "thinking" | "exchange";
+export type MessageKind = "text" | "thinking" | "exchange" | "notice";
 
 export interface BotMessage {
   id: string;

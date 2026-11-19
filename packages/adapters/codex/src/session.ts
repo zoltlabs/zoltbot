@@ -8,7 +8,7 @@ import {
 import type { AgentEvent, Capabilities, InteractionAnswer, UserInput } from "@zoltbot/protocol";
 import type { CodexPeer } from "./index.js";
 import { codexAnswer, codexInteraction } from "./interactions.js";
-import { codexNotification } from "./mapping.js";
+import { codexLimitReset, codexNotification } from "./mapping.js";
 import { object } from "./schema.js";
 
 interface PendingRequest {
@@ -56,6 +56,8 @@ export class CodexSession implements AgentSession {
   private closed = false;
   private dead = false;
   private compacting = false;
+  /** When a full rate-limit window resets, from the account update that reported it. */
+  private limitResetsAt: string | undefined;
   private context: { used?: number; size?: number } | undefined;
   private overrides: { model: string; effort?: string } | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -173,8 +175,14 @@ export class CodexSession implements AgentSession {
             }
           return;
         }
+        if (method === "account/rateLimits/updated") {
+          this.limitResetsAt = codexLimitReset(params);
+          return;
+        }
         const events = codexNotification(method, params, this.compacting ? "manual" : "auto");
         for (const event of events) {
+          if (event.t === "status" && event.state === "rate_limited" && this.limitResetsAt)
+            event.resetsAt ??= this.limitResetsAt;
           if (event.t === "turn.started") {
             this.busy = true;
             this.current = event.turnId;

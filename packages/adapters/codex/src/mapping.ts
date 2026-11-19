@@ -18,6 +18,38 @@ function usage(value: unknown, cumulative: boolean, window: unknown): UsageSampl
     cumulative,
   };
 }
+/** Usage and rate limits that stop the turn. Overload and retried errors are not limits. */
+const limitCodes: Record<string, string> = {
+  usageLimitExceeded: "usage_limit",
+  rateLimitExceeded: "rate_limit",
+  sessionBudgetExceeded: "budget_limit",
+};
+function usageLimit(value: unknown): AgentEvent | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const info = (value as Record<string, unknown>).codexErrorInfo;
+  const detail = typeof info === "string" ? limitCodes[info] : undefined;
+  return detail ? { t: "status", state: "rate_limited", detail } : undefined;
+}
+/**
+ * The latest time a reached limit window resets, from `account/rateLimits/updated`. Undefined
+ * while no window is full. resetsAt is Unix seconds.
+ */
+export function codexLimitReset(params: Record<string, unknown>): string | undefined {
+  const limits = params.rateLimits;
+  if (!limits || typeof limits !== "object" || Array.isArray(limits)) return undefined;
+  const value = limits as Record<string, unknown>;
+  const reached = typeof value.rateLimitReachedType === "string";
+  let latest = 0;
+  for (const key of ["primary", "secondary"]) {
+    const window = value[key];
+    if (!window || typeof window !== "object" || Array.isArray(window)) continue;
+    const { usedPercent, resetsAt } = window as Record<string, unknown>;
+    const full = typeof usedPercent === "number" && usedPercent >= 100;
+    if ((full || reached) && typeof resetsAt === "number" && resetsAt > 0 && resetsAt < 8.64e12)
+      latest = Math.max(latest, resetsAt * 1000);
+  }
+  return latest ? new Date(latest).toISOString() : undefined;
+}
 export function codexNotification(
   method: string,
   params: Record<string, unknown>,
@@ -69,7 +101,9 @@ export function codexNotification(
     }
     case "turn/completed": {
       const turn = object(params.turn);
+      const limit = turn.status === "failed" ? usageLimit(turn.error) : undefined;
       return [
+        ...(limit ? [limit] : []),
         {
           t: "turn.done",
           turnId: text(turn.id),
@@ -82,14 +116,16 @@ export function codexNotification(
         },
       ];
     }
-    case "error":
+    case "error": {
+      const limit = params.willRetry ? undefined : usageLimit(params.error);
       return [
-        {
+        limit ?? {
           t: "status",
           state: params.willRetry ? "reconnecting" : "error",
           detail: "provider_error",
         },
       ];
+    }
     case "item/started":
     case "item/completed": {
       const item = object(params.item);

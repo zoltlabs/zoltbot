@@ -23,6 +23,7 @@ import type {
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
+import { ModelsSettings } from "./components/ModelsSettings";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { TasksPage } from "./components/TasksPage";
@@ -91,6 +92,7 @@ export function App() {
   const [tasksOpen, setTasksOpen] = createSignal(false);
   const [tasksProject, setTasksProject] = createSignal<string | null>(null);
   const tasks = createTasksStore();
+  const [modelsOpen, setModelsOpen] = createSignal(false);
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
   const [uiErrors, setUiErrors] = createSignal<Record<string, BotMessage[]>>({});
   const [conversationLoaded, setConversationLoaded] = createSignal<Record<string, boolean>>({});
@@ -151,6 +153,7 @@ export function App() {
   /** Shows the Tasks page for a project, or for the open chat's project. */
   function openTasks(projectId?: string | null) {
     setMapOpen(false);
+    setModelsOpen(false);
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
     setTasksOpen(true);
@@ -432,6 +435,7 @@ export function App() {
   function selectBot(botId: string) {
     setMapOpen(false);
     setTasksOpen(false);
+    setModelsOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -743,14 +747,21 @@ export function App() {
             <Sidebar
               bots={botList()}
               tasks={tasks.tasks()}
-              activeBotId={mapOpen() || tasksOpen() ? "" : (activeBot()?.id ?? "")}
+              activeBotId={mapOpen() || tasksOpen() || modelsOpen() ? "" : (activeBot()?.id ?? "")}
               mapOpen={mapOpen()}
               tasksOpen={tasksOpen()}
               onOpenMap={() => {
                 setTasksOpen(false);
+                setModelsOpen(false);
                 setMapOpen(true);
               }}
               onOpenTasks={() => openTasks()}
+              modelsOpen={modelsOpen()}
+              onOpenModels={() => {
+                setMapOpen(false);
+                setTasksOpen(false);
+                setModelsOpen(true);
+              }}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -787,7 +798,10 @@ export function App() {
             </Sidebar>
           </Show>
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
-          <div class="conversation-slot" inert={mapOpen() || tasksOpen() || undefined}>
+          <div
+            class="conversation-slot"
+            inert={mapOpen() || tasksOpen() || modelsOpen() || undefined}
+          >
             <Conversation
               agentStatus={agentStatus()}
               bot={activeBot()}
@@ -842,6 +856,12 @@ export function App() {
                 if (chatId && botList().some((bot) => bot.id === chatId)) selectBot(chatId);
                 else setMapOpen(false);
               }}
+            />
+          </Show>
+          <Show when={modelsOpen()}>
+            <ModelsSettings
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
             />
           </Show>
           <Show when={permissionsOpen()}>
@@ -905,7 +925,7 @@ function toBotMessage(message: ConversationMessage): BotMessage {
     time: formatTime(message.createdAt),
     streaming: message.status === "streaming",
     itemType: message.itemType,
-    kind: message.exchange ? "exchange" : "text",
+    kind: message.exchange ? "exchange" : message.source === "system" ? "notice" : "text",
     senderBotId: exchangeSenderId,
     replyToMessageId: message.replyToMessageId,
     attachments: message.attachments,

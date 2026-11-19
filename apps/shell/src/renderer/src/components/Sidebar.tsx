@@ -30,6 +30,7 @@ import {
   FeedbackIcon,
   MapIcon,
   MessageIcon,
+  ModelsIcon,
   PermissionsIcon,
   PlusIcon,
   SearchIcon,
@@ -49,6 +50,8 @@ interface SidebarProps {
   mapOpen: boolean;
   tasksOpen: boolean;
   onOpenTasks: () => void;
+  /** Whether Models settings cover the conversation. */
+  modelsOpen?: boolean;
   appInfo: AppInfo | null;
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
@@ -57,6 +60,7 @@ interface SidebarProps {
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
   onOpenMap: () => void;
+  onOpenModels?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -421,6 +425,20 @@ export function Sidebar(props: SidebarProps) {
             </span>
           </Show>
         </button>
+        <Show when={props.onOpenModels}>
+          <button
+            type="button"
+            class="bot-row sidebar-map-button"
+            classList={{ "bot-row-active": props.modelsOpen === true }}
+            aria-pressed={props.modelsOpen === true}
+            onClick={() => props.onOpenModels?.()}
+          >
+            <span class="sidebar-map-icon">
+              <ModelsIcon />
+            </span>
+            <span class="bot-row-copy">Models</span>
+          </button>
+        </Show>
       </div>
 
       <div class="sidebar-search-wrap">

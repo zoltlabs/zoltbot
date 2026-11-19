@@ -33,6 +33,16 @@ export interface OwnedRuntime extends RuntimeHost {
   loginInfo?(
     profileId: string,
   ): Promise<{ provider: string; command: string; configDirectory: string }>;
+  /** The sign-in command for a definition, in an account's own config folder when given. */
+  accountLoginInfo?(
+    definitionId: string,
+    configDirectory?: string,
+  ): Promise<{ provider: string; command: string; configDirectory: string }>;
+  /** Whether a definition, in an account's config folder when given, is signed in. */
+  accountLogin?(
+    definitionId: string,
+    configDirectory?: string,
+  ): Promise<"signed_in" | "signed_out" | "unknown">;
   close(): Promise<void>;
 }
 export interface DaemonOptions {

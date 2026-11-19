@@ -13,6 +13,7 @@ import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
 import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
 import type { Row, Snapshot } from "./daemon-client";
 import { noticeFor, withManagerCards } from "./manager-cards";
+import { modelSwitchMessage } from "./models-service";
 
 export const body = (row: Row | undefined): Row =>
   row?.body && typeof row.body === "object" && !Array.isArray(row.body) ? (row.body as Row) : {};
@@ -180,6 +181,11 @@ export function toMessages(
             }
           : {}),
       });
+      continue;
+    }
+    if (item.kind === "note") {
+      const notice = modelSwitchMessage(item);
+      if (notice) messages.push(notice);
       continue;
     }
     if (item.kind !== "message") continue;

@@ -414,6 +414,9 @@ async function startOwnedDaemon(
     runtime,
     createThread: (value, id) => creation("thread.create", { value }, id),
     stopThread: (id, force) => manager?.stopThread(id, force),
+    dataDir: options.dataDir,
+    owned: ownedRuntime,
+    requestInteraction: async (draft, id) => (await loadInteractions()).request(draft, id),
     clearInteractions: (id, cmd) =>
       interactions || options.interactionHost || manager
         ? loadInteractions().then((engine) => engine.clear([id], "turn_ended", cmd))
@@ -587,12 +590,6 @@ async function startOwnedDaemon(
           checks: [],
           logs: logger.lines,
         };
-      case "provider.loginInfo": {
-        if (!ownedRuntime?.loginInfo) throw new Error("provider_login_unavailable");
-        const result = await ownedRuntime.loginInfo(String(params.profileId));
-        await privacy.prepareData(result);
-        return result;
-      }
       default: {
         const result =
           (await views?.api(request.method, params, commandId)) ??

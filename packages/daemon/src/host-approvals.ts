@@ -13,13 +13,15 @@ export function respondHostApproval(
         chiefAction?: unknown;
         chiefIdea?: unknown;
         viewProposal?: string;
+        backupSwitch?: unknown;
       }
     | undefined;
   if (input?.cuaSession)
     return import("./cua/approval.js").then((tools) =>
       tools.respondCuaApproval(context, request, answer),
     );
-  if (input?.worktreeExecution) return Promise.resolve();
+  // The backup supervisor reads the answer from the store.
+  if (input?.worktreeExecution || input?.backupSwitch) return Promise.resolve();
   if (input?.chiefAction)
     return import("./chief/tools.js").then((tools) =>
       tools.respondChiefApproval(context, request, answer),

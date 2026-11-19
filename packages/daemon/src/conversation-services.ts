@@ -1,4 +1,7 @@
-import type { RuntimeContext } from "./api.js";
+import type { InteractionDraft } from "@zoltbot/protocol";
+import type { OwnedRuntime, RuntimeContext } from "./api.js";
+import { backupModelsApi } from "./backup-models/service.js";
+import { backupSupervisor } from "./backup-models/supervisor.js";
 import { entityEditsApi } from "./entity-edits.js";
 import { orchestrationService } from "./orchestration/service.js";
 import { type QuickChatHostOptions, quickChatService } from "./quick-chat/service.js";
@@ -17,6 +20,10 @@ export function conversationServices(host: {
   createThread(value: Record<string, unknown>, commandId: string): Promise<unknown>;
   stopThread(threadId: string, force?: boolean): Promise<void> | undefined;
   clearInteractions(threadId: string, commandId: string): Promise<unknown> | undefined;
+  /** Accounts and backup orders: sign-in folders live under the data folder. */
+  dataDir: string;
+  owned: OwnedRuntime | undefined;
+  requestInteraction(draft: InteractionDraft, commandId: string): Promise<unknown>;
   onError(code: string): void;
 }) {
   const { store, privacy, publish } = host.context;
@@ -59,6 +66,23 @@ export function conversationServices(host: {
   queueMicrotask(() => {
     void orchestration.start();
   });
+  const backupModels = backupModelsApi({
+    store,
+    publish,
+    prepareData: (value) => privacy.prepareData(value),
+    dataDir: host.dataDir,
+    owned: host.owned,
+  });
+  const backup = backupSupervisor({
+    store,
+    publish,
+    stopThread: host.stopThread,
+    setModel: async (id, model, commandId) =>
+      host.runtime("session.setModel", { id, model }, commandId),
+    request: host.requestInteraction,
+    wake: host.context.wake,
+    onError: host.onError,
+  });
   return {
     quick,
     orchestration,
@@ -66,10 +90,12 @@ export function conversationServices(host: {
       return (
         (await quick.api(method, params, commandId)) ??
         (await entityEdits(method, params, commandId)) ??
+        (await backupModels(method, params, commandId)) ??
         (await threadActions(method, params, commandId))
       );
     },
     async close() {
+      await backup.close();
       await orchestration.close();
       quick.close();
     },

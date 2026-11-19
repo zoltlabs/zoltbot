@@ -2,6 +2,7 @@ import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager
 
 export type * from "./manager-cards";
 
+import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
 export const IPC_CHANNELS = {
@@ -52,6 +53,7 @@ export const IPC_CHANNELS = {
   agentListTasks: "agent:list-tasks",
   agentReviewTask: "agent:review-task",
   agentEvent: "agent:event",
+  ...MODEL_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -592,6 +594,8 @@ export type AgentEvent =
       threadId: string;
       turnId: string;
       questions: AgentPromptQuestion[];
+      /** Present when answering moves the chat's work to another provider. */
+      switchDialog?: ModelSwitchDialog;
     }
   | { type: "prompt-cleared"; botId: string }
   /** Company rows changed. A null project means every project may have changed. */
@@ -813,6 +817,7 @@ export interface OpenBotDesktopApi {
   views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
+  models: ModelsDesktopApi;
 }
 
 export type DictationAccessStatus = "authorized" | "not_determined" | "denied" | "restricted";

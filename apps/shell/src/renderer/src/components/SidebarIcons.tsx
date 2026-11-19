@@ -154,3 +154,12 @@ export function ChevronIcon() {
     </svg>
   );
 }
+
+export function ModelsIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <rect x="3.5" y="3.5" width="13" height="5" rx="1.5" stroke-width="1.4" />
+      <rect x="3.5" y="11.5" width="13" height="5" rx="1.5" stroke-width="1.4" />
+    </svg>
+  );
+}

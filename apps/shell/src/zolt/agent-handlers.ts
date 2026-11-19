@@ -1,5 +1,6 @@
 import { IPC_CHANNELS } from "../shared/ipc";
 import { parseTaskAction } from "./manager-cards";
+import { modelHandlers } from "./model-handlers";
 import {
   parseCancelQueuedMessage,
   parseCreateBot,
@@ -61,5 +62,6 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentTaskAction]: (input) => service.taskAction(parseTaskAction(input)),
     [IPC_CHANNELS.agentListTasks]: () => service.listTasks(),
     [IPC_CHANNELS.agentReviewTask]: (input) => service.reviewTask(parseReviewTask(input)),
+    ...modelHandlers(service),
   };
 }

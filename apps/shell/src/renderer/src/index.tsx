@@ -8,6 +8,7 @@ import "./organization.css";
 import "./artifacts.css";
 import "./views.css";
 import "./tasks.css";
+import "./models.css";
 import "./account.css";
 
 const root = document.getElementById("root");

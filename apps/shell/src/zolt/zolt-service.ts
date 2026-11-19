@@ -43,6 +43,7 @@ import {
   toResolution,
   visibleThreads,
 } from "./mapping";
+import { modelsService, switchDialogFor } from "./models-service";
 import { toTaskSummaries } from "./tasks-view";
 
 interface Preferences {
@@ -100,11 +101,15 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private agentChecks: AgentChecks;
   private checking: Promise<AgentStatus> | undefined;
 
+  /** Coding tool sign-ins and backup orders. */
+  readonly accounts: ReturnType<typeof modelsService>;
+
   constructor(
     private readonly client: DaemonClient,
     private readonly dataPath: string,
   ) {
     super();
+    this.accounts = modelsService(client);
     client.onChange((change) => this.changed(change));
   }
 
@@ -779,6 +784,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     }
     this.prompts.set(botId, text(pending.id));
     const { questions } = toPrompt(pending);
+    const switchDialog = switchDialogFor(pending);
     this.emit("event", {
       type: "prompt",
       requestId: text(pending.id),
@@ -786,6 +792,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       threadId: botId,
       turnId: text(pending.turnId),
       questions,
+      ...(switchDialog ? { switchDialog } : {}),
     });
   }
 
