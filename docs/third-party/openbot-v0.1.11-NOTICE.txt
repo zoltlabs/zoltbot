@@ -1,0 +1,7 @@
+OpenBot v0.1.11, https://github.com/nightly-labs/openbot/tree/v0.1.11
+Licensed under the Apache License, Version 2.0 (see apps/shell/LICENSE).
+
+OpenBot
+Copyright 2026 Norbert Bodziony
+
+This product includes software developed by Norbert Bodziony.

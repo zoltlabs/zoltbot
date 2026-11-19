@@ -21,8 +21,9 @@ const ignored = new Set([
   "playwright-report",
   ".expo",
 ]);
-// Generated native projects (Expo prebuild) are not source.
-const ignoredPaths = new Set(["apps/mobile/ios", "apps/mobile/android"]);
+// Generated native projects (Expo prebuild) are not source. apps/shell is the OpenBot v0.1.11
+// import; it leaves this list once its files are split under 800 lines and use --zb tokens.
+const ignoredPaths = new Set(["apps/mobile/ios", "apps/mobile/android", "apps/shell"]);
 const ownedRoots = new Set([
   "apps",
   "packages",

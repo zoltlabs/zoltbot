@@ -24,6 +24,7 @@
       "!dist",
       "!**/dist",
       "!**/node_modules",
+      "!apps/shell",
       "!apps/mobile/ios",
       "!apps/mobile/android",
       "!apps/mobile/.expo",

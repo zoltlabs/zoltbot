@@ -3,3 +3,6 @@ Copyright 2026 Zolt Labs LLC
 
 This product includes software developed by third parties. Their notices are in
 docs/third-party and next to the bundled assets they cover.
+
+apps/shell is derived from OpenBot v0.1.11 (Apache-2.0). Its original NOTICE and
+LICENSE are in apps/shell and docs/third-party/openbot-v0.1.11-NOTICE.txt.

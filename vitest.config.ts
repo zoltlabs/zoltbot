@@ -3,7 +3,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 export default defineConfig({
   cacheDir: ".cache/vitest",
   test: {
-    exclude: [...configDefaults.exclude, "packages/cell/**"],
+    exclude: [...configDefaults.exclude, "packages/cell/**", "apps/shell/**"],
     include: [
       "apps/**/*.test.ts",
       "packages/**/*.test.ts",
