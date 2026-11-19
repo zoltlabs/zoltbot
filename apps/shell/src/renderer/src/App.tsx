@@ -13,6 +13,7 @@ import type {
   BotSummary,
   BrowserControlState,
   BrowserTab,
+  CloudAccountStatus,
   ConversationMessage,
   ConversationSnapshot,
   QueueSnapshot,
@@ -30,13 +31,10 @@ const FALLBACK_STATUS: AgentStatus = {
   phase: "starting",
   cliVersion: null,
   auth: { kind: "unknown" },
-  providers: [
-    { id: "codex", state: "not-started", version: null, message: null },
-    { id: "claude", state: "not-started", version: null, message: null },
-  ],
+  providers: [],
   capabilities: { chat: "unavailable", browser: "unavailable", computerUse: "unavailable" },
-  message: "Starting local agent CLIs…",
-  fullAccess: true,
+  message: "Connecting to Zoltbot…",
+  fullAccess: false,
 };
 
 const FALLBACK_UPDATE_STATUS: UpdateStatus = {
@@ -127,6 +125,12 @@ export function App() {
   const [setupState, setSetupState] = createSignal<AppSetupState | null>(null);
   const [setupLoaded, setSetupLoaded] = createSignal(false);
   const [permissionsOpen, setPermissionsOpen] = createSignal(false);
+  const [cloudAccount, setCloudAccount] = createSignal<CloudAccountStatus | null>(null);
+  const usableAgent = createMemo(() =>
+    agentStatus().providers?.find((provider) => provider.state === "available"),
+  );
+  /** Setup is done once it was saved, or as soon as the daemon has an agent that works. */
+  const setupDone = createMemo(() => setupState()?.completed === true || Boolean(usableAgent()));
   const pendingConversationSnapshots = new Map<string, ConversationSnapshot>();
   const recentReplyTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let conversationFrame: number | undefined;
@@ -157,6 +161,10 @@ export function App() {
       .getSetupState()
       .then(setSetupState)
       .finally(() => setSetupLoaded(true));
+    void window.openbot.account
+      .getStatus()
+      .then(setCloudAccount)
+      .catch(() => undefined);
 
     void Promise.all([
       window.openbot
@@ -641,6 +649,34 @@ export function App() {
     setPermissionsOpen(false);
   }
 
+  // Remember setup once an agent works, so later launches skip the setup screen.
+  let rememberingSetup = false;
+  createEffect(() => {
+    const state = setupState();
+    const agent = usableAgent();
+    if (!state || state.completed || !agent || rememberingSetup) return;
+    rememberingSetup = true;
+    void window.openbot
+      .saveSetup({ preferredProvider: agent.id })
+      .then(setSetupState)
+      .catch(() => undefined)
+      .finally(() => {
+        rememberingSetup = false;
+      });
+  });
+
+  async function checkAgents(): Promise<void> {
+    setAgentStatus(await window.openbot.agent.refreshAgents());
+  }
+
+  async function signIn(): Promise<void> {
+    setCloudAccount(await window.openbot.account.signIn());
+  }
+
+  async function signOut(): Promise<void> {
+    setCloudAccount(await window.openbot.account.signOut());
+  }
+
   async function runUpdateAction(): Promise<void> {
     const phase = updateStatus().phase;
     if (phase === "ready") {
@@ -660,13 +696,15 @@ export function App() {
       fallback={<div class="initial-setup-screen" role="status" aria-label="Loading Zoltbot" />}
     >
       <Show
-        when={setupState()?.completed}
+        when={setupDone()}
         fallback={
           <InitialSetup
             state={setupState() ?? { completed: false, preferredProvider: null }}
             agentStatus={agentStatus()}
             platform={appInfo()?.platform ?? "darwin"}
             onSave={saveSetup}
+            onCheckAgents={checkAgents}
+            onOpenUrl={(url) => window.openbot.openUrl(url)}
           />
         }
       >
@@ -684,6 +722,10 @@ export function App() {
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
+              cloudAccount={cloudAccount()}
+              onSignIn={signIn}
+              onSignOut={signOut}
+              onCancelSignIn={() => void window.openbot.account.cancel()}
               updateStatus={updateStatus()}
               agentStates={sidebarAgentStates()}
               onSelectBot={selectBot}
@@ -743,7 +785,7 @@ export function App() {
               onActivateBrowserTab={activateBrowserTab}
               onCloseBrowserTab={closeBrowserTab}
               onToggleLeftSidebar={() => setSidebarCollapsed(false)}
-              onOpenAgentSetup={() => window.openbot.openExternal("agent-setup")}
+              onOpenAgentSetup={async () => void setPermissionsOpen(true)}
               onStop={stopActiveTurn}
             />
           </div>
@@ -761,10 +803,12 @@ export function App() {
           <Show when={permissionsOpen()}>
             <InitialSetup
               reviewing
-              state={setupState() ?? { completed: true, preferredProvider: "codex" }}
+              state={setupState() ?? { completed: true, preferredProvider: null }}
               agentStatus={agentStatus()}
               platform={appInfo()?.platform ?? "darwin"}
               onSave={saveSetup}
+              onCheckAgents={checkAgents}
+              onOpenUrl={(url) => window.openbot.openUrl(url)}
               onClose={() => setPermissionsOpen(false)}
             />
           </Show>

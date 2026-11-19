@@ -14,7 +14,12 @@ export const IPC_CHANNELS = {
   updateEvent: "update:event",
   maintenanceExportData: "maintenance:export-data",
   maintenanceExportDiagnostics: "maintenance:export-diagnostics",
+  accountGetStatus: "account:get-status",
+  accountSignIn: "account:sign-in",
+  accountSignOut: "account:sign-out",
+  accountCancel: "account:cancel",
   agentGetStatus: "agent:get-status",
+  agentRefreshAgents: "agent:refresh-agents",
   agentGetUsage: "agent:get-usage",
   agentListModels: "agent:list-models",
   agentListBots: "agent:list-bots",
@@ -166,10 +171,18 @@ export type AgentProviderState =
 
 export interface AgentProviderStatus {
   id: AgentProviderId;
+  /** The daemon's display name for the agent, such as "Claude Code". */
+  name?: string;
   state: AgentProviderState;
   version: string | null;
   message: string | null;
   email?: string | null;
+  /** Where to read how to install the agent. */
+  installUrl?: string | null;
+  /** The shell command that installs the agent, when the daemon knows one. */
+  installCommand?: string | null;
+  /** The shell command that signs the agent in, when the daemon knows one. */
+  loginCommand?: string | null;
 }
 
 export interface CreateBotInput {
@@ -196,9 +209,17 @@ export interface MacPermissionsState {
 export type AgentAuthState =
   | { kind: "unknown" }
   | { kind: "signed-out" }
-  | { kind: "unsupported"; accountType: string }
-  | { kind: "chatgpt"; email: string | null }
-  | { kind: "claude"; email: string | null };
+  | { kind: "unsupported"; accountType: string };
+
+/** The Zoltbot cloud account. Never carries credentials. */
+export interface CloudAccountStatus {
+  /** False when this build has no hosted service to sign in to. */
+  configured: boolean;
+  signedIn: boolean;
+  email: string | null;
+  name: string | null;
+  managementUrl: string | null;
+}
 
 export interface AccountUsageWindow {
   usedPercent: number;
@@ -672,6 +693,8 @@ export interface BrowserVisibilityInput {
 
 export interface AgentDesktopApi {
   getStatus: () => Promise<AgentStatus>;
+  /** Looks for installed agents again and returns the new status. */
+  refreshAgents: () => Promise<AgentStatus>;
   getUsage: () => Promise<AccountUsage>;
   listModels: () => Promise<AgentModelOption[]>;
   listBots: () => Promise<BotSummary[]>;
@@ -717,6 +740,14 @@ export interface UpdateDesktopApi {
   onEvent: (listener: (status: UpdateStatus) => void) => () => void;
 }
 
+export interface AccountDesktopApi {
+  getStatus: () => Promise<CloudAccountStatus>;
+  /** Opens the browser sign-in and resolves once it finishes, fails or is cancelled. */
+  signIn: () => Promise<CloudAccountStatus>;
+  signOut: () => Promise<CloudAccountStatus>;
+  cancel: () => Promise<void>;
+}
+
 export interface MaintenanceDesktopApi {
   exportData: () => Promise<ExportResult>;
   exportDiagnostics: () => Promise<ExportResult>;
@@ -738,6 +769,7 @@ export interface OpenBotDesktopApi {
   /** Tells main which chat is on screen, so its requests don't notify. */
   setVisibleBot: (botId: string | null) => void;
   agent: AgentDesktopApi;
+  account: AccountDesktopApi;
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;

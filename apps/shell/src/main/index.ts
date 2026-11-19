@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
+import { hostname } from "node:os";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { artifactKitAsset } from "@zoltbot/artifact-kit";
 import {
@@ -37,10 +39,14 @@ import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { accountHandlers } from "./desktop/account-handlers";
 import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
+import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
 import { frameRequestAllowed } from "./desktop/frame-isolation";
+import { hostedOrigins } from "./desktop/hosted-origins";
+import { desktopAccountClient } from "./desktop/native-account-client";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
@@ -69,7 +75,18 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 const paths = daemonPaths(app.isPackaged, app.getAppPath());
-const daemonHost = new DaemonHost(paths);
+// Hosted services are off unless the environment or the packaged manifest names them.
+const hosted = hostedOrigins(
+  process.env,
+  app.isPackaged ? readFileSync(join(paths.root, "package.json"), "utf8") : undefined,
+);
+const daemonHost = new DaemonHost(paths, {
+  ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
+  ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
+  ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
+});
+const client = new DaemonClient(daemonHost.connection);
+const service = new ZoltService(client, join(paths.dataDir, "shell"));
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";
@@ -94,8 +111,6 @@ const artifacts = artifactProtocol({
     return new Uint8Array(await response.arrayBuffer());
   },
 });
-const client = new DaemonClient(daemonHost.connection);
-const service = new ZoltService(client, join(paths.dataDir, "shell"));
 const viewServer = desktopViewProtocol(rendererOrigin, paths.root, daemonHost.connection);
 let answerConfirmationOpen = false;
 const viewHost = new ViewHost({
@@ -123,6 +138,21 @@ const viewHost = new ViewHost({
       answerConfirmationOpen = false;
     }
   },
+});
+// The daemon owns the account credentials; main only starts sign-in and reads who is signed in.
+const account = cloudAccount({
+  ...(hosted.cloud
+    ? {
+        origin: hosted.cloud,
+        nativeSession: desktopAccountClient({
+          origin: hosted.cloud,
+          socketPath: resolve(paths.dataDir, "account-ipc", "broker.sock"),
+        }),
+      }
+    : {}),
+  referenceFile: join(paths.dataDir, "shell", "account-keychain-reference"),
+  openBrowser: (url) => shell.openExternal(url),
+  deviceName: hostname(),
 });
 let mainWindow: BrowserWindow | null = null;
 let visibleBotId: string | undefined;
@@ -273,6 +303,8 @@ function registerIpcHandlers(setupFile: string): void {
         // A malformed one-way message is dropped; nothing waits for a reply.
       }
     });
+  for (const [channel, handler] of Object.entries(accountHandlers(account)))
+    handleTrusted(channel, handler);
   const pickProjectFolder = folderPicker(() => {
     const options: OpenDialogOptions = {
       title: "Choose the project folder",
@@ -595,6 +627,7 @@ app.on("before-quit", (event) => {
   shutdownStarted = true;
   dictation.cancel();
   viewHost.stop();
+  account.close();
   void service
     .stop()
     .then(() => daemonHost.stop())

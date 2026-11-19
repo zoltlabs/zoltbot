@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type {
   AgentProviderId,
-  AgentProviderState,
+  AgentProviderStatus,
   AgentStatus,
   AppSetupState,
   DesktopPlatform,
@@ -16,22 +16,10 @@ interface InitialSetupProps {
   agentStatus: AgentStatus;
   platform: DesktopPlatform;
   onSave: (provider: AgentProviderId) => Promise<void>;
+  onCheckAgents: () => Promise<void>;
+  onOpenUrl: (url: string) => Promise<void>;
   onClose?: () => void;
 }
-
-const PROVIDERS: Array<{
-  id: AgentProviderId;
-  name: string;
-}> = [
-  {
-    id: "codex",
-    name: "Codex",
-  },
-  {
-    id: "claude",
-    name: "Claude",
-  },
-];
 
 const PERMISSIONS: Array<{
   id: MacPermissionId;
@@ -61,30 +49,30 @@ export function InitialSetup(props: InitialSetupProps) {
   );
   const [permissions, setPermissions] = createSignal(EMPTY_PERMISSIONS);
   const [saving, setSaving] = createSignal(false);
+  const [checking, setChecking] = createSignal(false);
   const [permissionBusy, setPermissionBusy] = createSignal<MacPermissionId | null>(null);
   const [error, setError] = createSignal("");
+  const providers = createMemo(() => props.agentStatus.providers ?? []);
   const providerOptions = createMemo<ProviderPickerOption[]>(() =>
-    PROVIDERS.map((provider) => {
-      const status = props.agentStatus.providers?.find((candidate) => candidate.id === provider.id);
-      return {
-        ...provider,
-        state: status?.state ?? fallbackProviderState(props.agentStatus),
-        message: status?.message,
-        email: status?.email,
-      };
-    }),
+    providers().map((provider) => ({
+      id: provider.id,
+      name: provider.name || provider.id,
+      state: provider.state,
+      message: provider.message,
+      email: provider.email,
+    })),
   );
-  const availableProviders = createMemo(() =>
-    providerOptions().filter((provider) => provider.state === "available"),
+  const selected = createMemo(() =>
+    providers().find((provider) => provider.id === selectedProvider()),
   );
 
   createEffect(() => {
     const options = providerOptions();
-    const available = availableProviders();
-    const selected = selectedProvider();
-    if (selected && options.some((provider) => provider.id === selected)) return;
+    const current = selectedProvider();
+    if (current && options.some((provider) => provider.id === current)) return;
     const preferred = options.find((provider) => provider.id === props.state.preferredProvider);
-    setSelectedProvider(preferred?.id ?? available[0]?.id ?? null);
+    const available = options.find((provider) => provider.state === "available");
+    setSelectedProvider(preferred?.id ?? available?.id ?? options[0]?.id ?? null);
   });
 
   async function refreshPermissions(): Promise<void> {
@@ -124,9 +112,29 @@ export function InitialSetup(props: InitialSetupProps) {
     try {
       await props.onSave(provider);
     } catch (cause) {
-      setError(errorMessage(cause, "Zoltbot could not save your provider."));
+      setError(errorMessage(cause, "Zoltbot could not save your agent."));
       setSaving(false);
     }
+  }
+
+  async function checkAgents(): Promise<void> {
+    if (checking()) return;
+    setChecking(true);
+    setError("");
+    try {
+      await props.onCheckAgents();
+    } catch (cause) {
+      setError(errorMessage(cause, "Zoltbot could not check your agents."));
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  function openUrl(url: string): void {
+    setError("");
+    void props
+      .onOpenUrl(url)
+      .catch((cause) => setError(errorMessage(cause, "Zoltbot could not open the link.")));
   }
 
   return (
@@ -136,31 +144,44 @@ export function InitialSetup(props: InitialSetupProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="initial-setup-title"
-        aria-describedby="initial-setup-description"
+        aria-describedby={props.reviewing ? undefined : "initial-setup-description"}
       >
         <header class="initial-setup-header">
           <p class="initial-setup-eyebrow">Zoltbot setup</p>
           <h1 id="initial-setup-title">
-            {props.reviewing ? "Providers & permissions" : "Choose your provider"}
+            {props.reviewing ? "Agents & permissions" : "Set up a coding agent"}
           </h1>
-          <p id="initial-setup-description" class="initial-setup-intro">
-            {props.reviewing
-              ? "Choose the default provider for new agents and review macOS permissions."
-              : "New agents will use this provider by default. Each agent can use a different provider later."}
-          </p>
+          <Show when={!props.reviewing}>
+            <p id="initial-setup-description" class="initial-setup-intro">
+              Install or sign in to one of these agents to start.
+            </p>
+          </Show>
         </header>
 
-        <ProviderPicker
-          value={selectedProvider()}
-          options={providerOptions()}
-          ariaLabel="Default provider"
-          label="Default provider"
-          hint="Used for new agents. You can change it for each agent later."
-          disabled={saving()}
-          allowUnavailableSelection
-          focusFirst
-          onChange={setSelectedProvider}
-        />
+        <Show
+          when={providerOptions().length > 0}
+          fallback={
+            <p class="agent-setup-empty" role="status">
+              {props.agentStatus.phase === "ready"
+                ? "No coding agents found."
+                : (props.agentStatus.message ?? "Connecting to Zoltbot…")}
+            </p>
+          }
+        >
+          <ProviderPicker
+            value={selectedProvider()}
+            options={providerOptions()}
+            ariaLabel="Default agent"
+            label="Default agent"
+            disabled={saving()}
+            allowUnavailableSelection
+            focusFirst
+            onChange={setSelectedProvider}
+          />
+          <Show when={selected()}>
+            {(provider) => <AgentSetupStep provider={provider()} onOpenUrl={openUrl} />}
+          </Show>
+        </Show>
 
         <Show when={props.platform === "darwin"}>
           <section class="mac-permissions" aria-labelledby="mac-permissions-title">
@@ -210,7 +231,19 @@ export function InitialSetup(props: InitialSetupProps) {
         </Show>
 
         <div class="initial-setup-actions">
-          <Show when={props.reviewing}>
+          <Show
+            when={props.reviewing}
+            fallback={
+              <button
+                type="button"
+                class="initial-setup-secondary"
+                disabled={checking() || props.agentStatus.phase !== "ready"}
+                onClick={() => void checkAgents()}
+              >
+                {checking() ? "Checking…" : "Check again"}
+              </button>
+            }
+          >
             <button type="button" class="initial-setup-secondary" onClick={props.onClose}>
               Cancel
             </button>
@@ -218,20 +251,62 @@ export function InitialSetup(props: InitialSetupProps) {
           <button
             type="button"
             class="initial-setup-save"
-            disabled={saving() || !selectedProvider()}
+            disabled={saving() || !selected()}
             onClick={() => void save()}
           >
             {saving()
               ? "Saving…"
               : props.reviewing
                 ? "Save changes"
-                : selectedProvider()
-                  ? `Continue with ${providerName(selectedProvider())}`
-                  : "Choose a provider"}
+                : selected()
+                  ? `Continue with ${selected()?.name || selected()?.id}`
+                  : "Choose an agent"}
           </button>
         </div>
       </section>
     </main>
+  );
+}
+
+/** What to do next for the chosen agent: install it, sign in, or update it. */
+function AgentSetupStep(props: {
+  provider: AgentProviderStatus;
+  onOpenUrl: (url: string) => void;
+}) {
+  const name = () => props.provider.name || props.provider.id;
+  const command = () =>
+    props.provider.state === "not-installed"
+      ? props.provider.installCommand
+      : props.provider.state === "sign-in-required"
+        ? props.provider.loginCommand
+        : null;
+  return (
+    <Show when={props.provider.state !== "available" && props.provider.message}>
+      {(message) => (
+        <div class="agent-setup-step" role="status">
+          <p>{message()}</p>
+          <Show when={command()}>
+            {(text) => (
+              <p class="agent-setup-command">
+                <span>Run in Terminal:</span>
+                <code>{text()}</code>
+              </p>
+            )}
+          </Show>
+          <Show when={props.provider.state === "not-installed" && props.provider.installUrl}>
+            {(url) => (
+              <button
+                type="button"
+                class="mac-permission-action agent-setup-link"
+                onClick={() => props.onOpenUrl(url())}
+              >
+                How to install {name()}
+              </button>
+            )}
+          </Show>
+        </div>
+      )}
+    </Show>
   );
 }
 
@@ -249,14 +324,6 @@ function permissionLabel(state: MacPermissionsState["screenRecording"]): string 
   if (state === "denied" || state === "unknown") return "Open Settings";
   if (state === "restricted") return "Restricted";
   return "Allow";
-}
-
-function providerName(provider: AgentProviderId | null): string {
-  return provider === "claude" ? "Claude" : "Codex";
-}
-
-function fallbackProviderState(status: AgentStatus): AgentProviderState {
-  return status.phase === "starting" || status.phase === "restarting" ? "checking" : "error";
 }
 
 function errorMessage(error: unknown, fallback: string): string {

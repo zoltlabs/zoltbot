@@ -4,6 +4,7 @@ import type {
   AccountUsage,
   AgentStatus,
   AppInfo,
+  CloudAccountStatus,
   ExternalDestination,
   UpdateStatus,
 } from "../../../shared/ipc";
@@ -17,6 +18,7 @@ interface SidebarProps {
   appInfo: AppInfo | null;
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
+  cloudAccount: CloudAccountStatus | null;
   updateStatus: UpdateStatus;
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
@@ -30,6 +32,9 @@ interface SidebarProps {
   onUpdateAction: () => Promise<void>;
   onOpenExternal: (destination: ExternalDestination) => Promise<void>;
   onOpenPermissions: () => void;
+  onSignIn: () => Promise<void>;
+  onSignOut: () => Promise<void>;
+  onCancelSignIn: () => void;
   onCollapse: () => void;
 }
 
@@ -188,6 +193,23 @@ function UpdateIcon(props: { active: boolean }) {
   );
 }
 
+function AccountIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
+      <circle cx="10" cy="7.4" r="3" />
+      <path d="M4.6 16.2c.8-2.7 2.9-4.2 5.4-4.2s4.6 1.5 5.4 4.2" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
+      <path d="m6 6 8 8M14 6l-8 8" />
+    </svg>
+  );
+}
+
 function PermissionsIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
@@ -208,6 +230,7 @@ export function Sidebar(props: SidebarProps) {
   const [accountMenuOpen, setAccountMenuOpen] = createSignal(false);
   const [usageLoading, setUsageLoading] = createSignal(false);
   const [accountError, setAccountError] = createSignal<string | null>(null);
+  const [accountBusy, setAccountBusy] = createSignal<"sign-in" | "sign-out" | null>(null);
   let firstMenuItem: HTMLButtonElement | undefined;
   let botList: HTMLElement | undefined;
   const filteredBots = createMemo(() => {
@@ -236,13 +259,14 @@ export function Sidebar(props: SidebarProps) {
       ? { projectId: null, name: "Chats", title: "Chats outside a project" }
       : undefined;
   };
-  const accountEmail = createMemo(() => {
-    const auth = props.agentStatus.auth;
-    return auth.kind === "chatgpt" || auth.kind === "claude" ? auth.email : null;
-  });
-  const accountName = createMemo(() => accountEmail() ?? "Zoltbot");
+  const signedIn = createMemo(() => props.cloudAccount?.signedIn === true);
+  const accountEmail = createMemo(() => (signedIn() ? props.cloudAccount?.email : null) ?? null);
+  const accountName = createMemo(
+    () => accountEmail() ?? (props.cloudAccount?.configured ? "Sign in" : "Zoltbot"),
+  );
   const accountInitials = createMemo(() => {
-    const localPart = accountEmail()?.split("@")[0] ?? "Zoltbot";
+    const localPart =
+      (signedIn() ? props.cloudAccount?.name : null) ?? accountEmail()?.split("@")[0] ?? "Zoltbot";
     const parts = localPart.split(/[._\-\s]+/).filter(Boolean);
     return (
       parts.length > 1 ? `${parts[0]?.[0]}${parts[1]?.[0]}` : localPart.slice(0, 2)
@@ -396,6 +420,23 @@ export function Sidebar(props: SidebarProps) {
       .catch((error) =>
         setAccountError(error instanceof Error ? error.message : "Could not open the link."),
       );
+  }
+
+  function runAccountAction(kind: "sign-in" | "sign-out") {
+    if (accountBusy()) return;
+    setAccountBusy(kind);
+    setAccountError(null);
+    void (kind === "sign-in" ? props.onSignIn() : props.onSignOut())
+      .catch((error) =>
+        setAccountError(
+          error instanceof Error
+            ? error.message
+            : kind === "sign-in"
+              ? "Couldn’t sign in."
+              : "Couldn’t sign out.",
+        ),
+      )
+      .finally(() => setAccountBusy(null));
   }
 
   function runUpdateAction() {
@@ -569,6 +610,54 @@ export function Sidebar(props: SidebarProps) {
             aria-label="Account menu"
             onPointerDown={(event) => event.stopPropagation()}
           >
+            <Show when={props.cloudAccount?.configured}>
+              <Show
+                when={signedIn()}
+                fallback={
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="account-menu-row"
+                      onClick={() => runAccountAction("sign-in")}
+                      disabled={accountBusy() !== null}
+                    >
+                      <AccountIcon />
+                      <span>
+                        {accountBusy() === "sign-in" ? "Waiting for browser…" : "Sign in"}
+                      </span>
+                    </button>
+                    <Show when={accountBusy() === "sign-in"}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="account-menu-row"
+                        onClick={props.onCancelSignIn}
+                      >
+                        <CloseIcon />
+                        <span>Cancel sign-in</span>
+                      </button>
+                    </Show>
+                  </>
+                }
+              >
+                <div class="account-identity">
+                  <Show when={props.cloudAccount?.name}>{(name) => <strong>{name()}</strong>}</Show>
+                  <span>{accountEmail()}</span>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="account-menu-row"
+                  onClick={() => runAccountAction("sign-out")}
+                  disabled={accountBusy() !== null}
+                >
+                  <AccountIcon />
+                  <span>{accountBusy() === "sign-out" ? "Signing out…" : "Sign out"}</span>
+                </button>
+              </Show>
+              <div class="account-menu-separator" />
+            </Show>
             <Show when={props.updateStatus.phase !== "unsupported"}>
               <button
                 type="button"
@@ -605,7 +694,7 @@ export function Sidebar(props: SidebarProps) {
               }}
             >
               <PermissionsIcon />
-              <span>Providers &amp; permissions</span>
+              <span>Agents &amp; permissions</span>
             </button>
             <div class="account-menu-separator" />
             <button

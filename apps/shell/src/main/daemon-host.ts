@@ -34,7 +34,11 @@ export class DaemonHost {
   private readonly supervisor: Supervisor;
   private attachedPid: number | undefined;
 
-  constructor(private readonly paths: DaemonPaths) {
+  /** `env` adds settings for a daemon this window starts, such as the hosted service origins. */
+  constructor(
+    private readonly paths: DaemonPaths,
+    env: Record<string, string> = {},
+  ) {
     mkdirSync(paths.dataDir, { recursive: true, mode: 0o700 });
     const logger = new Logger(join(paths.dataDir, "shell.log"), new Redactor());
     this.supervisor = new Supervisor(
@@ -44,6 +48,7 @@ export class DaemonHost {
         surviveParentExit: true,
         cwd: paths.root,
         env: {
+          ...env,
           ZOLTBOT_DATA_DIR: resolve(paths.dataDir),
           TSX_DISABLE_CACHE: "1",
         },
