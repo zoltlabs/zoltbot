@@ -344,7 +344,7 @@ export function requestMeta(request: ChannelRequestView, now = Date.now()): stri
   if (running) return `${plural(running, "task", "tasks")} running`;
   const open = openTasks(request).length;
   if (open) return `${plural(open, "task", "tasks")} open`;
-  return `Waiting on ${request.leadName}`;
+  return request.state === "running" ? "Running" : "Open";
 }
 
 export interface RequestGroups {

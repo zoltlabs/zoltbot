@@ -92,7 +92,7 @@ describe("requests", () => {
     });
     expect(requestMeta(running, now)).toBe("2 tasks running");
     expect(requestMeta(request({ tasks: [task("a", "queued", 5)] }), now)).toBe("1 task open");
-    expect(requestMeta(request({}), now)).toBe("Waiting on Mira");
+    expect(requestMeta(request({}), now)).toBe("Open");
     expect(requestMeta(request({ state: "stopped" }), now)).toBe("Stopped");
     const yesterday = new Date(now - 26 * 3_600_000).toISOString();
     expect(requestMeta(request({ state: "done", updatedAt: yesterday }), now)).toBe("Yesterday");
