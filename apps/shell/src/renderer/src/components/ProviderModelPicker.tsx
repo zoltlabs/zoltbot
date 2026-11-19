@@ -6,7 +6,6 @@ import type {
   AgentProviderStatus,
   AgentStatus,
 } from "../../../shared/ipc";
-import { isClaudeModel } from "../../../shared/ipc";
 
 interface ProviderModelPickerProps {
   value: AgentModelId;
@@ -20,13 +19,16 @@ interface ProviderModelPickerProps {
   onChange: (model: AgentModelId) => void;
 }
 
-const PROVIDERS: AgentProviderId[] = ["claude", "codex"];
-const DEFAULT_MODELS: Record<AgentProviderId, AgentModelId> = {
-  claude: "claude-opus-5",
-  codex: "gpt-5.6-luna",
-};
-
 export function ProviderModelPicker(props: ProviderModelPickerProps) {
+  const providers = createMemo(() => [
+    ...new Set(props.modelOptions.map((option) => option.provider)),
+  ]);
+  const providerForModel = (model: AgentModelId): AgentProviderId =>
+    props.modelOptions.find((option) => option.id === model)?.provider ?? providers()[0] ?? "";
+  const providerName = (provider: AgentProviderId): string =>
+    props.modelOptions.find((option) => option.provider === provider)?.providerName || provider;
+  const defaultModel = (provider: AgentProviderId): AgentModelId | undefined =>
+    props.modelOptions.find((option) => option.provider === provider)?.id;
   const [open, setOpen] = createSignal(false);
   const [railProvider, setRailProvider] = createSignal<AgentProviderId>(
     providerForModel(props.value),
@@ -43,7 +45,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     props.modelOptions.filter((option) => providerForModel(option.id) === railProvider()),
   );
   const railStatus = createMemo(() =>
-    providerAvailability(props.agentStatus, props.modelOptions, railProvider()),
+    providerAvailability(props.agentStatus, props.modelOptions, railProvider(), providerName),
   );
   const railAvailable = createMemo(() => railStatus().state === "available");
 
@@ -79,8 +81,9 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   }
 
   function moveProvider(delta: number): void {
-    const current = PROVIDERS.indexOf(railProvider());
-    const provider = PROVIDERS[(current + delta + PROVIDERS.length) % PROVIDERS.length];
+    const list = providers();
+    const current = list.indexOf(railProvider());
+    const provider = list[(current + delta + list.length) % list.length];
     if (!provider) return;
     setRailProvider(provider);
     providerButtons.get(provider)?.focus();
@@ -164,10 +167,15 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
             aria-label="Model providers"
             aria-orientation="vertical"
           >
-            <For each={PROVIDERS}>
+            <For each={providers()}>
               {(provider) => {
                 const status = () =>
-                  providerAvailability(props.agentStatus, props.modelOptions, provider);
+                  providerAvailability(
+                    props.agentStatus,
+                    props.modelOptions,
+                    provider,
+                    providerName,
+                  );
                 const selected = () => railProvider() === provider;
                 return (
                   <button
@@ -232,7 +240,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                       class="provider-model-option"
                       classList={{ "provider-model-option-selected": selected() }}
                       aria-label={`${displayModelName(model.name, model.id)}${
-                        model.id === DEFAULT_MODELS[railProvider()] ? ", default" : ""
+                        model.id === defaultModel(railProvider()) ? ", default" : ""
                       }`}
                       aria-selected={selected()}
                       disabled={!railAvailable()}
@@ -256,7 +264,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                     >
                       <span class="provider-model-option-name">
                         <span>{displayModelName(model.name, model.id)}</span>
-                        <Show when={model.id === DEFAULT_MODELS[railProvider()]}>
+                        <Show when={model.id === defaultModel(railProvider())}>
                           <small>default</small>
                         </Show>
                       </span>
@@ -279,13 +287,14 @@ function providerAvailability(
   status: AgentStatus,
   models: AgentModelOption[],
   provider: AgentProviderId,
+  providerName: (provider: AgentProviderId) => string,
 ): AgentProviderStatus {
   const explicit = status.providers?.find((item) => item.id === provider);
   if (explicit) return explicit;
   if (status.phase === "starting" || status.phase === "restarting") {
     return { id: provider, state: "checking", version: null, message: null };
   }
-  const available = models.some((model) => providerForModel(model.id) === provider);
+  const available = models.some((model) => model.provider === provider);
   return {
     id: provider,
     state: available ? "available" : "error",
@@ -294,12 +303,8 @@ function providerAvailability(
   };
 }
 
-function providerSummary(provider: AgentProviderId, status: AgentProviderStatus): string {
-  if (status.state === "available") {
-    return status.version
-      ? `${status.version} (${provider === "claude" ? "Claude Code" : "Codex CLI"})`
-      : `${provider === "claude" ? "Claude Code" : "Codex CLI"} ready`;
-  }
+function providerSummary(_provider: AgentProviderId, status: AgentProviderStatus): string {
+  if (status.state === "available") return status.version ? status.version : "Ready";
   return status.message ?? providerStatusLabel(status.state);
 }
 
@@ -311,22 +316,39 @@ function providerStatusLabel(state: AgentProviderStatus["state"]): string {
   return "Checking";
 }
 
-function providerName(provider: AgentProviderId): string {
-  return provider === "claude" ? "Claude" : "Codex";
-}
-
-function providerForModel(model: AgentModelId): AgentProviderId {
-  return isClaudeModel(model) ? "claude" : "codex";
-}
-
 function displayModelName(name: string | undefined, fallback: string): string {
-  return name?.replace(/^[\s:–—-]+/, "") || fallback;
+  return name?.replace(/^[\s:–—-]+/, "") || fallback || "Default model";
 }
 
 function ProviderMark(props: { provider: AgentProviderId; large?: boolean }) {
   return (
+    <Show when={props.provider}>
+      <ProviderMarkFor provider={props.provider} large={props.large} />
+    </Show>
+  );
+}
+
+function ProviderMarkFor(props: { provider: AgentProviderId; large?: boolean | undefined }) {
+  return (
     <Show
-      when={props.provider === "claude"}
+      when={!props.provider.includes("claude") && !props.provider.includes("codex")}
+      fallback={<KnownProviderMark provider={props.provider} large={props.large} />}
+    >
+      <span
+        class="provider-model-mark provider-model-mark-letter"
+        classList={{ "provider-model-mark-large": props.large }}
+        aria-hidden="true"
+      >
+        {props.provider.slice(0, 1).toUpperCase()}
+      </span>
+    </Show>
+  );
+}
+
+function KnownProviderMark(props: { provider: AgentProviderId; large?: boolean | undefined }) {
+  return (
+    <Show
+      when={props.provider.includes("claude")}
       fallback={
         <svg
           class="provider-model-mark provider-model-mark-codex"

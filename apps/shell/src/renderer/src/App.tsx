@@ -162,7 +162,7 @@ export function App() {
       window.openbot
         .getAppInfo()
         .then(setAppInfo)
-        .catch(() => setAppInfo({ name: "OpenBot", version: "unavailable", platform: "darwin" })),
+        .catch(() => setAppInfo({ name: "Zoltbot", version: "unavailable", platform: "darwin" })),
       window.openbot.agent
         .getStatus()
         .then(setAgentStatus)
@@ -249,6 +249,9 @@ export function App() {
         return;
       case "prompt":
         setPendingPrompts((current) => ({ ...current, [event.botId]: event }));
+        return;
+      case "prompt-cleared":
+        setPendingPrompts((current) => ({ ...current, [event.botId]: undefined }));
         return;
       case "error":
         if (event.botId) appendUiError(event.botId, event.message, "Error");
@@ -626,7 +629,7 @@ export function App() {
   return (
     <Show
       when={setupLoaded() && appInfo() !== null}
-      fallback={<div class="initial-setup-screen" role="status" aria-label="Loading OpenBot" />}
+      fallback={<div class="initial-setup-screen" role="status" aria-label="Loading Zoltbot" />}
     >
       <Show
         when={setupState()?.completed}
@@ -745,6 +748,11 @@ function toBotProfile(stored: BotSummary): BotProfile {
     avatarColor: stored.avatarColor ?? "orange",
     time: stored.updatedAt ? formatTime(stored.updatedAt) : "now",
     preview: cleanPreview(stored.preview),
+    profileId: stored.profileId,
+    projectId: stored.projectId,
+    kind: stored.kind,
+    pinned: stored.pinned,
+    onboarding: stored.onboarding,
   };
 }
 

@@ -77,7 +77,8 @@ export type AgentPhase = "idle" | "starting" | "ready" | "restarting" | "blocked
 
 export type CapabilityState = "ready" | "setup-required" | "unavailable";
 
-export type AgentProviderId = "codex" | "claude";
+/** A Zoltbot agent definition id, such as "claude" or "codex". */
+export type AgentProviderId = string;
 export type AgentProviderState =
   | "not-started"
   | "checking"
@@ -148,7 +149,7 @@ export interface AgentStatus {
     computerUse: CapabilityState;
   };
   message: string | null;
-  fullAccess: true;
+  fullAccess: boolean;
 }
 
 export interface BotSummary {
@@ -165,23 +166,25 @@ export interface BotSummary {
   updatedAt: string | null;
   avatarShape: BotAvatarShape;
   avatarColor: BotAvatarColor;
+  /** The Zoltbot profile this chat runs on. */
+  profileId: string;
+  projectId: string | null;
+  kind: string;
+  pinned: boolean;
+  /** Ask what the agent should focus on when its chat is empty. */
+  onboarding: boolean;
 }
 
-export const AGENT_MODELS = [
-  "gpt-5.6-luna",
-  "gpt-5.6-terra",
-  "gpt-5.6-sol",
-  "claude-fable-5",
-  "claude-opus-5",
-  "claude-sonnet-5",
-] as const;
-export type AgentModelId = (typeof AGENT_MODELS)[number];
+/** A model id reported by the provider, such as "claude-opus-5". */
+export type AgentModelId = string;
 
 export const AGENT_REASONING_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
-export type AgentReasoningEffort = (typeof AGENT_REASONING_EFFORTS)[number];
+export type AgentReasoningEffort = string;
 
 export interface AgentModelOption {
   id: AgentModelId;
+  provider: AgentProviderId;
+  providerName: string;
   name: string;
   description: string;
   defaultReasoningEffort: AgentReasoningEffort;
@@ -216,17 +219,11 @@ export const BOT_AVATAR_COLORS = [
 export type BotAvatarColor = (typeof BOT_AVATAR_COLORS)[number];
 
 export function isAgentModel(value: unknown): value is AgentModelId {
-  return typeof value === "string" && AGENT_MODELS.includes(value as AgentModelId);
-}
-
-export function isClaudeModel(model: AgentModelId): boolean {
-  return model.startsWith("claude-");
+  return typeof value === "string" && value.length > 0 && value.length <= 200;
 }
 
 export function isReasoningEffort(value: unknown): value is AgentReasoningEffort {
-  return (
-    typeof value === "string" && AGENT_REASONING_EFFORTS.includes(value as AgentReasoningEffort)
-  );
+  return typeof value === "string" && value.length > 0 && value.length <= 40;
 }
 
 export function isAvatarShape(value: unknown): value is BotAvatarShape {
@@ -445,6 +442,7 @@ export type AgentEvent =
       turnId: string;
       questions: AgentPromptQuestion[];
     }
+  | { type: "prompt-cleared"; botId: string }
   | { type: "browser-changed"; tabs: BrowserTab[]; activeTabId: string | null }
   | { type: "browser-control-changed"; state: BrowserControlState }
   | { type: "error"; botId?: string; code: string; message: string };

@@ -92,7 +92,7 @@ export function InitialSetup(props: InitialSetupProps) {
     try {
       setPermissions(await window.openbot.getMacPermissions());
     } catch (cause) {
-      setError(errorMessage(cause, "OpenBot could not read macOS permissions."));
+      setError(errorMessage(cause, "Zoltbot could not read macOS permissions."));
     }
   }
 
@@ -110,7 +110,7 @@ export function InitialSetup(props: InitialSetupProps) {
     try {
       setPermissions(await window.openbot.requestMacPermission(permission));
     } catch (cause) {
-      setError(errorMessage(cause, "OpenBot could not open this macOS permission."));
+      setError(errorMessage(cause, "Zoltbot could not open this macOS permission."));
     } finally {
       setPermissionBusy(null);
     }
@@ -124,7 +124,7 @@ export function InitialSetup(props: InitialSetupProps) {
     try {
       await props.onSave(provider);
     } catch (cause) {
-      setError(errorMessage(cause, "OpenBot could not save your provider."));
+      setError(errorMessage(cause, "Zoltbot could not save your provider."));
       setSaving(false);
     }
   }
@@ -139,7 +139,7 @@ export function InitialSetup(props: InitialSetupProps) {
         aria-describedby="initial-setup-description"
       >
         <header class="initial-setup-header">
-          <p class="initial-setup-eyebrow">OpenBot setup</p>
+          <p class="initial-setup-eyebrow">Zoltbot setup</p>
           <h1 id="initial-setup-title">
             {props.reviewing ? "Providers & permissions" : "Choose your provider"}
           </h1>

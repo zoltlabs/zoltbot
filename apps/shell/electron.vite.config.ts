@@ -4,7 +4,8 @@ import solidPlugin from "vite-plugin-solid";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // Zoltbot workspace packages ship TypeScript sources, so main bundles them.
+    plugins: [externalizeDepsPlugin({ exclude: ["@zoltbot/protocol", "@zoltbot/daemon"] })],
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

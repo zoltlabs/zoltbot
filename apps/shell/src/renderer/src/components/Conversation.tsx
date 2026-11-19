@@ -1174,6 +1174,7 @@ export function Conversation(props: ConversationProps) {
     const botId = props.bot?.id;
     if (
       !botId ||
+      !props.bot?.onboarding ||
       !props.loaded ||
       !agentReady() ||
       props.activeTurnId ||
@@ -1689,7 +1690,7 @@ export function Conversation(props: ConversationProps) {
                 </strong>
                 <p>
                   {props.agentStatus.message ??
-                    "Install and sign in to Codex CLI or Claude CLI, then restart OpenBot."}
+                    "Install and sign in to Codex CLI or Claude CLI, then restart Zoltbot."}
                 </p>
               </div>
               <Show

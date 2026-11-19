@@ -14,7 +14,8 @@ export async function readSetupState(path: string): Promise<AppSetupState> {
     const parsed = JSON.parse(await readFile(path, "utf8")) as Partial<StoredSetup>;
     if (
       parsed.version !== 2 ||
-      (parsed.preferredProvider !== "codex" && parsed.preferredProvider !== "claude") ||
+      typeof parsed.preferredProvider !== "string" ||
+      !parsed.preferredProvider ||
       typeof parsed.completedAt !== "string"
     ) {
       return { ...EMPTY_SETUP };

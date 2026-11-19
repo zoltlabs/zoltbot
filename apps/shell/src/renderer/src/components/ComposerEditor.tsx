@@ -182,7 +182,6 @@ export function ComposerEditor(props: ComposerEditorProps) {
           {props.placeholder}
         </span>
       </Show>
-      {/* biome-ignore lint/a11y/useSemanticElements: contenteditable is required for inline agent chips. */}
       <div
         ref={(element) => (editor = element)}
         class="composer-editor-surface"

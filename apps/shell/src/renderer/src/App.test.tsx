@@ -25,9 +25,14 @@ const BOTS: BotSummary[] = [
     avatarShape: "blob",
     avatarColor: "orange",
     threadId: "thread-chief",
-    workspacePath: "/tmp/OpenBot/Bots/chief",
+    workspacePath: "/tmp/Zoltbot/Bots/chief",
     preview: "No messages yet",
     updatedAt: null,
+    profileId: "profile",
+    projectId: null,
+    kind: "main",
+    pinned: false,
+    onboarding: true,
   },
   {
     id: "sales-outbound",
@@ -40,9 +45,14 @@ const BOTS: BotSummary[] = [
     avatarShape: "cloud",
     avatarColor: "violet",
     threadId: null,
-    workspacePath: "/tmp/OpenBot/Bots/sales-outbound",
+    workspacePath: "/tmp/Zoltbot/Bots/sales-outbound",
     preview: "No messages yet",
     updatedAt: null,
+    profileId: "profile",
+    projectId: null,
+    kind: "main",
+    pinned: false,
+    onboarding: true,
   },
 ];
 
@@ -54,7 +64,7 @@ async function confirmOnboardingModel(): Promise<void> {
   await screen.findByRole("listbox", { name: "What do you want me helping with most?" });
 }
 
-describe("OpenBot connected desktop shell", () => {
+describe("Zoltbot connected desktop shell", () => {
   beforeEach(() => {
     emitAgentEvent = undefined;
     emitAttachmentImport = undefined;
@@ -65,7 +75,7 @@ describe("OpenBot connected desktop shell", () => {
       value: {
         getAppInfo: vi
           .fn()
-          .mockResolvedValue({ name: "OpenBot", version: "0.1.0", platform: "darwin" }),
+          .mockResolvedValue({ name: "Zoltbot", version: "0.1.0", platform: "darwin" }),
         getSetupState: vi.fn().mockResolvedValue({ completed: true, preferredProvider: "codex" }),
         saveSetup: vi.fn().mockImplementation(async ({ preferredProvider }) => ({
           completed: true,
@@ -96,6 +106,8 @@ describe("OpenBot connected desktop shell", () => {
               },
               {
                 id: "claude",
+                provider: "claude",
+                providerName: "Claude",
                 state: "available",
                 version: "2.1.231",
                 message: null,
@@ -122,6 +134,8 @@ describe("OpenBot connected desktop shell", () => {
           listModels: vi.fn().mockResolvedValue([
             {
               id: "gpt-5.6-luna",
+              provider: "codex",
+              providerName: "Codex",
               name: "Luna",
               description: "Fast and efficient for everyday agent work.",
               defaultReasoningEffort: "medium",
@@ -129,6 +143,8 @@ describe("OpenBot connected desktop shell", () => {
             },
             {
               id: "gpt-5.6-terra",
+              provider: "codex",
+              providerName: "Codex",
               name: "Terra",
               description: "Balanced speed and capability for involved tasks.",
               defaultReasoningEffort: "medium",
@@ -136,6 +152,8 @@ describe("OpenBot connected desktop shell", () => {
             },
             {
               id: "gpt-5.6-sol",
+              provider: "codex",
+              providerName: "Codex",
               name: "Sol",
               description: "Most capable for complex, long-running work.",
               defaultReasoningEffort: "high",
@@ -143,6 +161,8 @@ describe("OpenBot connected desktop shell", () => {
             },
             {
               id: "claude-opus-5",
+              provider: "claude",
+              providerName: "Claude",
               name: "Claude Opus 5",
               description: "Most capable Claude model for complex work.",
               defaultReasoningEffort: "high",
@@ -150,6 +170,8 @@ describe("OpenBot connected desktop shell", () => {
             },
             {
               id: "claude-sonnet-5",
+              provider: "claude",
+              providerName: "Claude",
               name: "Claude Sonnet 5",
               description: "Balanced Claude model for general agent work.",
               defaultReasoningEffort: "high",
@@ -430,7 +452,7 @@ describe("OpenBot connected desktop shell", () => {
       preferredProvider: null,
     });
     vi.mocked(window.openbot.getAppInfo).mockResolvedValueOnce({
-      name: "OpenBot",
+      name: "Zoltbot",
       version: "0.1.0",
       platform: "win32",
     });
@@ -468,7 +490,7 @@ describe("OpenBot connected desktop shell", () => {
       cliVersion: "0.144.1",
       auth: { kind: "signed-out" },
       capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
-      message: "Run `codex login`, then restart OpenBot.",
+      message: "Run `codex login`, then restart Zoltbot.",
       fullAccess: true,
     });
     render(() => <App />);
@@ -703,7 +725,7 @@ describe("OpenBot connected desktop shell", () => {
     expect(trigger.querySelector(".provider-model-mark-codex")).toBeInTheDocument();
     await fireEvent.click(trigger);
     const picker = screen.getByRole("dialog", { name: "Choose agent model" });
-    expect(within(picker).getByText("0.144.1 (Codex CLI)")).toBeInTheDocument();
+    expect(within(picker).getByText("0.144.1")).toBeInTheDocument();
     expect(within(picker).getByRole("option", { name: "Luna, default" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -711,7 +733,7 @@ describe("OpenBot connected desktop shell", () => {
 
     await fireEvent.click(within(picker).getByRole("tab", { name: /^Claude:/ }));
     expect(window.openbot.agent.updateBot).not.toHaveBeenCalled();
-    expect(within(picker).getByText("2.1.231 (Claude Code)")).toBeInTheDocument();
+    expect(within(picker).getByText("2.1.231")).toBeInTheDocument();
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
 
     await waitFor(() =>
@@ -1492,7 +1514,7 @@ describe("OpenBot connected desktop shell", () => {
             id: "commentary-open",
             turnId: "turn-open",
             author: "assistant",
-            text: "I’ll open x.com in the OpenBot browser.",
+            text: "I’ll open x.com in the Zoltbot browser.",
             createdAt: "2026-08-12T10:00:01.000Z",
             status: "completed",
             itemType: "commentary",
@@ -1521,14 +1543,14 @@ describe("OpenBot connected desktop shell", () => {
 
     const thinkingLabel = await screen.findByText("Thinking");
     const details = thinkingLabel.closest("details");
-    expect(screen.getByText("I’ll open x.com in the OpenBot browser.")).not.toBeVisible();
+    expect(screen.getByText("I’ll open x.com in the Zoltbot browser.")).not.toBeVisible();
     expect(screen.getByText("Checking that the page loaded.")).not.toBeVisible();
     expect(screen.getByText("Opened x.com.")).toBeVisible();
     expect(screen.getAllByText("Thinking")).toHaveLength(1);
 
     await fireEvent.click(thinkingLabel);
     expect(details).toHaveAttribute("open");
-    expect(screen.getByText("I’ll open x.com in the OpenBot browser.")).toBeVisible();
+    expect(screen.getByText("I’ll open x.com in the Zoltbot browser.")).toBeVisible();
 
     emitAgentEvent?.({
       type: "conversation",
@@ -1559,7 +1581,7 @@ describe("OpenBot connected desktop shell", () => {
       },
     });
     await waitFor(() => expect(screen.getByText("Thinking").closest("details")).toBe(details));
-    expect(screen.getByText("I’ll open x.com in the OpenBot browser.")).toBeVisible();
+    expect(screen.getByText("I’ll open x.com in the Zoltbot browser.")).toBeVisible();
   });
 
   it("keeps text and attachments when enqueue fails", async () => {

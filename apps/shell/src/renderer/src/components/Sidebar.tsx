@@ -205,9 +205,9 @@ export function Sidebar(props: SidebarProps) {
     const auth = props.agentStatus.auth;
     return auth.kind === "chatgpt" || auth.kind === "claude" ? auth.email : null;
   });
-  const accountName = createMemo(() => accountEmail() ?? "OpenBot");
+  const accountName = createMemo(() => accountEmail() ?? "Zoltbot");
   const accountInitials = createMemo(() => {
-    const localPart = accountEmail()?.split("@")[0] ?? "OpenBot";
+    const localPart = accountEmail()?.split("@")[0] ?? "Zoltbot";
     const parts = localPart.split(/[._\-\s]+/).filter(Boolean);
     return (
       parts.length > 1 ? `${parts[0]?.[0]}${parts[1]?.[0]}` : localPart.slice(0, 2)
@@ -368,7 +368,7 @@ export function Sidebar(props: SidebarProps) {
     void props
       .onUpdateAction()
       .catch((error) =>
-        setAccountError(error instanceof Error ? error.message : "Could not update OpenBot."),
+        setAccountError(error instanceof Error ? error.message : "Could not update Zoltbot."),
       );
   }
 
@@ -564,7 +564,7 @@ export function Sidebar(props: SidebarProps) {
           </span>
           <Show when={updateAvailable()}>
             <span class="sidebar-update-pill">Update</span>
-            <span class="sr-only">OpenBot update available</span>
+            <span class="sr-only">Zoltbot update available</span>
           </Show>
         </button>
       </div>
@@ -634,7 +634,7 @@ export function Sidebar(props: SidebarProps) {
                 />
                 <h2 id="bot-delete-title">Delete {bot().name}?</h2>
                 <p id="bot-delete-description">
-                  This removes the agent, its OpenBot queue, and managed files used only by that
+                  This removes the agent, its Zoltbot queue, and managed files used only by that
                   conversation. Its workspace and CLI history stay on your Mac.
                 </p>
                 <Show when={deleteError()}>
