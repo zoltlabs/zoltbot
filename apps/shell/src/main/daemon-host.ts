@@ -46,7 +46,8 @@ export class DaemonHost {
       {
         // A packaged app carries its own Node and native helpers in bin/.
         command:
-          process.env.ZOLTBOT_NODE_BINARY ?? (paths.packaged ? join(paths.root, "bin/node") : "node"),
+          process.env.ZOLTBOT_NODE_BINARY ??
+          (paths.packaged ? join(paths.root, "bin/node") : "node"),
         args: [paths.entry],
         surviveParentExit: true,
         cwd: paths.root,
