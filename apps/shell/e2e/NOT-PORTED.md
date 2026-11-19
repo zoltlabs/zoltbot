@@ -1,0 +1,34 @@
+# Tests not ported to the shell
+
+These tests from `tests/shipping` and `tests/compare` still run against `packages/ui` with `pnpm test:shipping:ui` and `pnpm test:compare:ui`. Each line names the shell feature the test needs. On 2026-11-19, 5 of those 16 tests already failed against `packages/ui`: shipping "publish → durable approval…" and chat-actions, and compare "independent native columns…", "votes, follow-up…" and "differences…".
+
+## Shipping (`tests/shipping`)
+
+- `shipping.spec.ts` "publish → durable approval → PR → selected feedback → original task revision": no Tasks view, Shipping panel, Needs you approvals or Settings theme switch.
+- `shipping.spec.ts` "link, stale refresh, accepted-task feedback and guarded merge UI": no Shipping panel for linking, refreshing or merging a pull request.
+- `wakes.spec.ts` "Wake when: save, edit, cancel, fallback, and accessible responsive review": no Wake when dialog or waiting-wakes region in the chat.
+- `event-routines.spec.ts` "event draft → dry run → saved paused → enabled → paused": no Routines view.
+- `chat-actions.spec.ts` (partly ported to `shipping/chat-actions.spec.ts`): no Pin, Mark read/unread, Archive or hover action buttons on rows, no Quick Chat history.
+- `company.spec.ts` (partly ported to `shipping/company.spec.ts`): no forms to edit responsibilities, create initiatives, propose organization changes or save project reports; no light theme.
+
+## Compare (`tests/compare`)
+
+The shell has no compare mode: no "+ Compare" option, compare columns, tabs or stacked layout, votes, follow-up to all, continue, merge, critique or differences. `compare/compare.spec.ts` covers the single-chat parts (answering a native question, stopping a run).
+
+- "independent native columns, responsive layouts and both-theme accessibility": no compare columns; the shell is dark only.
+- "four columns require 1440 pixels and stop all reaches every session": no compare columns or Stop all.
+- "a native question appears in its column and Inbox and can be answered" (ported without the column and Inbox): no Needs you inbox.
+- "votes, follow-up, continue and the resolved marker preserve the read-only ceiling": no votes, follow-up, continue or permission ceiling dialog.
+- "merge opens a bounded editable draft and sends nothing automatically": no merge draft.
+- "critique drafts require one explicit send and keep the compare open": no critique.
+- "critique retry after a partial failure does not duplicate a confirmed send": no critique.
+- "a lost resolution acknowledgement preserves the unsent merge draft": no merge draft.
+- "differences sends the reviewed prompt once and remembers hidden strips": no differences view.
+- "cancelled mode widening retains the effective selection and can be reviewed again": no compare mode selection.
+
+## Accessibility rules the shell fails
+
+`harness.ts` lists these in `KNOWN_SHELL_A11Y`; any other axe violation fails the tests.
+
+- `color-contrast`: sidebar row times and roles (2.86–3.8:1), project group headings (4.09:1) and the composer placeholder (3.28:1) are below 4.5:1.
+- `region`: the left panel resizer, the agent context menu and a divider in the conversation sit outside any landmark.
