@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Pressable, StyleSheet, View } from "react-native";
+import { needsYouTasks } from "../data/tasks";
 import { needsYou } from "../data/view";
 import { useSnapshot } from "../state/link";
 import { useTheme } from "../theme";
@@ -20,6 +21,7 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
   const { c } = useTheme();
   const snapshot = useSnapshot();
   const count = needsYou(snapshot).length;
+  const tasks = needsYouTasks(snapshot);
   return (
     <View
       accessibilityRole="tabbar"
@@ -37,7 +39,8 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
         if (!tab) return null;
         const focused = index === state.index;
         const primary = route.name === "compose";
-        const badge = route.name === "activity" && count > 0 ? String(count) : "";
+        const badgeCount = route.name === "activity" ? count : route.name === "tasks" ? tasks : 0;
+        const badge = badgeCount > 0 ? String(badgeCount) : "";
         const color = focused ? c["accent-text"] : c["text-muted"];
         const press = () => {
           if (primary) {

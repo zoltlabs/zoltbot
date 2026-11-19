@@ -43,7 +43,7 @@ import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
-import { ShippingContext } from "../../ui/ShippingContext";
+import { TaskContext } from "../../ui/TaskContext";
 import { Message } from "../../ui/Transcript";
 import { WakeStatus } from "../../ui/WakeStatus";
 
@@ -184,7 +184,7 @@ export default function Chat() {
         {snapshot.entities.task
           ?.filter((task) => task.threadId === id)
           .map((task) => (
-            <ShippingContext key={String(task.id)} task={task} />
+            <TaskContext key={String(task.id)} task={task} online={online} />
           ))}
         {compare && !rows.some((row) => row.compareId) ? (
           <Button

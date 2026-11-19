@@ -52,13 +52,15 @@ export function OfflineBanner() {
   );
 }
 
-/** A tab root: status line, large title and a scrolling body. */
+/** A tab root: status line, large title and a scrolling body. `left` sits before the title. */
 export function TabScreen({
   title,
+  left,
   right,
   children,
 }: {
   title: string;
+  left?: ReactNode;
   right?: ReactNode;
   children: ReactNode;
 }) {
@@ -69,9 +71,12 @@ export function TabScreen({
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <StatusLine />
         <View style={styles.titleRow}>
-          <Txt v="largeTitle" accessibilityRole="header">
-            {title}
-          </Txt>
+          <View style={styles.titleLead}>
+            {left}
+            <Txt v="largeTitle" accessibilityRole="header">
+              {title}
+            </Txt>
+          </View>
           {right}
         </View>
       </View>
@@ -149,6 +154,7 @@ export const styles = StyleSheet.create({
   page: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  titleLead: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 1 },
   body: { paddingHorizontal: 16, paddingBottom: 32, gap: 10 },
   status: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },

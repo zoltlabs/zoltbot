@@ -7,6 +7,7 @@ import { useClient, useSnapshot } from "../../state/link";
 import { touch, useTheme } from "../../theme";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { TabScreen } from "../../ui/chrome";
+import { MenuButton } from "../../ui/Drawer";
 import { Icon } from "../../ui/icons";
 import { Button, Group, Row, Section, Txt } from "../../ui/kit";
 
@@ -97,7 +98,7 @@ export default function Home() {
   const chief = zolt(snapshot);
   const threadId = chief.threadId;
   return (
-    <TabScreen title="Home">
+    <TabScreen title="Home" left={<MenuButton />}>
       <Group>
         <Row
           title={chief.name}
