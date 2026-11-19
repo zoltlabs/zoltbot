@@ -290,14 +290,26 @@ export function channelWaiting(state: DomainState, channelIdValue: string): Chan
   return out;
 }
 
-/** The channel's transcript: its newest posts, its requests, their tasks and open questions. */
-export function readChannel(state: DomainState, id: string, limit = 200): ChannelRead {
+/**
+ * The channel's transcript: its newest posts, its requests, their tasks and open questions.
+ * With `before`, the posts are the newest ones older than that post. `more` says whether still
+ * older posts exist.
+ */
+export function readChannel(
+  state: DomainState,
+  id: string,
+  limit = 200,
+  before?: string,
+): ChannelRead {
   const row = state.channel?.find((entry) => entry.id === id);
   if (!row) throw new Error("not_found: channel");
   const channel = parse(ChannelSchema, row);
   const all = (state.channelPost ?? [])
     .filter((entry) => entry.channelId === id)
     .sort((a, b) => text(a.createdAt).localeCompare(text(b.createdAt))) as ChannelPost[];
+  const end = before ? all.findIndex((post) => post.id === before) : all.length;
+  if (end < 0) throw new Error("not_found: channelPost");
+  const start = Math.max(0, end - limit);
   const requests = (state.channelRequest ?? [])
     .filter((entry) => entry.channelId === id)
     .sort((a, b) => text(a.createdAt).localeCompare(text(b.createdAt)));
@@ -315,10 +327,10 @@ export function readChannel(state: DomainState, id: string, limit = 200): Channe
     }));
   return {
     channel,
-    posts: all.slice(-limit),
+    posts: all.slice(start, end),
     requests: requests as ChannelRead["requests"],
     tasks,
     waiting: channelWaiting(state, id),
-    more: all.length > limit,
+    more: start > 0,
   };
 }

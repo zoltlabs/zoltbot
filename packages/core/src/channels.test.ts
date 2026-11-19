@@ -380,6 +380,33 @@ describe("routing", () => {
   });
 });
 
+describe("transcript", () => {
+  it("pages back through older posts with a cursor", () => {
+    let state = synced();
+    for (let index = 0; index < 5; index += 1)
+      state = applyEvents(
+        state,
+        postOwnerToChannel(
+          state,
+          { channelId: pay, postId: `p${index}`, text: `Post ${index}` },
+          human(`post-${index}`, later(index)),
+        ).events,
+      );
+    const ids = (read: ReturnType<typeof readChannel>) => read.posts.map((post) => post.id);
+    const newest = readChannel(state, pay, 2);
+    expect(ids(newest)).toEqual(["p3", "p4"]);
+    expect(newest.more).toBe(true);
+    const earlier = readChannel(state, pay, 2, "p3");
+    expect(ids(earlier)).toEqual(["p1", "p2"]);
+    expect(earlier.more).toBe(true);
+    const first = readChannel(state, pay, 2, "p1");
+    expect(ids(first)).toEqual(["p0"]);
+    expect(first.more).toBe(false);
+    expect(readChannel(state, pay).more).toBe(false);
+    expect(() => readChannel(state, pay, 2, "missing")).toThrow("not_found: channelPost");
+  });
+});
+
 describe("requests", () => {
   function requested() {
     let state = synced();

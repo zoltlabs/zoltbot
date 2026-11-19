@@ -60,6 +60,7 @@ const DETAIL: ChannelDetail = {
 const agent = {
   listChannels: vi.fn(),
   readChannel: vi.fn(),
+  readEarlierPosts: vi.fn(),
   postChannel: vi.fn(),
   channelRequest: vi.fn(),
   onEvent: vi.fn(() => () => undefined),
@@ -86,6 +87,7 @@ describe("ChannelPage", () => {
   beforeEach(() => {
     agent.listChannels.mockReset().mockResolvedValue([DETAIL.channel]);
     agent.readChannel.mockReset().mockResolvedValue(DETAIL);
+    agent.readEarlierPosts.mockReset();
     agent.postChannel.mockReset().mockResolvedValue(undefined);
     agent.channelRequest.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(window, "openbot", { configurable: true, value: { agent } });
@@ -104,6 +106,30 @@ describe("ChannelPage", () => {
     expect(waiting.textContent).toContain("Theo owes Payments a reply");
     await fireEvent.click(within(posts).getByRole("button", { name: "Payments" }));
     expect(onOpenChat).toHaveBeenCalledWith("lead");
+  });
+
+  it("pages back with Show earlier until the first post", async () => {
+    const post = (id: string, text: string) => ({ ...DETAIL.posts[0], id, text, requestId: null });
+    agent.readChannel.mockResolvedValue({ ...DETAIL, more: true });
+    agent.readEarlierPosts
+      .mockResolvedValueOnce({ ...DETAIL, posts: [post("p0", "Second post")], more: true })
+      .mockResolvedValueOnce({ ...DETAIL, posts: [post("p-1", "First post")], more: false });
+    renderPage();
+    const earlier = await screen.findByRole("button", { name: "Show earlier" });
+    await fireEvent.click(earlier);
+    await screen.findByText("Second post");
+    expect(agent.readEarlierPosts).toHaveBeenCalledWith({ channelId: "payments", before: "p1" });
+    await fireEvent.click(screen.getByRole("button", { name: "Show earlier" }));
+    await screen.findByText("First post");
+    expect(agent.readEarlierPosts).toHaveBeenLastCalledWith({
+      channelId: "payments",
+      before: "p0",
+    });
+    const posts = screen.getByRole("list", { name: "Posts" });
+    expect(posts.textContent?.indexOf("First post")).toBeLessThan(
+      posts.textContent?.indexOf("Second post") ?? 0,
+    );
+    expect(screen.queryByRole("button", { name: "Show earlier" })).toBeNull();
   });
 
   it("completes @mentions from the keyboard and shows the post at once", async () => {

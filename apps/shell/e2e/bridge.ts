@@ -146,6 +146,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         reviewTask: call(channels.agentReviewTask),
         listChannels: call(channels.agentListChannels),
         readChannel: call(channels.agentReadChannel),
+        readEarlierPosts: call(channels.agentReadEarlierPosts),
         postChannel: call(channels.agentPostChannel),
         channelRequest: call(channels.agentChannelRequest),
         readStaff: call(channels.agentReadStaff),

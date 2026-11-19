@@ -114,6 +114,7 @@ const openbotApi: OpenBotDesktopApi = {
     reviewTask: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentReviewTask, input),
     listChannels: () => ipcRenderer.invoke(IPC_CHANNELS.agentListChannels),
     readChannel: (channelId) => ipcRenderer.invoke(IPC_CHANNELS.agentReadChannel, channelId),
+    readEarlierPosts: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentReadEarlierPosts, input),
     postChannel: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentPostChannel, input),
     channelRequest: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentChannelRequest, input),
     readStaff: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.agentReadStaff, projectId),

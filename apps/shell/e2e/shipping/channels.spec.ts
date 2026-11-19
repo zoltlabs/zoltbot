@@ -101,6 +101,26 @@ test("team channels route posts, show requests and who owes a reply", async ({ p
     await expect
       .poll(() => store.record("channel", "channel-team-pay")?.memberThreadIds)
       .toEqual(["lead", "mira", "theo"]);
+    // 201 older posts: the transcript opens on the newest 200, so the first two need paging.
+    seed(
+      fixture,
+      Array.from({ length: 201 }, (_, index): [string, string, Row] => [
+        "channelPost",
+        `old-${index}`,
+        {
+          id: `old-${index}`,
+          channelId: "channel-team-pay",
+          projectId: "acme",
+          author: { kind: "owner" },
+          text: `Old post ${index}`,
+          mentions: [],
+          recipients: ["lead"],
+          messageIds: [],
+          question: false,
+          createdAt: new Date(Date.now() - (300 - index) * 1000).toISOString(),
+        },
+      ]),
+    );
     seed(fixture, [
       [
         "channelPost",
@@ -133,6 +153,12 @@ test("team channels route posts, show requests and who owes a reply", async ({ p
     await expect(main.getByRole("region", { name: "Waiting for replies" })).toContainText(
       "Theo owes Payments a reply",
     );
+    await expect(posts.getByText("Old post 1", { exact: true })).toHaveCount(0);
+    expect(await axeViolations(page)).toEqual([]);
+    await posts.getByRole("button", { name: "Show earlier" }).click();
+    await expect(posts.getByText("Old post 0", { exact: true })).toBeVisible();
+    await expect(posts.getByRole("button", { name: "Show earlier" })).toHaveCount(0);
+    await expect(posts).toBeFocused();
     const panel = main.getByRole("complementary", { name: "Channel details" });
     await expect(panel.getByRole("button", { name: "Mira" })).toBeVisible();
 

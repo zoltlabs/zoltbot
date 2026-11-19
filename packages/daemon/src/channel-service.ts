@@ -87,6 +87,7 @@ export function channelApi(
         context.store.snapshot([...channelKinds]),
         String(params.id),
         typeof params.limit === "number" ? params.limit : 200,
+        typeof params.before === "string" ? params.before : undefined,
       );
     if (!commandId) throw new Error("command_id_required");
     if (method === "channel.post") {

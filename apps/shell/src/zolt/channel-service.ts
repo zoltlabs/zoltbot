@@ -12,8 +12,12 @@ export const CHANNEL_ROWS = ["channel", "channelPost", "channelRequest"] as cons
 
 /** The shell's side of team channels: lists come from the snapshot, the rest from the daemon. */
 export function channelService(client: DaemonClient) {
-  async function read(channelId: string): Promise<ChannelDetail> {
-    const result = (await client.call("channel.read", { id: channelId })) as ChannelReadResult;
+  /** The newest posts, or with `before` the page of posts older than that post. */
+  async function read(channelId: string, before?: string): Promise<ChannelDetail> {
+    const result = (await client.call("channel.read", {
+      id: channelId,
+      ...(before ? { before } : {}),
+    })) as ChannelReadResult;
     return toChannelDetail(client.snapshot, result);
   }
   return {

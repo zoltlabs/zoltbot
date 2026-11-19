@@ -8,6 +8,7 @@ import type {
   ChannelRequestInput,
   ChannelSummary,
   PostChannelInput,
+  ReadEarlierPostsInput,
 } from "./channels";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { StaffActionInput, StaffOverview } from "./staff";
@@ -62,6 +63,7 @@ export const IPC_CHANNELS = {
   agentReviewTask: "agent:review-task",
   agentListChannels: "agent:list-channels",
   agentReadChannel: "agent:read-channel",
+  agentReadEarlierPosts: "agent:read-earlier-posts",
   agentPostChannel: "agent:post-channel",
   agentChannelRequest: "agent:channel-request",
   agentReadStaff: "agent:read-staff",
@@ -778,6 +780,8 @@ export interface AgentDesktopApi {
   /** Team channels in every project, for the sidebar. */
   listChannels: () => Promise<ChannelSummary[]>;
   readChannel: (channelId: string) => Promise<ChannelDetail>;
+  /** The page of posts before `before`, and whether still older ones exist. */
+  readEarlierPosts: (input: ReadEarlierPostsInput) => Promise<ChannelDetail>;
   postChannel: (input: PostChannelInput) => Promise<void>;
   channelRequest: (input: ChannelRequestInput) => Promise<void>;
   /** Pending staff approvals (one project, or all with null) and the project's people. */

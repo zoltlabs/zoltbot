@@ -67,6 +67,13 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...modelHandlers(service),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
+    [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {
+      const row = (input ?? {}) as Record<string, unknown>;
+      return service.channels.read(
+        requireString(row.channelId, "channelId"),
+        requireString(row.before, "before"),
+      );
+    },
     [IPC_CHANNELS.agentPostChannel]: (input) => service.channels.post(parsePostChannel(input)),
     [IPC_CHANNELS.agentChannelRequest]: (input) =>
       service.channels.request(parseChannelRequest(input)),

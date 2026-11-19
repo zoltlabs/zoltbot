@@ -20,6 +20,10 @@ export function createChannelsStore() {
   const [sending, setSending] = createSignal<ChannelPostView[]>([]);
   const [acting, setActing] = createSignal<Record<string, ChannelRequestView>>({});
   const [error, setError] = createSignal("");
+  /** Older posts loaded with Show earlier, oldest first, and whether still older ones exist. */
+  const [earlier, setEarlier] = createSignal<ChannelPostView[]>([]);
+  const [earlierMore, setEarlierMore] = createSignal<boolean | null>(null);
+  const [loadingEarlier, setLoadingEarlier] = createSignal(false);
   let frame: number | undefined;
   let generation = 0;
 
@@ -37,6 +41,17 @@ export function createChannelsStore() {
       .readChannel(id)
       .then((detail) => {
         if (current !== generation || openId() !== id) return;
+        // With earlier pages shown, posts that fall out of the newest page join them, so the
+        // transcript keeps no gap.
+        const previous = loaded();
+        if (earlier().length && previous?.channel.id === id) {
+          const kept = new Set(detail.posts.map((post) => post.id));
+          const first = detail.posts[0]?.createdAt ?? "";
+          const dropped = previous.posts.filter(
+            (post) => !kept.has(post.id) && post.createdAt <= first,
+          );
+          if (dropped.length) setEarlier((posts) => [...posts, ...dropped]);
+        }
         setLoaded(detail);
         const stored = new Set(detail.posts.map((post) => post.id));
         setSending((posts) => posts.filter((post) => !stored.has(post.id)));
@@ -77,9 +92,12 @@ export function createChannelsStore() {
     if (!base || base.channel.id !== openId()) return null;
     const pending = acting();
     const extra = sending().filter((post) => !base.posts.some((row) => row.id === post.id));
+    const older = earlier().filter((post) => !base.posts.some((row) => row.id === post.id));
+    const more = earlierMore();
     return {
       ...base,
-      posts: extra.length ? [...base.posts, ...extra] : base.posts,
+      posts: older.length || extra.length ? [...older, ...base.posts, ...extra] : base.posts,
+      more: more === null ? base.more : more,
       requests: base.requests.map((request) => pending[request.id] ?? request),
     };
   });
@@ -90,7 +108,35 @@ export function createChannelsStore() {
     setError("");
     setSending([]);
     setActing({});
+    setEarlier([]);
+    setEarlierMore(null);
+    setLoadingEarlier(false);
     if (channelId) refresh();
+  }
+
+  /** Loads the page of posts before the oldest one shown. */
+  async function loadEarlier(): Promise<boolean> {
+    const current = detail();
+    const first = current?.posts[0];
+    if (!current || !first || !current.more || loadingEarlier()) return false;
+    const channelId = current.channel.id;
+    setLoadingEarlier(true);
+    setError("");
+    try {
+      const page = await window.openbot.agent.readEarlierPosts({ channelId, before: first.id });
+      if (openId() !== channelId) return false;
+      setEarlier((posts) => [
+        ...page.posts.filter((post) => !posts.some((row) => row.id === post.id)),
+        ...posts,
+      ]);
+      setEarlierMore(page.more);
+      return true;
+    } catch {
+      if (openId() === channelId) setError("Couldn't load earlier posts. Try again.");
+      return false;
+    } finally {
+      if (openId() === channelId) setLoadingEarlier(false);
+    }
   }
 
   async function post(text: string): Promise<boolean> {
@@ -161,6 +207,8 @@ export function createChannelsStore() {
     open,
     post,
     act,
+    loadEarlier,
+    loadingEarlier,
     clearError: () => setError(""),
   };
 }

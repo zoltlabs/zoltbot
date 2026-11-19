@@ -232,6 +232,13 @@ it("posts, routes, tags tasks with the request and stops them, across a restart"
       posts: unknown[];
     };
     expect(view.posts).toHaveLength(3);
+    const ids = (view.posts as { id: string }[]).map((post) => post.id);
+    const page = (await again("channel.read", { id: pay, limit: 1, before: ids[2] })) as {
+      posts: { id: string }[];
+      more: boolean;
+    };
+    expect(page.posts.map((post) => post.id)).toEqual([ids[1]]);
+    expect(page.more).toBe(true);
     const revision = view.requests[0]?.revision as number;
     await expect(
       again("channel.request", { id: "request-p1", action: "stop", revision }, "stop-1"),

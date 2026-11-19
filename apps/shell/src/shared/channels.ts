@@ -87,6 +87,12 @@ export interface PostChannelInput {
   mentions?: string[];
 }
 
+export interface ReadEarlierPostsInput {
+  channelId: string;
+  /** The oldest post shown; the page ends just before it. */
+  before: string;
+}
+
 export interface ChannelRequestInput {
   requestId: string;
   action: ChannelRequestActionName;

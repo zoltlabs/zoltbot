@@ -125,7 +125,12 @@ export const channelMethods = {
     result: object({ items: Type.Array(ChannelSchema) }),
   },
   "channel.read": {
-    params: object({ id: Id, limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 500 })) }),
+    params: object({
+      id: Id,
+      limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 500 })),
+      /** A post id: read the posts before it, for paging back through older posts. */
+      before: Type.Optional(Id),
+    }),
     result: ChannelReadSchema,
   },
   /** The owner posts. `id` is chosen by the client, so a retry never posts twice. */

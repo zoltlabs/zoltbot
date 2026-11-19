@@ -32,16 +32,29 @@ export function ChannelPage(props: ChannelPageProps) {
       { defer: true },
     ),
   );
-  // Keep the newest post in view as posts arrive.
+  // Keep the newest post in view as posts arrive. Earlier posts loaded above don't move it.
   createEffect(
     on(
-      () => detail()?.posts.length,
+      () => detail()?.posts.at(-1)?.id,
       () =>
         requestAnimationFrame(() => {
           if (transcript) transcript.scrollTop = transcript.scrollHeight;
         }),
     ),
   );
+
+  /** Loads older posts above, keeping the posts in view where they were. */
+  async function showEarlier() {
+    const list = transcript;
+    const fromBottom = list ? list.scrollHeight - list.scrollTop : 0;
+    const loaded = await props.store.loadEarlier();
+    if (!loaded || !list) return;
+    requestAnimationFrame(() => {
+      list.scrollTop = list.scrollHeight - fromBottom;
+      // The button is gone once the first post shows; keep focus in the transcript.
+      if (!detail()?.more) list.focus();
+    });
+  }
 
   return (
     <main aria-label={`#${name()}`} class="map-panel channel-page">
@@ -75,7 +88,19 @@ export function ChannelPage(props: ChannelPageProps) {
           <div class="channel-body">
             <div class="channel-main">
               <RequestBar detail={current()} store={props.store} />
-              <ol ref={transcript} class="channel-transcript" aria-label="Posts">
+              <ol ref={transcript} class="channel-transcript" aria-label="Posts" tabIndex={-1}>
+                <Show when={current().more}>
+                  <li class="channel-earlier">
+                    <button
+                      type="button"
+                      class="channel-text-button channel-earlier-button"
+                      disabled={props.store.loadingEarlier()}
+                      onClick={() => void showEarlier()}
+                    >
+                      {props.store.loadingEarlier() ? "Loading…" : "Show earlier"}
+                    </button>
+                  </li>
+                </Show>
                 <Show when={current().posts.length === 0}>
                   <li class="channel-empty">No posts yet.</li>
                 </Show>
