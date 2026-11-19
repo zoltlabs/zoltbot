@@ -8,6 +8,7 @@ import {
   artifactMethods,
   OutputModeSchema,
 } from "./artifacts.js";
+import { backupModelMethods } from "./backup-models.js";
 import { BrowserSelectionSchema, browserMethods } from "./browser.js";
 import {
   CloudProjectCreateSchema,
@@ -196,6 +197,7 @@ const rawMethodCatalog = {
   ...orchestrationMethods,
   ...knowledgeWriteMethods,
   ...quickChatMethods,
+  ...backupModelMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
     object({ protocolVersion: Type.Integer(), version: Text }),

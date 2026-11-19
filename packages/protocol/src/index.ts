@@ -1,5 +1,6 @@
 export * from "./adapter-events.js";
 export * from "./artifacts.js";
+export * from "./backup-models.js";
 export * from "./browser.js";
 export * from "./catalog.js";
 export * from "./cloud.js";
