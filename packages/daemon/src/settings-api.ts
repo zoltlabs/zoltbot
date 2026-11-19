@@ -1,4 +1,9 @@
-import type { DomainEvent } from "@zoltbot/protocol";
+import { Value } from "@sinclair/typebox/value";
+import {
+  type DomainEvent,
+  TASK_RUNNING_LIMIT_SETTING,
+  TaskRunningLimitSchema,
+} from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { reservedChiefKeys } from "./chief/identity.js";
 import { identityReferenceKey } from "./link-identity.js";
@@ -59,6 +64,11 @@ export function settingsApi(options: {
       )
     )
       throw new Error("invalid_relay_url: use a wss:// address");
+    if (
+      input.key === TASK_RUNNING_LIMIT_SETTING &&
+      !Value.Check(TaskRunningLimitSchema, input.value)
+    )
+      throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
     const check = store.receipt(commandId)
       ? undefined
       : await options.privacy.prepareData(undefined);

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { handle } from "@zoltbot/core";
+import { TASK_RUNNING_LIMIT_SETTING } from "@zoltbot/protocol";
 import { expect, test } from "vitest";
 import { at, runtimeFixture } from "../../../tools/fakes/src/runtime-fixture.js";
 import { git } from "../../gitkit/src/index.js";
@@ -43,6 +44,20 @@ test("isolated tasks run together while shared-folder tasks serialize", async ()
         { commandId: "project", at, actor: { kind: "human", id: "owner" } },
       ),
     );
+    // All four tasks share one profile; raise its running limit so only folders decide.
+    f.store.dispatch("limit", () => ({
+      events: [
+        {
+          eventId: "limit:0",
+          aggregateType: "settings",
+          aggregateId: TASK_RUNNING_LIMIT_SETTING,
+          type: "settings.created",
+          occurredAt: at,
+          payload: { key: TASK_RUNNING_LIMIT_SETTING, value: 4 },
+        },
+      ],
+      result: { ok: true },
+    }));
     const wakes: string[] = [];
     const runner = taskRunner({
       store: f.store,

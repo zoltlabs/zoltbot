@@ -1,3 +1,8 @@
+import {
+  DEFAULT_TASK_RUNNING_LIMIT,
+  TASK_RUNNING_LIMIT_SETTING,
+  type Task,
+} from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import {
   assignRunnerLease,
@@ -7,7 +12,40 @@ import {
   requestRunnerWake,
   runnerOffline,
   runnerOfflineMs,
+  runningByEmployee,
+  taskEmployee,
+  taskRunningLimit,
 } from "./runner-scheduling.js";
+
+it("counts running and blocked tasks per employee: one profile within one project", () => {
+  const task = (state: Task["state"], projectId: string, ownerAgentId?: string) => ({
+    state,
+    projectId,
+    ...(ownerAgentId ? { ownerAgentId } : {}),
+  });
+  const counts = runningByEmployee([
+    task("running", "app", "mira"),
+    task("blocked", "app", "mira"),
+    task("queued", "app", "mira"),
+    task("review", "app", "mira"),
+    task("running", "site", "mira"),
+    task("running", "app", "theo"),
+    task("running", "app"),
+  ]);
+  expect(counts.get(taskEmployee({ projectId: "app", ownerAgentId: "mira" }) ?? "")).toBe(2);
+  expect(counts.get(taskEmployee({ projectId: "site", ownerAgentId: "mira" }) ?? "")).toBe(1);
+  expect(counts.get(taskEmployee({ projectId: "app", ownerAgentId: "theo" }) ?? "")).toBe(1);
+  expect(counts.size).toBe(3);
+  expect(taskEmployee({ projectId: "app" })).toBeUndefined();
+});
+
+it("reads the running limit setting and falls back to two", () => {
+  expect(DEFAULT_TASK_RUNNING_LIMIT).toBe(2);
+  expect(taskRunningLimit(undefined)).toBe(2);
+  expect(taskRunningLimit([{ key: TASK_RUNNING_LIMIT_SETTING, value: 3 }])).toBe(3);
+  for (const value of [0, 1.5, 21, "3", null])
+    expect(taskRunningLimit([{ key: TASK_RUNNING_LIMIT_SETTING, value }])).toBe(2);
+});
 
 it("keeps queue order by creation time then id without mutating the task collection", () => {
   const tasks = [

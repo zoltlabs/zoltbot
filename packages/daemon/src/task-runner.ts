@@ -12,11 +12,15 @@ import {
   queuedTasks,
   resumeTask,
   retryTask,
+  runningByEmployee,
   startTask,
+  taskEmployee,
   taskReady,
+  taskRunningLimit,
 } from "@zoltbot/core";
 import type { InteractionDraft } from "@zoltbot/protocol";
 import {
+  AT_LIMIT_HOLD,
   type DomainEvent,
   OutputModeSchema,
   ProjectSchema,
@@ -208,6 +212,7 @@ export function taskRunner(options: TaskRunnerOptions) {
       "session",
       "thread",
       "initiativeRecord",
+      "settings",
     ]);
     const tasks = (state.task ?? []).map((row) => parse(TaskSchema, row));
     const busy = new Map<string, Task>();
@@ -216,6 +221,9 @@ export function taskRunner(options: TaskRunnerOptions) {
       const folder = ["running", "blocked"].includes(row.state) ? folderOf(state, row) : undefined;
       if (folder && folder !== "choice") busy.set(folder, row);
     }
+    // Each employee runs at most `limit` tasks at once; the rest wait queued as `at_limit`.
+    const limit = taskRunningLimit(state.settings);
+    const running = runningByEmployee(tasks);
     const queued = queuedTasks(tasks);
     for (const next of queued) {
       const graphHold = taskReady(state, next);
@@ -240,6 +248,14 @@ export function taskRunner(options: TaskRunnerOptions) {
             );
           continue;
         }
+      }
+      const employee = taskEmployee(next);
+      if (employee && (running.get(employee) ?? 0) >= limit) {
+        if (next.holdReason !== AT_LIMIT_HOLD)
+          run(`task:limit-hold:${next.id}:${next.revision}:${Date.now()}`, system, (s, context) =>
+            holdTask(s, next.id, AT_LIMIT_HOLD, context),
+          );
+        continue;
       }
       const folder = folderOf(state, next);
       const holder = folder && folder !== "choice" ? busy.get(folder) : undefined;
@@ -284,6 +300,7 @@ export function taskRunner(options: TaskRunnerOptions) {
           startTask(s, next.id, next.revision, context),
         );
       if (folder) busy.set(folder, next);
+      if (employee) running.set(employee, (running.get(employee) ?? 0) + 1);
       await wake(next);
     }
   }

@@ -1,4 +1,8 @@
-import type { Task } from "@zoltbot/protocol";
+import {
+  DEFAULT_TASK_RUNNING_LIMIT,
+  TASK_RUNNING_LIMIT_SETTING,
+  type Task,
+} from "@zoltbot/protocol";
 
 export function queuedTasks<T extends Pick<Task, "id" | "state" | "createdAt">>(
   tasks: readonly T[],
@@ -6,6 +10,37 @@ export function queuedTasks<T extends Pick<Task, "id" | "state" | "createdAt">>(
   return tasks
     .filter((task) => task.state === "queued")
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+}
+/**
+ * The employee a task belongs to, for the running-task limit. An employee is the profile that
+ * executes the task (`ownerAgentId`, the agent record behind its chat) within the task's project:
+ * every task chat a profile runs in one project counts toward that one employee, and the same
+ * profile in another project is a different employee. A task without an owner profile has no
+ * employee, so no limit applies to it.
+ */
+export function taskEmployee(task: Pick<Task, "projectId" | "ownerAgentId">): string | undefined {
+  return task.ownerAgentId ? `${task.projectId ?? ""}/${task.ownerAgentId}` : undefined;
+}
+/** How many tasks one employee may run at once: the setting when valid, else the default. */
+export function taskRunningLimit(
+  settings: readonly { key?: unknown; value?: unknown }[] | undefined,
+): number {
+  const value = settings?.find((row) => row.key === TASK_RUNNING_LIMIT_SETTING)?.value;
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 20
+    ? value
+    : DEFAULT_TASK_RUNNING_LIMIT;
+}
+/** Tasks each employee is running now. A blocked task still holds its employee's slot. */
+export function runningByEmployee(
+  tasks: readonly Pick<Task, "state" | "projectId" | "ownerAgentId">[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const task of tasks) {
+    const employee = taskEmployee(task);
+    if (employee && (task.state === "running" || task.state === "blocked"))
+      counts.set(employee, (counts.get(employee) ?? 0) + 1);
+  }
+  return counts;
 }
 export const runnerHeartbeatMs = 15_000;
 export const runnerOfflineMs = 60_000;
