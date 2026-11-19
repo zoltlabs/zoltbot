@@ -1,0 +1,352 @@
+/* Models settings, switch notices and the switch dialog. */
+
+.models-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+  padding: 18px 24px 40px;
+}
+
+.models-section {
+  display: flex;
+  width: 100%;
+  max-width: 640px;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 auto;
+}
+
+.models-heading {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.models-hint,
+.models-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.models-error {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--text-danger);
+  font-size: 13px;
+}
+
+.models-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--openbot-line);
+  border-radius: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.models-list:empty {
+  display: none;
+}
+
+.models-row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.models-row + .models-row {
+  border-top: 1px solid var(--openbot-line);
+}
+
+.models-row-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.models-row-copy strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-row-copy span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.models-index {
+  min-width: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.models-pill {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  padding: 2px 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.models-pill-limit {
+  color: var(--text-danger);
+}
+
+.models-pill-use {
+  color: var(--text-info);
+}
+
+.models-row-actions,
+.models-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.models-link {
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.models-link:hover:not(:disabled) {
+  background: var(--openbot-hover);
+  color: var(--text-primary);
+}
+
+.models-link:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.models-link-danger {
+  color: var(--text-danger);
+}
+
+.models-button {
+  min-height: 32px;
+  align-self: flex-start;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-pill);
+  padding: 6px 14px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.models-button:hover:not(:disabled) {
+  background: var(--surface-pill-hover);
+}
+
+.models-button-primary {
+  border-color: transparent;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.models-button-primary:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+}
+
+.models-button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.models-link:focus-visible,
+.models-button:focus-visible,
+.models-role:focus-within,
+.models-field select:focus-visible,
+.models-field input:focus-visible,
+.switch-dialog-remember input:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 2px;
+}
+
+.models-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.models-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.models-field select,
+.models-field input {
+  min-height: 32px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-field);
+  padding: 4px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.models-signin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.models-signin p {
+  margin: 0;
+}
+
+.models-command {
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--surface-code);
+  padding: 8px 10px;
+  color: var(--text-code);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  user-select: all;
+  white-space: pre;
+}
+
+.models-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.models-role {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.models-role-active {
+  background: var(--surface-option-selected);
+  color: var(--text-primary);
+}
+
+.models-role-state {
+  color: var(--text-muted);
+}
+
+/* A move between accounts, centered in the chat like a time marker. */
+.model-notice {
+  display: flex;
+  max-width: 560px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 10px auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.model-notice-warning {
+  color: var(--text-danger-soft);
+}
+
+.model-notice-time {
+  color: var(--text-time-marker);
+}
+
+.switch-dialog {
+  display: flex;
+  max-width: 460px;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px auto;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 12px;
+  background: var(--surface-dialog);
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.switch-dialog p {
+  margin: 0;
+}
+
+.switch-dialog-title {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.switch-dialog-detail {
+  color: var(--text-muted);
+}
+
+.switch-dialog-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+}
+
+.switch-dialog-remember input {
+  accent-color: var(--control-accent);
+}
+
+.switch-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .models-button,
+  .models-link {
+    transition: none;
+  }
+}

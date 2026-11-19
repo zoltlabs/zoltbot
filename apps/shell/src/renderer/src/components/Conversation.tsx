@@ -31,6 +31,7 @@ import {
 import { ComposerEditor, expandComposerMentions } from "./ComposerEditor";
 import { ChoiceCard, PromptCard } from "./ConversationPrompts";
 import { createDictation, DictationButton } from "./Dictation";
+import { ModelNotice, SwitchDialog } from "./ModelSwitch";
 import { OrganizationIcon, OrganizationPanel } from "./OrganizationPanel";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./PanelResizer";
 import { ProviderModelPicker } from "./ProviderModelPicker";
@@ -1839,6 +1840,7 @@ export function Conversation(props: ConversationProps) {
           </Show>
           <For each={props.messages}>
             {(message) => {
+              if (message.kind === "notice") return <ModelNotice message={message} />;
               const animateEntrance = message.animate === true && markMessageSeen(message.id);
               return (
                 <Show
@@ -1960,7 +1962,20 @@ export function Conversation(props: ConversationProps) {
           <AgentActivityIndicator bot={props.bot} state={agentActivity()} />
           <Show when={props.prompt}>
             {(prompt) => (
-              <PromptCard questions={prompt().questions} onSubmit={props.onAnswerPrompt} />
+              <Show
+                when={prompt().switchDialog}
+                fallback={
+                  <PromptCard questions={prompt().questions} onSubmit={props.onAnswerPrompt} />
+                }
+              >
+                {(dialog) => (
+                  <SwitchDialog
+                    dialog={dialog()}
+                    questions={prompt().questions}
+                    onSubmit={props.onAnswerPrompt}
+                  />
+                )}
+              </Show>
             )}
           </Show>
         </Show>

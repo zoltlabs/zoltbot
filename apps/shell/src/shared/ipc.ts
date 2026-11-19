@@ -1,3 +1,5 @@
+import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
+
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
   getSetupState: "app:get-setup-state",
@@ -43,6 +45,7 @@ export const IPC_CHANNELS = {
   agentDecidePlan: "agent:decide-plan",
   agentRefreshBrief: "agent:refresh-brief",
   agentEvent: "agent:event",
+  ...MODEL_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -581,6 +584,8 @@ export type AgentEvent =
       threadId: string;
       turnId: string;
       questions: AgentPromptQuestion[];
+      /** Present when answering moves the chat's work to another provider. */
+      switchDialog?: ModelSwitchDialog;
     }
   | { type: "prompt-cleared"; botId: string }
   /** Company rows changed. A null project means every project may have changed. */
@@ -796,6 +801,7 @@ export interface OpenBotDesktopApi {
   views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
+  models: ModelsDesktopApi;
 }
 
 export type DictationAccessStatus = "authorized" | "not_determined" | "denied" | "restricted";

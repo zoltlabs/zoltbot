@@ -23,6 +23,7 @@ import type {
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
+import { ModelsSettings } from "./components/ModelsSettings";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
@@ -86,6 +87,7 @@ export function App() {
   const [modelOptions, setModelOptions] = createSignal<AgentModelOption[]>([]);
   const [activeBotId, setActiveBotId] = createSignal("");
   const [mapOpen, setMapOpen] = createSignal(false);
+  const [modelsOpen, setModelsOpen] = createSignal(false);
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
   const [uiErrors, setUiErrors] = createSignal<Record<string, BotMessage[]>>({});
   const [conversationLoaded, setConversationLoaded] = createSignal<Record<string, boolean>>({});
@@ -406,6 +408,7 @@ export function App() {
 
   function selectBot(botId: string) {
     setMapOpen(false);
+    setModelsOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -716,9 +719,17 @@ export function App() {
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}
-              activeBotId={mapOpen() ? "" : (activeBot()?.id ?? "")}
+              activeBotId={mapOpen() || modelsOpen() ? "" : (activeBot()?.id ?? "")}
               mapOpen={mapOpen()}
-              onOpenMap={() => setMapOpen(true)}
+              onOpenMap={() => {
+                setModelsOpen(false);
+                setMapOpen(true);
+              }}
+              modelsOpen={modelsOpen()}
+              onOpenModels={() => {
+                setMapOpen(false);
+                setModelsOpen(true);
+              }}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -755,7 +766,7 @@ export function App() {
             </Sidebar>
           </Show>
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
-          <div class="conversation-slot" inert={mapOpen() || undefined}>
+          <div class="conversation-slot" inert={mapOpen() || modelsOpen() || undefined}>
             <Conversation
               agentStatus={agentStatus()}
               bot={activeBot()}
@@ -799,6 +810,12 @@ export function App() {
                 if (chatId && botList().some((bot) => bot.id === chatId)) selectBot(chatId);
                 else setMapOpen(false);
               }}
+            />
+          </Show>
+          <Show when={modelsOpen()}>
+            <ModelsSettings
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
             />
           </Show>
           <Show when={permissionsOpen()}>
@@ -862,7 +879,7 @@ function toBotMessage(message: ConversationMessage): BotMessage {
     time: formatTime(message.createdAt),
     streaming: message.status === "streaming",
     itemType: message.itemType,
-    kind: message.exchange ? "exchange" : "text",
+    kind: message.exchange ? "exchange" : message.source === "system" ? "notice" : "text",
     senderBotId: exchangeSenderId,
     replyToMessageId: message.replyToMessageId,
     attachments: message.attachments,

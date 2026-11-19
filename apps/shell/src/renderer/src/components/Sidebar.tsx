@@ -24,6 +24,8 @@ interface SidebarProps {
   bots: BotProfile[];
   activeBotId: string;
   mapOpen: boolean;
+  /** Whether Models settings cover the conversation. */
+  modelsOpen?: boolean;
   appInfo: AppInfo | null;
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
@@ -32,6 +34,7 @@ interface SidebarProps {
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
   onOpenMap: () => void;
+  onOpenModels?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -111,6 +114,15 @@ function MapIcon() {
         stroke-linejoin="round"
       />
       <path d="M7.7 3.5v11.3M12.3 5.3v11.3" stroke-width="1.4" />
+    </svg>
+  );
+}
+
+function ModelsIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <rect x="3.5" y="3.5" width="13" height="5" rx="1.5" stroke-width="1.4" />
+      <rect x="3.5" y="11.5" width="13" height="5" rx="1.5" stroke-width="1.4" />
     </svg>
   );
 }
@@ -502,6 +514,20 @@ export function Sidebar(props: SidebarProps) {
           </span>
           <span class="bot-row-copy">Map</span>
         </button>
+        <Show when={props.onOpenModels}>
+          <button
+            type="button"
+            class="bot-row sidebar-map-button"
+            classList={{ "bot-row-active": props.modelsOpen === true }}
+            aria-pressed={props.modelsOpen === true}
+            onClick={() => props.onOpenModels?.()}
+          >
+            <span class="sidebar-map-icon">
+              <ModelsIcon />
+            </span>
+            <span class="bot-row-copy">Models</span>
+          </button>
+        </Show>
       </div>
 
       <div class="sidebar-search-wrap">

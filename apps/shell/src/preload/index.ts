@@ -157,6 +157,14 @@ const openbotApi: OpenBotDesktopApi = {
   artifacts: {
     prepare: (manifestHash) => ipcRenderer.invoke(IPC_CHANNELS.artifactPrepare, manifestHash),
   },
+  models: {
+    read: () => ipcRenderer.invoke(IPC_CHANNELS.modelsRead),
+    addAccount: (input) => ipcRenderer.invoke(IPC_CHANNELS.modelsAddAccount, input),
+    signIn: (accountId) => ipcRenderer.invoke(IPC_CHANNELS.modelsSignIn, accountId),
+    check: (accountId) => ipcRenderer.invoke(IPC_CHANNELS.modelsCheck, accountId),
+    remove: (accountId) => ipcRenderer.invoke(IPC_CHANNELS.modelsRemove, accountId),
+    setOrder: (input) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetOrder, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>
