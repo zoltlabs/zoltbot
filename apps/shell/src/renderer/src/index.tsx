@@ -1,5 +1,6 @@
 import { render } from "solid-js/web";
 import { App } from "./App";
+import "./theme.css";
 import "./styles.css";
 import "./company.css";
 import "./dictation.css";

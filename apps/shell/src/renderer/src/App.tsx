@@ -739,19 +739,20 @@ export function App() {
               onOpenExternal={(destination) => window.openbot.openExternal(destination)}
               onOpenPermissions={() => setPermissionsOpen(true)}
               onCollapse={() => setSidebarCollapsed(true)}
-            />
-            <PanelResizer
-              class="left-panel-resizer"
-              label="Resize left sidebar"
-              controls="bot-sidebar"
-              direction="left"
-              value={leftPanelWidth()}
-              defaultValue={LEFT_PANEL_DEFAULT}
-              min={LEFT_PANEL_MIN}
-              max={LEFT_PANEL_MAX}
-              onResize={setLeftPanelWidth}
-              onResizeEnd={(value) => savePanelWidth(LEFT_PANEL_STORAGE_KEY, value)}
-            />
+            >
+              <PanelResizer
+                class="left-panel-resizer"
+                label="Resize left sidebar"
+                controls="bot-sidebar"
+                direction="left"
+                value={leftPanelWidth()}
+                defaultValue={LEFT_PANEL_DEFAULT}
+                min={LEFT_PANEL_MIN}
+                max={LEFT_PANEL_MAX}
+                onResize={setLeftPanelWidth}
+                onResizeEnd={(value) => savePanelWidth(LEFT_PANEL_STORAGE_KEY, value)}
+              />
+            </Sidebar>
           </Show>
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
           <div class="conversation-slot" inert={mapOpen() || undefined}>

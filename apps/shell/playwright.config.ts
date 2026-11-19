@@ -6,5 +6,10 @@ export default defineConfig({
   workers: 1,
   outputDir: "../../output/playwright/shell",
   reporter: [["list"]],
-  use: { headless: true, viewport: { width: 1280, height: 820 }, trace: "retain-on-failure" },
+  use: {
+    headless: true,
+    colorScheme: "dark",
+    viewport: { width: 1280, height: 820 },
+    trace: "retain-on-failure",
+  },
 });

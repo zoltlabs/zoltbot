@@ -155,8 +155,9 @@ export function MapView(props: MapViewProps) {
       .finally(() => setBusy(false));
   }
 
+  // The conversation's <main> is inert while the map covers it, so the map is the main landmark.
   return (
-    <section aria-label="Map" class="map-panel">
+    <main aria-label="Map" class="map-panel">
       <header class="window-drag map-header">
         <Show when={props.sidebarCollapsed}>
           <button
@@ -258,6 +259,6 @@ export function MapView(props: MapViewProps) {
           </Show>
         </Show>
       </div>
-    </section>
+    </main>
   );
 }
