@@ -81,6 +81,17 @@ test("switching, sending, streaming and answering feel immediate", async ({ page
     });
     await expect(page.getByRole("button", { name: "Agent model: Default model" })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("after-answer.png") });
+
+    timings.createProject = await timed(page, async () => {
+      await page.getByRole("button", { name: "New project" }).click();
+      await expect(page.locator(".bot-row-active .bot-row-role")).toHaveText("CEO");
+    });
+    const header = page.locator(".bot-group-header").filter({ hasText: /launch-/ });
+    await expect(header).toBeVisible();
+    await header.hover();
+    await header.getByRole("button", { name: /New chat in launch-/ }).click();
+    await expect(page.locator(".bot-row-role").filter({ hasText: "CEO" })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("project.png") });
   } finally {
     console.log(`feel timings (ms): ${JSON.stringify(timings)}`);
     await test.info().attach("timings", { body: JSON.stringify(timings, null, 2) });

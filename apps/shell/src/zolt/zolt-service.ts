@@ -20,6 +20,7 @@ import type {
   SetMessageReactionInput,
   UpdateBotInput,
 } from "../shared/ipc";
+import { companyTree } from "./company-tree";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import {
   type BotPreferences,
@@ -123,8 +124,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   listBots(): BotSummary[] {
     const snapshot = this.client.snapshot;
-    return visibleThreads(snapshot).map((thread) =>
-      toBotSummary(snapshot, thread, this.preferences.bots[text(thread.id)]),
+    return companyTree(snapshot).entries.map((entry) =>
+      toBotSummary(snapshot, entry.thread, this.preferences.bots[text(entry.thread.id)], entry),
     );
   }
 
@@ -152,8 +153,41 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     return this.models;
   }
 
+  /** Creates a project for a folder and its CEO, the manager accountable for the whole project. */
+  async createProject(path: string): Promise<BotSummary> {
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const name = basename(path) || "Project";
+    await this.client.call(
+      "project.create",
+      {
+        value: {
+          id,
+          name,
+          goal: "",
+          instructions: "",
+          constraints: "",
+          roots: [{ path, label: "Code" }],
+          hierarchyDepth: 3,
+          tags: [],
+          requireCodeReview: false,
+          skipFinalGateWhenReviewed: false,
+          archived: false,
+          createdAt: now,
+        },
+      },
+      `shell:project:${id}`,
+    );
+    return this.createBot({ projectId: id, manager: true });
+  }
+
   async createBot(
-    input: { profileId?: string; projectId?: string | null } = {},
+    input: {
+      profileId?: string;
+      projectId?: string | null;
+      manager?: boolean;
+      title?: string;
+    } = {},
   ): Promise<BotSummary> {
     const profiles = this.client
       .rows("agent")
@@ -172,18 +206,24 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           id,
           agentId: profile.id,
           ...(input.projectId ? { projectId: input.projectId } : {}),
-          kind: "main",
-          title: text(profile.name) || "New chat",
+          ...(input.manager && input.projectId
+            ? { node: { type: "project", id: input.projectId } }
+            : {}),
+          kind: input.manager ? "manager" : "main",
+          title: input.title || text(profile.name) || "New chat",
           titleSource: "auto",
           pinned: false,
           archived: false,
           createdAt: now,
           lastActivityAt: now,
         },
+        // A manager gets authority over the project; the person asked for it by creating one.
+        ...(input.manager ? { confirmed: true } : {}),
       },
       `shell:thread:${id}`,
     )) as Row;
-    return toBotSummary(this.client.snapshot, thread, this.preferences.bots[id]);
+    const entry = companyTree(this.client.snapshot).entries.find((row) => row.thread.id === id);
+    return toBotSummary(this.client.snapshot, thread, this.preferences.bots[id], entry);
   }
 
   async updateBot(input: UpdateBotInput): Promise<BotSummary> {
@@ -478,7 +518,9 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     for (const row of change.rows) {
       const threadId = change.aggregateType === "thread" ? text(row.id) : text(row.threadId);
       if (
-        ["thread", "agent", "session", "project", "agentDefinition"].includes(change.aggregateType)
+        ["thread", "agent", "session", "project", "subproject", "task", "agentDefinition"].includes(
+          change.aggregateType,
+        )
       )
         this.markBots();
       if (threadId) this.dirty.add(threadId);

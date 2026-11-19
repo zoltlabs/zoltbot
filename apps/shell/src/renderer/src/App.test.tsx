@@ -33,6 +33,11 @@ const BOTS: BotSummary[] = [
     kind: "main",
     pinned: false,
     onboarding: true,
+    depth: 0,
+    companyRole: "chat",
+    roleLabel: "",
+    parentId: null,
+    projectName: "",
   },
   {
     id: "sales-outbound",
@@ -53,6 +58,11 @@ const BOTS: BotSummary[] = [
     kind: "main",
     pinned: false,
     onboarding: true,
+    depth: 0,
+    companyRole: "chat",
+    roleLabel: "",
+    parentId: null,
+    projectName: "",
   },
 ];
 
@@ -179,7 +189,9 @@ describe("Zoltbot connected desktop shell", () => {
             },
           ]),
           listBots: vi.fn().mockResolvedValue(BOTS),
-          createBot: vi.fn().mockResolvedValue({ ...BOTS[0], id: "bot-new", name: "New agent" }),
+          createBot: vi
+            .fn()
+            .mockResolvedValue({ ...BOTS[0], id: "bot-new", name: "New agent", onboarding: false }),
           updateBot: vi.fn().mockImplementation(async (input) => ({
             ...BOTS.find((bot) => bot.id === input.botId),
             ...input,
@@ -671,7 +683,7 @@ describe("Zoltbot connected desktop shell", () => {
     expect(screen.getByRole("heading", { name: "Sales Outbound" })).toBeInTheDocument();
   });
 
-  it("shows the specialty question immediately after creating a new agent", async () => {
+  it("opens a new agent ready to message, without OpenBot's specialty question", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
 
@@ -681,9 +693,11 @@ describe("Zoltbot connected desktop shell", () => {
     expect(await screen.findByRole("heading", { name: "New agent" })).toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Agent settings" })).not.toBeInTheDocument();
     expect(
-      await screen.findByRole("listbox", { name: "What do you want me helping with most?" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Message New agent")).toHaveAttribute("contenteditable", "true");
+      screen.queryByRole("listbox", { name: "What do you want me helping with most?" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Message New agent")).toHaveAttribute("contenteditable", "true"),
+    );
   });
 
   it("resizes and persists the left and right side panels", async () => {

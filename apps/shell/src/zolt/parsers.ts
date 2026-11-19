@@ -217,3 +217,10 @@ export function parseMacPermission(input: unknown): MacPermissionId {
   }
   return input;
 }
+
+export function parseCreateBot(input: unknown): { projectId?: string } {
+  if (input === undefined || input === null) return {};
+  if (!isObject(input)) throw new Error("Chat details are invalid.");
+  if (input.projectId === undefined || input.projectId === null) return {};
+  return { projectId: requireString(input.projectId, "projectId") };
+}

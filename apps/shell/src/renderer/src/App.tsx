@@ -107,10 +107,8 @@ export function App() {
     botId: string;
     nonce: number;
   } | null>(null);
-  const [onboardingRequest, setOnboardingRequest] = createSignal<{
-    botId: string;
-    nonce: number;
-  } | null>(null);
+  // Zoltbot agents start without OpenBot's specialty questions; the request stays unused.
+  const onboardingRequest = (): { botId: string; nonce: number } | null => null;
   const [pendingPrompts, setPendingPrompts] = createSignal<Record<string, PromptEvent | undefined>>(
     {},
   );
@@ -349,18 +347,45 @@ export function App() {
     setActiveTurns((current) => ({ ...current, [botId]: snapshot.activeTurnId }));
   }
 
-  async function createAgent() {
+  createEffect(() => window.openbot.setVisibleBot?.(activeBotId() || null));
+
+  async function createProject() {
     if (creatingAgent()) return;
     setCreatingAgent(true);
     try {
-      const stored = await window.openbot.agent.createBot();
-      const newAgent = createMutable(toBotProfile(stored));
-      setBotList((current) => [newAgent, ...current.filter((item) => item.id !== newAgent.id)]);
-      setLiveMessages((current) => ({ ...current, [newAgent.id]: [] }));
-      setConversationLoaded((current) => ({ ...current, [newAgent.id]: true }));
+      const stored = await window.openbot.agent.createProject();
+      if (stored) showCreatedAgent(stored);
+    } catch (error) {
+      if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
+    } finally {
+      setCreatingAgent(false);
+    }
+  }
+
+  function showCreatedAgent(stored: BotSummary) {
+    const newAgent = createMutable(toBotProfile(stored));
+    setBotList((current) => {
+      const rest = current.filter((item) => item.id !== newAgent.id);
+      let after = -1;
+      rest.forEach((item, index) => {
+        if (stored.projectId && item.projectId === stored.projectId) after = index;
+      });
+      return after < 0
+        ? [newAgent, ...rest]
+        : [...rest.slice(0, after + 1), newAgent, ...rest.slice(after + 1)];
+    });
+    setLiveMessages((current) => ({ ...current, [newAgent.id]: [] }));
+    setConversationLoaded((current) => ({ ...current, [newAgent.id]: true }));
+    setActiveBotId(newAgent.id);
+  }
+
+  async function createAgent(projectId?: string) {
+    if (creatingAgent()) return;
+    setCreatingAgent(true);
+    try {
+      const stored = await window.openbot.agent.createBot(projectId ? { projectId } : undefined);
+      showCreatedAgent(stored);
       setAgentPickerOpen(false);
-      setActiveBotId(newAgent.id);
-      setOnboardingRequest({ botId: newAgent.id, nonce: Date.now() });
     } catch (error) {
       setAgentPickerOpen(false);
       if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
@@ -658,6 +683,8 @@ export function App() {
               agentStates={sidebarAgentStates()}
               onSelectBot={selectBot}
               onCreateBot={() => setAgentPickerOpen(true)}
+              onCreateInProject={(projectId) => void createAgent(projectId)}
+              onCreateProject={() => void createProject()}
               onEditBot={editBot}
               onDeleteBot={deleteBot}
               onRefreshUsage={refreshAccountUsage}
@@ -753,6 +780,11 @@ function toBotProfile(stored: BotSummary): BotProfile {
     kind: stored.kind,
     pinned: stored.pinned,
     onboarding: stored.onboarding,
+    depth: stored.depth,
+    companyRole: stored.companyRole,
+    roleLabel: stored.roleLabel,
+    parentId: stored.parentId,
+    projectName: stored.projectName,
   };
 }
 

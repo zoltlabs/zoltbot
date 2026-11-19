@@ -1,0 +1,79 @@
+/* Projects and their company in the sidebar. Values follow the bot list in styles.css. */
+
+.bot-group-header {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0 4px 0 8px;
+}
+
+.bot-group-name {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bot-group-add.sidebar-icon-button {
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.bot-group-header:hover .bot-group-add,
+.bot-group-add:focus-visible {
+  opacity: 1;
+}
+
+.bot-row.bot-row-nested {
+  padding-left: calc(8px + var(--bot-depth, 0) * 14px);
+}
+
+.bot-row-heading .bot-row-title {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 6px;
+  color: inherit;
+  font-size: inherit;
+}
+
+.bot-row-role {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 16px;
+}
+
+.bot-new-project {
+  min-height: 36px;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.bot-new-project:hover {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.bot-new-project-icon {
+  display: inline-grid;
+  width: 30px;
+  height: 22px;
+  place-items: center;
+}
+
+.bot-new-project-icon svg {
+  width: 14px;
+  height: 14px;
+}

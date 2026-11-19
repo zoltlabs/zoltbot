@@ -56,6 +56,11 @@ export interface BotProfile {
   kind?: string;
   pinned?: boolean;
   onboarding?: boolean;
+  depth?: number;
+  companyRole?: string;
+  roleLabel?: string;
+  parentId?: string | null;
+  projectName?: string;
 }
 
 export function accentForAvatarColor(color: BotAvatarColor): BotAccent {

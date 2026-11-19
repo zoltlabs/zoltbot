@@ -11,7 +11,7 @@ const bot = {
 } as BotSummary;
 
 describe("notificationForAgentEvent", () => {
-  it("surfaces completed work and prompts for enabled agents", () => {
+  it("surfaces completed work and leaves prompts to the request planner", () => {
     expect(notificationForAgentEvent(completed("completed"), [bot])).toEqual({
       title: "Chief",
       body: "Finished working.",
@@ -28,7 +28,7 @@ describe("notificationForAgentEvent", () => {
         },
         [bot],
       ),
-    ).toEqual({ title: "Chief", body: "Needs your input." });
+    ).toBeNull();
   });
 
   it("ignores disabled agents, non-successful turns, and unrelated events", () => {

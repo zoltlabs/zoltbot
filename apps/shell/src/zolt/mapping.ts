@@ -9,9 +9,8 @@ import type {
   QueueSnapshot,
 } from "../shared/ipc";
 import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
+import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
 import type { Row, Snapshot } from "./daemon-client";
-
-export const VISIBLE_THREAD_KINDS = new Set(["main", "manager", "side"]);
 
 export const body = (row: Row | undefined): Row =>
   row?.body && typeof row.body === "object" && !Array.isArray(row.body) ? (row.body as Row) : {};
@@ -30,14 +29,18 @@ export function hash(value: string): number {
   return h >>> 0;
 }
 
+/** The chats the sidebar shows, in company order. */
 export function visibleThreads(snapshot: Snapshot): Row[] {
-  return (snapshot.entities.thread ?? [])
-    .filter((thread) => thread.archived !== true && VISIBLE_THREAD_KINDS.has(text(thread.kind)))
-    .sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned === true ? -1 : 1;
-      return text(b.lastActivityAt).localeCompare(text(a.lastActivityAt));
-    });
+  return companyTree(snapshot).entries.map((entry) => entry.thread);
 }
+
+const ROLE_LABELS: Record<CompanyRole, string> = {
+  chief: "Chief",
+  ceo: "CEO",
+  manager: "Manager",
+  employee: "Employee",
+  chat: "",
+};
 
 export function latestSession(snapshot: Snapshot, threadId: string): Row | undefined {
   let latest: Row | undefined;
@@ -80,11 +83,13 @@ export function toBotSummary(
   snapshot: Snapshot,
   thread: Row,
   preferences: BotPreferences = {},
+  entry?: TreeEntry,
 ): BotSummary {
   const threadId = text(thread.id);
   const profile = profileFor(snapshot, thread);
   const session = latestSession(snapshot, threadId);
-  const project = (snapshot.entities.project ?? []).find((row) => row.id === thread.projectId);
+  const projectId = entry ? entry.projectId : text(thread.projectId) || null;
+  const project = (snapshot.entities.project ?? []).find((row) => row.id === projectId);
   const roots = Array.isArray(project?.roots) ? (project.roots as Row[]) : [];
   const seed = hash(threadId);
   return {
@@ -106,10 +111,15 @@ export function toBotSummary(
       preferences.avatarColor ??
       (BOT_AVATAR_COLORS[(seed >>> 8) % BOT_AVATAR_COLORS.length] as BotAvatarColor),
     profileId: text(profile?.id),
-    projectId: text(thread.projectId) || null,
+    projectId,
     kind: text(thread.kind),
     pinned: thread.pinned === true,
     onboarding: false,
+    depth: entry?.depth ?? 0,
+    companyRole: entry?.role ?? "chat",
+    roleLabel: ROLE_LABELS[entry?.role ?? "chat"],
+    parentId: entry?.parentId ?? null,
+    projectName: text(project?.name),
   };
 }
 

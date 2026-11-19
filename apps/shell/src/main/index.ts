@@ -4,6 +4,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  ipcMain,
   Menu,
   Notification,
   type OpenDialogOptions,
@@ -30,10 +31,12 @@ import {
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { folderPicker } from "./desktop/folder-picker";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
+import { connectNotifications } from "./zolt-notifications";
 
 if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), "Zoltbot Shell Dev"));
 app.setName("Zoltbot");
@@ -52,6 +55,7 @@ const daemonHost = new DaemonHost(paths);
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
 let mainWindow: BrowserWindow | null = null;
+let visibleBotId: string | undefined;
 let isQuitting = false;
 let shutdownStarted = false;
 
@@ -94,6 +98,10 @@ function registerIpcHandlers(setupFile: string): void {
     requestMacPermission(parseMacPermission(permission)),
   );
   handleTrusted(IPC_CHANNELS.openExternal, () => shell.openExternal("https://zoltbot.ai"));
+  ipcMain.on(IPC_CHANNELS.setVisibleBot, (event, botId: unknown) => {
+    if (!isTrustedRendererUrl(event.senderFrame?.url)) return;
+    visibleBotId = typeof botId === "string" && botId ? botId : undefined;
+  });
   handleTrusted(IPC_CHANNELS.openUrl, (value: unknown) => {
     const url = new URL(requireString(value, "URL"));
     if (url.protocol !== "http:" && url.protocol !== "https:")
@@ -118,6 +126,18 @@ function registerIpcHandlers(setupFile: string): void {
 
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
+  const pickProjectFolder = folderPicker(() => {
+    const options: OpenDialogOptions = {
+      title: "Choose the project folder",
+      buttonLabel: "Create project",
+      properties: ["openDirectory", "createDirectory"],
+    };
+    return mainWindow ? dialog.showOpenDialog(mainWindow, options) : dialog.showOpenDialog(options);
+  });
+  handleTrusted(IPC_CHANNELS.agentCreateProject, async () => {
+    const [folder] = await pickProjectFolder();
+    return folder ? service.createProject(folder) : null;
+  });
   handleTrusted(IPC_CHANNELS.agentChooseAttachments, async () => {
     const options: OpenDialogOptions = { properties: ["openFile", "multiSelections"] };
     const result = mainWindow
@@ -340,6 +360,19 @@ if (!hasSingleInstanceLock) {
       configureAttachmentProtocol();
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
+      const requests = connectNotifications(client, {
+        focusedBot: () => (mainWindow?.isFocused() ? visibleBotId : undefined),
+        open: () => {
+          if (!mainWindow || mainWindow.isDestroyed()) return;
+          mainWindow.show();
+          mainWindow.focus();
+        },
+        failed: () => console.warn("A Zoltbot notification couldn't be shown."),
+        setBadge: (count) => app.dock?.setBadge(count ? String(count) : ""),
+      });
+      mainWindow.on("focus", requests.tick);
+      mainWindow.on("blur", requests.tick);
+      app.on("before-quit", requests.close);
       registerIpcHandlers(join(app.getPath("userData"), SETUP_FILE));
       configureApplicationMenu();
       await loadRenderer(mainWindow);

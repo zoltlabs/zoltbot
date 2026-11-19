@@ -6,6 +6,7 @@ export const IPC_CHANNELS = {
   requestMacPermission: "app:request-mac-permission",
   openExternal: "app:open-external",
   openUrl: "app:open-url",
+  setVisibleBot: "app:set-visible-bot",
   updateGetStatus: "update:get-status",
   updateCheck: "update:check",
   updateDownload: "update:download",
@@ -18,6 +19,7 @@ export const IPC_CHANNELS = {
   agentListModels: "agent:list-models",
   agentListBots: "agent:list-bots",
   agentCreateBot: "agent:create-bot",
+  agentCreateProject: "agent:create-project",
   agentUpdateBot: "agent:update-bot",
   agentDeleteBot: "agent:delete-bot",
   agentReadConversation: "agent:read-conversation",
@@ -94,6 +96,10 @@ export interface AgentProviderStatus {
   version: string | null;
   message: string | null;
   email?: string | null;
+}
+
+export interface CreateBotInput {
+  projectId?: string | null;
 }
 
 export interface AppSetupState {
@@ -173,6 +179,13 @@ export interface BotSummary {
   pinned: boolean;
   /** Ask what the agent should focus on when its chat is empty. */
   onboarding: boolean;
+  /** How far below the project's CEO this chat sits in the company. */
+  depth: number;
+  companyRole: "chief" | "ceo" | "manager" | "employee" | "chat";
+  /** Short role shown next to the name, empty for plain chats. */
+  roleLabel: string;
+  parentId: string | null;
+  projectName: string;
 }
 
 /** A model id reported by the provider, such as "claude-opus-5". */
@@ -510,7 +523,9 @@ export interface AgentDesktopApi {
   getUsage: () => Promise<AccountUsage>;
   listModels: () => Promise<AgentModelOption[]>;
   listBots: () => Promise<BotSummary[]>;
-  createBot: () => Promise<BotSummary>;
+  createBot: (input?: CreateBotInput) => Promise<BotSummary>;
+  /** Asks for a folder, then creates a project for it with its CEO. Null when cancelled. */
+  createProject: () => Promise<BotSummary | null>;
   updateBot: (input: UpdateBotInput) => Promise<BotSummary>;
   deleteBot: (botId: string) => Promise<void>;
   readConversation: (botId: string) => Promise<ConversationSnapshot>;
@@ -558,6 +573,8 @@ export interface OpenBotDesktopApi {
   requestMacPermission: (permission: MacPermissionId) => Promise<MacPermissionsState>;
   openExternal: (destination: ExternalDestination) => Promise<void>;
   openUrl: (url: string) => Promise<void>;
+  /** Tells main which chat is on screen, so its requests don't notify. */
+  setVisibleBot: (botId: string | null) => void;
   agent: AgentDesktopApi;
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;

@@ -111,6 +111,24 @@ describe("ZoltService against a real daemon", () => {
     );
   });
 
+  it("creates a project with its CEO and places new chats under it", async () => {
+    const { service } = await setup();
+    const ceo = await service.createProject(mkdtempSync(join(tmpdir(), "launch-")));
+    expect(ceo).toMatchObject({ companyRole: "ceo", kind: "manager" });
+    const chat = await service.createBot({ projectId: ceo.projectId });
+    const bots = await until(() => {
+      const rows = service.listBots();
+      return rows.some((row) => row.id === chat.id) && rows.some((row) => row.id === ceo.id)
+        ? rows
+        : undefined;
+    });
+    const ceoRow = bots.find((row) => row.id === ceo.id);
+    expect(ceoRow?.projectName).toMatch(/^launch-/);
+    expect(bots.findIndex((row) => row.id === chat.id)).toBeGreaterThan(
+      bots.findIndex((row) => row.id === ceo.id),
+    );
+  });
+
   it("renames and archives a chat through the daemon", async () => {
     const { service } = await setup();
     const bot = await service.createBot({ profileId: "profile" });

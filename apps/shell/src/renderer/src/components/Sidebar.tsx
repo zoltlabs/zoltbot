@@ -20,6 +20,8 @@ interface SidebarProps {
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
   onCreateBot: () => void;
+  onCreateInProject: (projectId: string) => void;
+  onCreateProject: () => void;
   onEditBot: (botId: string) => void;
   onDeleteBot: (botId: string) => Promise<void>;
   onRefreshUsage: () => Promise<AccountUsage>;
@@ -201,6 +203,24 @@ export function Sidebar(props: SidebarProps) {
         )
       : props.bots;
   });
+  /** Rows start a new group where the project changes, unless the list is filtered. */
+  const groupHeading = (index: number) => {
+    if (query().trim()) return undefined;
+    const bots = filteredBots();
+    const bot = bots[index];
+    const previous = index > 0 ? bots[index - 1] : undefined;
+    if (!bot || (previous && (previous.projectId ?? null) === (bot.projectId ?? null)))
+      return undefined;
+    if (bot.projectId)
+      return {
+        projectId: bot.projectId,
+        name: bot.projectName || "Project",
+        title: bot.projectName,
+      };
+    return previous
+      ? { projectId: null, name: "Chats", title: "Chats outside a project" }
+      : undefined;
+  };
   const accountEmail = createMemo(() => {
     const auth = props.agentStatus.auth;
     return auth.kind === "chatgpt" || auth.kind === "claude" ? auth.email : null;
@@ -427,48 +447,87 @@ export function Sidebar(props: SidebarProps) {
           }
         >
           <For each={filteredBots()}>
-            {(bot) => (
-              <button
-                type="button"
-                class="bot-row"
-                classList={{
-                  "bot-row-active": props.activeBotId === bot.id,
-                  "bot-row-menu-open": contextMenu()?.botId === bot.id,
-                }}
-                aria-pressed={props.activeBotId === bot.id}
-                onClick={() => props.onSelectBot(bot.id)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  openContextMenu(bot.id, event.clientX, event.clientY);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
-                    return;
-                  }
-                  event.preventDefault();
-                  const bounds = event.currentTarget.getBoundingClientRect();
-                  openContextMenu(bot.id, bounds.left + 28, bounds.top + 32);
-                }}
-              >
-                <span class="bot-row-avatar">
-                  <AgentAvatar bot={bot} />
-                  <Show when={props.agentStates[bot.id]}>
-                    {(state) => <SidebarAgentIndicator state={state()} />}
-                  </Show>
-                </span>
-                <span class="bot-row-copy">
-                  <span class="bot-row-heading">
-                    <strong>{bot.name}</strong>
-                    <span>{bot.time}</span>
-                  </span>
-                  <span class="bot-row-preview">{bot.preview}</span>
-                </span>
-                <Show when={props.agentStates[bot.id]}>
-                  {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
+            {(bot, index) => (
+              <>
+                <Show when={groupHeading(index())}>
+                  {(heading) => (
+                    <div class="bot-group-header">
+                      <span class="bot-group-name" title={heading().title}>
+                        {heading().name}
+                      </span>
+                      <Show when={heading().projectId}>
+                        {(projectId) => (
+                          <button
+                            type="button"
+                            class="sidebar-icon-button bot-group-add"
+                            aria-label={`New chat in ${heading().name}`}
+                            title={`New chat in ${heading().name}`}
+                            onClick={() => props.onCreateInProject(projectId())}
+                          >
+                            <PlusIcon />
+                          </button>
+                        )}
+                      </Show>
+                    </div>
+                  )}
                 </Show>
-              </button>
+                <button
+                  type="button"
+                  class="bot-row"
+                  classList={{
+                    "bot-row-active": props.activeBotId === bot.id,
+                    "bot-row-menu-open": contextMenu()?.botId === bot.id,
+                    "bot-row-nested": (bot.depth ?? 0) > 0,
+                  }}
+                  style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
+                  aria-pressed={props.activeBotId === bot.id}
+                  onClick={() => props.onSelectBot(bot.id)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    openContextMenu(bot.id, event.clientX, event.clientY);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+                      return;
+                    }
+                    event.preventDefault();
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    openContextMenu(bot.id, bounds.left + 28, bounds.top + 32);
+                  }}
+                >
+                  <span class="bot-row-avatar">
+                    <AgentAvatar bot={bot} />
+                    <Show when={props.agentStates[bot.id]}>
+                      {(state) => <SidebarAgentIndicator state={state()} />}
+                    </Show>
+                  </span>
+                  <span class="bot-row-copy">
+                    <span class="bot-row-heading">
+                      <span class="bot-row-title">
+                        <strong>{bot.name}</strong>
+                        <Show when={bot.roleLabel}>
+                          <em class="bot-row-role">{bot.roleLabel}</em>
+                        </Show>
+                      </span>
+                      <span>{bot.time}</span>
+                    </span>
+                    <span class="bot-row-preview">{bot.preview}</span>
+                  </span>
+                  <Show when={props.agentStates[bot.id]}>
+                    {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
+                  </Show>
+                </button>
+              </>
             )}
           </For>
+        </Show>
+        <Show when={!query().trim()}>
+          <button type="button" class="bot-row bot-new-project" onClick={props.onCreateProject}>
+            <span class="bot-new-project-icon" aria-hidden="true">
+              <PlusIcon />
+            </span>
+            <span class="bot-row-copy">New project</span>
+          </button>
         </Show>
       </nav>
 

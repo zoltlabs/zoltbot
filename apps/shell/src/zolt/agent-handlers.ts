@@ -1,6 +1,7 @@
 import { IPC_CHANNELS } from "../shared/ipc";
 import {
   parseCancelQueuedMessage,
+  parseCreateBot,
   parseInterrupt,
   parseMessageReaction,
   parsePromptResponse,
@@ -23,7 +24,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentGetUsage]: () => service.getUsage(),
     [IPC_CHANNELS.agentListModels]: () => service.listModels(),
     [IPC_CHANNELS.agentListBots]: () => service.listBots(),
-    [IPC_CHANNELS.agentCreateBot]: () => service.createBot(),
+    [IPC_CHANNELS.agentCreateBot]: (input) => service.createBot(parseCreateBot(input)),
     [IPC_CHANNELS.agentUpdateBot]: (input) => service.updateBot(parseUpdateBot(input)),
     [IPC_CHANNELS.agentDeleteBot]: (botId) => service.deleteBot(requireString(botId, "botId")),
     [IPC_CHANNELS.agentReadConversation]: (botId) =>

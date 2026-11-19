@@ -1,4 +1,6 @@
+import { mkdtempSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
@@ -42,6 +44,8 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.browserGetControlState]: () => ({ sessions: [] }),
     [IPC_CHANNELS.browserSetVisible]: () => undefined,
     [IPC_CHANNELS.agentChooseAttachments]: () => [],
+    [IPC_CHANNELS.agentCreateProject]: () =>
+      service.createProject(mkdtempSync(join(tmpdir(), "launch-"))),
   };
 }
 
@@ -93,12 +97,14 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       requestMacPermission: call(channels.requestMacPermission),
       openExternal: async () => undefined,
       openUrl: async () => undefined,
+      setVisibleBot: () => undefined,
       agent: {
         getStatus: call(channels.agentGetStatus),
         getUsage: call(channels.agentGetUsage),
         listModels: call(channels.agentListModels),
         listBots: call(channels.agentListBots),
         createBot: call(channels.agentCreateBot),
+        createProject: call(channels.agentCreateProject),
         updateBot: call(channels.agentUpdateBot),
         deleteBot: call(channels.agentDeleteBot),
         readConversation: call(channels.agentReadConversation),
