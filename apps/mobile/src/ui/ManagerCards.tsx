@@ -158,7 +158,7 @@ function ResultCard({ card }: { card: ResultCardData }) {
   const open = card.status === "review" && !decided;
   const status = decided === "accepted" ? "Accepted" : decided === "sent_back" ? "Sent back" : "";
   const title = resultTitle(card);
-  const tests = testsText(card.tests);
+  const tests = testsText(card.tests, card.testLabel);
   const disabled = !online || busy;
   return (
     <Card attention={open} label={title}>
@@ -196,6 +196,7 @@ function ResultCard({ card }: { card: ResultCardData }) {
           <>
             <Button
               label="Accept"
+              style={styles.small}
               kind="primary"
               a11y={`Accept ${card.title}`}
               disabled={disabled}
@@ -203,6 +204,7 @@ function ResultCard({ card }: { card: ResultCardData }) {
             />
             <Button
               label="Send back"
+              style={styles.small}
               a11y={`Send back ${card.title}`}
               disabled={disabled}
               onPress={sendBack}
@@ -212,6 +214,7 @@ function ResultCard({ card }: { card: ResultCardData }) {
         {card.owner.threadId ? (
           <Button
             label="Open chat"
+            style={styles.small}
             a11y={`Open ${card.owner.name}’s chat`}
             onPress={() => openChat(card.owner.threadId)}
           />
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
   resultHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   resultBody: { gap: 4, paddingLeft: 34 },
   note: { marginTop: 4 },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingLeft: 34 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   notice: { paddingHorizontal: 20, gap: 4, minHeight: 24, justifyContent: "center" },
   center: { textAlign: "center" },
   waiting: {

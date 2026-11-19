@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { delegationSpend, managerRows, noticeFor, noticeText, rowMeta } from "./manager.js";
+import {
+  delegationSpend,
+  managerRows,
+  noticeFor,
+  noticeText,
+  rowMeta,
+  testsText,
+} from "./manager.js";
 import { transcript } from "./timeline.js";
 import type { Row, Snapshot } from "./transport.js";
 
@@ -213,5 +220,12 @@ describe("manager chat", () => {
         now,
       ),
     ).toBe("Queued · Waits on Refund endpoint");
+  });
+
+  it("counts the tests when the evidence names them", () => {
+    expect(testsText("passed", "14 tests")).toBe("14 tests passed");
+    expect(testsText("failed", "14 tests")).toBe("14 tests failed");
+    expect(testsText("partial", "14 tests")).toBe("Some tests failed");
+    expect(testsText("passed")).toBe("Tests passed");
   });
 });

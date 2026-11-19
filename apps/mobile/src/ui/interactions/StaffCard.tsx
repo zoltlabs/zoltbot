@@ -165,13 +165,13 @@ function StaffCardBody({
           </View>
         </View>
       ) : null}
-      <View accessibilityLiveRegion="polite">
-        {answer.error ? (
+      {answer.error ? (
+        <View accessibilityLiveRegion="polite">
           <Txt v="meta" tone="danger">
             {answer.error}
           </Txt>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       {pending ? (
         <View style={styles.buttons}>
           <Button

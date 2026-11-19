@@ -27,6 +27,7 @@ export function CheckRow({
       accessibilityLabel={[label, note].filter(Boolean).join(", ")}
       style={({ pressed }) => [
         styles.check,
+        !note && styles.centered,
         pressed && { opacity: 0.7 },
         disabled && { opacity: 0.5 },
       ]}
@@ -117,6 +118,7 @@ export function Stepper({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   check: { flexDirection: "row", alignItems: "flex-start", gap: 12, minHeight: touch },
+  centered: { alignItems: "center" },
   box: {
     width: 22,
     height: 22,

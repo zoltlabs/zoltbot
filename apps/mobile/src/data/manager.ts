@@ -62,6 +62,8 @@ export type ManagerCard =
       status: TaskStatus;
       files: string[];
       tests?: "passed" | "failed" | "partial";
+      /** What the test evidence calls the run, such as "14 tests". */
+      testLabel?: string;
       costUsd?: number;
       budgetUsd?: number;
       /** The manager's words right after the result arrived. */
@@ -259,6 +261,8 @@ function resultCard(snapshot: Snapshot, threadId: string, task: Row, result: Row
     .sort((a, b) => Number(a.seq) - Number(b.seq))[0];
   const costUsd = cost(snapshot, task);
   const tests = VALIDATION[text(validation?.validationState)];
+  const evidence = Array.isArray(validation?.evidence) ? (validation.evidence as Row[]) : [];
+  const testLabel = text(evidence.find((row) => row.kind === "test")?.label);
   const said = note ? line(text(body(note).text)) : "";
   const card: ManagerCard = {
     kind: "result",
@@ -269,6 +273,7 @@ function resultCard(snapshot: Snapshot, threadId: string, task: Row, result: Row
     status: text(task.state) as TaskStatus,
     files: Array.isArray(result.files) ? (result.files as unknown[]).map(text) : [],
     ...(tests ? { tests } : {}),
+    ...(tests && testLabel ? { testLabel } : {}),
     ...(costUsd !== undefined ? { costUsd } : {}),
     ...(typeof task.budgetUsd === "number" ? { budgetUsd: task.budgetUsd } : {}),
     ...(said ? { note: said.slice(0, 280) } : {}),
@@ -479,7 +484,12 @@ const TESTS: Record<string, string> = {
   failed: "Tests failed",
   partial: "Some tests failed",
 };
-export const testsText = (tests: string | undefined) => (tests ? (TESTS[tests] ?? "") : "");
+/** "14 tests passed" when the evidence counts them, otherwise "Tests passed". */
+export function testsText(tests: string | undefined, label?: string): string {
+  const said = tests ? (TESTS[tests] ?? "") : "";
+  if (!said || !label || tests === "partial") return said;
+  return `${label} ${said.slice("Tests ".length)}`;
+}
 /** "Theo finished Add invoice rounding test". */
 export function resultTitle(card: Extract<ManagerCard, { kind: "result" }>): string {
   const verb = card.status === "failed" ? "couldn't finish" : "finished";

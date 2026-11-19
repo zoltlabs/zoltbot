@@ -47,13 +47,13 @@ export function SwitchPrompt({
         onChange={setRemember}
         disabled={answer.disabled}
       />
-      <View accessibilityLiveRegion="polite">
-        {answer.error ? (
+      {answer.error ? (
+        <View accessibilityLiveRegion="polite">
           <Txt v="meta" tone="danger">
             {answer.error}
           </Txt>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       <View style={styles.buttons}>
         <Button
           label="Wait"
