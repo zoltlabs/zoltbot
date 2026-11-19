@@ -33,6 +33,8 @@ export interface TaskInput {
   planned?: boolean;
   budgetUsd?: number;
   authorityPlanId?: string;
+  /** The channel request whose lead assigned this task. */
+  requestId?: string;
   outputMode?: OutputMode;
   id: string;
   title: string;
@@ -218,6 +220,7 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
         }
       : {}),
     ...(input.authorityPlanId ? { authorityPlanId: input.authorityPlanId } : {}),
+    ...(input.requestId ? { requestId: input.requestId } : {}),
     ...(input.budgetUsd !== undefined ? { budgetUsd: input.budgetUsd } : {}),
     ...(input.sourceMessageId ? { sourceMessageId: input.sourceMessageId } : {}),
     dependencies: input.dependencies ?? [],

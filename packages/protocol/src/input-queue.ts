@@ -10,6 +10,8 @@ export const InputNoticeSchema = object({
   type: Type.Optional(values(["brief", "question", "update", "reply", "report"])),
   messageId: Type.Optional(Id),
   fromThreadId: Type.Optional(Id),
+  /** The channel a team message was posted in. */
+  channelId: Type.Optional(Id),
   taskId: Type.Optional(Id),
   state: Type.Optional(Id),
   waitId: Type.Optional(Id),

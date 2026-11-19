@@ -13,3 +13,6 @@ application, backups and rollback handling remain in the migration runner.
 Migration 009 adds the target index used by scoped audit reads. A project reads
 its own target records and its tasks' records; a task reads only its own. The
 lookup does not load audit records from another project.
+
+Migration 014 adds team channels: `channels`, `channel_posts` and `channel_requests`. The
+full records live in `projection_records`; these tables index them by project and channel.

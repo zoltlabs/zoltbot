@@ -7,6 +7,10 @@ export const MessageSchema = object({
   /** The exact chat that sent it, so a reply returns there even when chats share a profile. */
   fromThread: Type.Optional(Id),
   task: Type.Optional(Id),
+  /** Set when the message is a channel post; the post is also in the channel transcript. */
+  channelId: Type.Optional(Id),
+  /** The channel request the message belongs to, so tasks assigned in reply carry it. */
+  requestId: Type.Optional(Id),
   from: ActorSchema,
   to: Type.Array(ActorSchema, { minItems: 1, maxItems: 32 }),
   kind: values(["message", "task", "result", "review_request", "review_result", "control"]),
