@@ -2,12 +2,14 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { type AnswerDraft, approvalAnswer } from "../../data/interactions";
+import { isStaffApproval } from "../../data/staff";
 import { ago, type NeedsYouItem, needsYou, recentlyDone, workingNow } from "../../data/view";
 import { answer, useAction } from "../../state/actions";
 import { useClient, useSnapshot } from "../../state/link";
 import { mono, useTheme } from "../../theme";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { TabScreen } from "../../ui/chrome";
+import { StaffCard } from "../../ui/interactions/StaffCard";
 import { Button, Card, Chip, Group, Row, Section, Txt } from "../../ui/kit";
 
 function Approval({
@@ -163,9 +165,14 @@ export default function Overview() {
           Nothing needs you right now.
         </Txt>
       ) : null}
-      {approvals.map((item) => (
-        <Approval key={item.id} item={item} online={online} />
-      ))}
+      {approvals.map((item) => {
+        const request = snapshot.entities.interaction?.find((row) => row.id === item.id);
+        return isStaffApproval(request) && request ? (
+          <StaffCard key={item.id} request={request} showChat />
+        ) : (
+          <Approval key={item.id} item={item} online={online} />
+        );
+      })}
       {rest.length ? (
         <Group>
           {rest.map((item, index) => (
