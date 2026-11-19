@@ -259,6 +259,8 @@ describe("Zoltbot connected desktop shell", () => {
           setQueuePaused: vi.fn().mockResolvedValue(undefined),
           interrupt: vi.fn().mockResolvedValue(undefined),
           respondToPrompt: vi.fn().mockResolvedValue(undefined),
+          listTasks: vi.fn().mockResolvedValue([]),
+          reviewTask: vi.fn().mockResolvedValue(undefined),
           onEvent: vi.fn((listener) => {
             emitAgentEvent = listener;
             return () => undefined;
@@ -760,6 +762,39 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.input(search, { target: { value: "Sales" } });
     await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
     expect(screen.getByRole("heading", { name: "Sales Outbound" })).toBeInTheDocument();
+  });
+
+  it("opens the Tasks page from the sidebar and with Command-T", async () => {
+    vi.mocked(window.openbot.agent.listTasks).mockResolvedValue([
+      {
+        id: "retries",
+        title: "Add webhook retries",
+        projectId: null,
+        projectName: "",
+        state: "review",
+        revision: 1,
+        reason: "",
+        atLimit: false,
+        threadId: null,
+        owner: { profileId: "mira", name: "Mira" },
+        teamId: null,
+        teamName: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    const row = await screen.findByRole("button", { name: /^Tasks.*1.*need you$/ });
+    await fireEvent.click(row);
+    expect(screen.getByRole("main", { name: "Tasks" })).toBeVisible();
+    expect(row).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Add webhook retries")).toBeVisible();
+
+    await fireEvent.keyDown(window, { key: "t", metaKey: true });
+    expect(screen.queryByRole("main", { name: "Tasks" })).not.toBeInTheDocument();
+    await fireEvent.keyDown(window, { key: "t", metaKey: true });
+    expect(screen.getByRole("main", { name: "Tasks" })).toBeVisible();
   });
 
   it("opens a new agent ready to message, without OpenBot's specialty question", async () => {

@@ -74,6 +74,7 @@
   --icon-danger: #dc6d65;
   --text-success: #8dc29c;
   --text-accent: #74cbbb;
+  --text-warning: #f0c46a;
   --text-info: #a9c8ff;
   --text-info-strong: rgba(221, 233, 255, 0.94);
   --text-file-badge: #ff9d69;
@@ -160,6 +161,7 @@
     --icon-danger: #c0392f;
     --text-success: #2c7444;
     --text-accent: #1d7566;
+    --text-warning: #8a5a00;
     --text-info: #1f5fc4;
     --text-info-strong: #1a4a9e;
     --text-file-badge: #a8471a;

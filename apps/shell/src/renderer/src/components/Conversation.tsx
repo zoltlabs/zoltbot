@@ -76,6 +76,8 @@ interface ConversationProps {
   onToggleLeftSidebar: () => void;
   onOpenAgentSetup: () => Promise<void>;
   onStop: () => void;
+  /** Opens the Tasks page for a project, from its Organization panel. */
+  onOpenTasks?: (projectId: string) => void;
 }
 
 interface ComposerDraft {
@@ -2352,6 +2354,7 @@ export function Conversation(props: ConversationProps) {
               projectId={projectId}
               bots={props.bots}
               onOpenChat={openFromOrganization}
+              onOpenTasks={props.onOpenTasks}
               onClose={() => setActiveRightPanel("none")}
             />
           </aside>

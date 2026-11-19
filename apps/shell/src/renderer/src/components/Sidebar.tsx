@@ -17,13 +17,38 @@ import type {
   ExternalDestination,
   UpdateStatus,
 } from "../../../shared/ipc";
+import type { TaskSummary } from "../../../shared/tasks";
 import type { BotProfile } from "../data";
+import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { SidebarEmployeeRow } from "./SidebarEmployee";
+import {
+  AccountIcon,
+  CloseIcon,
+  DeleteIcon,
+  EditIcon,
+  FeedbackIcon,
+  MapIcon,
+  MessageIcon,
+  PermissionsIcon,
+  PlusIcon,
+  SearchIcon,
+  SidebarToggleIcon,
+  TasksIcon,
+  UpdateIcon,
+  UsageIcon,
+} from "./SidebarIcons";
+
+export { SidebarToggleIcon };
 
 interface SidebarProps {
   bots: BotProfile[];
+  /** Every task, for the Needs you count and employees running several tasks. */
+  tasks: TaskSummary[];
   activeBotId: string;
   mapOpen: boolean;
+  tasksOpen: boolean;
+  onOpenTasks: () => void;
   appInfo: AppInfo | null;
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
@@ -93,143 +118,6 @@ interface BotContextMenu {
   y: number;
 }
 
-function SearchIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
-      <circle cx="8.5" cy="8.5" r="5.5" stroke-width="1.6" />
-      <path d="m12.7 12.7 3.6 3.6" stroke-width="1.6" stroke-linecap="round" />
-    </svg>
-  );
-}
-
-function MapIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
-      <path
-        d="m3.5 5.2 4.2-1.7 4.6 1.8 4.2-1.7v11.2l-4.2 1.7-4.6-1.8-4.2 1.7V5.2Z"
-        stroke-width="1.4"
-        stroke-linejoin="round"
-      />
-      <path d="M7.7 3.5v11.3M12.3 5.3v11.3" stroke-width="1.4" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-[18px] fill-none stroke-current">
-      <path d="M10 4v12M4 10h12" stroke-width="1.5" stroke-linecap="round" />
-    </svg>
-  );
-}
-
-export function SidebarToggleIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="sidebar-toggle-icon">
-      <rect x="2.75" y="3.25" width="14.5" height="13.5" rx="2.25" />
-      <path d="M7.25 3.75v12.5" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="bot-context-icon size-4 fill-none stroke-current"
-    >
-      <path d="m12.6 4.2 3.2 3.2-8.7 8.7-3.8.6.6-3.8 8.7-8.7Z" stroke-width="1.4" />
-      <path d="m10.9 5.9 3.2 3.2" stroke-width="1.4" />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="bot-context-icon bot-context-danger-icon size-4 fill-none stroke-current"
-    >
-      <path
-        d="M4.5 6.2h11M8 3.8h4M6.2 6.2l.7 9.3h6.2l.7-9.3M8.4 8.7v4.5M11.6 8.7v4.5"
-        stroke-width="1.35"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-  );
-}
-
-function UsageIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <path d="M4.2 13.9a6.5 6.5 0 1 1 11.6 0" />
-      <path d="m10 10 3.1-2.3" />
-      <circle cx="10" cy="10" r="1" class="account-menu-icon-fill" />
-    </svg>
-  );
-}
-
-function FeedbackIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <path d="M4 5.2h12v8.6H9l-3.5 2.4v-2.4H4V5.2Z" />
-      <path d="M7 8.2h6M7 10.8h4" />
-    </svg>
-  );
-}
-
-function MessageIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <path d="M3.8 4.8h12.4v10.4H3.8V4.8Z" />
-      <path d="m4.5 5.6 5.5 4.2 5.5-4.2" />
-    </svg>
-  );
-}
-
-function UpdateIcon(props: { active: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="account-menu-icon"
-      classList={{ "account-menu-icon-spinning": props.active }}
-    >
-      <path d="M15.4 6.8A6 6 0 1 0 16 10" />
-      <path d="M15.4 3.8v3h-3" />
-    </svg>
-  );
-}
-
-function AccountIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <circle cx="10" cy="7.4" r="3" />
-      <path d="M4.6 16.2c.8-2.7 2.9-4.2 5.4-4.2s4.6 1.5 5.4 4.2" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <path d="m6 6 8 8M14 6l-8 8" />
-    </svg>
-  );
-}
-
-function PermissionsIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="account-menu-icon">
-      <path d="M10 2.9 15.5 5v4.6c0 3.6-2.2 6.3-5.5 7.5-3.3-1.2-5.5-3.9-5.5-7.5V5L10 2.9Z" />
-      <path d="m7.6 9.9 1.5 1.5 3.3-3.4" />
-    </svg>
-  );
-}
-
 export function Sidebar(props: SidebarProps) {
   const [query, setQuery] = createSignal("");
   const [contextMenu, setContextMenu] = createSignal<BotContextMenu | null>(null);
@@ -253,12 +141,24 @@ export function Sidebar(props: SidebarProps) {
         )
       : props.bots;
   });
+  const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
+  const stable = stableEntries();
+  /** Bots in order; an employee running several tasks becomes one row, unless filtered. */
+  const entries = createMemo(() =>
+    stable(
+      query().trim()
+        ? filteredBots().map((bot): SidebarEntry => ({ kind: "bot", bot }))
+        : sidebarEntries(props.bots, props.tasks),
+    ),
+  );
+  const firstBot = (entry: SidebarEntry | undefined) =>
+    entry?.kind === "employee" ? entry.employee.bots[0] : entry?.bot;
+  const needsYou = createMemo(() => needsYouCount(props.tasks));
   /** Rows start a new group where the project changes, unless the list is filtered. */
   const groupHeading = (index: number) => {
     if (query().trim()) return undefined;
-    const bots = filteredBots();
-    const bot = bots[index];
-    const previous = index > 0 ? bots[index - 1] : undefined;
+    const bot = firstBot(entries()[index]);
+    const previous = index > 0 ? firstBot(entries()[index - 1]) : undefined;
     if (!bot || (previous && (previous.projectId ?? null) === (bot.projectId ?? null)))
       return undefined;
     if (bot.projectId)
@@ -502,6 +402,25 @@ export function Sidebar(props: SidebarProps) {
           </span>
           <span class="bot-row-copy">Map</span>
         </button>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.tasksOpen }}
+          aria-pressed={props.tasksOpen}
+          aria-keyshortcuts="Meta+T"
+          onClick={props.onOpenTasks}
+        >
+          <span class="sidebar-map-icon">
+            <TasksIcon />
+          </span>
+          <span class="bot-row-copy">Tasks</span>
+          <Show when={needsYou() > 0}>
+            <span class="sidebar-tasks-count">
+              {needsYou()}
+              <span class="sr-only"> need you</span>
+            </span>
+          </Show>
+        </button>
       </div>
 
       <div class="sidebar-search-wrap">
@@ -534,31 +453,9 @@ export function Sidebar(props: SidebarProps) {
             <p class="empty-search">{props.bots.length ? "No matches" : "No agents yet"}</p>
           }
         >
-          <For each={filteredBots()}>
-            {(bot, index) => (
-              <>
-                <Show when={groupHeading(index())}>
-                  {(heading) => (
-                    <div class="bot-group-header">
-                      <span class="bot-group-name" title={heading().title}>
-                        {heading().name}
-                      </span>
-                      <Show when={heading().projectId}>
-                        {(projectId) => (
-                          <button
-                            type="button"
-                            class="sidebar-icon-button bot-group-add"
-                            aria-label={`New chat in ${heading().name}`}
-                            title={`New chat in ${heading().name}`}
-                            onClick={() => props.onCreateInProject(projectId())}
-                          >
-                            <PlusIcon />
-                          </button>
-                        )}
-                      </Show>
-                    </div>
-                  )}
-                </Show>
+          <For each={entries()}>
+            {(entry, index) => {
+              const botRow = (bot: BotProfile) => (
                 <button
                   type="button"
                   class="bot-row"
@@ -605,8 +502,53 @@ export function Sidebar(props: SidebarProps) {
                     {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
                   </Show>
                 </button>
-              </>
-            )}
+              );
+              return (
+                <>
+                  <Show when={groupHeading(index())}>
+                    {(heading) => (
+                      <div class="bot-group-header">
+                        <span class="bot-group-name" title={heading().title}>
+                          {heading().name}
+                        </span>
+                        <Show when={heading().projectId}>
+                          {(projectId) => (
+                            <button
+                              type="button"
+                              class="sidebar-icon-button bot-group-add"
+                              aria-label={`New chat in ${heading().name}`}
+                              title={`New chat in ${heading().name}`}
+                              onClick={() => props.onCreateInProject(projectId())}
+                            >
+                              <PlusIcon />
+                            </button>
+                          )}
+                        </Show>
+                      </div>
+                    )}
+                  </Show>
+                  {entry.kind === "employee" ? (
+                    <SidebarEmployeeRow
+                      employee={entry.employee}
+                      expanded={expanded()[entry.employee.key] === true}
+                      activeBotId={props.activeBotId}
+                      working={entry.employee.bots.some(
+                        (bot) => props.agentStates[bot.id]?.kind === "working",
+                      )}
+                      onToggle={() =>
+                        setExpanded((current) => ({
+                          ...current,
+                          [entry.employee.key]: !current[entry.employee.key],
+                        }))
+                      }
+                      onSelectBot={props.onSelectBot}
+                    />
+                  ) : (
+                    botRow(entry.bot)
+                  )}
+                </>
+              );
+            }}
           </For>
         </Show>
         <Show when={!query().trim()}>

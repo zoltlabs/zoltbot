@@ -25,7 +25,9 @@ import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
+import { TasksPage } from "./components/TasksPage";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
+import { createTasksStore } from "./tasks-store";
 
 const FALLBACK_STATUS: AgentStatus = {
   phase: "starting",
@@ -86,6 +88,9 @@ export function App() {
   const [modelOptions, setModelOptions] = createSignal<AgentModelOption[]>([]);
   const [activeBotId, setActiveBotId] = createSignal("");
   const [mapOpen, setMapOpen] = createSignal(false);
+  const [tasksOpen, setTasksOpen] = createSignal(false);
+  const [tasksProject, setTasksProject] = createSignal<string | null>(null);
+  const tasks = createTasksStore();
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
   const [uiErrors, setUiErrors] = createSignal<Record<string, BotMessage[]>>({});
   const [conversationLoaded, setConversationLoaded] = createSignal<Record<string, boolean>>({});
@@ -141,6 +146,26 @@ export function App() {
   const activeMessages = createMemo(() => {
     const bot = activeBot();
     return bot ? [...(liveMessages()[bot.id] ?? []), ...(uiErrors()[bot.id] ?? [])] : [];
+  });
+
+  /** Shows the Tasks page for a project, or for the open chat's project. */
+  function openTasks(projectId?: string | null) {
+    setMapOpen(false);
+    setAgentPickerOpen(false);
+    setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
+    setTasksOpen(true);
+  }
+
+  onMount(() => {
+    const toggleTasks = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+      if (event.key.toLowerCase() !== "t" || !setupDone()) return;
+      event.preventDefault();
+      if (tasksOpen()) setTasksOpen(false);
+      else openTasks();
+    };
+    window.addEventListener("keydown", toggleTasks);
+    onCleanup(() => window.removeEventListener("keydown", toggleTasks));
   });
 
   onMount(() => {
@@ -406,6 +431,7 @@ export function App() {
 
   function selectBot(botId: string) {
     setMapOpen(false);
+    setTasksOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -716,9 +742,15 @@ export function App() {
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}
-              activeBotId={mapOpen() ? "" : (activeBot()?.id ?? "")}
+              tasks={tasks.tasks()}
+              activeBotId={mapOpen() || tasksOpen() ? "" : (activeBot()?.id ?? "")}
               mapOpen={mapOpen()}
-              onOpenMap={() => setMapOpen(true)}
+              tasksOpen={tasksOpen()}
+              onOpenMap={() => {
+                setTasksOpen(false);
+                setMapOpen(true);
+              }}
+              onOpenTasks={() => openTasks()}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -755,7 +787,7 @@ export function App() {
             </Sidebar>
           </Show>
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
-          <div class="conversation-slot" inert={mapOpen() || undefined}>
+          <div class="conversation-slot" inert={mapOpen() || tasksOpen() || undefined}>
             <Conversation
               agentStatus={agentStatus()}
               bot={activeBot()}
@@ -788,8 +820,19 @@ export function App() {
               onToggleLeftSidebar={() => setSidebarCollapsed(false)}
               onOpenAgentSetup={async () => void setPermissionsOpen(true)}
               onStop={stopActiveTurn}
+              onOpenTasks={openTasks}
             />
           </div>
+          <Show when={tasksOpen()}>
+            <TasksPage
+              store={tasks}
+              bots={botList()}
+              projectId={tasksProject()}
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+              onOpenChat={selectBot}
+            />
+          </Show>
           <Show when={mapOpen()}>
             <MapView
               sidebarCollapsed={leftPanelCollapsed()}

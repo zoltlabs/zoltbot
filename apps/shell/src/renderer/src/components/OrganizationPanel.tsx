@@ -7,6 +7,7 @@ interface OrganizationPanelProps {
   projectId: string;
   bots: BotProfile[];
   onOpenChat: (botId: string) => void;
+  onOpenTasks?: (projectId: string) => void;
   onClose: () => void;
 }
 
@@ -168,8 +169,20 @@ export function OrganizationPanel(props: OrganizationPanelProps) {
           {(company) => (
             <>
               <section class="agent-settings-model" aria-labelledby="organization-people-heading">
-                <div class="agent-settings-section-heading">
+                <div class="agent-settings-section-heading organization-people-heading">
                   <strong id="organization-people-heading">{company().projectName}</strong>
+                  <Show when={props.onOpenTasks}>
+                    {(open) => (
+                      <button
+                        type="button"
+                        class="organization-link"
+                        aria-keyshortcuts="Meta+T"
+                        onClick={() => open()(props.projectId)}
+                      >
+                        Tasks
+                      </button>
+                    )}
+                  </Show>
                 </div>
                 <ul class="organization-list">
                   <PersonRow

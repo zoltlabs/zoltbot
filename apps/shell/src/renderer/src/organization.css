@@ -238,6 +238,13 @@ button.organization-person:hover {
   text-underline-offset: 2px;
 }
 
+.organization-people-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .organization-link:hover {
   color: var(--openbot-white);
 }
