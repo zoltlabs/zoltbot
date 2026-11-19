@@ -88,6 +88,7 @@ import {
   shippingMethods,
 } from "./shipping.js";
 import { skillMethods } from "./skills.js";
+import { staffMethods } from "./staff.js";
 import { terminalMethods } from "./terminal.js";
 
 import { ViewRecordSchema, viewMethods } from "./views.js";
@@ -196,6 +197,7 @@ const rawMethodCatalog = {
   ...orchestrationMethods,
   ...knowledgeWriteMethods,
   ...quickChatMethods,
+  ...staffMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
     object({ protocolVersion: Type.Integer(), version: Text }),
