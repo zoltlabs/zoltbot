@@ -8,6 +8,7 @@ import {
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
 import { answerChannel } from "./fake-channels.js";
+import { addSampleCompany } from "./fake-company.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
 import { sampleSnapshot } from "./sample.js";
 import { modeWidens } from "./session.js";
@@ -38,6 +39,7 @@ export class FakeTransport implements Transport {
   ) {
     this.snapshot = sampleSnapshot(this.now());
     Object.assign(this.snapshot.entities, sampleManagement(this.now()));
+    addSampleCompany(this.snapshot.entities, this.now());
     this.manage = new SampleManagement({
       rows: (kind) => this.rows(kind),
       find: (kind, id) => this.find(kind, id),

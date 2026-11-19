@@ -129,7 +129,7 @@ describe("client over the fake transport", () => {
     expect(await call("thread.forkPreview", { id: "thread-meal-search", boundary })).toMatchObject({
       available: false,
       reason: "fork_requires_idle",
-      destinations: [{ id: "checker", name: "Checker" }],
+      destinations: expect.arrayContaining([{ id: "checker", name: "Checker", tool: "codex" }]),
     });
     expect(
       await call("session.rewind", {
@@ -225,7 +225,7 @@ describe("client over the fake transport", () => {
     fake.setMacOnline(false);
     expect(client.getState().status).toBe("mac_offline");
     expect(client.getState().lastSeenAt).toBeDefined();
-    expect(client.getState().snapshot.entities.task?.length).toBe(5);
+    expect(client.getState().snapshot.entities.task?.length).toBe(11);
     await expect(client.getState().call("task.retry", { id: "dark-mode" })).rejects.toThrow(
       "offline",
     );
