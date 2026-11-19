@@ -1,7 +1,18 @@
 import { body, text } from "@zoltbot/ui/chat/types";
 import { chiefWakePrefix } from "@zoltbot/ui/chief/data";
 import { type ArtifactCard, artifactOccurrences, artifactReference } from "./artifacts.js";
+import { switchNoteText } from "./backup-models.js";
 import { diffTotals } from "./interactions.js";
+import {
+  type ManagerCard,
+  managerRows,
+  type NoticeLine,
+  noticeFor,
+  noticeText,
+  type Placed,
+  placeRows,
+} from "./manager.js";
+import { isStaffApproval } from "./staff.js";
 import type { Row, Snapshot } from "./transport.js";
 
 // Thread items as transcript rows. Interactive tools and interaction items read as one compact
@@ -34,6 +45,14 @@ export interface TranscriptRow {
   queued?: boolean;
   /** For your sent messages: the turn they started, so a new chat can start from before it. */
   turnId?: string;
+  /** A manager's delegation or result card. */
+  manager?: ManagerCard;
+  /** One centered line: a message between agents, a supervision notice or a wait. */
+  notice?: NoticeLine;
+  /** A backup model switch, shown as a centered line. */
+  switchNote?: boolean;
+  /** A staff approval shown as its card, by interaction id. */
+  staffId?: string;
   /** Zoltbot's own notice to the agent (a wake-up, the brief), shown as an event. */
   event?: "brief" | "wake" | "notice";
   /** Zolt's morning brief: a message in the turn the brief wake-up started. */
@@ -167,7 +186,10 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
     const base = { id: text(item.id), streaming: value.streaming === true };
     let row: TranscriptRow | undefined;
     if (item.kind === "plan") continue;
-    if (item.kind === "user") {
+    // A teammate's message or a supervision notice reads as one line, before any [Zoltbot] event.
+    const notice = item.kind === "user" ? noticeFor(snapshot, item) : undefined;
+    if (notice) row = { ...base, kind: "other", notice, text: noticeText(notice) };
+    else if (item.kind === "user") {
       const said = userText(value);
       // Zoltbot's own notices to an agent are events, not your words (desktop MessageRow).
       if (value.origin !== "agent" && said.startsWith("[Zoltbot] ")) {
@@ -211,12 +233,15 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
       };
     else if (item.kind === "interaction") {
       const interaction = interactions.get(text(value.interactionId));
-      row = {
-        ...base,
-        kind: "interaction",
-        text: interactionLine(interaction),
-        pending: interaction?.state === "pending",
-      };
+      // A staff approval is its own card in the chat, not a line inside the turn.
+      row = isStaffApproval(interaction)
+        ? { ...base, kind: "other", text: text(interaction?.title), staffId: text(interaction?.id) }
+        : {
+            ...base,
+            kind: "interaction",
+            text: interactionLine(interaction),
+            pending: interaction?.state === "pending",
+          };
     } else if (item.kind === "tool" && value.interactive === true) {
       const linked = byNativeRef.get(text(value.nativeItemId));
       // The interaction item already shows this request, so the tool needs no second line.
@@ -235,6 +260,8 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
     } else if (item.kind === "note" && value.code === "chief_notify") {
       // What the main agent sent you reads as its message.
       row = { ...base, kind: "message", text: text(value.text) };
+    } else if (item.kind === "note" && value.code === "model_switch") {
+      row = { ...base, kind: "other", text: switchNoteText(value) ?? "", switchNote: true };
     } else if (item.kind === "note" && value.code === "wake") {
       row = {
         ...base,
@@ -286,7 +313,22 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
     if (anchor) after.set(anchor, [...(after.get(anchor) ?? []), row]);
     else unanchored.push(row);
   }
-  return [...top.flatMap((row) => [row, ...(after.get(row.id) ?? [])]), ...unanchored];
+  const own = [...top.flatMap((row) => [row, ...(after.get(row.id) ?? [])]), ...unanchored];
+  // A staff approval shows as its card where it was asked, with or without an interaction item.
+  const staff: Placed[] = (snapshot.entities.interaction ?? [])
+    .filter((row) => row.threadId === threadId && isStaffApproval(row))
+    .filter((row) => !own.some((entry) => entry.staffId === row.id))
+    .map((row) => ({
+      row: {
+        id: `card:staff:${text(row.id)}`,
+        kind: "other",
+        text: text(row.title),
+        streaming: false,
+        staffId: text(row.id),
+      },
+      at: text(row.createdAt),
+    }));
+  return placeRows(own, [...managerRows(snapshot, threadId), ...staff], items);
 }
 
 /** "3 steps · 1 running" for a collapsed subagent group. */

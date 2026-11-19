@@ -1,7 +1,10 @@
 import type { Interaction } from "@zoltbot/protocol";
 import { permissionExpansion } from "@zoltbot/ui/interactions/request-presentation";
 import { Alert, StyleSheet, View } from "react-native";
+import { switchQuestion } from "../../data/backup-models";
 import { type AnswerDraft, defaultTitles, typeLabels } from "../../data/interactions";
+import { isStaffApproval } from "../../data/staff";
+import type { Row } from "../../data/transport";
 import { mono, useTheme } from "../../theme";
 import { Avatar, Button, Card, Chip, Txt } from "../kit";
 import { Markdown } from "../Markdown";
@@ -10,6 +13,8 @@ import { FormCard } from "./FormCard";
 import { PlanCard } from "./PlanCard";
 import { DiffBlock } from "./parts";
 import { QuestionCard } from "./QuestionCard";
+import { StaffCard } from "./StaffCard";
+import { SwitchPrompt } from "./SwitchPrompt";
 import { useAnswer } from "./useAnswer";
 
 function Context({ request }: { request: Interaction }) {
@@ -57,20 +62,30 @@ function Context({ request }: { request: Interaction }) {
   );
 }
 
-/**
- * A pending question, approval, plan, form or sign-off, answerable on the phone. It stays until
- * the interaction stops being pending, so a failed or stale answer keeps the card and the draft.
- */
-export function InteractionCard({
-  request,
-  who,
-  position,
-}: {
+interface CardProps {
   request: Interaction;
   who: string;
   /** "1 of 3" when the thread has more than one pending request. */
   position?: string;
-}) {
+}
+
+/**
+ * A pending request, answerable on the phone. A staff change shows its approval card and a move
+ * to another provider its short prompt; everything else the card below.
+ */
+export function InteractionCard(props: CardProps) {
+  const row = props.request as unknown as Row;
+  const question = switchQuestion(row);
+  if (question) return <SwitchPrompt request={props.request} question={question} who={props.who} />;
+  if (isStaffApproval(row)) return <StaffCard request={row} showChat />;
+  return <RequestCard {...props} />;
+}
+
+/**
+ * A pending question, approval, plan, form or sign-off, answerable on the phone. It stays until
+ * the interaction stops being pending, so a failed or stale answer keeps the card and the draft.
+ */
+function RequestCard({ request, who, position }: CardProps) {
   const answer = useAnswer(request);
   const { busy, error, disabled, online } = answer;
   const submit = async (draft: AnswerDraft): Promise<boolean> => {

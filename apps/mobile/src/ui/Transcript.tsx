@@ -2,9 +2,12 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import { childSummary, type TranscriptRow } from "../data/view";
+import { useSnapshot } from "../state/link";
 import { mono, useTheme } from "../theme";
 import { Icon } from "./icons";
+import { StaffCard } from "./interactions/StaffCard";
 import { Button, Txt } from "./kit";
+import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import { pick } from "./SessionControls";
 
@@ -140,6 +143,12 @@ function ToolGroup({ row, threadId }: { row: TranscriptRow; threadId?: string })
   );
 }
 
+/** A staff approval where the manager asked for it. */
+function StaffRow({ id }: { id: string }) {
+  const request = useSnapshot().entities.interaction?.find((row) => row.id === id);
+  return request ? <StaffCard request={request} /> : null;
+}
+
 /** Zoltbot's own notice to the agent: a wake-up or the brief, folded to one line. */
 function EventRow({ row }: { row: TranscriptRow }) {
   const { c } = useTheme();
@@ -201,6 +210,11 @@ export function Message({
   onForward?: (row: TranscriptRow) => void;
 }) {
   const { c } = useTheme();
+  // Manager rows first: their notices are system rows too, like the switch note below.
+  if (row.manager) return <ManagerCardView card={row.manager} />;
+  if (row.notice) return <NoticeRow notice={row.notice} />;
+  if (row.staffId) return <StaffRow id={row.staffId} />;
+  if (row.switchNote) return <SwitchNotice text={row.text} />;
   if (row.wake)
     return (
       <View style={{ gap: 8 }} accessibilityLabel="Chat woke up">

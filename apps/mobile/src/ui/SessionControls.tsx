@@ -123,7 +123,16 @@ export function modelError(error: unknown): string {
  * The session's model and effort. Changing either after the first turn drops the provider's
  * cached history, so the phone says so before it asks the Mac.
  */
-export function ModelChip({ state, online }: { state: ModelState | undefined; online: boolean }) {
+export function ModelChip({
+  state,
+  online,
+  account,
+}: {
+  state: ModelState | undefined;
+  online: boolean;
+  /** The backup account the chat runs on after a switch, such as "Work". */
+  account?: string | undefined;
+}) {
   const { c } = useTheme();
   const { run, busy } = useAction();
   if (!state) return null;
@@ -186,7 +195,7 @@ export function ModelChip({ state, online }: { state: ModelState | undefined; on
       }
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`Model: ${label}`}
+      accessibilityLabel={`Model: ${label}${account ? `, on ${account}` : ""}`}
       accessibilityHint="Changes the model for the next replies"
       accessibilityState={{ disabled }}
       hitSlop={8}
@@ -199,6 +208,11 @@ export function ModelChip({ state, online }: { state: ModelState | undefined; on
       <Txt v="meta" tone="secondary" lines={1}>
         {busy ? "Switching…" : label}
       </Txt>
+      {account && !busy ? (
+        <Txt v="meta" tone="muted" lines={1}>
+          {account}
+        </Txt>
+      ) : null}
       <Icon name="down" size={12} color={c["text-muted"]} stroke={2} />
     </Pressable>
   );
