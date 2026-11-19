@@ -3,8 +3,6 @@ import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager
 export type * from "./manager-cards";
 export type * from "./staff";
 
-import type { StaffActionInput, StaffOverview } from "./staff";
-
 import type {
   ChannelDetail,
   ChannelRequestInput,
@@ -12,6 +10,7 @@ import type {
   PostChannelInput,
 } from "./channels";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
+import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 
 export const IPC_CHANNELS = {
