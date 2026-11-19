@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { type ArtifactManifest, ArtifactManifestSchema, parse } from "@zoltbot/protocol";
+import { artifactMarkdownHtml } from "./artifact-markdown";
 import { validBundlePath as validPath } from "./bundle-path";
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -26,15 +27,14 @@ export function artifactCsp(origin: string, manifestHash: string, scripts: boole
 const escapeText = (value: string) =>
   value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const sourceHtml = (text: string) =>
-  `<pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeText(text)}</pre>`;
+  `<p>Large document: showing source text.</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeText(text)}</pre>`;
 /**
  * Main-process only. Credentials live in the supplied fetch callback, never in a scheme URL.
- * Markdown shows as escaped source text unless a trusted `markdown` renderer is supplied.
+ * Markdown up to 64 KB renders to static HTML; larger files show as escaped source text.
  */
 export function artifactProtocol(options: {
   origin: string;
   kitAsset?(name: string): { bytes: Uint8Array; mime: string } | undefined;
-  markdown?(text: string): string;
   asset(kind: "manifest" | "blob", hash: string, mime?: string): Promise<Uint8Array>;
 }) {
   const manifests = new Map<string, ArtifactManifest>();
@@ -110,10 +110,7 @@ export function artifactProtocol(options: {
         let mime = file.mime;
         if (mime === "text/markdown") {
           const text = new TextDecoder().decode(bytes);
-          const body =
-            bytes.length <= 64 * 1024 && options.markdown
-              ? options.markdown(text)
-              : sourceHtml(text);
+          const body = bytes.length <= 64 * 1024 ? artifactMarkdownHtml(text) : sourceHtml(text);
           bytes = Buffer.from(`<!doctype html><meta charset="utf-8">${body}`);
           mime = "text/html";
         }

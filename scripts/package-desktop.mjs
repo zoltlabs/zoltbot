@@ -70,6 +70,9 @@ for (const resource of [
   "packages/skills/builtin",
 ])
   cpSync(path.join(root, resource), path.join(stage, resource), { recursive: true });
+// The shell serves the chart library to artifacts from the app folder (kit-assets.ts).
+if (!existsSync(path.join(stage, "packages/artifact-kit/v1/chart-4.5.1.umd.js")))
+  throw new Error("The staged app is missing the artifact chart library.");
 
 writeFileSync(
   path.join(stage, "package.json"),

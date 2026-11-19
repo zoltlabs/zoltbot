@@ -7,7 +7,7 @@ it("activates only verified manifests, serves allowlisted verified bytes, and ke
   const content = {
     "index.html": "<h1>Hello</h1>",
     "evil.svg": "<svg><script>bad()</script></svg>",
-    "readme.md": "<script>bad()</script>",
+    "readme.md": "# Notes\n\n<script>bad()</script>\n\n[x](javascript:bad())",
   };
   const manifest = {
     version: 1,
@@ -51,8 +51,8 @@ it("activates only verified manifests, serves allowlisted verified bytes, and ke
     expect(result.headers.get("Content-Security-Policy")).not.toContain("sandbox allow-scripts");
   }
   const markdown = await (await handler.handle(url("readme.md"))).text();
-  expect(markdown).not.toContain("<script>");
-  expect(markdown).toContain("&lt;script&gt;");
+  expect(markdown).toContain("<h1>Notes</h1>");
+  expect(markdown).not.toMatch(/<script|javascript:|href=/);
   for (const p of ["unknown.html", "%2e%2e%2foutside", "index.html?probe=1", "%252e%252e/outside"])
     expect((await handler.handle(url(p))).status).toBe(404);
   corrupt = true;

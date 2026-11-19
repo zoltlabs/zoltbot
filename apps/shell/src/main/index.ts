@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
-import { artifactKitAsset } from "@zoltbot/artifact-kit";
 import {
   app,
   BrowserWindow,
@@ -46,6 +45,7 @@ import { createDictationController, type DictationStartOptions } from "./desktop
 import { folderPicker } from "./desktop/folder-picker";
 import { frameRequestAllowed } from "./desktop/frame-isolation";
 import { hostedOrigins } from "./desktop/hosted-origins";
+import { desktopKitAsset } from "./desktop/kit-assets";
 import { desktopAccountClient } from "./desktop/native-account-client";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
@@ -92,7 +92,7 @@ const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   : "openbot-app://app";
 const artifacts = artifactProtocol({
   origin: rendererOrigin,
-  kitAsset: (name) => artifactKitAsset(paths.root, name),
+  kitAsset: desktopKitAsset(app.isPackaged, app.getAppPath()),
   async asset(kind, hash, mime) {
     const info = await daemonHost.connection();
     const url = new URL(info.url.replace(/^ws:/, "http:"));
