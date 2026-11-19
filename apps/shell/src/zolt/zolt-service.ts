@@ -575,7 +575,16 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       return;
     }
     for (const row of change.rows) {
-      const threadId = change.aggregateType === "thread" ? text(row.id) : text(row.threadId);
+      const threadId =
+        change.aggregateType === "thread"
+          ? text(row.id)
+          : change.aggregateType === "artifactVersion"
+            ? text(
+                (this.client.snapshot.entities.artifact ?? []).find(
+                  (artifact) => artifact.id === row.artifactId,
+                )?.threadId,
+              )
+            : text(row.threadId);
       if (
         ["thread", "agent", "session", "project", "subproject", "task", "agentDefinition"].includes(
           change.aggregateType,

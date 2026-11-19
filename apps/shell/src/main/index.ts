@@ -1,5 +1,6 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { artifactKitAsset } from "@zoltbot/artifact-kit";
 import {
   app,
   BrowserWindow,
@@ -34,6 +35,7 @@ import {
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
@@ -52,10 +54,38 @@ protocol.registerSchemesAsPrivileged([
     scheme: "openbot-attachment",
     privileges: { standard: true, secure: true, supportFetchAPI: true },
   },
+  {
+    scheme: "zoltbot-artifact",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
 ]);
 
 const paths = daemonPaths(app.isPackaged, app.getAppPath());
 const daemonHost = new DaemonHost(paths);
+const rendererOrigin = process.env.ELECTRON_RENDERER_URL
+  ? new URL(process.env.ELECTRON_RENDERER_URL).origin
+  : "openbot-app://app";
+const artifacts = artifactProtocol({
+  origin: rendererOrigin,
+  kitAsset: (name) => artifactKitAsset(paths.root, name),
+  async asset(kind, hash, mime) {
+    const info = await daemonHost.connection();
+    const url = new URL(info.url.replace(/^ws:/, "http:"));
+    if (url.hostname !== "127.0.0.1") throw new Error("invalid_daemon_address");
+    url.pathname = `/artifact-${kind}/${hash}`;
+    url.search = "";
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${info.token}`,
+        ...(mime ? { "X-Zoltbot-Artifact-Mime": mime } : {}),
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok || Number(response.headers.get("content-length")) > 25 * 1024 * 1024)
+      throw new Error("artifact_unavailable");
+    return new Uint8Array(await response.arrayBuffer());
+  },
+});
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
 let mainWindow: BrowserWindow | null = null;
@@ -128,10 +158,15 @@ function configureContentSecurityPolicy(): void {
     "font-src 'self' data:",
     `connect-src 'self'${developmentSources}`,
     "object-src 'none'",
-    "frame-src 'self' openbot-attachment:",
+    `frame-src 'self' openbot-attachment: ${artifactScheme}`,
     "base-uri 'none'",
   ].join("; ");
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Artifact responses carry their own sandboxed policy.
+    if (details.url.startsWith(artifactScheme)) {
+      callback({});
+      return;
+    }
     callback({
       responseHeaders: { ...details.responseHeaders, "Content-Security-Policy": [policy] },
     });
@@ -180,6 +215,9 @@ function registerIpcHandlers(setupFile: string): void {
   handleTrusted(IPC_CHANNELS.updateInstall, () => undefined);
   handleTrusted(IPC_CHANNELS.maintenanceExportData, () => exportDiagnostics());
   handleTrusted(IPC_CHANNELS.maintenanceExportDiagnostics, () => exportDiagnostics());
+  handleTrusted(IPC_CHANNELS.artifactPrepare, (hash: unknown) =>
+    artifacts.prepare(requireString(hash, "manifestHash")),
+  );
 
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
@@ -439,6 +477,9 @@ if (!hasSingleInstanceLock) {
       configureContentSecurityPolicy();
       configureApplicationProtocol();
       configureAttachmentProtocol();
+      session.defaultSession.protocol.handle("zoltbot-artifact", (request) =>
+        artifacts.handle(request),
+      );
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {

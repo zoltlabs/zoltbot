@@ -1,5 +1,6 @@
 import type {
   AgentPromptQuestion,
+  ArtifactSummary,
   BotAvatarColor,
   BotAvatarShape,
   BotSummary,
@@ -200,7 +201,90 @@ export function toMessages(
       itemType: text(item.phase) || "agentMessage",
     });
   }
+  attachArtifacts(messages, artifactsByTurn(snapshot, threadId));
   return messages;
+}
+
+/** The thread's live artifacts, keyed by the turn that produced each version. */
+export function artifactsByTurn(snapshot: Snapshot, threadId: string): Map<string, ArtifactRef[]> {
+  const artifacts = new Map(
+    (snapshot.entities.artifact ?? [])
+      .filter((artifact) => artifact.threadId === threadId && artifact.state !== "archived")
+      .map((artifact) => [text(artifact.id), artifact]),
+  );
+  const latest = new Map<string, { version: Row; artifact: Row }>();
+  for (const version of snapshot.entities.artifactVersion ?? []) {
+    const artifact = artifacts.get(text(version.artifactId));
+    const turnId = text(version.turnId);
+    if (!artifact || !turnId) continue;
+    const key = `${turnId}\n${text(artifact.id)}`;
+    const previous = latest.get(key);
+    if (!previous || Number(version.number) > Number(previous.version.number))
+      latest.set(key, { version, artifact });
+  }
+  const byTurn = new Map<string, ArtifactRef[]>();
+  for (const { version, artifact } of latest.values()) {
+    const turnId = text(version.turnId);
+    const openable =
+      version.metadataOnly !== true &&
+      version.held !== true &&
+      /^[a-f0-9]{64}$/.test(text(version.manifestHash));
+    byTurn.set(turnId, [
+      ...(byTurn.get(turnId) ?? []),
+      {
+        id: text(artifact.id),
+        versionId: text(version.id),
+        title: text(artifact.title),
+        kind: text(artifact.kind),
+        version: Number(version.number) || 1,
+        manifestHash: openable ? text(version.manifestHash) : null,
+        createdAt: text(version.createdAt),
+      },
+    ]);
+  }
+  for (const list of byTurn.values())
+    list.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  return byTurn;
+}
+
+type ArtifactRef = ArtifactSummary & { createdAt: string };
+
+/**
+ * Shows each turn's artifacts under that turn's last reply. A turn that produced artifacts but
+ * no reply gets an empty agent message to carry them.
+ */
+function attachArtifacts(messages: ConversationMessage[], byTurn: Map<string, ArtifactRef[]>) {
+  for (const [turnId, refs] of byTurn) {
+    const artifacts = refs.map(({ createdAt: _, ...summary }) => summary);
+    let last = -1;
+    let reply = -1;
+    messages.forEach((message, index) => {
+      if (message.turnId !== turnId) return;
+      last = index;
+      if (message.author === "assistant" && message.itemType !== "commentary") reply = index;
+    });
+    const target = messages[reply];
+    if (target) {
+      target.artifacts = artifacts;
+      continue;
+    }
+    const carrier: ConversationMessage = {
+      id: `artifacts:${turnId}`,
+      turnId,
+      author: "assistant",
+      source: "assistant",
+      text: "",
+      createdAt: refs[0]?.createdAt ?? "",
+      status: "completed",
+      itemType: "agentMessage",
+      artifacts,
+    };
+    if (last >= 0) messages.splice(last + 1, 0, carrier);
+    else {
+      const at = messages.findIndex((message) => message.createdAt > carrier.createdAt);
+      messages.splice(at < 0 ? messages.length : at, 0, carrier);
+    }
+  }
 }
 
 export function toQueue(threadId: string, items: Row[]): QueueSnapshot {

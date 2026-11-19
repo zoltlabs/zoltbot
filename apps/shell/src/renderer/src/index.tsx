@@ -4,6 +4,7 @@ import "./styles.css";
 import "./company.css";
 import "./dictation.css";
 import "./organization.css";
+import "./artifacts.css";
 
 const root = document.getElementById("root");
 

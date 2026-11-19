@@ -51,6 +51,7 @@ export const IPC_CHANNELS = {
   dictationStop: "dictation:stop",
   dictationCancel: "dictation:cancel",
   dictationEvent: "dictation:event",
+  artifactPrepare: "artifact:prepare",
 } as const;
 
 export type DesktopPlatform = "darwin" | "win32" | "linux";
@@ -286,6 +287,17 @@ export interface AttachmentSummary {
 
 export type DraftAttachment = AttachmentSummary;
 
+/** An artifact version an agent produced during a turn. */
+export interface ArtifactSummary {
+  id: string;
+  versionId: string;
+  title: string;
+  kind: string;
+  version: number;
+  /** Null when the files aren't on this Mac, so the artifact can't open here. */
+  manifestHash: string | null;
+}
+
 export interface AttachmentDataInput {
   name: string;
   mimeType: string;
@@ -349,6 +361,7 @@ export interface ConversationMessage {
   senderBotId?: string;
   replyToMessageId?: string | null;
   attachments?: AttachmentSummary[];
+  artifacts?: ArtifactSummary[];
   delivery?: Pick<QueueDelivery, "id" | "status" | "position">;
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
@@ -646,6 +659,11 @@ export interface MaintenanceDesktopApi {
   exportDiagnostics: () => Promise<ExportResult>;
 }
 
+export interface ArtifactDesktopApi {
+  /** Verifies the artifact's files and returns the URL that shows it in a frame. */
+  prepare: (manifestHash: string) => Promise<{ url: string }>;
+}
+
 export interface OpenBotDesktopApi {
   getAppInfo: () => Promise<AppInfo>;
   getSetupState: () => Promise<AppSetupState>;
@@ -660,6 +678,7 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
 }
 

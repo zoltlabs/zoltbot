@@ -146,6 +146,9 @@ const openbotApi: OpenBotDesktopApi = {
       return () => ipcRenderer.removeListener(IPC_CHANNELS.dictationEvent, handler);
     },
   },
+  artifacts: {
+    prepare: (manifestHash) => ipcRenderer.invoke(IPC_CHANNELS.artifactPrepare, manifestHash),
+  },
 };
 
 contextBridge.exposeInMainWorld("openbot", openbotApi);
