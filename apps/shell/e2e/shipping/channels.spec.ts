@@ -157,6 +157,12 @@ test("team channels route posts, show requests and who owes a reply", async ({ p
     await expect(
       panel.getByRole("button", { name: "Archive @Mira please take the refund endpoint" }),
     ).toBeVisible();
+
+    // Mira's own chat shows the post as from the owner.
+    await sidebar.getByRole("button", { name: /^Mira/ }).first().click();
+    const notice = page.locator(".manager-notice").filter({ hasText: "please take the refund" });
+    await expect(notice).toContainText(/^You\s*→\s*to\s*Mira:/);
+    await expect(notice).not.toContainText("Agent");
     expect(shell.errors).toEqual([]);
   } finally {
     await shell.close();

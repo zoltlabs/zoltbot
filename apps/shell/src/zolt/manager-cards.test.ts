@@ -201,6 +201,42 @@ describe("noticeFor", () => {
     ).toMatchObject({ kind: "wait", meta: "fallback time passed" });
   });
 
+  it("shows the owner's channel post as from You", () => {
+    const owned = snapshot({
+      ...entities(),
+      message: [
+        {
+          id: "post1:to:0",
+          thread: "mgr",
+          channelId: "channel-payments",
+          from: { kind: "human", id: "local-owner" },
+          origin: "human",
+          kind: "message",
+          body: text("[#payments · request from the owner]\nShip the refund fix"),
+          createdAt: at(3),
+        },
+      ],
+    });
+    expect(
+      noticeFor(owned, {
+        threadId: "mgr",
+        body: {
+          notice: {
+            kind: "team",
+            type: "question",
+            messageId: "post1:to:0",
+            channelId: "channel-payments",
+            preview: "Ship the refund fix",
+          },
+        },
+      }),
+    ).toMatchObject({
+      from: { name: "You", botId: null },
+      to: { name: "Payments" },
+      text: "Ship the refund fix",
+    });
+  });
+
   it("leaves ordinary user input alone", () => {
     expect(noticeFor(state, { threadId: "mgr", body: { input: text("Hello") } })).toBeUndefined();
   });

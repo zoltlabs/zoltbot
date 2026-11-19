@@ -33,6 +33,9 @@ function words(message: Row | undefined): string {
     .join("\n");
   return all.startsWith("[") && all.includes("\n") ? all.slice(all.indexOf("\n") + 1) : all;
 }
+/** A message the owner wrote, such as a channel post delivered to the lead. */
+const fromOwner = (message: Row | undefined) =>
+  message?.origin === "human" || body({ body: message?.from }).kind === "human";
 const line = (value: string) => value.replace(/\s+/g, " ").trim();
 
 const STATUS_WORDS: Record<string, { verb: string; meta: string }> = {
@@ -88,7 +91,9 @@ export function noticeFor(snapshot: Snapshot, item: Row): ConversationNotice | u
   const full = words(message) || text(notice.preview);
   return {
     kind: "team",
-    from: chat(snapshot, text(notice.fromThreadId) || message?.fromThread),
+    from: fromOwner(message)
+      ? { name: "You", botId: null }
+      : chat(snapshot, text(notice.fromThreadId) || message?.fromThread),
     to: chat(snapshot, item.threadId),
     text: line(type === "brief" ? text(notice.preview) || full : full),
     meta:
