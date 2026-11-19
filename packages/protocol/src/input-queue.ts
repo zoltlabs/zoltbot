@@ -1,6 +1,21 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { ArtifactTargetSchema, OutputModeSchema } from "./artifacts.js";
 import { At, Id, object, UserInputSchema, values } from "./common.js";
+/**
+ * What a daemon-written input is, so clients can show it as a notice line without parsing its
+ * text: a message from another chat, a work supervision notice, or the end of a team wait.
+ */
+export const InputNoticeSchema = object({
+  kind: values(["team", "supervision", "wait"]),
+  type: Type.Optional(values(["brief", "question", "update", "reply", "report"])),
+  messageId: Type.Optional(Id),
+  fromThreadId: Type.Optional(Id),
+  taskId: Type.Optional(Id),
+  state: Type.Optional(Id),
+  waitId: Type.Optional(Id),
+  preview: Type.Optional(Type.String({ maxLength: 300 })),
+});
+export type InputNotice = Static<typeof InputNoticeSchema>;
 export const QueuedInputBodySchema = object({
   outputMode: Type.Optional(OutputModeSchema),
   artifactTarget: Type.Optional(ArtifactTargetSchema),
@@ -11,6 +26,7 @@ export const QueuedInputBodySchema = object({
   origin: Type.Optional(values(["human", "agent", "system"])),
   sourceMessageId: Type.Optional(Id),
   sourceInteractionId: Type.Optional(Id),
+  notice: Type.Optional(InputNoticeSchema),
   sessionId: Type.Optional(Id),
   attemptId: Type.Optional(Id),
   attemptedAt: Type.Optional(At),

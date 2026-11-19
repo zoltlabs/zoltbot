@@ -197,6 +197,11 @@ export const companyMethods = {
     }),
     result: Json,
   },
+  /** The owner ends a chat's team wait now. Agents cannot call it. */
+  "company.wakeNow": {
+    params: object({ threadId: Id, waitId: Id }),
+    result: Json,
+  },
   "company.brief": {
     params: object({ projectId: Id, summary: Type.Optional(Text) }),
     result: ProjectBriefSchema,

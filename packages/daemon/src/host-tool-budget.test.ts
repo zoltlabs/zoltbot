@@ -11,6 +11,7 @@ import {
   indirectRuntimeToolDefinitions,
   managerArtifactBrowserToolDefinitions,
   managerArtifactToolDefinitions,
+  managerIndirectToolDefinitions,
   runtimeToolDefinitions,
 } from "./runtime-tools.js";
 
@@ -54,7 +55,11 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
     ).toBeLessThanOrEqual(1500);
     expect(
       referenceTokenEstimate(
-        JSON.stringify([...managerArtifactToolDefinitions, ...indirectRuntimeToolDefinitions]),
+        JSON.stringify([
+          ...managerArtifactToolDefinitions,
+          ...indirectRuntimeToolDefinitions,
+          ...managerIndirectToolDefinitions,
+        ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
         32,

@@ -17,6 +17,7 @@ import {
   teamToolNames,
   teamTools,
 } from "./team-tools.js";
+import { teamWaitToolDefinitions, teamWaitToolNames, teamWaitTools } from "./team-wait-tools.js";
 import { viewToolDefinition, viewToolHint, viewTools } from "./views/tools.js";
 import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 
@@ -66,6 +67,7 @@ export function runtimeTools(
   const artifacts = artifactTools(context);
   const views = viewTools(context);
   const team = teamTools(context, options);
+  const teamWait = teamWaitTools(context);
   const chief = chiefTools(context);
   const company = companyTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
@@ -116,6 +118,7 @@ export function runtimeTools(
       return knowledge.authorize(actor);
     if (workspaceToolNames.has(name)) return workspace.authorize(actor);
     if (teamToolNames.has(name)) return team.authorize(actor, name, args);
+    if (teamWaitToolNames.has(name)) return teamWait.authorize(actor);
     return false;
   }
   return {
@@ -132,6 +135,7 @@ export function runtimeTools(
       ["team_get_knowledge", knowledge.read],
       ["team_write_knowledge", knowledgeWrite.call],
       ...team.tools,
+      ...teamWait.tools,
       // `learned` rides on a report or message and passes through the same write policy.
       ...(["team_report", "team_message"] as const).map(
         (name) =>
@@ -226,6 +230,9 @@ const artifactDescriptions: Record<string, string> = {
   team_message:
     'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it.',
   team_read_thread: "Read bounded output of chats you manage or assignments you own.",
+  team_requests: "List what this chat sent and whether each is open, answered or done.",
+  team_wait:
+    "Wait for your delegated taskIds or managed chatIds to finish, then wake. Stable key. Else chat_wake.",
   workspace_read: "List workspace objects and ids within your authority before workspace_write.",
   workspace_write:
     "Scoped create/update: kind,name,parent or target,changes. Stable key. Human approval for wider authority or instructions.",
@@ -375,6 +382,8 @@ export const indirectRuntimeToolDefinitions = [
   compactTool(wakeToolDefinition),
   viewToolHint,
 ];
+/** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
+export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
 export const artifactRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter(
     (t) => !["workspace_create", "workspace_update", "workspace_write"].includes(t.name),
@@ -424,6 +433,7 @@ export const allRuntimeToolDefinitions = [
   ...chiefToolDefinitions,
   eventRoutineToolDefinition,
   wakeToolDefinition,
+  ...teamWaitToolDefinitions,
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,

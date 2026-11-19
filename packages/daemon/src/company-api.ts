@@ -14,6 +14,7 @@ import {
   submitCompanyTask,
   type TaskInput,
   type WorkspaceActor,
+  wakeTeamWait,
   workspaceAuthority,
   writeProjectBrief,
 } from "@zoltbot/core";
@@ -63,7 +64,8 @@ export function companyApi(context: RuntimeContext) {
           ),
         };
       }
-      if (method === "company.decide") throw Error("human_approval_required");
+      if (method === "company.decide" || method === "company.wakeNow")
+        throw Error("human_approval_required");
       if (!taskScopedMethods.has(method)) companyAccess(state, actor, projectId);
     }
     if (method === "company.read") {
@@ -225,6 +227,14 @@ export function companyApi(context: RuntimeContext) {
           params as Parameters<typeof recoverCompanyTask>[2],
           ctx,
         );
+      else if (method === "company.wakeNow")
+        outcome = wakeTeamWait(
+          current,
+          String(params.threadId),
+          String(params.waitId),
+          "owner",
+          ctx,
+        );
       else
         outcome = writeProjectBrief(
           current,
@@ -235,6 +245,8 @@ export function companyApi(context: RuntimeContext) {
       return { ...outcome, result: { ...outcome.result, requestDigest: digest } };
     });
     context.publish(context.store.eventsSince(before));
+    if (method === "company.wakeNow")
+      await context.wake(String(params.threadId)).catch(() => undefined);
     if (method === "company.cancel") {
       const cancelledTask = context.store.record("task", String(params.taskId));
       const threadId = cancelledTask?.threadId ? String(cancelledTask.threadId) : undefined;

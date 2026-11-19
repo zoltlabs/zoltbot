@@ -29,6 +29,7 @@ export * from "./session-controls.js";
 export * from "./task-graph.js";
 export * from "./tasks.js";
 export * from "./team.js";
+export * from "./team-wait.js";
 export * from "./transitions.js";
 export * from "./turn-interrupt.js";
 export * from "./usage-ledger.js";

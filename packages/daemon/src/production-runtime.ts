@@ -52,6 +52,7 @@ export function productionRuntime(
           managerBrowserToolDefinitions,
           artifactBrowserToolDefinitions,
           indirectRuntimeToolDefinitions,
+          managerIndirectToolDefinitions,
           chiefProviderToolDefinitions,
           runtimeTools,
         },
@@ -117,6 +118,22 @@ export function productionRuntime(
           },
         ]),
       );
+      const managesWork = (threadId: string | undefined) =>
+        context.store.record("thread", threadId ?? "")?.kind === "manager" ||
+        context.store
+          .snapshot(["initiativeRecord"])
+          .initiativeRecord?.some(
+            (r) =>
+              r.managerThreadId === threadId &&
+              !["completed", "cancelled"].includes(String(r.state)),
+          ) ||
+        context.store
+          .snapshot(["task"])
+          .task?.some(
+            (r) =>
+              r.accountableThreadId === threadId &&
+              !["completed", "cancelled"].includes(String(r.state)),
+          ) === true;
       const skills = skillsRuntime(context.store, path.join(directory, "runtime", "skills"));
       const native = new NativeRuntimeHost({
         adapters,
@@ -125,21 +142,7 @@ export function productionRuntime(
           thread && isChief(context.store, thread.id)
             ? structuredClone(chiefProviderToolDefinitions)
             : structuredClone([
-                ...(context.store.record("thread", thread?.id ?? "")?.kind === "manager" ||
-                context.store
-                  .snapshot(["initiativeRecord"])
-                  .initiativeRecord?.some(
-                    (r) =>
-                      r.managerThreadId === thread?.id &&
-                      !["completed", "cancelled"].includes(String(r.state)),
-                  ) ||
-                context.store
-                  .snapshot(["task"])
-                  .task?.some(
-                    (r) =>
-                      r.accountableThreadId === thread?.id &&
-                      !["completed", "cancelled"].includes(String(r.state)),
-                  )
+                ...(managesWork(thread?.id)
                   ? artifact
                     ? browser
                       ? managerArtifactBrowserToolDefinitions
@@ -155,6 +158,8 @@ export function productionRuntime(
                       ? browserRuntimeToolDefinitions
                       : runtimeToolDefinitions),
                 ...(browser ? [] : indirectRuntimeToolDefinitions),
+                // Waiting on and listing delegated work only matters to a chat that delegates.
+                ...(managesWork(thread?.id) ? managerIndirectToolDefinitions : []),
               ]),
         prepareArtifacts(input, cwd) {
           if (isChief(context.store, input.thread.id)) return undefined;

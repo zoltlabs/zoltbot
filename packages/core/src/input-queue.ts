@@ -3,6 +3,7 @@ import {
   type DomainEvent,
   type EntityKind,
   entitySchemas,
+  type InputNotice,
   type OutputMode,
   parse,
   parseEvent,
@@ -41,6 +42,7 @@ function queueInput(
     input: UserInput;
     mode: "queue" | "steer";
     sourceInteractionId?: string;
+    notice?: InputNotice;
   },
   itemId: string,
   context: CommandContext,
@@ -71,6 +73,7 @@ function queueInput(
     mode: input.mode,
     queueState: "queued",
     ...(input.sourceInteractionId ? { sourceInteractionId: input.sourceInteractionId } : {}),
+    ...(input.notice ? { notice: input.notice } : {}),
   });
   const item = {
     id: itemId,
@@ -335,6 +338,16 @@ export function queueTaskInput(
                 ...(event.payload as { body: object }).body,
                 origin: "agent",
                 sourceMessageId: task.sourceMessageId,
+                notice: {
+                  kind: "team",
+                  type: "brief",
+                  messageId: String(task.sourceMessageId),
+                  ...(typeof source.fromThread === "string"
+                    ? { fromThreadId: source.fromThread }
+                    : {}),
+                  taskId,
+                  preview: String(task.title).slice(0, 300),
+                },
               },
             },
           },
@@ -344,14 +357,19 @@ export function queueTaskInput(
 /** A daemon notice that starts a turn on its own, such as the main agent's wake-up. */
 export function queueSystemNotice(
   state: DomainState,
-  input: { threadId: string; text: string },
+  input: { threadId: string; text: string; notice?: InputNotice },
   itemId: string,
   context: CommandContext,
 ): Outcome {
   if (context.actor.kind !== "system") throw new Error("system_input_writer_required");
   return queueInput(
     state,
-    { threadId: input.threadId, input: [{ type: "text", text: input.text }], mode: "queue" },
+    {
+      threadId: input.threadId,
+      input: [{ type: "text", text: input.text }],
+      mode: "queue",
+      ...(input.notice ? { notice: input.notice } : {}),
+    },
     itemId,
     context,
   );
@@ -365,6 +383,7 @@ export function queueAgentInput(
   messageId: string,
   itemId: string,
   context: CommandContext,
+  notice?: InputNotice,
 ): Outcome {
   const message = state.message?.find((row) => row.id === messageId);
   const from = message?.from as { kind?: string; id?: string } | undefined;
@@ -386,7 +405,12 @@ export function queueAgentInput(
     throw new Error("invalid_peer_input");
   const out = queueInput(
     state,
-    { threadId: String(thread.id), input: body as UserInput, mode: "queue" },
+    {
+      threadId: String(thread.id),
+      input: body as UserInput,
+      mode: "queue",
+      ...(notice ? { notice } : {}),
+    },
     itemId,
     context,
   );

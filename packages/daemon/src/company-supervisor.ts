@@ -8,6 +8,7 @@ import {
   writeProjectBrief,
 } from "@zoltbot/core";
 import type { RuntimeContext } from "./api.js";
+import { coveredByTeamWait, settleTeamWaits } from "./team-wait-service.js";
 
 /** Reconciliation uses persisted state and receipts, so missed events and restarts are harmless. */
 export function companySupervisor(
@@ -27,6 +28,7 @@ export function companySupervisor(
     if (running || closed) return;
     running = true;
     try {
+      await settleTeamWaits(context, now(), options.onError);
       const state = context.store.snapshot();
       const chief = String(state.settings?.find((r) => r.key === "chief.thread")?.value ?? "");
       const at = now();
@@ -80,6 +82,7 @@ export function companySupervisor(
                   {
                     threadId: targetOwner,
                     text: `[Work supervision] Accountability for task ${task.id} "${task.title}" (${String(task.state)}) transferred to you. Read company_work for task state, evidence and dependencies.`,
+                    notice: { kind: "supervision", taskId: String(task.id), state: "handoff" },
                   },
                   `${handoffNoticeId}:input`,
                   { commandId: handoffNoticeId, at, actor: system },
@@ -110,7 +113,8 @@ export function companySupervisor(
         if (
           !destination ||
           destination === task.threadId ||
-          !state.thread?.some((r) => r.id === destination && !r.archived)
+          !state.thread?.some((r) => r.id === destination && !r.archived) ||
+          (!actionableHold && !missed && coveredByTeamWait(state, destination, task))
         )
           continue;
         const signal = actionableHold
@@ -126,6 +130,16 @@ export function companySupervisor(
               {
                 threadId: destination,
                 text: `[Work supervision] Task ${task.id} "${task.title}": ${actionableHold ? holdReason : signal}. Read company_work for evidence and dependencies. Follow up within approved authority; bring scope, budget or permission changes to the human. A submitted result still needs acceptance.`,
+                notice: {
+                  kind: "supervision",
+                  taskId: String(task.id),
+                  state: actionableHold
+                    ? "held"
+                    : missed
+                      ? "checkpoint_missed"
+                      : String(task.state),
+                  ...(actionableHold ? { preview: holdReason.slice(0, 300) } : {}),
+                },
               },
               `${id}:input`,
               { commandId: id, at, actor: system },
@@ -148,6 +162,11 @@ export function companySupervisor(
               {
                 threadId: String(initiative.managerThreadId),
                 text: `[Approved initiative] You own ${initiative.id}: ${initiative.outcome}. Acceptance: ${initiative.acceptance}. Read company_work for your remit and applied authority plans ${plans.map((p) => p.id).join(", ")}. Coordinate within those bounds, report exceptions and results. No publishing or permission expansion is implied.`,
+                notice: {
+                  kind: "supervision",
+                  state: "initiative",
+                  preview: String(initiative.outcome).slice(0, 300),
+                },
               },
               `${id}:input`,
               { commandId: id, at, actor: system },
