@@ -91,7 +91,8 @@ test("models settings and the switch to another provider stay usable", async ({ 
       .toEqual(["claude-work", "claude"]);
 
     // Add Codex as a backup.
-    await models.getByRole("combobox", { name: "Account to add" }).selectOption("codex");
+    await models.getByRole("button", { name: /^Account to add:/ }).click();
+    await page.getByRole("option", { name: "Codex" }).click();
     await models.getByRole("button", { name: "Add to order" }).click();
     await expect(models.getByText("Default model · another provider")).toBeVisible();
 
@@ -104,9 +105,14 @@ test("models settings and the switch to another provider stay usable", async ({ 
     // A new account shows its sign-in command.
     await models.getByRole("button", { name: "Add account" }).click();
     // Only tools that can hold another sign-in are offered.
-    const tool = models.getByRole("combobox", { name: "Tool" });
-    await expect(tool.getByRole("option")).toHaveText(["Claude", "Codex"]);
+    const tool = models.getByRole("button", { name: /^Tool:/ });
     await expect(tool).toHaveAccessibleDescription("Other tools use only their own sign-in.");
+    await tool.click();
+    await expect(page.getByRole("listbox", { name: "Tool" }).getByRole("option")).toHaveText([
+      "Claude",
+      "Codex",
+    ]);
+    await page.keyboard.press("Escape");
     await models.getByRole("textbox", { name: "Name" }).fill("Personal");
     await models.getByRole("button", { name: "Add", exact: true }).click();
     await expect(

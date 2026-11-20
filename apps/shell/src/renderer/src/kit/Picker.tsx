@@ -30,6 +30,8 @@ interface PickerProps<T extends string> {
   disabled?: boolean;
   /** Shown in the trigger when nothing is picked. */
   placeholder?: string;
+  /** Id of text that states a limit or error about this choice. Not for captions. */
+  describedBy?: string;
   class?: string;
 }
 
@@ -58,6 +60,7 @@ function Trigger<T extends string>(props: {
       aria-haspopup={props.popup}
       aria-expanded={props.open}
       aria-label={`${props.picker.label}: ${text()}`}
+      aria-describedby={props.picker.describedBy}
       disabled={props.picker.disabled}
       onClick={() => props.onOpen()}
       onKeyDown={(event) => {

@@ -26,7 +26,7 @@
   font-weight: 600;
 }
 
-.models-hint,
+.models-form-note,
 .models-empty {
   margin: 0;
   color: var(--text-muted);
@@ -186,7 +186,6 @@
 .models-link:focus-visible,
 .models-button:focus-visible,
 .models-role:focus-within,
-.models-field select:focus-visible,
 .models-field input:focus-visible,
 .switch-dialog-remember input:focus-visible {
   outline: 2px solid var(--control-accent);
@@ -212,7 +211,6 @@
   font-size: 12px;
 }
 
-.models-field select,
 .models-field input {
   min-height: 32px;
   border: 1px solid var(--openbot-line-strong);

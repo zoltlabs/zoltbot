@@ -14,7 +14,6 @@ interface ProviderPickerProps {
   options: ProviderPickerOption[];
   ariaLabel: string;
   label?: string;
-  hint?: string;
   embedded?: boolean;
   disabled?: boolean;
   allowUnavailableSelection?: boolean;
@@ -89,7 +88,6 @@ export function ProviderPicker(props: ProviderPickerProps) {
           }}
         </For>
       </div>
-      <Show when={props.hint}>{(hint) => <p class="provider-picker-hint">{hint()}</p>}</Show>
     </div>
   );
 }

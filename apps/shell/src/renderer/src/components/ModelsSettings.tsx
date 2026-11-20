@@ -7,6 +7,7 @@ import {
   type ModelsOverview,
   RUNNING_LIMIT,
 } from "../../../shared/models";
+import { Select } from "../kit";
 import { SidebarToggleIcon } from "./Sidebar";
 
 const ROLES: { id: BackupRole; label: string; title: string }[] = [
@@ -300,18 +301,19 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
             }
           >
             <form class="models-form" onSubmit={(event) => void addAccount(event)}>
-              <label class="models-field">
-                <span>Tool</span>
-                <select
+              <div class="models-field">
+                <span aria-hidden="true">Tool</span>
+                <Select
+                  label="Tool"
                   value={tool()}
-                  aria-describedby={singleSignIn() ? "models-tool-note" : undefined}
-                  onChange={(event) => setTool(event.currentTarget.value)}
-                >
-                  <For each={tools()}>
-                    {(item) => <option value={item.definitionId}>{item.providerName}</option>}
-                  </For>
-                </select>
-              </label>
+                  describedBy={singleSignIn() ? "models-tool-note" : undefined}
+                  options={tools().map((item) => ({
+                    value: item.definitionId,
+                    label: item.providerName,
+                  }))}
+                  onChange={setTool}
+                />
+              </div>
               <label class="models-field">
                 <span>Name</span>
                 <input
@@ -334,7 +336,7 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                 </button>
               </div>
               <Show when={singleSignIn()}>
-                <p id="models-tool-note" class="models-hint models-form-note">
+                <p id="models-tool-note" class="models-form-note">
                   Other tools use only their own sign-in.
                 </p>
               </Show>
@@ -346,10 +348,6 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
           <h2 id="models-order" class="models-heading">
             {ROLES.find((item) => item.id === role())?.title}
           </h2>
-          <p class="models-hint">
-            When one hits its limit, the next continues the work. It moves back when the limit
-            resets.
-          </p>
           <fieldset class="models-roles">
             <legend class="sr-only">Role</legend>
             <For each={ROLES}>
@@ -443,18 +441,13 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
             </Show>
             <div class="models-actions">
               <Show when={unlisted().length && order().length < 8}>
-                <label class="models-field models-field-inline">
-                  <span class="sr-only">Account to add</span>
-                  <select
-                    value={candidate()}
-                    onChange={(event) => setCandidate(event.currentTarget.value)}
-                  >
-                    <option value="">Choose an account</option>
-                    <For each={unlisted()}>
-                      {(item) => <option value={item.id}>{item.name}</option>}
-                    </For>
-                  </select>
-                </label>
+                <Select
+                  label="Account to add"
+                  value={candidate() || null}
+                  placeholder="Choose an account"
+                  options={unlisted().map((item) => ({ value: item.id, label: item.name }))}
+                  onChange={setCandidate}
+                />
                 <button
                   type="button"
                   class="models-button"

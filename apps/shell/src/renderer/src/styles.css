@@ -201,12 +201,6 @@ textarea {
   background: rgb(var(--ink) / 0.25);
 }
 
-.provider-picker-hint {
-  margin: 7px 0 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-}
 
 .mac-permission-copy {
   display: grid;
