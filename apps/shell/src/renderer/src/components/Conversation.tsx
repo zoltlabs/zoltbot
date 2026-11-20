@@ -11,6 +11,7 @@ import type {
   QueueSnapshot,
   UpdateBotInput,
 } from "../../../shared/ipc";
+import { useShortcut } from "../app-shortcuts";
 import type { BotMessage, BotProfile } from "../data";
 import { ARTIFACT_PANEL_MAX, ARTIFACT_PANEL_MIN, ArtifactPanel } from "./ArtifactPanel";
 import { expandComposerMentions } from "./ComposerEditor";
@@ -275,6 +276,21 @@ export function Conversation(props: ConversationProps) {
     onError: setComposerError,
   });
 
+  useShortcut({
+    id: "conversation.closePanels",
+    keys: "Escape",
+    when: "global",
+    label: "Close panels",
+    run: () => {
+      browser.hideBrowserPanel();
+      setMediaPreview(null);
+      settingsForm.setAvatarPickerOpen(false);
+      props.onCloseAgentPicker();
+      // Escape may mean something to other listeners too, such as a view on the map.
+      return false;
+    },
+  });
+
   onMount(() => {
     const unsubscribeImport = window.openbot.agent.onAttachmentImport((event) => {
       if (event.type === "started") {
@@ -299,21 +315,12 @@ export function Conversation(props: ConversationProps) {
         }
       }
     });
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      browser.hideBrowserPanel();
-      setMediaPreview(null);
-      settingsForm.setAvatarPickerOpen(false);
-      props.onCloseAgentPicker();
-    };
-    window.addEventListener("keydown", closeOnEscape);
     const scrollResizeObserver = new ResizeObserver(() => updateScrollFade());
     if (scrollElement) scrollResizeObserver.observe(scrollElement);
     requestAnimationFrame(() => updateScrollFade());
     onCleanup(() => {
       scrollResizeObserver.disconnect();
       unsubscribeImport();
-      window.removeEventListener("keydown", closeOnEscape);
     });
   });
 
