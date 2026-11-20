@@ -2,6 +2,7 @@ import { type Accessor, createSignal, For, Show } from "solid-js";
 import type { MessageReaction } from "../../../../shared/ipc";
 import { MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "../../../../shared/ipc";
 import type { BotMessage } from "../../data";
+import { t } from "../../i18n";
 import { type Anchor, Menu, Popover, showToast } from "../../kit";
 import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
 import { messageMenuGroups } from "./messageMenu";
@@ -9,7 +10,7 @@ import { messageMenuGroups } from "./messageMenu";
 export function MessageActions(props: { message: BotMessage; actions: MessageActionsState }) {
   let reactionButton: HTMLButtonElement | undefined;
   let moreButton: HTMLButtonElement | undefined;
-  const who = () => (props.message.author === "you" ? "User" : "Agent");
+  const author = () => ({ author: props.message.author });
   const pickerOpen = () => props.actions.openReactionMessageId() === props.message.id;
   const menu = () => {
     const open = props.actions.menu();
@@ -23,7 +24,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
     <button
       type="button"
       aria-pressed={props.message.reaction === emoji}
-      aria-label={`React with ${emoji}`}
+      aria-label={t("chat.message.react", { emoji })}
       onClick={() => react(emoji)}
     >
       {emoji}
@@ -35,13 +36,13 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
       class="message-actions"
       classList={{ "message-actions-open": pickerOpen() || menu() !== null }}
       role="toolbar"
-      aria-label={`${who()} message actions`}
+      aria-label={t("chat.message.actions", author())}
     >
       <button
         ref={reactionButton}
         type="button"
         class="message-action-button"
-        aria-label="Add reaction"
+        aria-label={t("chat.message.addReaction")}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen()}
         onClick={() => props.actions.togglePicker(props.message.id)}
@@ -52,7 +53,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
         {(anchor) => (
           <Popover
             anchor={anchor()}
-            label="Choose a reaction"
+            label={t("chat.message.chooseReaction")}
             placement={props.message.author === "you" ? "top-end" : "top-start"}
             onClose={() => props.actions.closeAll()}
           >
@@ -62,7 +63,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
                 <button
                   type="button"
                   class="reaction-more-button"
-                  aria-label="More emoji"
+                  aria-label={t("chat.message.moreEmoji")}
                   aria-expanded={expandedEmoji()}
                   onClick={() => props.actions.toggleExpandedEmoji(props.message.id)}
                 >
@@ -81,7 +82,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
       <button
         type="button"
         class="message-action-button"
-        aria-label={`Reply to ${who()} message`}
+        aria-label={t("chat.message.replyTo", author())}
         onClick={() => props.actions.reply(props.message)}
       >
         <ReplyIcon />
@@ -90,7 +91,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
         ref={moreButton}
         type="button"
         class="message-action-button message-more-button"
-        aria-label="More message actions"
+        aria-label={t("chat.message.moreActions")}
         aria-haspopup="menu"
         aria-expanded={menu() !== null}
         onClick={() => moreButton && props.actions.toggleMenu(props.message.id, moreButton)}
@@ -102,7 +103,7 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
           <Menu
             anchor={open().anchor}
             owner={open().owner}
-            label="Message actions"
+            label={t("chat.message.menu")}
             placement={props.message.author === "you" ? "bottom-end" : "bottom-start"}
             groups={messageMenuGroups(props.message, props.actions)}
             onClose={() => props.actions.closeAll()}
@@ -191,9 +192,9 @@ export function createMessageActionsState(deps: {
         document.execCommand("copy");
         input.remove();
       }
-      showToast({ message: "Copied" });
+      showToast({ message: t("chat.message.copied") });
     } catch {
-      showToast({ message: "Couldn't copy the message" });
+      showToast({ message: t("chat.message.copyFailed") });
     }
   }
 

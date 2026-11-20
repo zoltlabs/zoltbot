@@ -1,0 +1,16 @@
+{
+  "chat.message.actions": "{author, select, you {User} other {Agent}} message actions",
+  "chat.message.addReaction": "Add reaction",
+  "chat.message.chooseReaction": "Choose a reaction",
+  "chat.message.copied": "Copied",
+  "chat.message.copy": "Copy",
+  "chat.message.copyFailed": "Couldn't copy the message",
+  "chat.message.menu": "Message actions",
+  "chat.message.moreActions": "More message actions",
+  "chat.message.moreEmoji": "More emoji",
+  "chat.message.react": "React with {emoji}",
+  "chat.message.removeReaction": "Remove reaction {emoji}",
+  "chat.message.reply": "Reply",
+  "chat.message.replyTo": "Reply to {author, select, you {User} other {Agent}} message",
+  "kit.notifications": "Notifications"
+}

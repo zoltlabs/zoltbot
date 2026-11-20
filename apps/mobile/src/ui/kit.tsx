@@ -12,6 +12,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { avatarHue } from "../data/view";
+import { t } from "../i18n";
 import { avatarColors, mono, type Tokens, touch, type as typeScale, useTheme } from "../theme";
 
 type Variant = keyof typeof typeScale;
@@ -227,7 +228,7 @@ export function showMenu(items: MenuItem[], title?: string) {
     ActionSheetIOS.showActionSheetWithOptions(
       {
         ...(title ? { title } : {}),
-        options: [...items.map((item) => item.label), "Cancel"],
+        options: [...items.map((item) => item.label), t("kit.cancel")],
         cancelButtonIndex: items.length,
         ...(destructive.length ? { destructiveButtonIndex: destructive } : {}),
         ...(disabled.length ? { disabledButtonIndices: disabled } : {}),
@@ -247,7 +248,7 @@ export function showMenu(items: MenuItem[], title?: string) {
         style: item.destructive ? ("destructive" as const) : ("default" as const),
         onPress: item.onPress,
       })),
-    { text: "Cancel", style: "cancel" as const },
+    { text: t("kit.cancel"), style: "cancel" as const },
   ]);
 }
 
@@ -311,7 +312,7 @@ export function showConfirmSheet({
       {
         title,
         ...(body ? { message: body } : {}),
-        options: [confirmLabel, "Cancel"],
+        options: [confirmLabel, t("kit.cancel")],
         destructiveButtonIndex: 0,
         cancelButtonIndex: 1,
       },
@@ -322,7 +323,7 @@ export function showConfirmSheet({
     return;
   }
   Alert.alert(title, body, [
-    { text: "Cancel", style: "cancel" },
+    { text: t("kit.cancel"), style: "cancel" },
     { text: confirmLabel, style: "destructive", onPress: onConfirm },
   ]);
 }

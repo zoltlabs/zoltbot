@@ -7,6 +7,7 @@ import type {
   AttachmentSummary,
 } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
+import { t } from "../../i18n";
 import { Menu } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { ArtifactCards } from "../ArtifactPanel";
@@ -384,7 +385,7 @@ export function TranscriptEntry(props: {
                   <button
                     type="button"
                     class="message-reaction-pill"
-                    aria-label={`Remove reaction ${reaction()}`}
+                    aria-label={t("chat.message.removeReaction", { emoji: reaction() })}
                     onClick={() => props.actions.react(props.message, null)}
                   >
                     {reaction()}

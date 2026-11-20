@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { t } from "../i18n";
 import { floatingLayer } from "./floating";
 
 export interface ToastInput {
@@ -72,7 +73,7 @@ export function ToastRegion() {
     <Portal mount={floatingLayer()}>
       <section
         class="zb-kit-toasts"
-        aria-label="Notifications"
+        aria-label={t("kit.notifications")}
         aria-live="polite"
         onPointerEnter={() => setPaused(true)}
         onPointerLeave={(event) => setPaused(event.currentTarget.contains(document.activeElement))}

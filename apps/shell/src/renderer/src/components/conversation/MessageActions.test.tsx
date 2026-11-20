@@ -109,8 +109,8 @@ describe("Message menu", () => {
 
     const entries = [
       ...MESSAGE_MENU,
-      { id: "hide", label: "Hide", icon: () => null, group: 2, run: vi.fn() },
-      { id: "pin", label: "Pin", icon: () => null, group: 1, run: vi.fn() },
+      { id: "hide", label: "chat.message.copy" as const, icon: () => null, group: 2, run: vi.fn() },
+      { id: "pin", label: "chat.message.reply" as const, icon: () => null, group: 1, run: vi.fn() },
     ];
     const groups = messageMenuGroups(message, actions, entries);
     expect(groups.map((group) => group.map((item) => item.id))).toEqual([

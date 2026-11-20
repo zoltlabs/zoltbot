@@ -1,5 +1,6 @@
 import type { JSX } from "solid-js";
 import type { BotMessage } from "../../data";
+import { type MessageKey, t } from "../../i18n";
 import type { MenuItem } from "../../kit";
 import { CopyIcon, ReplyIcon } from "./icons";
 
@@ -15,7 +16,7 @@ export interface MessageMenuActions {
  */
 export interface MessageMenuEntry {
   id: string;
-  label: string;
+  label: MessageKey;
   icon: () => JSX.Element;
   /** Entries with the same group sit together; a separator is drawn between groups. */
   group: number;
@@ -32,14 +33,14 @@ function MenuIcon(props: { icon: JSX.Element }) {
 export const MESSAGE_MENU: readonly MessageMenuEntry[] = [
   {
     id: "reply",
-    label: "Reply",
+    label: "chat.message.reply",
     icon: () => <MenuIcon icon={<ReplyIcon />} />,
     group: 0,
     run: (message, actions) => actions.reply(message),
   },
   {
     id: "copy",
-    label: "Copy",
+    label: "chat.message.copy",
     icon: () => <MenuIcon icon={<CopyIcon />} />,
     group: 0,
     when: (message) => Boolean(message.body),
@@ -59,7 +60,7 @@ export function messageMenuGroups(
     const group = groups.get(entry.group) ?? [];
     group.push({
       id: entry.id,
-      label: entry.label,
+      label: t(entry.label),
       icon: entry.icon(),
       run: () => entry.run(message, actions),
     });
