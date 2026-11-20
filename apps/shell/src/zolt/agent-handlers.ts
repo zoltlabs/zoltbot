@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from "../shared/ipc";
 import { branchHandlers } from "./branch-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
 import { parseTaskAction } from "./manager-cards";
+import { memoryHandlers } from "./memory-service";
 import { modelHandlers } from "./model-handlers";
 import {
   parseCancelQueuedMessage,
@@ -71,6 +72,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...modelHandlers(service),
     ...branchHandlers(service.client),
     ...threadActionHandlers(service.client),
+    ...memoryHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

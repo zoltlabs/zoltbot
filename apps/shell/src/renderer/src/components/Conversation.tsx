@@ -85,6 +85,7 @@ interface ConversationProps {
   onStop: () => void;
   /** Opens the Tasks page for a project, from its Organization panel. */
   onOpenTasks?: (projectId: string) => void;
+  onOpenMemory?: (agentId: string) => void;
 }
 
 export function Conversation(props: ConversationProps) {
@@ -507,6 +508,10 @@ export function Conversation(props: ConversationProps) {
 
   const working = () => agentActivity() === "Working";
   const modelDisabled = () => !agentReady() || working();
+  const memoryLink = () => {
+    const agentId = props.bot?.profileId;
+    return agentId && props.onOpenMemory ? () => props.onOpenMemory?.(agentId) : undefined;
+  };
   const containerWidth = () => conversationPanel?.clientWidth || window.innerWidth;
 
   return (
@@ -789,6 +794,7 @@ export function Conversation(props: ConversationProps) {
             saveBotPatch({ reasoningEffort });
           }}
           saveError={settingsSaveError()}
+          onOpenMemory={memoryLink()}
         />
       </Show>
     </main>

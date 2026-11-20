@@ -39,6 +39,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
+import { MemoryPage } from "./components/MemoryPage";
 import { ModelsSettings } from "./components/ModelsSettings";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
@@ -46,6 +47,7 @@ import { SidebarChannels } from "./components/SidebarChannels";
 import { createChatActions } from "./components/sidebar/chat-actions";
 import { TasksPage } from "./components/TasksPage";
 import type { BotProfile } from "./data";
+import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
 import { paletteItems } from "./palette-items";
 import { createStaffStore } from "./staff-store";
@@ -63,7 +65,18 @@ export function App() {
     projectId: tasksProject(),
   }));
   const [modelsOpen, setModelsOpen] = pageFlag(pages, "models");
+  const [memoryAgent, setMemoryAgent] = createSignal<string | null>(null);
+  const [memoryOpen, setMemoryOpen] = pageFlag(pages, "memory", () => ({
+    id: "memory",
+    agentId: memoryAgent(),
+  }));
   const tasks = createTasksStore();
+  const memory = createMemoryStore();
+  // The agent filter comes from the route, so Back and Forward restore it.
+  const memoryRoute = () => {
+    const at = pages.location();
+    return at.id === "memory" ? at : undefined;
+  };
   const staff = createStaffStore(() => null);
   const channels = createChannelsStore();
   const channelOpen = () => channels.openId() !== null;
@@ -138,6 +151,7 @@ export function App() {
   function openTasks(projectId?: string | null) {
     setMapOpen(false);
     setModelsOpen(false);
+    setMemoryOpen(false);
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
     channels.open(null);
@@ -160,6 +174,7 @@ export function App() {
     setMapOpen(false);
     setTasksOpen(false);
     setModelsOpen(false);
+    setMemoryOpen(false);
     setAgentPickerOpen(false);
     channels.open(channelId);
   }
@@ -363,12 +378,21 @@ export function App() {
     }
   }
 
+  /** Shows the Memory page, filtered to one agent when given. */
+  function openMemory(agentId: string | null = null) {
+    closePages();
+    setMemoryAgent(agentId);
+    setAgentPickerOpen(false);
+    setMemoryOpen(true);
+  }
+
   /** Closes the channel and every page, so the conversation shows. */
   function closePages() {
     channels.open(null);
     setMapOpen(false);
     setTasksOpen(false);
     setModelsOpen(false);
+    setMemoryOpen(false);
   }
 
   function selectBot(botId: string) {
@@ -376,6 +400,7 @@ export function App() {
     setMapOpen(false);
     setTasksOpen(false);
     setModelsOpen(false);
+    setMemoryOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -579,7 +604,9 @@ export function App() {
     bots: botList,
     // Covered by a page or channel, the open chat isn't being read.
     activeBotId: () =>
-      mapOpen() || tasksOpen() || modelsOpen() || channelOpen() ? undefined : activeBot()?.id,
+      mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen()
+        ? undefined
+        : activeBot()?.id,
     clearLocalUnread: clearReplyIndicators,
   });
 
@@ -664,7 +691,7 @@ export function App() {
               tasks={tasks.tasks()}
               staffApprovals={staff.approvals().length}
               activeBotId={
-                mapOpen() || tasksOpen() || modelsOpen() || channelOpen()
+                mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen()
                   ? ""
                   : (activeBot()?.id ?? "")
               }
@@ -679,6 +706,7 @@ export function App() {
                     setMapOpen(false);
                     setTasksOpen(false);
                     setModelsOpen(false);
+                    setMemoryOpen(false);
                     setAgentPickerOpen(false);
                     channels.open(channelId);
                   }}
@@ -688,6 +716,7 @@ export function App() {
                 channels.open(null);
                 setTasksOpen(false);
                 setModelsOpen(false);
+                setMemoryOpen(false);
                 setMapOpen(true);
               }}
               onOpenTasks={() => openTasks()}
@@ -698,6 +727,9 @@ export function App() {
                 setTasksOpen(false);
                 setModelsOpen(true);
               }}
+              memoryOpen={memoryOpen()}
+              memoryReviews={memory.proposals().length}
+              onOpenMemory={() => openMemory()}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -738,7 +770,9 @@ export function App() {
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
           <div
             class="conversation-slot"
-            inert={mapOpen() || tasksOpen() || modelsOpen() || channelOpen() || undefined}
+            inert={
+              mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen() || undefined
+            }
           >
             <Conversation
               agentStatus={agentStatus()}
@@ -773,6 +807,7 @@ export function App() {
               onOpenAgentSetup={async () => void setPermissionsOpen(true)}
               onStop={stopActiveTurn}
               onOpenTasks={openTasks}
+              onOpenMemory={openMemory}
             />
           </div>
           <Show when={tasksOpen()}>
@@ -806,6 +841,14 @@ export function App() {
               }}
             />
           </Show>
+          <Show when={memoryOpen()}>
+            <MemoryPage
+              store={memory}
+              agentId={memoryRoute()?.agentId ?? null}
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+            />
+          </Show>
           <Show when={modelsOpen()}>
             <ModelsSettings
               sidebarCollapsed={leftPanelCollapsed()}
@@ -830,6 +873,7 @@ export function App() {
                     closePages();
                     setModelsOpen(true);
                   },
+                  openMemory: () => openMemory(),
                   // The picker lives in the conversation, which a page or channel covers.
                   newChat: () => {
                     closePages();

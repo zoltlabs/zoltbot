@@ -1,0 +1,101 @@
+// The sidebar's page buttons: Map, Tasks, Models and Memory.
+import { Show } from "solid-js";
+import { t } from "../../i18n";
+import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
+
+function MemoryIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <path
+        d="M5.5 3.5h9a1 1 0 0 1 1 1v12l-5.5-3.2-5.5 3.2v-12a1 1 0 0 1 1-1Z"
+        stroke-width="1.4"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function SidebarViews(props: {
+  mapOpen: boolean;
+  tasksOpen: boolean;
+  modelsOpen?: boolean;
+  memoryOpen?: boolean;
+  /** Tasks and approvals waiting on the owner. */
+  needsYou: number;
+  /** What agents proposed to remember, waiting for review. */
+  memoryReviews?: number;
+  onOpenMap: () => void;
+  onOpenTasks: () => void;
+  onOpenModels?: (() => void) | undefined;
+  onOpenMemory?: (() => void) | undefined;
+}) {
+  return (
+    <div class="sidebar-views">
+      <button
+        type="button"
+        class="bot-row sidebar-map-button"
+        classList={{ "bot-row-active": props.mapOpen }}
+        aria-pressed={props.mapOpen}
+        onClick={props.onOpenMap}
+      >
+        <span class="sidebar-map-icon">
+          <MapIcon />
+        </span>
+        <span class="bot-row-copy">{t("sidebar.views.map")}</span>
+      </button>
+      <button
+        type="button"
+        class="bot-row sidebar-map-button"
+        classList={{ "bot-row-active": props.tasksOpen }}
+        aria-pressed={props.tasksOpen}
+        aria-keyshortcuts="Meta+T"
+        onClick={props.onOpenTasks}
+      >
+        <span class="sidebar-map-icon">
+          <TasksIcon />
+        </span>
+        <span class="bot-row-copy">{t("sidebar.views.tasks")}</span>
+        <Show when={props.needsYou > 0}>
+          <span class="sidebar-tasks-count">
+            {props.needsYou}
+            <span class="sr-only"> {t("sidebar.views.needYou")}</span>
+          </span>
+        </Show>
+      </button>
+      <Show when={props.onOpenModels}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.modelsOpen === true }}
+          aria-pressed={props.modelsOpen === true}
+          onClick={() => props.onOpenModels?.()}
+        >
+          <span class="sidebar-map-icon">
+            <ModelsIcon />
+          </span>
+          <span class="bot-row-copy">{t("sidebar.views.models")}</span>
+        </button>
+      </Show>
+      <Show when={props.onOpenMemory}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.memoryOpen === true }}
+          aria-pressed={props.memoryOpen === true}
+          onClick={() => props.onOpenMemory?.()}
+        >
+          <span class="sidebar-map-icon">
+            <MemoryIcon />
+          </span>
+          <span class="bot-row-copy">{t("memory.title")}</span>
+          <Show when={(props.memoryReviews ?? 0) > 0}>
+            <span class="sidebar-tasks-count">
+              {props.memoryReviews}
+              <span class="sr-only"> {t("sidebar.views.toReview")}</span>
+            </span>
+          </Show>
+        </button>
+      </Show>
+    </div>
+  );
+}

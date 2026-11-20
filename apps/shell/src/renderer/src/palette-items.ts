@@ -18,6 +18,7 @@ export interface PaletteSources {
   openTasks: (projectId?: string | null) => void;
   openMap: () => void;
   openModels: () => void;
+  openMemory: () => void;
   newChat: () => void;
 }
 
@@ -59,6 +60,7 @@ export function paletteItems(sources: PaletteSources): PaletteItem[] {
     tasks: () => sources.openTasks(),
     map: sources.openMap,
     models: sources.openModels,
+    memory: sources.openMemory,
   } as const;
   for (const [id, open] of Object.entries(pageActions))
     items.push({

@@ -97,6 +97,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private botsDirty = false;
   /** Projects whose company changed since the last flush; null stands for every project. */
   private companyDirty = new Set<string | null>();
+  private memoryDirty = false;
   private flushScheduled = false;
   private models: AgentModelOption[] = [];
   private agentChecks: AgentChecks;
@@ -625,6 +626,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         void this.refreshAgents(false);
       this.markBots();
       this.companyDirty.add(null);
+      this.memoryDirty = true;
       for (const thread of visibleThreads(this.client.snapshot)) this.dirty.add(text(thread.id));
       this.scheduleFlush();
       return;
@@ -634,6 +636,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       return;
     }
     if (change.aggregateType === "agentDefinition") void this.refreshAgents(true);
+    if (change.aggregateType.startsWith("knowledge")) this.memoryDirty = true;
     for (const row of change.rows) {
       const threadId =
         change.aggregateType === "thread"
@@ -722,6 +725,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         this.emit("event", { type: "bots-changed", bots });
       }
     }
+    if (this.memoryDirty) this.emit("event", { type: "memory-changed" });
+    this.memoryDirty = false;
     const company = this.companyDirty;
     this.companyDirty = new Set();
     if (company.has(null)) this.emit("event", { type: "company-changed", projectId: null });

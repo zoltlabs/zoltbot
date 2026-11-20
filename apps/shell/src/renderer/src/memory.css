@@ -1,0 +1,234 @@
+/* The Memory page (S5). Colors are theme tokens. */
+
+.memory-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.memory-views {
+  display: inline-flex;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  padding: 2px;
+}
+
+.memory-view {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-view[aria-pressed="true"] {
+  background: var(--surface-option-selected);
+  box-shadow: 0 0 0 1px var(--openbot-line);
+  color: var(--openbot-white);
+}
+
+.memory-view:focus-visible,
+.memory-row-open:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.memory-count {
+  color: var(--text-warning);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-search {
+  width: 220px;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.memory-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-row {
+  border-bottom: 1px solid var(--openbot-line);
+}
+
+.memory-row-open {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: baseline;
+  gap: 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 8px 4px;
+  color: var(--openbot-white);
+  font-size: 13px;
+  text-align: left;
+}
+
+.memory-row-open:hover {
+  background: var(--openbot-hover);
+}
+
+.memory-row-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-row-meta {
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-detail {
+  display: grid;
+  gap: 12px;
+  padding: 4px 4px 16px;
+}
+
+.memory-body,
+.memory-revision-body {
+  margin: 0;
+  color: var(--openbot-white);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.memory-edit {
+  display: grid;
+  max-width: 640px;
+  gap: 10px;
+}
+
+.memory-field {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-field textarea {
+  resize: vertical;
+}
+
+.memory-error {
+  margin: 0;
+  color: var(--text-danger);
+  font-size: 12px;
+}
+
+.memory-history h2 {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.memory-history p {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-revisions {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+  list-style: none;
+}
+
+.memory-revision {
+  border-left: 2px solid var(--openbot-line);
+  padding: 2px 0 2px 10px;
+}
+
+.memory-revision-head {
+  display: flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-history .memory-revision-title {
+  margin: 2px 0;
+  color: var(--openbot-white);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.memory-current {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-proposal {
+  display: grid;
+  gap: 6px;
+  padding: 10px 4px;
+}
+
+.memory-proposal-head {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--openbot-white);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.memory-op {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  padding: 1px 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.memory-reason {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.memory-proposal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

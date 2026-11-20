@@ -193,6 +193,13 @@ const openbotApi: OpenBotDesktopApi = {
     runningLimit: () => ipcRenderer.invoke(IPC_CHANNELS.modelsRunningLimit),
     setRunningLimit: (limit) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetRunningLimit, limit),
   },
+  memory: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.memoryList),
+    revisions: (id) => ipcRenderer.invoke(IPC_CHANNELS.memoryRevisions, id),
+    save: (input) => ipcRenderer.invoke(IPC_CHANNELS.memorySave, input),
+    archive: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryArchive, input),
+    decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecide, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

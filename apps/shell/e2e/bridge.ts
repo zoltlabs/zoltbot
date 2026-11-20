@@ -247,6 +247,13 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         runningLimit: call(channels.modelsRunningLimit),
         setRunningLimit: call(channels.modelsSetRunningLimit),
       },
+      memory: {
+        list: call(channels.memoryList),
+        revisions: call(channels.memoryRevisions),
+        save: call(channels.memorySave),
+        archive: call(channels.memoryArchive),
+        decide: call(channels.memoryDecide),
+      },
       // The headless page has no view scheme, so it reports no installed map.
       views: {
         getMap: async () => null,

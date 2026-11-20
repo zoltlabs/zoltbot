@@ -282,6 +282,13 @@ export function setUpAppTest() {
           };
         }),
       },
+      memory: {
+        list: vi.fn().mockResolvedValue({ entries: [], proposals: [] }),
+        revisions: vi.fn().mockResolvedValue([]),
+        save: vi.fn().mockResolvedValue(undefined),
+        archive: vi.fn().mockResolvedValue(undefined),
+        decide: vi.fn().mockResolvedValue(undefined),
+      },
       browser: {
         open: vi.fn().mockResolvedValue(undefined),
         activate: vi.fn().mockResolvedValue(undefined),

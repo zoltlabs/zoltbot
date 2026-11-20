@@ -27,15 +27,12 @@ import {
   AccountIcon,
   CloseIcon,
   FeedbackIcon,
-  MapIcon,
   MessageIcon,
-  ModelsIcon,
   MoreIcon,
   PermissionsIcon,
   PlusIcon,
   SearchIcon,
   SidebarToggleIcon,
-  TasksIcon,
   UpdateIcon,
   UsageIcon,
 } from "./SidebarIcons";
@@ -51,6 +48,7 @@ import {
   DeleteAgentDialog,
 } from "./sidebar/AgentMenus";
 import { groupHeadingAt } from "./sidebar/organize";
+import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
 
 export type { SidebarAgentState };
@@ -79,6 +77,10 @@ interface SidebarProps {
   onChatAction?: (bot: BotProfile, action: ThreadAction) => void;
   onOpenMap: () => void;
   onOpenModels?: () => void;
+  /** S5: the Memory page, and how many proposals wait for review. */
+  memoryOpen?: boolean;
+  memoryReviews?: number;
+  onOpenMemory?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -458,53 +460,18 @@ export function Sidebar(props: SidebarProps) {
         </button>
       </div>
 
-      <div class="sidebar-views">
-        <button
-          type="button"
-          class="bot-row sidebar-map-button"
-          classList={{ "bot-row-active": props.mapOpen }}
-          aria-pressed={props.mapOpen}
-          onClick={props.onOpenMap}
-        >
-          <span class="sidebar-map-icon">
-            <MapIcon />
-          </span>
-          <span class="bot-row-copy">Map</span>
-        </button>
-        <button
-          type="button"
-          class="bot-row sidebar-map-button"
-          classList={{ "bot-row-active": props.tasksOpen }}
-          aria-pressed={props.tasksOpen}
-          aria-keyshortcuts="Meta+T"
-          onClick={props.onOpenTasks}
-        >
-          <span class="sidebar-map-icon">
-            <TasksIcon />
-          </span>
-          <span class="bot-row-copy">Tasks</span>
-          <Show when={needsYou() > 0}>
-            <span class="sidebar-tasks-count">
-              {needsYou()}
-              <span class="sr-only"> need you</span>
-            </span>
-          </Show>
-        </button>
-        <Show when={props.onOpenModels}>
-          <button
-            type="button"
-            class="bot-row sidebar-map-button"
-            classList={{ "bot-row-active": props.modelsOpen === true }}
-            aria-pressed={props.modelsOpen === true}
-            onClick={() => props.onOpenModels?.()}
-          >
-            <span class="sidebar-map-icon">
-              <ModelsIcon />
-            </span>
-            <span class="bot-row-copy">Models</span>
-          </button>
-        </Show>
-      </div>
+      <SidebarViews
+        mapOpen={props.mapOpen}
+        tasksOpen={props.tasksOpen}
+        modelsOpen={props.modelsOpen}
+        memoryOpen={props.memoryOpen}
+        needsYou={needsYou()}
+        memoryReviews={props.memoryReviews}
+        onOpenMap={props.onOpenMap}
+        onOpenTasks={props.onOpenTasks}
+        onOpenModels={props.onOpenModels}
+        onOpenMemory={props.onOpenMemory}
+      />
 
       <div class="sidebar-search-wrap">
         <label class="search-field">

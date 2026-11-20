@@ -6,6 +6,7 @@ export * from "./browser";
 export * from "./company";
 export * from "./dictation";
 export type * from "./manager-cards";
+export type * from "./memory";
 export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
@@ -27,6 +28,7 @@ import type {
 } from "./channels";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
@@ -94,6 +96,7 @@ export const IPC_CHANNELS = {
   agentStaffAction: "agent:staff-action",
   agentEvent: "agent:event",
   ...MODEL_CHANNELS,
+  ...MEMORY_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -593,6 +596,8 @@ export type AgentEvent =
   | { type: "prompt-cleared"; botId: string }
   /** Company rows changed. A null project means every project may have changed. */
   | { type: "company-changed"; projectId: string | null }
+  /** What agents remember changed (S5). */
+  | { type: "memory-changed" }
   | { type: "browser-changed"; tabs: BrowserTab[]; activeTabId: string | null }
   | { type: "browser-control-changed"; state: BrowserControlState }
   | { type: "error"; botId?: string; code: string; message: string };
@@ -703,4 +708,5 @@ export interface OpenBotDesktopApi {
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
   models: ModelsDesktopApi;
+  memory: MemoryDesktopApi;
 }

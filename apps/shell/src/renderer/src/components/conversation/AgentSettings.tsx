@@ -73,6 +73,8 @@ export function AgentSettings(props: {
   reasoningOptions: AgentReasoningEffort[];
   onReasoningChange: (effort: AgentReasoningEffort) => void;
   saveError: string | null;
+  /** Opens the Memory page filtered to this agent (S5). */
+  onOpenMemory?: (() => void) | undefined;
 }) {
   const form = props.form;
   return (
@@ -270,6 +272,20 @@ export function AgentSettings(props: {
             onChange={(value) => void props.save({ contextFull: value })}
           />
         </div>
+        <Show when={props.onOpenMemory}>
+          <div class="agent-settings-model-row agent-settings-context-row">
+            <span id="agent-memory-label">{t("memory.title")}</span>
+            <button
+              type="button"
+              id="agent-memory-open"
+              class="zb-kit-button"
+              aria-labelledby="agent-memory-open agent-memory-label"
+              onClick={() => props.onOpenMemory?.()}
+            >
+              {t("memory.agent.open")}
+            </button>
+          </div>
+        </Show>
       </div>
     </aside>
   );

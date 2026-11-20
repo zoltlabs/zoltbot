@@ -6,7 +6,8 @@ export type Route =
   | { id: "channel"; channelId: string }
   | { id: "tasks"; projectId: string | null }
   | { id: "map" }
-  | { id: "models" };
+  | { id: "models" }
+  | { id: "memory"; agentId: string | null };
 
 export type RouteId = Route["id"];
 
@@ -28,6 +29,8 @@ export function routesEqual(a: Route, b: Route): boolean {
       return a.channelId === (b as typeof a).channelId;
     case "tasks":
       return a.projectId === (b as typeof a).projectId;
+    case "memory":
+      return a.agentId === (b as typeof a).agentId;
     default:
       return true;
   }
