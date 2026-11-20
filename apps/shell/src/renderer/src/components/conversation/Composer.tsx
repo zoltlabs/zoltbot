@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import type { DraftAttachment, QueueSnapshot } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
+import { Menu } from "../../kit";
 import { ComposerEditor } from "../ComposerEditor";
 import { type createDictation, DictationButton } from "../Dictation";
 import { fileBadge, formatFileSize } from "./Attachments";
@@ -33,16 +34,28 @@ export function Composer(props: {
   activeTurnId: string | null | undefined;
   onStop: () => void;
 }) {
+  let attachButton: HTMLButtonElement | undefined;
   return (
     <div class="composer-wrap">
-      <Show when={props.showAttachments}>
-        <div class="attachment-menu">
-          <button type="button" disabled={props.attachmentBusy} onClick={props.onChooseAttachments}>
-            <FileIcon />
-            {props.attachmentBusy ? "Importing…" : "Attach files"}
-          </button>
-          <span class="attachment-menu-hint">You can also drop files or paste an image</span>
-        </div>
+      <Show when={props.showAttachments && attachButton}>
+        {(anchor) => (
+          <Menu
+            anchor={anchor()}
+            label="Attach"
+            groups={[
+              [
+                {
+                  id: "files",
+                  label: props.attachmentBusy ? "Importing…" : "Attach files",
+                  icon: <FileIcon />,
+                  disabled: props.attachmentBusy,
+                  run: props.onChooseAttachments,
+                },
+              ],
+            ]}
+            onClose={props.onToggleAttachments}
+          />
+        )}
       </Show>
       <For each={props.attachments}>
         {(attachment) => (
@@ -92,9 +105,12 @@ export function Composer(props: {
       />
       <div class="composer">
         <button
+          ref={attachButton}
           type="button"
           class="composer-button"
           aria-label="Attach a file"
+          aria-haspopup="menu"
+          aria-expanded={props.showAttachments}
           disabled={
             props.agentPickerOpen ||
             props.attachmentBusy ||

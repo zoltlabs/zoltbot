@@ -429,7 +429,7 @@ describe("Zoltbot connected desktop shell", () => {
     await screen.findByRole("heading", { name: "Chief" });
     await confirmOnboardingModel();
     await fireEvent.click(screen.getByRole("button", { name: "Attach a file" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Attach files" }));
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Attach files" }));
     expect(await screen.findByText("brief.pdf")).toBeInTheDocument();
     await fireEvent.click(screen.getByRole("button", { name: "Send message" }));
     await waitFor(() =>
