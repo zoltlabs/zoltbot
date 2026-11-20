@@ -5,11 +5,7 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
-- Use the daemon’s keychain broker for account sessions. Existing sign-ins require one fresh Google sign-in.
-
 - Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
-
-- Refuse account actions from an old sign-in after switching accounts.
 
 - Show cloud task audit records, including refused Mac commands, in their project.
 
@@ -19,12 +15,24 @@ The website publishes released entries only; Unreleased stays in this repository
 
 - Improvement: Cloud task acceptance keeps the reviewed commit fixed through branch publication and PR creation.
 
-- Fix: Signing out after a restart removes saved account credentials.
-
 - Improvement: Cloud task diffs stay scoped to their task and current revision.
 
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
 - Fix: Mac command rules require fresh approval when a prefix only selects options.
+
+## v0.1.7: Team channels, task management and a new desktop
+
+November 19, 2026
+
+- New: The Mac app has a new desktop interface, light and dark themes, voice dictation, and Markdown and chart previews.
+- New: Use team channels to post requests and follow work across employees on Mac and iPhone.
+- New: The Tasks page groups work that needs you, running tasks and queued tasks. Review results and set how many tasks each employee can run at once.
+- New: Managers can request staff changes. Review and approve those requests from the organization or a chat.
+- New: Configure backup models in Settings. Chats can switch to a backup when a provider reaches its usage limit.
+- Improvement: Manager chats show delegation and result cards, and team channels can load earlier posts.
+- Improvement: The iPhone app adds a Tasks page, side menu, Models settings, team channels and staff approval cards.
+- Fix: Account actions stay tied to the sign-in that started them. Signing out after a restart clears saved credentials.
+- Existing accounts need one fresh Google sign-in after this update.
 
 ## v0.1.6: Custom views and clearer chat activity
 

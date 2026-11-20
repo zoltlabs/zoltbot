@@ -1,5 +1,4 @@
 /* Visual language v3 component kit. Every value is a --zb- token; see packages/tokens. */
-
 .zb-kbd {
   display: inline-flex;
   align-items: center;
@@ -15,7 +14,6 @@
   line-height: var(--zb-leading-xs);
   font-weight: var(--zb-weight-medium);
 }
-
 /* Buttons */
 .zb-button {
   display: inline-flex;
@@ -106,7 +104,6 @@
   width: var(--zb-control-lg);
   padding: 0;
 }
-
 /* Form controls */
 .zb-field {
   display: flex;
@@ -157,7 +154,6 @@
   padding: var(--zb-space-2);
   resize: vertical;
 }
-
 /* Chips and status */
 .zb-chip {
   display: inline-flex;
@@ -244,7 +240,6 @@
     opacity: 0.45;
   }
 }
-
 /* Avatars */
 .zb-avatar {
   position: relative;
@@ -309,7 +304,6 @@
   height: 8px;
   border-width: 1.5px;
 }
-
 /* Rows */
 .zb-row {
   display: flex;
