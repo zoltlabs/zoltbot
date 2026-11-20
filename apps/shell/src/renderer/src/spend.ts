@@ -166,6 +166,9 @@ export function formatTokens(value: number): string {
 
 /** A short amount for the chart's axis: "$0.50", "$12", "$1.2K". */
 export function formatUsdShort(value: number): string {
+  // Below a cent, cents would read "$0.00" for every tick, so keep two significant digits.
+  if (value > 0 && value < 0.01)
+    return formatNumber(value, { style: "currency", currency: "USD", maximumSignificantDigits: 2 });
   return formatNumber(value, {
     style: "currency",
     currency: "USD",

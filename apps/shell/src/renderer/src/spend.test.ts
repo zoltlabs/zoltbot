@@ -153,5 +153,8 @@ describe("chart labels", () => {
     expect(chartTicks("cost", 1)).toEqual([1, 0.5, 0]);
     expect(formatUsdShort(2000)).toBe("$2K");
     expect(formatUsdShort(0.5)).toBe("$0.50");
+    expect(formatUsdShort(0.002)).toBe("$0.002");
+    expect(formatUsdShort(0.0015)).toBe("$0.0015");
+    expect(formatUsdShort(0)).toBe("$0");
   });
 });
