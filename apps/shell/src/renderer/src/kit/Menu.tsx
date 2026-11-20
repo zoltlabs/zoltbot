@@ -1,5 +1,5 @@
 import type { Placement } from "@floating-ui/dom";
-import { For, type JSX, onMount, Show } from "solid-js";
+import { Index, type JSX, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import {
   type Anchor,
@@ -17,10 +17,14 @@ export interface MenuItem {
   icon?: JSX.Element;
   /** Keys shown at the end of the row, such as "⌘⇧A". */
   shortcut?: string;
+  /** A value shown at the end of the row, such as "42%" or a version. Not a description. */
+  detail?: string;
   /** Set for items that toggle or pick one of several; shows a check when true. */
   checked?: boolean;
   danger?: boolean;
   disabled?: boolean;
+  /** Keeps the menu open after running, for actions that show their progress in the item. */
+  keepOpen?: boolean;
   run: () => void;
 }
 
@@ -32,6 +36,17 @@ export interface MenuProps {
   /** Items in groups; a separator is drawn between groups. Empty groups are skipped. */
   groups: readonly (readonly MenuItem[])[];
   onClose: () => void;
+  /** Content above the items that isn't an action, such as who is signed in. */
+  header?: JSX.Element;
+  /** Content below the items, such as an error from the last action. */
+  footer?: JSX.Element;
+  /** Which side of the anchor it opens on. Flips when there isn't room. */
+  placement?: Placement;
+  /**
+   * The element the menu belongs to when it opens at a point, such as the row that was
+   * right-clicked. It renders in that element's landmark and returns focus to it.
+   */
+  owner?: HTMLElement;
 }
 
 /**
@@ -48,25 +63,34 @@ export function Menu(props: MenuProps) {
       ? [...element.querySelectorAll<HTMLElement>("[role^='menuitem']:not([aria-disabled='true'])")]
       : [];
 
-  useFloatingPosition({ anchor: () => props.anchor, floating: () => element });
+  useFloatingPosition({
+    anchor: () => props.anchor,
+    floating: () => element,
+    placement: props.placement,
+  });
   useDismiss({
     open: () => true,
     anchor: () => props.anchor,
     floating: () => element,
     onDismiss: () => props.onClose(),
+    returnTo: () => props.owner,
   });
   onMount(() => (items()[0] ?? element)?.focus());
 
   const choose = (item: MenuItem) => {
     if (item.disabled) return;
+    if (item.keepOpen) {
+      item.run();
+      return;
+    }
     // Hand focus back first, so a dialog the item opens remembers the trigger, not the menu.
-    returnFocus(props.anchor);
+    returnFocus(props.owner ?? props.anchor);
     props.onClose();
     item.run();
   };
 
   return (
-    <Portal mount={floatingLayer(ownerOf(props.anchor))}>
+    <Portal mount={floatingLayer(props.owner ?? ownerOf(props.anchor))}>
       <div
         ref={element}
         class="zb-kit-floating zb-kit-menu"
@@ -84,50 +108,60 @@ export function Menu(props: MenuProps) {
         }}
         onContextMenu={(event) => event.preventDefault()}
       >
-        <For each={groups()}>
+        <Show when={props.header}>
+          <div class="zb-kit-menu-header">{props.header}</div>
+          <hr class="zb-kit-separator" />
+        </Show>
+        <Index each={groups()}>
           {(group, index) => (
             <>
-              <Show when={index() > 0}>
+              <Show when={index > 0}>
                 <hr class="zb-kit-separator" />
               </Show>
-              <For each={group}>
+              <Index each={group()}>
                 {(item) => (
                   // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the role is menuitemcheckbox whenever aria-checked is set.
                   <button
                     type="button"
                     class="zb-kit-menu-item"
-                    classList={{ danger: item.danger }}
-                    role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
-                    aria-checked={item.checked === undefined ? undefined : item.checked}
-                    aria-disabled={item.disabled || undefined}
+                    classList={{ danger: item().danger }}
+                    role={item().checked === undefined ? "menuitem" : "menuitemcheckbox"}
+                    aria-checked={item().checked === undefined ? undefined : item().checked}
+                    aria-disabled={item().disabled || undefined}
                     tabIndex={-1}
-                    data-item-id={item.id}
-                    data-label={item.label}
-                    onClick={() => choose(item)}
+                    data-item-id={item().id}
+                    data-label={item().label}
+                    onClick={() => choose(item())}
                     onPointerMove={(event) => {
-                      if (!item.disabled) event.currentTarget.focus();
+                      if (!item().disabled) event.currentTarget.focus();
                     }}
                   >
-                    <Show when={item.checked !== undefined}>
+                    <Show when={item().checked !== undefined}>
                       <span class="zb-kit-check" aria-hidden="true">
-                        {item.checked ? "✓" : ""}
+                        {item().checked ? "✓" : ""}
                       </span>
                     </Show>
-                    <Show when={item.icon}>
+                    <Show when={item().icon}>
                       <span class="zb-kit-menu-icon" aria-hidden="true">
-                        {item.icon}
+                        {item().icon}
                       </span>
                     </Show>
-                    <span class="zb-kit-menu-label">{item.label}</span>
-                    <Show when={item.shortcut}>
-                      <kbd class="zb-kit-shortcut">{item.shortcut}</kbd>
+                    <span class="zb-kit-menu-label">{item().label}</span>
+                    <Show when={item().detail}>
+                      <span class="zb-kit-menu-detail">{item().detail}</span>
+                    </Show>
+                    <Show when={item().shortcut}>
+                      <kbd class="zb-kit-shortcut">{item().shortcut}</kbd>
                     </Show>
                   </button>
                 )}
-              </For>
+              </Index>
             </>
           )}
-        </For>
+        </Index>
+        <Show when={props.footer}>
+          <div class="zb-kit-menu-footer">{props.footer}</div>
+        </Show>
       </div>
     </Portal>
   );

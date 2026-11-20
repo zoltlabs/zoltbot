@@ -1,75 +1,45 @@
-import { Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import type { BotProfile } from "../../data";
-import { AgentAvatar } from "../AgentAvatar";
+import { type Anchor, ConfirmDialog, Menu } from "../../kit";
 import { DeleteIcon, EditIcon, RenameIcon } from "../SidebarIcons";
 
 export interface BotContextMenu {
   botId: string;
-  x: number;
-  y: number;
+  /** The row's actions button, or the point that was right-clicked. */
+  anchor: Anchor;
+  /** The agent's row, which gets focus back when the menu closes. */
+  owner: HTMLElement;
 }
 
 export function AgentContextMenu(props: {
   menu: BotContextMenu;
-  mount: HTMLElement | undefined;
-  firstItemRef: (element: HTMLButtonElement) => void;
   onClose: () => void;
   onRename: (botId: string) => void;
   onEdit: (botId: string) => void;
   onDelete: (botId: string) => void;
 }) {
+  const botId = props.menu.botId;
   return (
-    // Mounted in the sidebar so the menu stays inside its landmark.
-    <Portal mount={props.mount}>
-      <div
-        class="bot-context-menu"
-        role="menu"
-        aria-label="Agent actions"
-        style={{ left: `${props.menu.x}px`, top: `${props.menu.y}px` }}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <button
-          ref={props.firstItemRef}
-          type="button"
-          role="menuitem"
-          onClick={() => {
-            const botId = props.menu.botId;
-            props.onClose();
-            props.onRename(botId);
-          }}
-        >
-          <RenameIcon />
-          <span>Rename</span>
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          onClick={() => {
-            const botId = props.menu.botId;
-            props.onClose();
-            props.onEdit(botId);
-          }}
-        >
-          <EditIcon />
-          <span>Edit agent</span>
-        </button>
-        <div class="bot-context-separator" />
-        <button
-          type="button"
-          role="menuitem"
-          class="bot-context-danger"
-          onClick={() => {
-            const botId = props.menu.botId;
-            props.onClose();
-            props.onDelete(botId);
-          }}
-        >
-          <DeleteIcon />
-          <span>Delete agent</span>
-        </button>
-      </div>
-    </Portal>
+    <Menu
+      anchor={props.menu.anchor}
+      owner={props.menu.owner}
+      label="Agent actions"
+      groups={[
+        [
+          { id: "rename", label: "Rename", icon: <RenameIcon />, run: () => props.onRename(botId) },
+          { id: "edit", label: "Edit agent", icon: <EditIcon />, run: () => props.onEdit(botId) },
+        ],
+        [
+          {
+            id: "delete",
+            label: "Delete agent",
+            icon: <DeleteIcon />,
+            danger: true,
+            run: () => props.onDelete(botId),
+          },
+        ],
+      ]}
+      onClose={props.onClose}
+    />
   );
 }
 
@@ -81,46 +51,16 @@ export function DeleteAgentDialog(props: {
   onConfirm: () => void;
 }) {
   return (
-    <Portal>
-      <div
-        class="bot-delete-backdrop"
-        role="presentation"
-        onPointerDown={(event) => {
-          if (event.currentTarget === event.target && !props.deleting) props.onCancel();
-        }}
-      >
-        <section
-          class="bot-delete-dialog"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="bot-delete-title"
-          aria-describedby="bot-delete-description"
-        >
-          <AgentAvatar
-            bot={props.bot}
-            style={{ width: "44px", height: "44px", "margin-bottom": "15px" }}
-          />
-          <h2 id="bot-delete-title">Delete {props.bot.name}?</h2>
-          <p id="bot-delete-description">
-            This removes the agent, its Zoltbot queue, and managed files used only by that
-            conversation. Its workspace and CLI history stay on your Mac.
-          </p>
-          <Show when={props.error}>{(message) => <p class="bot-delete-error">{message()}</p>}</Show>
-          <div class="bot-delete-actions">
-            <button type="button" disabled={props.deleting} onClick={() => props.onCancel()}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="bot-delete-confirm"
-              disabled={props.deleting}
-              onClick={props.onConfirm}
-            >
-              {props.deleting ? "Deleting…" : "Delete"}
-            </button>
-          </div>
-        </section>
-      </div>
-    </Portal>
+    <ConfirmDialog
+      title={`Delete ${props.bot.name}?`}
+      body="Removes the agent, its queue and the files only this chat used. Its workspace and history stay on your Mac."
+      confirmLabel="Delete agent"
+      busyLabel="Deleting…"
+      danger
+      busy={props.deleting}
+      error={props.error ?? undefined}
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+    />
   );
 }

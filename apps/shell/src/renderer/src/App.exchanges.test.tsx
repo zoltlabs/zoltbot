@@ -240,7 +240,7 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.contextMenu(sales, { clientX: 120, clientY: 90 });
     await fireEvent.click(screen.getByRole("menuitem", { name: "Delete agent" }));
     expect(screen.getByRole("alertdialog", { name: "Delete Sales Outbound?" })).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Delete agent" }));
     await waitFor(() =>
       expect(window.openbot.agent.deleteBot).toHaveBeenCalledWith("sales-outbound"),
     );

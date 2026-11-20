@@ -51,7 +51,7 @@ test("agent row context menu renames and deletes, from the mouse and the keyboar
 
     await betaRow.click({ button: "right" });
     await menu.getByRole("menuitem", { name: "Delete agent" }).click();
-    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirm.getByRole("button", { name: "Delete agent", exact: true }).click();
     await expect(betaRow).toHaveCount(0);
     await expect.poll(() => fixture.daemon.store.record("thread", beta.id)?.archived).toBe(true);
     expect(shell.errors).toEqual([]);

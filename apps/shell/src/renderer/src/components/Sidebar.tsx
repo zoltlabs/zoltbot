@@ -18,6 +18,7 @@ import type {
 } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { BotProfile } from "../data";
+import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
@@ -101,8 +102,7 @@ export function Sidebar(props: SidebarProps) {
   const [usageLoading, setUsageLoading] = createSignal(false);
   const [accountError, setAccountError] = createSignal<string | null>(null);
   const [accountBusy, setAccountBusy] = createSignal<"sign-in" | "sign-out" | null>(null);
-  let firstMenuItem: HTMLButtonElement | undefined;
-  let sidebarElement: HTMLElement | undefined;
+  let accountButton: HTMLButtonElement | undefined;
   let botList: HTMLElement | undefined;
   const filteredBots = createMemo(() => {
     const normalizedQuery = query().trim().toLowerCase();
@@ -224,49 +224,22 @@ export function Sidebar(props: SidebarProps) {
   });
 
   onMount(() => {
-    const closeMenu = () => {
-      setContextMenu(null);
-      setAccountMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (deleteTargetId()) setDeleteTargetId(null);
-      else if (accountMenuOpen()) setAccountMenuOpen(false);
-      else closeMenu();
-    };
-    window.addEventListener("pointerdown", closeMenu);
-    window.addEventListener("blur", closeMenu);
-    window.addEventListener("resize", closeMenu);
-    window.addEventListener("keydown", closeOnEscape);
     const resizeObserver = new ResizeObserver(updateScrollFade);
     if (botList) resizeObserver.observe(botList);
     requestAnimationFrame(updateScrollFade);
     onCleanup(() => {
       resizeObserver.disconnect();
-      window.removeEventListener("pointerdown", closeMenu);
-      window.removeEventListener("blur", closeMenu);
-      window.removeEventListener("resize", closeMenu);
-      window.removeEventListener("keydown", closeOnEscape);
     });
   });
 
-  function openContextMenu(botId: string, x: number, y: number) {
+  function openContextMenu(menu: BotContextMenu) {
     setDeleteError(null);
-    setContextMenu({
-      botId,
-      x: Math.max(8, Math.min(x, window.innerWidth - 190)),
-      y: Math.max(8, Math.min(y, window.innerHeight - 156)),
-    });
-    requestAnimationFrame(() => firstMenuItem?.focus());
+    setContextMenu(menu);
   }
 
   function toggleRowMenu(botId: string, button: HTMLElement) {
-    if (contextMenu()?.botId === botId) {
-      setContextMenu(null);
-      return;
-    }
-    const bounds = button.getBoundingClientRect();
-    openContextMenu(botId, bounds.right - 178, bounds.bottom + 4);
+    if (contextMenu()?.botId === botId) setContextMenu(null);
+    else openContextMenu({ botId, anchor: button, owner: button });
   }
 
   function startRename(botId: string) {
@@ -356,13 +329,99 @@ export function Sidebar(props: SidebarProps) {
       );
   }
 
+  function accountMenuGroups(): MenuItem[][] {
+    const busy = accountBusy() !== null;
+    const account: MenuItem[] = !props.cloudAccount?.configured
+      ? []
+      : signedIn()
+        ? [
+            {
+              id: "sign-out",
+              label: accountBusy() === "sign-out" ? "Signing out…" : "Sign out",
+              icon: <AccountIcon />,
+              disabled: busy,
+              keepOpen: true,
+              run: () => runAccountAction("sign-out"),
+            },
+          ]
+        : [
+            {
+              id: "sign-in",
+              label: accountBusy() === "sign-in" ? "Waiting for browser…" : "Sign in",
+              icon: <AccountIcon />,
+              disabled: busy,
+              keepOpen: true,
+              run: () => runAccountAction("sign-in"),
+            },
+            ...(accountBusy() === "sign-in"
+              ? [
+                  {
+                    id: "cancel-sign-in",
+                    label: "Cancel sign-in",
+                    icon: <CloseIcon />,
+                    keepOpen: true,
+                    run: props.onCancelSignIn,
+                  },
+                ]
+              : []),
+          ];
+    const update: MenuItem[] =
+      props.updateStatus.phase === "unsupported"
+        ? []
+        : [
+            {
+              id: "update",
+              label: updateLabel(),
+              detail: updateDetail(),
+              icon: <UpdateIcon active={updateBusy()} />,
+              disabled: updateBusy(),
+              keepOpen: true,
+              run: runUpdateAction,
+            },
+          ];
+    return [
+      account,
+      update,
+      [
+        {
+          id: "usage",
+          label: usageLoading() ? "Updating usage…" : "Weekly usage",
+          detail: weeklyUsageRemaining() === null ? "—" : `${weeklyUsageRemaining()}%`,
+          icon: <UsageIcon />,
+          disabled: usageLoading() || props.agentStatus.phase !== "ready",
+          keepOpen: true,
+          run: () => void refreshUsage(),
+        },
+      ],
+      [
+        {
+          id: "permissions",
+          label: "Agents & permissions",
+          icon: <PermissionsIcon />,
+          run: props.onOpenPermissions,
+        },
+      ],
+      [
+        {
+          id: "feedback",
+          label: "Send feedback",
+          icon: <FeedbackIcon />,
+          keepOpen: true,
+          run: () => openExternal("feedback"),
+        },
+        {
+          id: "message",
+          label: "Message",
+          icon: <MessageIcon />,
+          keepOpen: true,
+          run: () => openExternal("message"),
+        },
+      ],
+    ];
+  }
+
   return (
-    <aside
-      ref={(element) => (sidebarElement = element)}
-      id="bot-sidebar"
-      aria-label="Bot navigation"
-      class="sidebar panel-edge"
-    >
+    <aside id="bot-sidebar" aria-label="Bot navigation" class="sidebar panel-edge">
       <div class="window-drag sidebar-topbar">
         <button
           type="button"
@@ -522,7 +581,11 @@ export function Sidebar(props: SidebarProps) {
                       onClick={() => props.onSelectBot(bot.id)}
                       onContextMenu={(event) => {
                         event.preventDefault();
-                        openContextMenu(bot.id, event.clientX, event.clientY);
+                        openContextMenu({
+                          botId: bot.id,
+                          anchor: { x: event.clientX, y: event.clientY },
+                          owner: event.currentTarget,
+                        });
                       }}
                       onKeyDown={(event) => {
                         if (
@@ -532,8 +595,11 @@ export function Sidebar(props: SidebarProps) {
                           return;
                         }
                         event.preventDefault();
-                        const bounds = event.currentTarget.getBoundingClientRect();
-                        openContextMenu(bot.id, bounds.left + 28, bounds.top + 32);
+                        openContextMenu({
+                          botId: bot.id,
+                          anchor: event.currentTarget,
+                          owner: event.currentTarget,
+                        });
                       }}
                     >
                       <span class="bot-row-avatar">
@@ -565,7 +631,6 @@ export function Sidebar(props: SidebarProps) {
                       aria-haspopup="menu"
                       aria-expanded={contextMenu()?.botId === bot.id}
                       title="More"
-                      onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => toggleRowMenu(bot.id, event.currentTarget)}
                     >
                       <MoreIcon />
@@ -637,131 +702,43 @@ export function Sidebar(props: SidebarProps) {
       </nav>
 
       <div class="sidebar-account">
-        <Show when={accountMenuOpen()}>
-          <div
-            class="account-popover"
-            role="menu"
-            aria-label="Account menu"
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <Show when={props.cloudAccount?.configured}>
-              <Show
-                when={signedIn()}
-                fallback={
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="account-menu-row"
-                      onClick={() => runAccountAction("sign-in")}
-                      disabled={accountBusy() !== null}
-                    >
-                      <AccountIcon />
-                      <span>
-                        {accountBusy() === "sign-in" ? "Waiting for browser…" : "Sign in"}
-                      </span>
-                    </button>
-                    <Show when={accountBusy() === "sign-in"}>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        class="account-menu-row"
-                        onClick={props.onCancelSignIn}
-                      >
-                        <CloseIcon />
-                        <span>Cancel sign-in</span>
-                      </button>
+        <Show when={accountMenuOpen() && accountButton}>
+          {(anchor) => (
+            <Menu
+              anchor={anchor()}
+              label="Account menu"
+              placement="top-start"
+              header={
+                signedIn() ? (
+                  <div class="account-identity">
+                    <Show when={props.cloudAccount?.name}>
+                      {(name) => <strong>{name()}</strong>}
                     </Show>
-                  </>
-                }
-              >
-                <div class="account-identity">
-                  <Show when={props.cloudAccount?.name}>{(name) => <strong>{name()}</strong>}</Show>
-                  <span>{accountEmail()}</span>
-                </div>
-                <button
-                  type="button"
-                  role="menuitem"
-                  class="account-menu-row"
-                  onClick={() => runAccountAction("sign-out")}
-                  disabled={accountBusy() !== null}
-                >
-                  <AccountIcon />
-                  <span>{accountBusy() === "sign-out" ? "Signing out…" : "Sign out"}</span>
-                </button>
-              </Show>
-              <div class="account-menu-separator" />
-            </Show>
-            <Show when={props.updateStatus.phase !== "unsupported"}>
-              <button
-                type="button"
-                role="menuitem"
-                class="account-menu-row account-update-row"
-                onClick={runUpdateAction}
-                disabled={updateBusy()}
-              >
-                <UpdateIcon active={updateBusy()} />
-                <span>{updateLabel()}</span>
-                <small>{updateDetail()}</small>
-              </button>
-              <div class="account-menu-separator" />
-            </Show>
-            <button
-              type="button"
-              role="menuitem"
-              class="account-menu-row"
-              onClick={() => void refreshUsage()}
-              disabled={usageLoading() || props.agentStatus.phase !== "ready"}
-            >
-              <UsageIcon />
-              <span>{usageLoading() ? "Updating usage…" : "Weekly usage"}</span>
-              <small>{weeklyUsageRemaining() === null ? "—" : `${weeklyUsageRemaining()}%`}</small>
-            </button>
-            <div class="account-menu-separator" />
-            <button
-              type="button"
-              role="menuitem"
-              class="account-menu-row"
-              onClick={() => {
-                setAccountMenuOpen(false);
-                props.onOpenPermissions();
-              }}
-            >
-              <PermissionsIcon />
-              <span>Agents &amp; permissions</span>
-            </button>
-            <div class="account-menu-separator" />
-            <button
-              type="button"
-              role="menuitem"
-              class="account-menu-row"
-              onClick={() => openExternal("feedback")}
-            >
-              <FeedbackIcon />
-              <span>Send feedback</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              class="account-menu-row"
-              onClick={() => openExternal("message")}
-            >
-              <MessageIcon />
-              <span>Message</span>
-            </button>
-            <Show when={popoverError()}>
-              {(message) => <p class="account-popover-error">{message()}</p>}
-            </Show>
-          </div>
+                    <span>{accountEmail()}</span>
+                  </div>
+                ) : undefined
+              }
+              footer={
+                popoverError() ? (
+                  <p class="account-popover-error" role="alert">
+                    {popoverError()}
+                  </p>
+                ) : undefined
+              }
+              groups={accountMenuGroups()}
+              onClose={() => setAccountMenuOpen(false)}
+            />
+          )}
         </Show>
 
         <button
+          ref={accountButton}
           type="button"
           class="sidebar-footer"
           aria-label="Open account menu"
+          aria-haspopup="menu"
           aria-expanded={accountMenuOpen()}
           onClick={toggleAccountMenu}
-          onPointerDown={(event) => event.stopPropagation()}
         >
           <span class="profile-dot">{accountInitials()}</span>
           <span class="profile-copy">
@@ -785,8 +762,6 @@ export function Sidebar(props: SidebarProps) {
         {(menu) => (
           <AgentContextMenu
             menu={menu()}
-            mount={sidebarElement}
-            firstItemRef={(element) => (firstMenuItem = element)}
             onClose={() => setContextMenu(null)}
             onRename={startRename}
             onEdit={props.onEditBot}

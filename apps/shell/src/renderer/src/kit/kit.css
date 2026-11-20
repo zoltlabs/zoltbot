@@ -142,6 +142,19 @@
   text-align: center;
 }
 
+.zb-kit-menu-detail {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zb-kit-menu-header,
+.zb-kit-menu-footer {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .zb-kit-shortcut {
   margin-left: auto;
   color: var(--text-muted);

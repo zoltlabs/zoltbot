@@ -41,11 +41,7 @@ export function SidebarToggleIcon() {
 
 export function EditIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="bot-context-icon size-4 fill-none stroke-current"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <path d="m12.6 4.2 3.2 3.2-8.7 8.7-3.8.6.6-3.8 8.7-8.7Z" stroke-width="1.4" />
       <path d="m10.9 5.9 3.2 3.2" stroke-width="1.4" />
     </svg>
@@ -54,11 +50,7 @@ export function EditIcon() {
 
 export function DeleteIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="bot-context-icon bot-context-danger-icon size-4 fill-none stroke-current"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <path
         d="M4.5 6.2h11M8 3.8h4M6.2 6.2l.7 9.3h6.2l.7-9.3M8.4 8.7v4.5M11.6 8.7v4.5"
         stroke-width="1.35"
@@ -176,11 +168,7 @@ export function MoreIcon() {
 
 export function RenameIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      class="bot-context-icon size-4 fill-none stroke-current"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <path d="M4 10h7M4 6h9M4 14h4" stroke-width="1.4" stroke-linecap="round" />
       <path d="M15 5v10M13.5 5h3M13.5 15h3" stroke-width="1.4" stroke-linecap="round" />
     </svg>

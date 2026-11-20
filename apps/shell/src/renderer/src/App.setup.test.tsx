@@ -266,7 +266,10 @@ describe("Zoltbot connected desktop shell", () => {
 
     await fireEvent.click(accountButton);
     await fireEvent.click(screen.getByRole("menuitem", { name: "Sign in" }));
-    expect(screen.getByRole("menuitem", { name: "Waiting for browser…" })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Waiting for browser…" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     await fireEvent.click(screen.getByRole("menuitem", { name: "Cancel sign-in" }));
     expect(window.openbot.account.cancel).toHaveBeenCalledOnce();
 

@@ -131,17 +131,20 @@ export function useDismiss(options: {
   onDismiss: () => void;
   /** Whether a press outside closes it. Modal dialogs decide this themselves. */
   outside?: boolean;
+  /** Where focus goes when it closes, for overlays opened at a point. Defaults to the anchor. */
+  returnTo?: () => HTMLElement | undefined;
 }): void {
   createEffect(() => {
     if (!options.open()) return;
     // Focus goes back to the trigger; for a point anchor, to whatever had focus.
     const anchor = options.anchor();
     const returnTo =
-      anchor instanceof HTMLElement
+      options.returnTo?.() ??
+      (anchor instanceof HTMLElement
         ? anchor
         : document.activeElement instanceof HTMLElement
           ? document.activeElement
-          : null;
+          : null);
     const token: OpenOverlay = { floating: options.floating };
     openStack.push(token);
     const keydown = (event: KeyboardEvent) => {
