@@ -17,6 +17,8 @@ export const ModelAccountSchema = object({
   configDirectory: Text,
   /** The sign-in the definition uses when no account is chosen. It cannot be removed. */
   isDefault: Type.Boolean(),
+  /** The tool reads its sign-in folder from a setting, so it can hold more than one sign-in. */
+  canAddAccounts: Type.Optional(Type.Boolean()),
   login: ModelAccountLoginSchema,
   /** Present while the account is at a usage limit. */
   limit: Type.Optional(object({ resetsAt: OptionalText, observedAt: At })),

@@ -200,6 +200,10 @@
   gap: 10px;
 }
 
+.models-form-note {
+  flex-basis: 100%;
+}
+
 .models-field {
   display: flex;
   flex-direction: column;

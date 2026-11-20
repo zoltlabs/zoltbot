@@ -37,6 +37,7 @@ export function toAccountView(row: Row, definitions: Row[]): ModelAccountView {
     definitionId: text(row.definitionId),
     providerName,
     isDefault: row.isDefault === true,
+    canAddAccounts: row.canAddAccounts === true,
     login: login === "signed_in" || login === "signed_out" ? login : "unknown",
     limitResetsAt: limit?.resetsAt ?? null,
     atLimit: limit !== null,

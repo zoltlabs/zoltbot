@@ -99,6 +99,7 @@ export function backupModelsApi(host: {
         const label = String(params.label).trim();
         if (!label) throw new Error("model_account_label_required");
         const tool = find(defaultAccountId(definitionId));
+        if (!tool.canAddAccounts) throw new Error("model_account_unsupported");
         const id = randomUUID();
         const folder = path.join(host.dataDir, "accounts", id);
         mkdirSync(folder, { recursive: true, mode: 0o700 });

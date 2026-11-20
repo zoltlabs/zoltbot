@@ -19,6 +19,7 @@ function fakeAccounts(): ModelsDesktopApi & { orders: BackupOrdersView } {
     definitionId: id.startsWith("codex") ? "codex" : "claude",
     providerName: id.startsWith("codex") ? "Codex" : "Claude",
     isDefault: !name.includes("·"),
+    canAddAccounts: true,
     login: "signed_in" as const,
     limitResetsAt: null,
     atLimit: false,
@@ -29,6 +30,11 @@ function fakeAccounts(): ModelsDesktopApi & { orders: BackupOrdersView } {
     account("claude", "Claude", { limitResetsAt: resets, atLimit: true }),
     account("codex", "Codex"),
     account("claude-work", "Claude · Work", { inUse: 1 }),
+    account("antigravity", "Antigravity", {
+      definitionId: "antigravity",
+      providerName: "Antigravity",
+      canAddAccounts: false,
+    }),
   ];
   const fake = {
     orders: {
@@ -75,6 +81,7 @@ test("models settings and the switch to another provider stay usable", async ({ 
     await expect(models.getByLabel("Accounts").getByText("Claude · Work")).toBeVisible();
     await expect(models.getByText("At limit")).toBeVisible();
     await expect(models.getByText("In use")).toBeVisible();
+    await expect(models.getByLabel("Accounts").getByText("Antigravity")).toBeVisible();
     await expect(models.getByRole("heading", { name: "Backup order for employees" })).toBeVisible();
 
     // Reorder: move the work account first.
@@ -96,6 +103,10 @@ test("models settings and the switch to another provider stay usable", async ({ 
 
     // A new account shows its sign-in command.
     await models.getByRole("button", { name: "Add account" }).click();
+    // Only tools that can hold another sign-in are offered.
+    const tool = models.getByRole("combobox", { name: "Tool" });
+    await expect(tool.getByRole("option")).toHaveText(["Claude", "Codex"]);
+    await expect(tool).toHaveAccessibleDescription("Other tools use only their own sign-in.");
     await models.getByRole("textbox", { name: "Name" }).fill("Personal");
     await models.getByRole("button", { name: "Add", exact: true }).click();
     await expect(

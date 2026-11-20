@@ -145,6 +145,16 @@ it("adds a sign-in folder per account without storing credentials", async () => 
   await expect(
     t.api("modelAccount.remove", { id: defaultAccountId("fake"), confirmed: true }),
   ).rejects.toThrow("model_account_default");
+  t.f.put("agentDefinition", {
+    ...(t.f.store.record("agentDefinition", "codex-tool") as Record<string, unknown>),
+    id: "acp-tool",
+    displayName: "Antigravity",
+    adapter: "acp",
+  });
+  await expect(
+    t.api("modelAccount.add", { definitionId: "acp-tool", label: "Work" }),
+  ).rejects.toThrow("model_account_unsupported");
+  expect(t.signIns).toHaveLength(1);
   const rows = t.state().settings?.filter((row) => String(row.key).startsWith("models."));
   expect(JSON.stringify(rows)).not.toMatch(/token|password|secret/i);
 });

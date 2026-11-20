@@ -60,7 +60,11 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
     draftLimit() <= RUNNING_LIMIT.max;
 
   const accounts = () => overview()?.accounts ?? [];
-  const tools = createMemo(() => accounts().filter((account) => account.isDefault));
+  const tools = createMemo(() =>
+    accounts().filter((account) => account.isDefault && account.canAddAccounts),
+  );
+  const singleSignIn = () =>
+    accounts().some((account) => account.isDefault && !account.canAddAccounts);
   const byId = (id: string) => accounts().find((account) => account.id === id);
   const own = () => (role() === "employee" ? null : (overview()?.orders[role()] ?? null));
   const order = (): BackupEntryView[] => own() ?? overview()?.orders.employee ?? [];
@@ -245,7 +249,7 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
           </ul>
           <Show when={overview() && !accounts().length}>
             <p class="models-empty">
-              No coding tools that support accounts are set up. Add Claude Code or Codex first.
+              No coding tools are set up yet. Add an agent first.
             </p>
           </Show>
           <Show when={signIn()}>
@@ -293,7 +297,11 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
             <form class="models-form" onSubmit={(event) => void addAccount(event)}>
               <label class="models-field">
                 <span>Tool</span>
-                <select value={tool()} onChange={(event) => setTool(event.currentTarget.value)}>
+                <select
+                  value={tool()}
+                  aria-describedby={singleSignIn() ? "models-tool-note" : undefined}
+                  onChange={(event) => setTool(event.currentTarget.value)}
+                >
                   <For each={tools()}>
                     {(item) => <option value={item.definitionId}>{item.providerName}</option>}
                   </For>
@@ -320,6 +328,11 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                   Add
                 </button>
               </div>
+              <Show when={singleSignIn()}>
+                <p id="models-tool-note" class="models-hint models-form-note">
+                  Other tools use only their own sign-in.
+                </p>
+              </Show>
             </form>
           </Show>
         </section>

@@ -7,6 +7,8 @@ export interface ModelAccountView {
   definitionId: string;
   providerName: string;
   isDefault: boolean;
+  /** The tool can hold more than one sign-in. */
+  canAddAccounts: boolean;
   login: "signed_in" | "signed_out" | "unknown";
   /** When the account's usage limit resets; null when it is not at a limit. */
   limitResetsAt: string | null;

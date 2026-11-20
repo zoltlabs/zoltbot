@@ -1,6 +1,6 @@
 import type { DomainState } from "@zoltbot/core";
 import { expect, it } from "vitest";
-import { configuredOrder, ordersKey, threadRole } from "./records.js";
+import { configuredOrder, listAccounts, ordersKey, threadRole } from "./records.js";
 
 const state = (orders: unknown): DomainState => ({
   thread: [
@@ -27,4 +27,34 @@ it("uses the agent's order, then its role's, then the employee order", () => {
   expect(configuredOrder(state({ employee: a, ceo: b }), "lead")).toEqual(b);
   expect(configuredOrder(state({ employee: a, ceo: b }), "task")).toEqual(a);
   expect(configuredOrder(state({ employee: a, ceo: b, agents: { lead: c } }), "lead")).toEqual(c);
+});
+
+const tool = (id: string, adapter: string, experimental = false) => ({
+  id,
+  displayName: id,
+  adapter,
+  binaryNames: [id],
+  versionCommand: ["--version"],
+  launch: { command: id, args: [], env: {} },
+  testedVersions: "1.0.0",
+  defaults: { permissionProfile: "workspace_write" },
+  staticCapabilities: {},
+  nativeSessionRoots: [],
+  experimental,
+});
+
+it("lists every coding tool's own sign-in; only some can add more", () => {
+  const accounts = listAccounts({
+    agentDefinition: [
+      tool("claude", "claude"),
+      tool("antigravity", "acp"),
+      tool("pi", "pi"),
+      tool("trial", "acp", true),
+    ],
+  });
+  expect(accounts.map((row) => [row.definitionId, row.isDefault, row.canAddAccounts])).toEqual([
+    ["claude", true, true],
+    ["antigravity", true, false],
+    ["pi", true, false],
+  ]);
 });

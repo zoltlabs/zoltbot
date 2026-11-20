@@ -23,7 +23,10 @@ export const ordersKey = "models.orders";
 /** A limit without a reset time is assumed to last this long. */
 export const defaultLimitMs = 60 * 60_000;
 
-/** The variable each coding tool reads its sign-in folder from. Others have no accounts. */
+/**
+ * The variable each coding tool reads its sign-in folder from. Only these tools can hold more
+ * than one sign-in; every other tool has just its own.
+ */
 const homeKeys: Record<string, string> = { claude: "CLAUDE_CONFIG_DIR", codex: "CODEX_HOME" };
 export const accountHomeKey = (definition: Pick<AgentDefinition, "adapter">) =>
   homeKeys[definition.adapter];
@@ -68,7 +71,7 @@ function definitions(state: DomainState) {
   return (state.agentDefinition ?? []).flatMap((row) => {
     try {
       const definition = parse(AgentDefinitionSchema, row);
-      return !definition.experimental && accountHomeKey(definition) ? [definition] : [];
+      return definition.experimental ? [] : [definition];
     } catch {
       return [];
     }
@@ -82,7 +85,7 @@ export function limitOf(state: DomainState, accountId: string, now: number) {
     : Date.parse(limit.observedAt) + defaultLimitMs;
   return Number.isFinite(until) && until > now ? limit : undefined;
 }
-/** Every account: one default sign-in per coding tool, then the ones the owner added. */
+/** Every account: one default sign-in per coding tool in use, then the ones the owner added. */
 export function listAccounts(state: DomainState, now = Date.now()): ModelAccount[] {
   const tools = definitions(state);
   const stored = (state.settings ?? [])
@@ -107,6 +110,7 @@ export function listAccounts(state: DomainState, now = Date.now()): ModelAccount
       provider: definition.adapter,
       configDirectory: row.configDirectory,
       isDefault,
+      canAddAccounts: accountHomeKey(definition) !== undefined,
       login: login ?? "unknown",
       ...(limit
         ? {
