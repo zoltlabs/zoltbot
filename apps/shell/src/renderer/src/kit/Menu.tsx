@@ -21,6 +21,8 @@ export interface MenuItem {
   detail?: string;
   /** Set for items that toggle or pick one of several; shows a check when true. */
   checked?: boolean;
+  /** Picks one of the items in its group, rather than toggling on its own. */
+  radio?: boolean;
   danger?: boolean;
   disabled?: boolean;
   /** Keeps the menu open after running, for actions that show their progress in the item. */
@@ -124,12 +126,18 @@ export function Menu(props: MenuProps) {
               </Show>
               <Index each={group()}>
                 {(item) => (
-                  // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the role is menuitemcheckbox whenever aria-checked is set.
+                  // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the role is menuitemcheckbox or menuitemradio whenever aria-checked is set.
                   <button
                     type="button"
                     class="zb-kit-menu-item"
                     classList={{ danger: item().danger }}
-                    role={item().checked === undefined ? "menuitem" : "menuitemcheckbox"}
+                    role={
+                      item().checked === undefined
+                        ? "menuitem"
+                        : item().radio
+                          ? "menuitemradio"
+                          : "menuitemcheckbox"
+                    }
                     aria-checked={item().checked === undefined ? undefined : item().checked}
                     aria-disabled={item().disabled || undefined}
                     tabIndex={-1}

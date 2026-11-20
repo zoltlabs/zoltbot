@@ -1,6 +1,10 @@
+import type { JSX } from "solid-js";
+import type { ThreadAction } from "../../../../shared/thread-actions";
 import type { BotProfile } from "../../data";
-import { type Anchor, ConfirmDialog, Menu } from "../../kit";
+import { type MessageKey, t } from "../../i18n";
+import { type Anchor, ConfirmDialog, Menu, type MenuItem } from "../../kit";
 import { DeleteIcon, EditIcon, RenameIcon } from "../SidebarIcons";
+import { ArchiveIcon, PinIcon, UnreadIcon } from "./ChatIcons";
 
 export interface BotContextMenu {
   botId: string;
@@ -10,8 +14,38 @@ export interface BotContextMenu {
   owner: HTMLElement;
 }
 
+/**
+ * Pin, read state and archive for a plain chat. Agents keep the company's order and task chats
+ * can't be archived, so they get none. Archive waits until the chat is idle, since it stops work.
+ */
+export function chatMenuItems(
+  bot: BotProfile | undefined,
+  state: { unread: boolean; working: boolean },
+  run: ((bot: BotProfile, action: ThreadAction) => void) | undefined,
+): MenuItem[] {
+  if (!bot || !run || bot.kind === "task" || (bot.companyRole && bot.companyRole !== "chat"))
+    return [];
+  const item = (id: ThreadAction, label: MessageKey, Icon: () => JSX.Element): MenuItem => ({
+    id,
+    label: t(label),
+    icon: <Icon />,
+    run: () => run(bot, id),
+  });
+  return [
+    bot.pinned
+      ? item("unpin", "sidebar.chat.unpin", PinIcon)
+      : item("pin", "sidebar.chat.pin", PinIcon),
+    state.unread
+      ? item("markRead", "sidebar.chat.markRead", UnreadIcon)
+      : item("markUnread", "sidebar.chat.markUnread", UnreadIcon),
+    ...(state.working ? [] : [item("archive", "sidebar.chat.archive", ArchiveIcon)]),
+  ];
+}
+
 export function AgentContextMenu(props: {
   menu: BotContextMenu;
+  /** Pin, read state and archive, when the chat supports them. */
+  chatItems?: MenuItem[];
   onClose: () => void;
   onRename: (botId: string) => void;
   onEdit: (botId: string) => void;
@@ -28,6 +62,7 @@ export function AgentContextMenu(props: {
           { id: "rename", label: "Rename", icon: <RenameIcon />, run: () => props.onRename(botId) },
           { id: "edit", label: "Edit agent", icon: <EditIcon />, run: () => props.onEdit(botId) },
         ],
+        props.chatItems ?? [],
         [
           {
             id: "delete",

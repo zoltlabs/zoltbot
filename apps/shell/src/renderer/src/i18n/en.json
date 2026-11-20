@@ -60,5 +60,22 @@
   "palette.group.recent": "Recent",
   "palette.group.tasks": "Tasks",
   "palette.placeholder": "Search or run a command",
-  "palette.title": "Command palette"
+  "palette.title": "Command palette",
+  "sidebar.chat.archive": "Archive",
+  "sidebar.chat.archived": "Archived.",
+  "sidebar.chat.failed": "Couldn't update the chat.",
+  "sidebar.chat.markRead": "Mark read",
+  "sidebar.chat.markUnread": "Mark unread",
+  "sidebar.chat.pin": "Pin",
+  "sidebar.chat.undo": "Undo",
+  "sidebar.chat.unpin": "Unpin",
+  "sidebar.group.chats": "Chats",
+  "sidebar.group.chatsTitle": "Chats outside a project",
+  "sidebar.group.unread": "Unread",
+  "sidebar.sort.allProjects": "All projects",
+  "sidebar.sort.filtered": "Sort and filter, showing {project}",
+  "sidebar.sort.label": "Sort and filter",
+  "sidebar.sort.name": "Name",
+  "sidebar.sort.noProject": "No project",
+  "sidebar.sort.recent": "Recent activity"
 }

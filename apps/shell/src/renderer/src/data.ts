@@ -63,6 +63,10 @@ export interface BotProfile {
   projectId?: string | null;
   kind?: string;
   pinned?: boolean;
+  /** Marked unread, or a reply came after the owner last read it. */
+  unread?: boolean;
+  /** When the chat last had activity, for sorting. */
+  updatedAt?: string | null;
   onboarding?: boolean;
   depth?: number;
   companyRole?: string;

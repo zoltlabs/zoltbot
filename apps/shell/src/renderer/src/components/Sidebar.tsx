@@ -17,6 +17,7 @@ import type {
   UpdateStatus,
 } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
+import type { ThreadAction } from "../../../shared/thread-actions";
 import type { BotProfile } from "../data";
 import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
@@ -43,7 +44,14 @@ import {
   type SidebarAgentState,
   sidebarAgentStateLabel,
 } from "./sidebar/AgentIndicator";
-import { AgentContextMenu, type BotContextMenu, DeleteAgentDialog } from "./sidebar/AgentMenus";
+import {
+  AgentContextMenu,
+  type BotContextMenu,
+  chatMenuItems,
+  DeleteAgentDialog,
+} from "./sidebar/AgentMenus";
+import { groupHeadingAt } from "./sidebar/organize";
+import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
 
 export type { SidebarAgentState };
 export { SidebarToggleIcon };
@@ -67,6 +75,8 @@ interface SidebarProps {
   updateStatus: UpdateStatus;
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
+  /** Pin, read state and archive from a chat's row menu. */
+  onChatAction?: (bot: BotProfile, action: ThreadAction) => void;
   onOpenMap: () => void;
   onOpenModels?: () => void;
   onCreateBot: () => void;
@@ -114,34 +124,38 @@ export function Sidebar(props: SidebarProps) {
   });
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
   const stable = stableEntries();
+  const isUnread = (bot: BotProfile) =>
+    bot.unread === true || props.agentStates[bot.id]?.kind === "unread";
+  const order = createSidebarOrder({
+    bots: () => props.bots,
+    isUnread,
+    activeBotId: () => props.activeBotId ?? undefined,
+  });
+  const unreadCount = () => (query().trim() ? 0 : order.arranged().unread.length);
+  const chatItems = (botId: string) => {
+    const bot = props.bots.find((entry) => entry.id === botId);
+    const working = props.agentStates[botId]?.kind === "working";
+    return chatMenuItems(bot, { unread: !!bot && isUnread(bot), working }, props.onChatAction);
+  };
   /** Bots in order; an employee running several tasks becomes one row, unless filtered. */
   const entries = createMemo(() =>
     stable(
       query().trim()
         ? filteredBots().map((bot): SidebarEntry => ({ kind: "bot", bot }))
-        : sidebarEntries(props.bots, props.tasks),
+        : [
+            ...order.arranged().unread.map((bot): SidebarEntry => ({ kind: "bot", bot })),
+            ...sidebarEntries(order.arranged().rest, props.tasks),
+          ],
     ),
   );
   const firstBot = (entry: SidebarEntry | undefined) =>
     entry?.kind === "employee" ? entry.employee.bots[0] : entry?.bot;
   const needsYou = createMemo(() => needsYouCount(props.tasks) + (props.staffApprovals ?? 0));
-  /** Rows start a new group where the project changes, unless the list is filtered. */
-  const groupHeading = (index: number) => {
-    if (query().trim()) return undefined;
-    const bot = firstBot(entries()[index]);
-    const previous = index > 0 ? firstBot(entries()[index - 1]) : undefined;
-    if (!bot || (previous && (previous.projectId ?? null) === (bot.projectId ?? null)))
-      return undefined;
-    if (bot.projectId)
-      return {
-        projectId: bot.projectId,
-        name: bot.projectName || "Project",
-        title: bot.projectName,
-      };
-    return previous
-      ? { projectId: null, name: "Chats", title: "Chats outside a project" }
-      : undefined;
-  };
+  /** Unread first, then a group wherever the project changes, unless the list is searched. */
+  const groupHeading = (index: number) =>
+    query().trim()
+      ? undefined
+      : groupHeadingAt((at) => firstBot(entries()[at]), index, unreadCount());
   const signedIn = createMemo(() => props.cloudAccount?.signedIn === true);
   const accountEmail = createMemo(() => (signedIn() ? props.cloudAccount?.email : null) ?? null);
   const accountName = createMemo(
@@ -504,6 +518,7 @@ export function Sidebar(props: SidebarProps) {
             aria-label="Search chats"
           />
         </label>
+        <SortMenu order={order} />
       </div>
 
       <nav
@@ -762,6 +777,7 @@ export function Sidebar(props: SidebarProps) {
         {(menu) => (
           <AgentContextMenu
             menu={menu()}
+            chatItems={chatItems(menu().botId)}
             onClose={() => setContextMenu(null)}
             onRename={startRename}
             onEdit={props.onEditBot}

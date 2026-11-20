@@ -7,6 +7,7 @@ export * from "./company";
 export * from "./dictation";
 export type * from "./manager-cards";
 export type * from "./staff";
+export * from "./thread-actions";
 export * from "./views";
 
 import type {
@@ -29,6 +30,7 @@ import type { DictationDesktopApi } from "./dictation";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
+import type { ThreadActionInput } from "./thread-actions";
 import type { ViewsDesktopApi } from "./views";
 
 export const IPC_CHANNELS = {
@@ -65,6 +67,7 @@ export const IPC_CHANNELS = {
   agentCompact: "agent:compact",
   agentBranchPreview: "agent:branch-preview",
   agentBranch: "agent:branch",
+  agentThreadAction: "agent:thread-action",
   agentSendMessage: "agent:send-message",
   agentSetMessageReaction: "agent:set-message-reaction",
   agentChooseAttachments: "agent:choose-attachments",
@@ -282,6 +285,8 @@ export interface BotSummary {
   contextFull?: ContextFullAction;
   /** Set when this chat was branched from another one. */
   branchedFrom?: BranchOrigin;
+  /** A reply came after the owner last read the chat, or they marked it unread. */
+  unread?: boolean;
 }
 
 /** Compact the chat on its own when its context is nearly full, or ask first. */
@@ -613,6 +618,8 @@ export interface AgentDesktopApi {
   branchPreview: (input: BranchInput) => Promise<BranchPreview>;
   /** Starts a new chat from a point in this one. */
   branch: (request: BranchRequest) => Promise<BranchResult>;
+  /** Pins, marks read or unread, or archives a chat. */
+  threadAction: (input: ThreadActionInput) => Promise<void>;
   chooseAttachments: () => Promise<DraftAttachment[]>;
   onAttachmentImport: (listener: (event: AttachmentImportEvent) => void) => () => void;
   discardDraftAttachment: (attachmentId: string) => Promise<void>;

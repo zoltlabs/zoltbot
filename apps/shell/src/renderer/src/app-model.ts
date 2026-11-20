@@ -93,6 +93,8 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     projectName: stored.projectName,
     contextFull: stored.contextFull,
     ...(stored.branchedFrom ? { branchedFrom: stored.branchedFrom } : {}),
+    unread: stored.unread === true,
+    updatedAt: stored.updatedAt,
   };
 }
 

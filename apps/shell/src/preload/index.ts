@@ -95,6 +95,7 @@ const openbotApi: OpenBotDesktopApi = {
     compact: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentCompact, botId),
     branchPreview: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBranchPreview, input),
     branch: (request) => ipcRenderer.invoke(IPC_CHANNELS.agentBranch, request),
+    threadAction: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentThreadAction, input),
     chooseAttachments: () => ipcRenderer.invoke(IPC_CHANNELS.agentChooseAttachments),
     onAttachmentImport: (listener) => {
       attachmentImportListeners.add(listener);

@@ -145,6 +145,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         compact: call(channels.agentCompact),
         branchPreview: call(channels.agentBranchPreview),
         branch: call(channels.agentBranch),
+        threadAction: call(channels.agentThreadAction),
         chooseAttachments: call(channels.agentChooseAttachments),
         onAttachmentImport: () => () => undefined,
         discardDraftAttachment: call(channels.agentDiscardDraftAttachment),

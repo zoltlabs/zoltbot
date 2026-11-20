@@ -17,6 +17,7 @@ import {
   requireString,
 } from "./parsers";
 import { parseStaffAction } from "./staff-view";
+import { threadActionHandlers } from "./thread-actions";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -69,6 +70,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentReviewTask]: (input) => service.reviewTask(parseReviewTask(input)),
     ...modelHandlers(service),
     ...branchHandlers(service.client),
+    ...threadActionHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

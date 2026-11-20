@@ -97,6 +97,20 @@ export function branchOrigin(thread: Row): BranchOrigin | undefined {
   return { botId: text(fork?.sourceThreadId), turnId: text(point?.turnId), at };
 }
 
+/**
+ * Whether the owner marked the chat unread, or a turn ended after they last read it. A chat never
+ * read on any device counts as read here; the app's own reply count covers new replies there.
+ */
+export function threadUnread(snapshot: Snapshot, thread: Row): boolean {
+  const lastRead = text(thread.lastReadAt);
+  if (text(thread.wakeUnreadAt) > lastRead) return true;
+  if (!lastRead) return false;
+  const id = text(thread.id);
+  return (snapshot.entities.turn ?? []).some(
+    (turn) => turn.threadId === id && typeof turn.endedAt === "string" && turn.endedAt > lastRead,
+  );
+}
+
 export function toBotSummary(
   snapshot: Snapshot,
   thread: Row,
@@ -111,6 +125,7 @@ export function toBotSummary(
   const roots = Array.isArray(project?.roots) ? (project.roots as Row[]) : [];
   const seed = hash(threadId);
   const branchedFrom = branchOrigin(thread);
+  const unread = threadUnread(snapshot, thread);
   return {
     id: threadId,
     name: text(thread.title) || text(profile?.name) || "New chat",
@@ -119,6 +134,7 @@ export function toBotSummary(
     notifications: preferences.notifications ?? true,
     contextFull: preferences.contextFull ?? "ask",
     ...(branchedFrom ? { branchedFrom } : {}),
+    ...(unread ? { unread } : {}),
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     threadId,

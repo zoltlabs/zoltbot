@@ -1,0 +1,38 @@
+/* S9: the sort and filter button sits at the end of the search row. */
+.sidebar-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-search-wrap .search-field {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sidebar-sort-button {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
+
+/* A project filter hides chats, so the button carries a dot while one is on. */
+.sidebar-icon-button.sidebar-sort-button {
+  position: relative;
+}
+
+.sidebar-sort-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+
+/* The row's actions button opens the S9 items too; keep it at least 24 by 24. */
+.bot-row-more {
+  min-width: 24px;
+  min-height: 24px;
+}

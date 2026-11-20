@@ -248,6 +248,7 @@ export function setUpAppTest() {
           reason: "",
         }),
         branch: vi.fn().mockResolvedValue({ botId: "branch-1", ready: true, failed: false }),
+        threadAction: vi.fn().mockResolvedValue(undefined),
         chooseAttachments: vi.fn().mockResolvedValue([]),
         onAttachmentImport: vi.fn((listener) => {
           emitAttachmentImport = listener;

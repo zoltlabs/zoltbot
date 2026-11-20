@@ -43,6 +43,7 @@ import { ModelsSettings } from "./components/ModelsSettings";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
+import { createChatActions } from "./components/sidebar/chat-actions";
 import { TasksPage } from "./components/TasksPage";
 import type { BotProfile } from "./data";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
@@ -574,6 +575,14 @@ export function App() {
     return states;
   });
 
+  const chatActions = createChatActions({
+    bots: botList,
+    // Covered by a page or channel, the open chat isn't being read.
+    activeBotId: () =>
+      mapOpen() || tasksOpen() || modelsOpen() || channelOpen() ? undefined : activeBot()?.id,
+    clearLocalUnread: clearReplyIndicators,
+  });
+
   function setSidebarCollapsed(collapsed: boolean) {
     setLeftPanelCollapsed(collapsed);
     window.localStorage.setItem(LEFT_PANEL_COLLAPSED_STORAGE_KEY, String(collapsed));
@@ -699,6 +708,7 @@ export function App() {
               updateStatus={updateStatus()}
               agentStates={sidebarAgentStates()}
               onSelectBot={selectBot}
+              onChatAction={chatActions.run}
               onCreateBot={() => setAgentPickerOpen(true)}
               onCreateInProject={(projectId) => void createAgent(projectId)}
               onCreateProject={() => void createProject()}
