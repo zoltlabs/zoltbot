@@ -1,8 +1,13 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 
+export * from "./browser";
+export * from "./company";
+export * from "./dictation";
 export type * from "./manager-cards";
 export type * from "./staff";
+export * from "./views";
 
+import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
   ChannelRequestInput,
@@ -10,9 +15,12 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
+import type { CompanyOverview, DecidePlanInput } from "./company";
+import type { DictationDesktopApi } from "./dictation";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
+import type { ViewsDesktopApi } from "./views";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -95,79 +103,6 @@ export const IPC_CHANNELS = {
   viewShortcut: "view:shortcut",
   viewEvent: "view:event",
 } as const;
-
-export const VIEW_PERMISSIONS = ["read", "act", "approve"] as const;
-export type ViewPermission = (typeof VIEW_PERMISSIONS)[number];
-
-/** A key a view declares in its manifest; the shell forwards it while the view is open. */
-export interface ViewShortcut {
-  id: string;
-  keys: string;
-  label: string;
-}
-
-/** An installed Zoltbot view, as the shell shows it. */
-export interface ViewSummary {
-  id: string;
-  name: string;
-  enabled: boolean;
-  /** The view may read chats; without it the view isn't loaded. */
-  canRead: boolean;
-  /** What the view's manifest asks for, in manifest order. */
-  requested: ViewPermission[];
-  granted: ViewPermission[];
-  /** Requested permissions the person hasn't granted or turned down yet. */
-  pending: ViewPermission[];
-  shortcuts: ViewShortcut[];
-  error: string | null;
-}
-
-/** The look a view copies from the shell, matching the view API's theme message. */
-export interface ViewTheme {
-  scheme: "light" | "dark";
-  tokens: Record<string, string>;
-  fontSans: string;
-  fontMono: string;
-  fontScale: number;
-}
-
-export interface ViewConnectInput {
-  viewId: string;
-  theme: ViewTheme;
-  locale: string;
-  reducedMotion: boolean;
-}
-
-export interface ViewUpdateInput {
-  sessionId: string;
-  visible?: boolean;
-  theme?: ViewTheme;
-}
-
-export type ViewHostEvent =
-  | { type: "views-changed" }
-  /** A message main sends to the view's frame. */
-  | { type: "message"; sessionId: string; message: unknown }
-  | { type: "closed"; sessionId: string; failed: boolean }
-  /** The view asked to open a chat, or another page when `chatId` is null. */
-  | { type: "open"; chatId: string | null }
-  | { type: "key"; combo: string };
-
-export interface ViewsDesktopApi {
-  getMap: () => Promise<ViewSummary | null>;
-  /** Replaces the view's grants with `permissions`, which must be ones it requested. */
-  setGrants: (viewId: string, permissions: ViewPermission[]) => Promise<void>;
-  turnOn: (viewId: string) => Promise<void>;
-  prepare: (viewId: string) => Promise<{ url: string }>;
-  connect: (input: ViewConnectInput) => Promise<{ sessionId: string }>;
-  /** Relays a message from the view's frame to main, which validates it. */
-  post: (sessionId: string, message: unknown) => void;
-  update: (input: ViewUpdateInput) => void;
-  close: (sessionId: string) => void;
-  /** Runs one of the view's own shortcuts, pressed while focus is outside its frame. */
-  shortcut: (sessionId: string, shortcutId: string) => void;
-  onEvent: (listener: (event: ViewHostEvent) => void) => () => void;
-}
 
 export type DesktopPlatform = "darwin" | "win32" | "linux";
 
@@ -620,128 +555,6 @@ export type AgentEvent =
   | { type: "browser-control-changed"; state: BrowserControlState }
   | { type: "error"; botId?: string; code: string; message: string };
 
-/** Someone in a project's company, linked to their chat. */
-export interface CompanyPerson {
-  botId: string;
-  name: string;
-}
-
-export interface CompanyTeam {
-  id: string;
-  name: string;
-  manager: CompanyPerson | null;
-  employees: number;
-}
-
-export interface CompanyPlanChange {
-  summary: string;
-  why: string;
-}
-
-export interface CompanyPlanSummary {
-  id: string;
-  title: string;
-  explanation: string;
-  version: number;
-  changes: CompanyPlanChange[];
-}
-
-export interface CompanyInitiative {
-  id: string;
-  title: string;
-  outcome: string;
-  priority: string;
-  state: string;
-  owner: CompanyPerson | null;
-  finished: number;
-  total: number;
-}
-
-export interface CompanyBrief {
-  day: string;
-  revision: number;
-  summary: string;
-  createdAt: string;
-}
-
-/** What the Organization panel shows for one project. */
-export interface CompanyOverview {
-  projectId: string;
-  projectName: string;
-  ceo: CompanyPerson | null;
-  /** Employees reporting straight to the CEO. */
-  ceoEmployees: number;
-  teams: CompanyTeam[];
-  pendingPlans: CompanyPlanSummary[];
-  initiatives: CompanyInitiative[];
-  brief: CompanyBrief | null;
-}
-
-export interface DecidePlanInput {
-  projectId: string;
-  planId: string;
-  version: number;
-  approve: boolean;
-}
-
-export interface BrowserTab {
-  id: string;
-  title: string;
-  url: string;
-  loading: boolean;
-  ownerThreadId: string | null;
-  ownerBotId: string | null;
-}
-
-export type BrowserControlPhase = "acting" | "waiting";
-
-export type BrowserControlAction =
-  | "open"
-  | "list-tabs"
-  | "snapshot"
-  | "click"
-  | "type"
-  | "key"
-  | "scroll"
-  | "back"
-  | "forward"
-  | "reload"
-  | "screenshot"
-  | "close-tab";
-
-export interface BrowserControlSession {
-  id: string;
-  threadId: string;
-  turnId: string;
-  callId: string;
-  tabId: string | null;
-  action: BrowserControlAction;
-  phase: BrowserControlPhase;
-  startedAt: string;
-}
-
-export interface BrowserControlState {
-  sessions: BrowserControlSession[];
-}
-
-export interface BrowserBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface BrowserOpenInput {
-  url: string;
-  ownerThreadId?: string | null;
-  ownerBotId?: string | null;
-}
-
-export interface BrowserVisibilityInput {
-  visible: boolean;
-  bounds?: BrowserBounds;
-}
-
 export interface AgentDesktopApi {
   getStatus: () => Promise<AgentStatus>;
   /** Looks for installed agents again and returns the new status. */
@@ -791,15 +604,6 @@ export interface AgentDesktopApi {
   onEvent: (listener: (event: AgentEvent) => void) => () => void;
 }
 
-export interface BrowserDesktopApi {
-  open: (input: BrowserOpenInput) => Promise<BrowserTab>;
-  activate: (tabId: string) => Promise<void>;
-  close: (tabId: string) => Promise<void>;
-  listTabs: () => Promise<BrowserTab[]>;
-  getControlState: () => Promise<BrowserControlState>;
-  setVisible: (input: BrowserVisibilityInput) => Promise<void>;
-}
-
 export interface UpdateDesktopApi {
   getStatus: () => Promise<UpdateStatus>;
   check: () => Promise<UpdateStatus>;
@@ -845,42 +649,4 @@ export interface OpenBotDesktopApi {
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
   models: ModelsDesktopApi;
-}
-
-export type DictationAccessStatus = "authorized" | "not_determined" | "denied" | "restricted";
-
-export interface DictationStatus {
-  available: boolean;
-  onDevice: boolean;
-  locale: string;
-  microphone: DictationAccessStatus;
-  speech: DictationAccessStatus;
-}
-
-export interface DictationStartOptions {
-  locale?: string;
-  onDevice?: boolean;
-  /** `microphone` lets the speech helper record; `pcm16le` expects `sendAudio` chunks. */
-  source?: "pcm16le" | "microphone";
-  contextualStrings?: string[];
-}
-
-export interface DictationEvent {
-  sessionId: string;
-  kind: "partial" | "final" | "error" | "stopped";
-  text?: string;
-  code?: string;
-  message?: string;
-  reason?: string;
-}
-
-export interface DictationDesktopApi {
-  status: (params?: { locale?: string }) => Promise<DictationStatus>;
-  requestPermission: (params?: { locale?: string }) => Promise<DictationStatus>;
-  start: (options?: DictationStartOptions) => Promise<{ sessionId: string }>;
-  /** 16 kHz mono 16-bit little-endian PCM, at most 64 KiB per chunk. */
-  sendAudio: (sessionId: string, pcm16le: Uint8Array) => void;
-  stop: (sessionId: string) => Promise<void>;
-  cancel: (sessionId?: string) => Promise<void>;
-  onEvent: (listener: (event: DictationEvent) => void) => () => void;
 }

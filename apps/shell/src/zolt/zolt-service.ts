@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type {
   AccountUsage,
   AgentEvent,
@@ -28,9 +28,10 @@ import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { chooseAgent } from "./agent-choice";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
+import { decidePlan, readCompany, refreshBrief } from "./company-service";
 import { companyTree } from "./company-tree";
-import { type CompanyReadResult, toCompanyOverview } from "./company-view";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
+import { DraftStore } from "./draft-store";
 import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
   type BotPreferences,
@@ -77,14 +78,6 @@ const COMPANY_ROWS = new Set([
   ...CHANNEL_ROWS,
 ]);
 
-const IMAGE_TYPES: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-};
-
 /**
  * The shell's agent backend. It keeps OpenBot's AgentService surface so the renderer stays as it
  * is, and answers every call from the Zoltbot daemon's snapshot. Sends show up at once: the
@@ -93,7 +86,7 @@ const IMAGE_TYPES: Record<string, string> = {
 export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private preferences: Preferences = { bots: {}, reactions: {} };
   private readonly conversations = new Map<string, Conversation>();
-  private readonly drafts = new Map<string, { path: string; summary: DraftAttachment }>();
+  private readonly drafts = new DraftStore();
   private readonly prompts = new Map<string, string>();
   private readonly turns = new Map<string, string | null>();
   private lastBots = "";
@@ -368,43 +361,18 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   }
 
   /** Reads one project's company: its people, pending plans, initiatives and latest brief. */
-  async readCompany(projectId: string): Promise<CompanyOverview> {
-    const read = (await this.client.call("company.read", { projectId })) as CompanyReadResult;
-    return toCompanyOverview(projectId, read, this.client.snapshot);
+  readCompany(projectId: string): Promise<CompanyOverview> {
+    return readCompany(this.client, projectId);
   }
 
   /** The person's decision on a plan. The daemon refuses it if the plan or company changed. */
-  async decidePlan(input: DecidePlanInput): Promise<CompanyOverview> {
-    const read = (await this.client.call("company.read", {
-      projectId: input.projectId,
-    })) as CompanyReadResult;
-    const plan = (read.plans ?? []).find((row) => row.id === input.planId);
-    if (!plan || plan.state !== "proposed") throw new Error("This plan was already decided.");
-    if (Number(plan.version) !== input.version)
-      throw new Error("This plan changed. Review it again.");
-    try {
-      await this.client.call(
-        "company.decide",
-        {
-          id: input.planId,
-          version: input.version,
-          baseline: plan.baseline,
-          approve: input.approve,
-        },
-        `shell:decide:${input.planId}:${input.version}:${input.approve ? "approve" : "decline"}`,
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("stale_plan"))
-        throw new Error("The company changed since this plan was made. Ask for a new plan.");
-      throw error;
-    }
-    return this.readCompany(input.projectId);
+  decidePlan(input: DecidePlanInput): Promise<CompanyOverview> {
+    return decidePlan(this.client, input);
   }
 
   /** Writes a new project brief from the current work, then returns the updated company. */
-  async refreshBrief(projectId: string): Promise<CompanyOverview> {
-    await this.client.call("company.brief", { projectId }, randomUUID());
-    return this.readCompany(projectId);
+  refreshBrief(projectId: string): Promise<CompanyOverview> {
+    return refreshBrief(this.client, projectId);
   }
 
   /** Team channels: list, read, post and act on requests. */
@@ -569,30 +537,15 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   /** Keeps a picked file as a draft; the agent reads it from its path when the message is sent. */
   addDraft(path: string, size: number): DraftAttachment {
-    const mimeType = IMAGE_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
-    const summary: DraftAttachment = {
-      id: randomUUID(),
-      name: basename(path),
-      size,
-      kind: mimeType.startsWith("image/") ? "image" : "file",
-      mimeType,
-      previewKind: mimeType.startsWith("image/") ? "image" : "none",
-      previewUrl: null,
-    };
-    this.drafts.set(summary.id, { path, summary });
-    return summary;
+    return this.drafts.add(path, size);
   }
 
-  async addDraftBytes(name: string, bytes: Uint8Array): Promise<DraftAttachment> {
-    const folder = this.file("attachments");
-    await mkdir(folder, { recursive: true, mode: 0o700 });
-    const path = join(folder, `${randomUUID()}-${basename(name).slice(0, 120)}`);
-    await writeFile(path, bytes, { mode: 0o600 });
-    return this.addDraft(path, bytes.byteLength);
+  addDraftBytes(name: string, bytes: Uint8Array): Promise<DraftAttachment> {
+    return this.drafts.addBytes(this.file("attachments"), name, bytes);
   }
 
   draftPath(id: string): string | undefined {
-    return this.drafts.get(id)?.path;
+    return this.drafts.path(id);
   }
 
   discardDraftAttachment(id: string): Promise<void> {

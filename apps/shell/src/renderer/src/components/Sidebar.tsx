@@ -8,7 +8,6 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import type {
   AccountUsage,
   AgentStatus,
@@ -25,8 +24,6 @@ import { SidebarEmployeeRow } from "./SidebarEmployee";
 import {
   AccountIcon,
   CloseIcon,
-  DeleteIcon,
-  EditIcon,
   FeedbackIcon,
   MapIcon,
   MessageIcon,
@@ -39,7 +36,14 @@ import {
   UpdateIcon,
   UsageIcon,
 } from "./SidebarIcons";
+import {
+  SidebarAgentIndicator,
+  type SidebarAgentState,
+  sidebarAgentStateLabel,
+} from "./sidebar/AgentIndicator";
+import { AgentContextMenu, type BotContextMenu, DeleteAgentDialog } from "./sidebar/AgentMenus";
 
+export type { SidebarAgentState };
 export { SidebarToggleIcon };
 
 interface SidebarProps {
@@ -80,50 +84,6 @@ interface SidebarProps {
   children?: JSX.Element;
   /** Rendered under a project's heading, e.g. its channels. */
   projectRows?: (projectId: string, projectName: string) => JSX.Element;
-}
-
-export type SidebarAgentState =
-  | { kind: "working" }
-  | { kind: "responded" }
-  | { kind: "unread"; count: number };
-
-function sidebarAgentStateLabel(state: SidebarAgentState): string {
-  if (state.kind === "working") return "Thinking";
-  if (state.kind === "responded") return "Responded";
-  return `${state.count} new ${state.count === 1 ? "reply" : "replies"}`;
-}
-
-function SidebarAgentIndicator(props: { state: SidebarAgentState }) {
-  const unreadCount = () => (props.state.kind === "unread" ? props.state.count : 0);
-  return (
-    <span
-      class={`bot-row-agent-status bot-row-agent-status-${props.state.kind}`}
-      aria-hidden="true"
-    >
-      <Show when={props.state.kind === "working"}>
-        <span class="bot-row-thinking-dots">
-          <i />
-          <i />
-          <i />
-        </span>
-      </Show>
-      <Show when={props.state.kind === "responded"}>
-        <svg viewBox="0 0 12 12">
-          <title>Responded</title>
-          <path d="m3 6.2 1.8 1.8L9 3.8" />
-        </svg>
-      </Show>
-      <Show when={props.state.kind === "unread"}>
-        <span>{unreadCount()}</span>
-      </Show>
-    </span>
-  );
-}
-
-interface BotContextMenu {
-  botId: string;
-  x: number;
-  y: number;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -735,96 +695,26 @@ export function Sidebar(props: SidebarProps) {
 
       <Show when={contextMenu()}>
         {(menu) => (
-          // Mounted in the sidebar so the menu stays inside its landmark.
-          <Portal mount={sidebarElement}>
-            <div
-              class="bot-context-menu"
-              role="menu"
-              aria-label="Agent actions"
-              style={{ left: `${menu().x}px`, top: `${menu().y}px` }}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <button
-                ref={(element) => (firstMenuItem = element)}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  const botId = menu().botId;
-                  setContextMenu(null);
-                  props.onEditBot(botId);
-                }}
-              >
-                <EditIcon />
-                <span>Edit agent</span>
-              </button>
-              <div class="bot-context-separator" />
-              <button
-                type="button"
-                role="menuitem"
-                class="bot-context-danger"
-                onClick={() => {
-                  const botId = menu().botId;
-                  setContextMenu(null);
-                  setDeleteTargetId(botId);
-                }}
-              >
-                <DeleteIcon />
-                <span>Delete agent</span>
-              </button>
-            </div>
-          </Portal>
+          <AgentContextMenu
+            menu={menu()}
+            mount={sidebarElement}
+            firstItemRef={(element) => (firstMenuItem = element)}
+            onClose={() => setContextMenu(null)}
+            onEdit={props.onEditBot}
+            onDelete={setDeleteTargetId}
+          />
         )}
       </Show>
 
       <Show when={deleteTarget()}>
         {(bot) => (
-          <Portal>
-            <div
-              class="bot-delete-backdrop"
-              role="presentation"
-              onPointerDown={(event) => {
-                if (event.currentTarget === event.target && !deleting()) setDeleteTargetId(null);
-              }}
-            >
-              <section
-                class="bot-delete-dialog"
-                role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="bot-delete-title"
-                aria-describedby="bot-delete-description"
-              >
-                <AgentAvatar
-                  bot={bot()}
-                  style={{ width: "44px", height: "44px", "margin-bottom": "15px" }}
-                />
-                <h2 id="bot-delete-title">Delete {bot().name}?</h2>
-                <p id="bot-delete-description">
-                  This removes the agent, its Zoltbot queue, and managed files used only by that
-                  conversation. Its workspace and CLI history stay on your Mac.
-                </p>
-                <Show when={deleteError()}>
-                  {(message) => <p class="bot-delete-error">{message()}</p>}
-                </Show>
-                <div class="bot-delete-actions">
-                  <button
-                    type="button"
-                    disabled={deleting()}
-                    onClick={() => setDeleteTargetId(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    class="bot-delete-confirm"
-                    disabled={deleting()}
-                    onClick={() => void confirmDelete()}
-                  >
-                    {deleting() ? "Deleting…" : "Delete"}
-                  </button>
-                </div>
-              </section>
-            </div>
-          </Portal>
+          <DeleteAgentDialog
+            bot={bot()}
+            deleting={deleting()}
+            error={deleteError()}
+            onCancel={() => setDeleteTargetId(null)}
+            onConfirm={() => void confirmDelete()}
+          />
         )}
       </Show>
       {props.children}
