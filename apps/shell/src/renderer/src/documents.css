@@ -1,0 +1,790 @@
+/* The Documents page: file list, Markdown editor, comments, review and history. Colors are theme tokens. */
+
+.sidebar-documents-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--text-row-meta);
+}
+
+.docs-panel {
+  overflow: hidden;
+}
+
+.docs-header {
+  gap: 10px;
+}
+
+.docs-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-title:focus {
+  outline: none;
+}
+
+.docs-title:focus-visible,
+.doc-changes-body:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 2px;
+}
+
+.docs-git {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.docs-branch {
+  max-width: 180px;
+  overflow: hidden;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 999px;
+  padding: 2px 9px;
+  color: var(--text-secondary);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-page-error {
+  margin: 0;
+  padding: 6px 18px;
+}
+
+.docs-loading {
+  flex: 1 1 auto;
+  border-top: 1px solid var(--openbot-line);
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.docs-body {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr);
+  border-top: 1px solid var(--openbot-line);
+  container-type: inline-size;
+}
+
+.docs-files {
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--openbot-line);
+  background: var(--openbot-sidebar);
+  padding: 10px 8px 20px;
+}
+
+.docs-files-toggle {
+  display: none;
+}
+
+.docs-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.docs-empty {
+  flex: 1 1 auto;
+}
+
+/* Buttons used across the page. */
+.doc-button {
+  min-height: 28px;
+  flex: 0 0 auto;
+  border: 0.5px solid rgb(var(--ink) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--ink) / 0.055);
+  padding: 4px 11px;
+  color: rgb(var(--ink) / calc(0.86 * var(--ink-text-boost)));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  transition:
+    background 120ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.doc-button:hover:not(:disabled) {
+  background: rgb(var(--ink) / 0.1);
+}
+
+.doc-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.doc-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.doc-button-primary {
+  border-color: transparent;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.doc-button-primary:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+}
+
+.doc-button-danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: #fff;
+}
+
+.doc-button-danger:hover:not(:disabled) {
+  background: var(--icon-danger);
+}
+
+.doc-link-button {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--ink) / 0.3);
+  text-underline-offset: 2px;
+}
+
+.doc-link-button:hover {
+  color: var(--text-primary);
+}
+
+.doc-button:focus-visible,
+.doc-link-button:focus-visible,
+.doc-icon-button:focus-visible,
+.doc-tab:focus-visible,
+.doc-file:focus-visible,
+.doc-comment-open:focus-visible,
+.doc-history-row:focus-visible,
+.sidebar-documents-row:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 1px;
+}
+
+.doc-error {
+  margin: 6px 0;
+  color: var(--text-danger);
+  font-size: 12px;
+}
+
+.doc-muted {
+  margin: 8px 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.doc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.doc-empty-state p {
+  max-width: 44ch;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.doc-section-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* File list. */
+.doc-files-tools {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.doc-search {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.doc-search input,
+.doc-new-form input,
+.doc-field input,
+.doc-field select,
+.doc-field textarea,
+.doc-comment-form textarea {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 7px;
+  background: var(--surface-field);
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.doc-field textarea,
+.doc-comment-form textarea {
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.doc-search input:focus-visible,
+.doc-new-form input:focus-visible,
+.doc-field input:focus-visible,
+.doc-field select:focus-visible,
+.doc-field textarea:focus-visible,
+.doc-comment-form textarea:focus-visible,
+.doc-check input:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 1px;
+}
+
+.doc-search input::placeholder,
+.doc-new-form input::placeholder,
+.doc-comment-form textarea::placeholder {
+  color: var(--text-placeholder);
+}
+
+.doc-new-form {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.doc-new-form label {
+  color: var(--text-secondary);
+}
+
+.doc-folder + .doc-folder {
+  margin-top: 10px;
+}
+
+.doc-folder-name {
+  margin: 0 0 2px;
+  overflow: hidden;
+  padding: 2px 8px;
+  color: var(--text-group-heading);
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-file-list,
+.doc-comment-list,
+.doc-send-list,
+.doc-history-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-file {
+  display: grid;
+  width: 100%;
+  min-height: 30px;
+  gap: 1px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 5px 8px;
+  color: rgb(var(--ink) / calc(0.8 * var(--ink-text-boost)));
+  font-size: 13px;
+  text-align: left;
+}
+
+.doc-file:hover {
+  background: var(--openbot-hover);
+}
+
+.doc-file[aria-current="page"] {
+  background: var(--openbot-active);
+  color: var(--text-primary);
+}
+
+.doc-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-file-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  color: var(--text-row-meta);
+  font-size: 11px;
+}
+
+.doc-file-meta > span + span::before {
+  margin-right: 6px;
+  content: "·";
+}
+
+.doc-file-review {
+  color: var(--text-warning);
+}
+
+.doc-file-new {
+  color: var(--text-accent);
+}
+
+.doc-files-empty {
+  margin-top: 16px;
+}
+
+/* The open document. */
+.doc-pane {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.doc-toolbar {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 10px 18px 8px;
+}
+
+.doc-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.doc-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-heading);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-save-state {
+  flex: 0 0 auto;
+  color: var(--text-row-meta);
+  font-size: 12px;
+}
+
+.doc-save-state[data-state="conflict"],
+.doc-save-state[data-state="error"] {
+  color: var(--text-danger);
+}
+
+.doc-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-tabs {
+  display: inline-flex;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 9px;
+  background: var(--surface-sunken);
+  padding: 2px;
+}
+
+.doc-tab {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 2px 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.doc-tab:hover {
+  color: var(--text-primary);
+}
+
+.doc-tab[aria-selected="true"] {
+  background: var(--surface-option-selected);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 0.5px rgb(var(--ink) / 0.14);
+}
+
+.doc-tab-count {
+  min-width: 17px;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  padding: 0 5px;
+  color: var(--text-warning);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+.doc-format {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.doc-icon-button {
+  min-width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.doc-icon-button:hover {
+  background: var(--openbot-hover);
+  color: var(--text-primary);
+}
+
+.doc-format-bold {
+  font-weight: 700;
+}
+
+.doc-format-italic {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
+.doc-format-heading {
+  font-weight: 700;
+}
+
+.doc-comment-button {
+  margin-left: auto;
+}
+
+.doc-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border-bottom: 1px solid var(--openbot-line);
+  background: var(--surface-inset);
+  padding: 8px 18px;
+  font-size: 12.5px;
+}
+
+.doc-banner p {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.doc-banner-warning {
+  box-shadow: inset 3px 0 0 var(--text-warning);
+}
+
+.doc-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.doc-tabpanel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.doc-editor-wrap {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.doc-editor-wrap[hidden] {
+  display: none;
+}
+
+.doc-editor {
+  height: 100%;
+}
+
+.doc-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.doc-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.doc-editor .cm-scroller {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.doc-editor .cm-content {
+  max-width: 72ch;
+  margin: 0 auto;
+  padding: 28px 32px 30vh;
+  caret-color: var(--text-primary);
+}
+
+.doc-editor .cm-line {
+  padding: 0;
+}
+
+.doc-editor .cm-placeholder {
+  color: var(--text-placeholder);
+}
+
+/* One class more specific than CodeMirror's own selection rule. */
+.doc-editor .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.doc-editor .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: rgb(var(--ink) / 0.18);
+}
+
+.doc-editor .cm-cursor {
+  border-left-color: var(--text-primary);
+}
+
+.doc-editor .cm-editor.cm-focused .cm-content {
+  outline: none;
+}
+
+.doc-editor .cm-panels {
+  border-color: var(--openbot-line);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+.doc-editor .cm-panel.cm-search input,
+.doc-editor .cm-panel.cm-search button {
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.doc-editor .cm-searchMatch {
+  background: var(--comment-mark-bg);
+}
+
+.doc-editor .cm-selectionMatch {
+  background: rgb(var(--ink) / 0.07);
+}
+
+.md-heading {
+  color: var(--text-heading);
+  font-weight: 650;
+}
+
+.md-h1 {
+  font-size: 1.6em;
+}
+
+.md-h2 {
+  font-size: 1.3em;
+}
+
+.md-h3 {
+  font-size: 1.12em;
+}
+
+.md-emphasis {
+  font-style: italic;
+}
+
+.md-strong {
+  font-weight: 700;
+}
+
+.md-strike {
+  text-decoration: line-through;
+}
+
+.md-link {
+  color: var(--text-info);
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--ink) / 0.3);
+}
+
+.md-quote {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.md-code {
+  border-radius: 4px;
+  background: var(--surface-code);
+  color: var(--text-code);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.md-mark,
+.md-list {
+  color: var(--text-row-meta);
+}
+
+.cm-comment {
+  border-bottom: 2px solid var(--comment-mark-line);
+  background: var(--comment-mark-bg);
+  cursor: pointer;
+}
+
+.cm-comment-active {
+  background: var(--comment-mark-active-bg);
+}
+
+.doc-float-comment {
+  position: absolute;
+  z-index: 5;
+  border: 0.5px solid rgb(var(--ink) / 0.16);
+  border-radius: 8px;
+  background: var(--surface-popover);
+  padding: 4px 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 6px 18px rgb(var(--shade) / calc(0.35 * var(--shade-strength)));
+  animation: doc-pop 120ms ease-out both;
+}
+
+@keyframes doc-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* Preview. */
+.doc-preview {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 28px 32px 80px;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.doc-preview > * {
+  max-width: 68ch;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.doc-preview :is(h2, h3, h4, h5, h6) {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--text-heading);
+  line-height: 1.3;
+}
+
+.doc-preview h2 {
+  font-size: 1.6em;
+}
+
+.doc-preview h3 {
+  font-size: 1.3em;
+}
+
+.doc-preview blockquote {
+  border-left: 3px solid var(--openbot-line-strong);
+  padding-left: 14px;
+  color: var(--text-secondary);
+}
+
+.doc-preview code {
+  border-radius: 4px;
+  background: var(--surface-code);
+  padding: 0.1em 0.3em;
+  color: var(--text-code);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.doc-preview pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--surface-code);
+  padding: 12px 14px;
+}
+
+.doc-preview pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.doc-preview-link {
+  color: var(--text-info);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.doc-preview-image {
+  color: var(--text-muted);
+}
+
+.doc-preview-table {
+  overflow-x: auto;
+}
+
+.doc-preview table {
+  border-collapse: collapse;
+}
+
+.doc-preview :is(th, td) {
+  border: 1px solid var(--openbot-line-strong);
+  padding: 4px 10px;
+}
+
+.doc-preview hr {
+  border: 0;
+  border-top: 1px solid var(--openbot-line-strong);
+}

@@ -1,0 +1,583 @@
+/* Documents: comments, review and compare, history, dialogs and artifact tools. */
+
+/* Comments. */
+.doc-comments {
+  display: flex;
+  width: 300px;
+  min-height: 0;
+  flex: 0 0 300px;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  border-left: 1px solid var(--openbot-line);
+  padding: 14px 14px 24px;
+}
+
+.doc-comments-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.doc-comments-empty {
+  margin: 0;
+}
+
+.doc-comment-form {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.doc-comment-form label {
+  color: var(--text-secondary);
+}
+
+.doc-comment-quote {
+  margin: 0;
+  border-left: 2px solid var(--comment-mark-line);
+  padding-left: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.doc-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.doc-comment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.doc-comment {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  padding: 8px 10px;
+}
+
+.doc-comment-active {
+  border-color: var(--comment-mark-line);
+}
+
+.doc-comment[data-state="resolved"] {
+  opacity: 0.72;
+}
+
+.doc-comment-open {
+  display: grid;
+  gap: 3px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.doc-comment-open:disabled {
+  cursor: default;
+}
+
+.doc-comment-open .doc-comment-quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.doc-comment-gone {
+  color: var(--text-warning);
+  font-size: 11px;
+}
+
+.doc-comment-body {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.doc-comment-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.doc-comment-state {
+  color: var(--text-row-meta);
+  font-size: 11px;
+}
+
+.doc-comment[data-state="addressed"] .doc-comment-state {
+  color: var(--text-success);
+}
+
+.doc-comment-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.doc-comments-toggle {
+  align-self: flex-start;
+}
+
+/* Review and compare. */
+.doc-review,
+.doc-history-detail {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.doc-review-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 10px 18px;
+}
+
+.doc-review-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.doc-review-total {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.doc-review > .doc-error,
+.doc-history-detail > .doc-error {
+  padding: 0 18px;
+}
+
+.doc-changes {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.doc-changes-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px max(32px, calc((100% - 72ch) / 2)) 80px;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.doc-change {
+  border-radius: 3px;
+  cursor: pointer;
+  transition: box-shadow 120ms ease;
+}
+
+.doc-change del {
+  margin-right: 2px;
+  background: var(--diff-removed-bg);
+  color: var(--diff-removed-text);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.doc-change ins {
+  background: var(--diff-added-bg);
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--diff-added-line);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.doc-change-active {
+  box-shadow: 0 0 0 2px var(--diff-active-ring);
+}
+
+.doc-review-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  border-top: 1px solid var(--openbot-line);
+  background: var(--surface-inset);
+  padding: 8px 18px;
+}
+
+.doc-review-count {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.doc-review-position {
+  color: var(--text-secondary);
+}
+
+.doc-review-summary {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* History. */
+.doc-history {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.doc-history-list {
+  width: 250px;
+  flex: 0 0 250px;
+  overflow-y: auto;
+  border-right: 1px solid var(--openbot-line);
+  padding: 8px;
+}
+
+.doc-history-row {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.doc-history-row:hover {
+  background: var(--openbot-hover);
+}
+
+.doc-history-row[aria-current="true"] {
+  background: var(--openbot-active);
+}
+
+.doc-history-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-history-meta {
+  color: var(--text-row-meta);
+  font-size: 11px;
+}
+
+.doc-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  border-top: 1px solid var(--openbot-line);
+  padding: 5px 18px;
+  color: var(--text-row-meta);
+  font-size: 11px;
+}
+
+/* Dialogs. */
+.doc-dialog {
+  /* The app resets every margin; a modal dialog centers itself with automatic margins. */
+  margin: auto;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 0.5px solid rgb(var(--ink) / 0.14);
+  border-radius: 14px;
+  background: var(--surface-dialog);
+  padding: 20px;
+  color: var(--text-primary);
+  box-shadow: 0 24px 60px rgb(var(--shade) / calc(0.5 * var(--shade-strength)));
+}
+
+.doc-dialog::backdrop {
+  background: rgb(var(--shade) / calc(0.45 * var(--shade-strength)));
+}
+
+.doc-dialog-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.doc-dialog-description {
+  margin: 0 0 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.doc-dialog-form {
+  display: grid;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.doc-dialog-form p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.doc-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.doc-fieldset {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.doc-fieldset legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.doc-send-list {
+  display: grid;
+  max-height: 220px;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.doc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.doc-check input {
+  margin-top: 2px;
+  accent-color: var(--control-accent);
+}
+
+.doc-check > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.doc-send-quote {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.doc-send-state {
+  color: var(--text-row-meta);
+  font-size: 11px;
+}
+
+.doc-commit-path {
+  overflow-wrap: anywhere;
+}
+
+.doc-field {
+  display: grid;
+  gap: 6px;
+}
+
+.doc-field > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.doc-field-indented {
+  margin-left: 24px;
+}
+
+/* Narrow windows: comments go under the text, then the file list folds away. */
+@container (max-width: 960px) {
+  .doc-workspace:not(.doc-workspace-wide) {
+    flex-direction: column;
+  }
+
+  .doc-comments {
+    width: auto;
+    max-height: 40%;
+    flex: 0 0 auto;
+    border-top: 1px solid var(--openbot-line);
+    border-left: 0;
+  }
+
+  .doc-history {
+    flex-direction: column;
+  }
+
+  .doc-history-list {
+    width: auto;
+    max-height: 35%;
+    flex: 0 0 auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--openbot-line);
+  }
+}
+
+@container (max-width: 720px) {
+  .docs-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .docs-files {
+    max-height: 45vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--openbot-line);
+  }
+
+  .docs-files-toggle {
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+
+  .doc-editor .cm-content,
+  .doc-preview {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .doc-changes-body {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .doc-comment-button {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-button,
+  .doc-change,
+  .doc-float-comment {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Above an artifact: versions, comparing and saving as a document. */
+.artifact-tools {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 8px 14px;
+}
+
+.artifact-tools:not(:has(button, select, form, p, [role="status"])) {
+  display: none;
+}
+
+.artifact-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.artifact-version select {
+  min-height: 28px;
+  max-width: 100%;
+  appearance: none;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background-color: var(--surface-field);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-row-meta) 50%),
+    linear-gradient(135deg, var(--text-row-meta) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 12px,
+    calc(100% - 10px) 12px;
+  background-repeat: no-repeat;
+  background-size:
+    4px 4px,
+    4px 4px;
+  padding: 2px 26px 2px 9px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.artifact-version select:focus-visible,
+.artifact-save input:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 1px;
+}
+
+.artifact-save {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.artifact-save label {
+  color: var(--text-secondary);
+}
+
+.artifact-save input {
+  min-height: 28px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 7px;
+  background: var(--surface-field);
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.artifact-saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.artifact-panel-body .doc-changes-body {
+  padding: 18px 20px 40px;
+  font-size: 14px;
+}

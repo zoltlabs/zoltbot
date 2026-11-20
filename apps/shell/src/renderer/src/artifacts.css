@@ -44,6 +44,8 @@
 }
 
 .artifact-card-badge {
+  /* Opaque, so the open card's darker fill doesn't lower the badge's contrast. */
+  background: color-mix(in srgb, var(--text-file-badge) 12%, var(--surface));
   font-size: 8px;
 }
 

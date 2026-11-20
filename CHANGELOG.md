@@ -5,6 +5,14 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- New: Write in your project's Markdown files on the Documents page, with formatting, preview, find and automatic saving. Each project has a Documents row in the sidebar.
+- New: Select a passage to leave a comment, then send your comments to any agent in the project. The agent edits the file in place.
+- New: Review an agent's changes word by word and accept or reject each one, or review everything since the last commit.
+- New: Document history keeps earlier versions as you and agents change a file, next to its git commits. Compare any version with the current text or restore it.
+- New: Commit changed documents, optionally on a new branch, push them, and open a pull request on GitHub.
+- New: Choose earlier versions of an artifact, compare a Markdown artifact with its previous version, and save it to the project as a document.
+- Fix: The open artifact card's file badge has enough contrast in the light theme.
+
 - Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
 
 - Show cloud task audit records, including refused Mac commands, in their project.

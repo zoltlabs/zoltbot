@@ -1,4 +1,14 @@
-import { batch, createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  onCleanup,
+  onMount,
+  Show,
+  Suspense,
+} from "solid-js";
 import { createMutable } from "solid-js/store";
 import type {
   AccountUsage,
@@ -31,8 +41,15 @@ import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
 import { TasksPage } from "./components/TasksPage";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
+import { OPEN_DOCUMENT_EVENT, type OpenDocumentDetail } from "./documents/ArtifactTools";
+import { SidebarDocuments } from "./documents/SidebarDocuments";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
+
+// The editor and its Markdown parser load the first time someone opens Documents.
+const DocumentsPage = lazy(() =>
+  import("./documents/DocumentsPage").then((module) => ({ default: module.DocumentsPage })),
+);
 
 const FALLBACK_STATUS: AgentStatus = {
   phase: "starting",
@@ -98,6 +115,11 @@ export function App() {
   const tasks = createTasksStore();
   const staff = createStaffStore(() => null);
   const [modelsOpen, setModelsOpen] = createSignal(false);
+  /** The project whose Documents page shows, and a file to open there first. */
+  const [documents, setDocuments] = createSignal<{ projectId: string; path: string | null } | null>(
+    null,
+  );
+  const documentsOpen = () => documents() !== null;
   const channels = createChannelsStore();
   const channelOpen = () => channels.openId() !== null;
   const [liveMessages, setLiveMessages] = createSignal<Record<string, BotMessage[]>>({});
@@ -164,8 +186,29 @@ export function App() {
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
     channels.open(null);
+    setDocuments(null);
     setTasksOpen(true);
   }
+
+  /** Shows a project's Documents page, opening `path` there when one is given. */
+  function openDocuments(projectId: string, path: string | null = null) {
+    channels.open(null);
+    setMapOpen(false);
+    setTasksOpen(false);
+    setModelsOpen(false);
+    setAgentPickerOpen(false);
+    setDocuments({ projectId, path });
+  }
+
+  onMount(() => {
+    // An artifact saved as a document offers to open it here.
+    const openDocument = (event: Event) => {
+      const detail = (event as CustomEvent<OpenDocumentDetail>).detail;
+      if (detail?.projectId && detail.path) openDocuments(detail.projectId, detail.path);
+    };
+    window.addEventListener(OPEN_DOCUMENT_EVENT, openDocument);
+    onCleanup(() => window.removeEventListener(OPEN_DOCUMENT_EVENT, openDocument));
+  });
 
   onMount(() => {
     const toggleTasks = (event: KeyboardEvent) => {
@@ -444,6 +487,7 @@ export function App() {
     channels.open(null);
     setMapOpen(false);
     setTasksOpen(false);
+    setDocuments(null);
     setModelsOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
@@ -758,29 +802,38 @@ export function App() {
               tasks={tasks.tasks()}
               staffApprovals={staff.approvals().length}
               activeBotId={
-                mapOpen() || tasksOpen() || modelsOpen() || channelOpen()
+                mapOpen() || tasksOpen() || modelsOpen() || channelOpen() || documentsOpen()
                   ? ""
                   : (activeBot()?.id ?? "")
               }
               mapOpen={mapOpen()}
               tasksOpen={tasksOpen()}
               projectRows={(projectId, projectName) => (
-                <SidebarChannels
-                  projectName={projectName}
-                  channels={channels.channels().filter((row) => row.projectId === projectId)}
-                  activeChannelId={channels.openId()}
-                  onOpenChannel={(channelId) => {
-                    setMapOpen(false);
-                    setTasksOpen(false);
-                    setModelsOpen(false);
-                    setAgentPickerOpen(false);
-                    channels.open(channelId);
-                  }}
-                />
+                <>
+                  <SidebarDocuments
+                    projectName={projectName}
+                    active={documents()?.projectId === projectId}
+                    onOpen={() => openDocuments(projectId)}
+                  />
+                  <SidebarChannels
+                    projectName={projectName}
+                    channels={channels.channels().filter((row) => row.projectId === projectId)}
+                    activeChannelId={channels.openId()}
+                    onOpenChannel={(channelId) => {
+                      setMapOpen(false);
+                      setTasksOpen(false);
+                      setDocuments(null);
+                      setModelsOpen(false);
+                      setAgentPickerOpen(false);
+                      channels.open(channelId);
+                    }}
+                  />
+                </>
               )}
               onOpenMap={() => {
                 channels.open(null);
                 setTasksOpen(false);
+                setDocuments(null);
                 setModelsOpen(false);
                 setMapOpen(true);
               }}
@@ -790,6 +843,7 @@ export function App() {
                 channels.open(null);
                 setMapOpen(false);
                 setTasksOpen(false);
+                setDocuments(null);
                 setModelsOpen(true);
               }}
               appInfo={appInfo()}
@@ -830,7 +884,14 @@ export function App() {
           {/* The map covers the conversation; the conversation stays mounted so drafts survive. */}
           <div
             class="conversation-slot"
-            inert={mapOpen() || tasksOpen() || modelsOpen() || channelOpen() || undefined}
+            inert={
+              mapOpen() ||
+              tasksOpen() ||
+              modelsOpen() ||
+              channelOpen() ||
+              documentsOpen() ||
+              undefined
+            }
           >
             <Conversation
               agentStatus={agentStatus()}
@@ -876,6 +937,20 @@ export function App() {
               onShowSidebar={() => setSidebarCollapsed(false)}
               onOpenChat={selectBot}
             />
+          </Show>
+          <Show when={documents()}>
+            {(current) => (
+              <Suspense fallback={<main aria-label="Documents" class="map-panel docs-panel" />}>
+                <DocumentsPage
+                  projectId={current().projectId}
+                  openPath={current().path}
+                  bots={botList()}
+                  sidebarCollapsed={leftPanelCollapsed()}
+                  onShowSidebar={() => setSidebarCollapsed(false)}
+                  onOpenChat={selectBot}
+                />
+              </Suspense>
+            )}
           </Show>
           <Show when={channelOpen()}>
             <ChannelPage

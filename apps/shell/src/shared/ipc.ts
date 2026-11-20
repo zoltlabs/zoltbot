@@ -10,6 +10,7 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
+import { DOCUMENT_CHANNELS, type DocumentsDesktopApi } from "./documents";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
@@ -70,6 +71,7 @@ export const IPC_CHANNELS = {
   agentStaffAction: "agent:staff-action",
   agentEvent: "agent:event",
   ...MODEL_CHANNELS,
+  ...DOCUMENT_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -845,6 +847,7 @@ export interface OpenBotDesktopApi {
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
   models: ModelsDesktopApi;
+  documents: DocumentsDesktopApi;
 }
 
 export type DictationAccessStatus = "authorized" | "not_determined" | "denied" | "restricted";
