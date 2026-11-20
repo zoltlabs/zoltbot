@@ -2,142 +2,157 @@ import { type Accessor, createSignal, For, Show } from "solid-js";
 import type { MessageReaction } from "../../../../shared/ipc";
 import { MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "../../../../shared/ipc";
 import type { BotMessage } from "../../data";
-import { CheckIcon, CopyIcon, MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
+import { type Anchor, Menu, Popover, showToast } from "../../kit";
+import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
+import { messageMenuGroups } from "./messageMenu";
 
-export function MessageActions(props: {
-  message: BotMessage;
-  pickerOpen: boolean;
-  moreOpen: boolean;
-  expandedEmoji: boolean;
-  copied: boolean;
-  onTogglePicker: () => void;
-  onToggleMore: () => void;
-  onExpandEmoji: () => void;
-  onReact: (emoji: MessageReaction | null) => void;
-  onReply: () => void;
-  onCopy: () => void;
-}) {
+export function MessageActions(props: { message: BotMessage; actions: MessageActionsState }) {
+  let reactionButton: HTMLButtonElement | undefined;
+  let moreButton: HTMLButtonElement | undefined;
+  const who = () => (props.message.author === "you" ? "User" : "Agent");
+  const pickerOpen = () => props.actions.openReactionMessageId() === props.message.id;
+  const menu = () => {
+    const open = props.actions.menu();
+    return open?.messageId === props.message.id ? open : null;
+  };
+  const expandedEmoji = () => props.actions.expandedEmojiMessageId() === props.message.id;
+  const react = (emoji: MessageReaction) =>
+    props.actions.react(props.message, props.message.reaction === emoji ? null : emoji);
+
+  const emojiButton = (emoji: MessageReaction) => (
+    <button
+      type="button"
+      aria-pressed={props.message.reaction === emoji}
+      aria-label={`React with ${emoji}`}
+      onClick={() => react(emoji)}
+    >
+      {emoji}
+    </button>
+  );
+
   return (
     <div
       class="message-actions"
-      classList={{ "message-actions-open": props.pickerOpen || props.moreOpen }}
+      classList={{ "message-actions-open": pickerOpen() || menu() !== null }}
       role="toolbar"
-      aria-label={`${props.message.author === "you" ? "User" : "Agent"} message actions`}
+      aria-label={`${who()} message actions`}
     >
-      <div class="message-action-popover-anchor">
-        <button
-          type="button"
-          class="message-action-button"
-          aria-label="Add reaction"
-          aria-expanded={props.pickerOpen}
-          onClick={props.onTogglePicker}
-        >
-          <ReactionIcon />
-        </button>
-        <Show when={props.pickerOpen}>
-          <div class="reaction-picker" role="menu" aria-label="Choose a reaction">
-            <div class="reaction-picker-row">
-              <For each={MESSAGE_REACTIONS}>
-                {(emoji) => (
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={props.message.reaction === emoji}
-                    aria-label={`React with ${emoji}`}
-                    onClick={() => props.onReact(props.message.reaction === emoji ? null : emoji)}
-                  >
-                    {emoji}
-                  </button>
-                )}
-              </For>
-              <button
-                type="button"
-                class="reaction-more-button"
-                aria-label="More emoji"
-                aria-expanded={props.expandedEmoji}
-                onClick={props.onExpandEmoji}
-              >
-                <PlusIcon />
-              </button>
-            </div>
-            <Show when={props.expandedEmoji}>
-              <div class="reaction-picker-row reaction-picker-more">
-                <For each={MORE_MESSAGE_REACTIONS}>
-                  {(emoji) => (
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={props.message.reaction === emoji}
-                      aria-label={`React with ${emoji}`}
-                      onClick={() => props.onReact(props.message.reaction === emoji ? null : emoji)}
-                    >
-                      {emoji}
-                    </button>
-                  )}
-                </For>
+      <button
+        ref={reactionButton}
+        type="button"
+        class="message-action-button"
+        aria-label="Add reaction"
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen()}
+        onClick={() => props.actions.togglePicker(props.message.id)}
+      >
+        <ReactionIcon />
+      </button>
+      <Show when={pickerOpen() && reactionButton}>
+        {(anchor) => (
+          <Popover
+            anchor={anchor()}
+            label="Choose a reaction"
+            placement={props.message.author === "you" ? "top-end" : "top-start"}
+            onClose={() => props.actions.closeAll()}
+          >
+            <div class="reaction-picker">
+              <div class="reaction-picker-row">
+                <For each={MESSAGE_REACTIONS}>{emojiButton}</For>
+                <button
+                  type="button"
+                  class="reaction-more-button"
+                  aria-label="More emoji"
+                  aria-expanded={expandedEmoji()}
+                  onClick={() => props.actions.toggleExpandedEmoji(props.message.id)}
+                >
+                  <PlusIcon />
+                </button>
               </div>
-            </Show>
-          </div>
-        </Show>
-      </div>
+              <Show when={expandedEmoji()}>
+                <div class="reaction-picker-row reaction-picker-more">
+                  <For each={MORE_MESSAGE_REACTIONS}>{emojiButton}</For>
+                </div>
+              </Show>
+            </div>
+          </Popover>
+        )}
+      </Show>
       <button
         type="button"
         class="message-action-button"
-        aria-label={`Reply to ${props.message.author === "you" ? "User" : "Agent"} message`}
-        onClick={props.onReply}
+        aria-label={`Reply to ${who()} message`}
+        onClick={() => props.actions.reply(props.message)}
       >
         <ReplyIcon />
       </button>
-      <div class="message-action-popover-anchor">
-        <button
-          type="button"
-          class="message-action-button"
-          aria-label="More message actions"
-          aria-expanded={props.moreOpen}
-          onClick={props.onToggleMore}
-        >
-          <MoreIcon />
-        </button>
-        <Show when={props.moreOpen}>
-          <div class="message-more-menu" role="menu">
-            <button type="button" role="menuitem" onClick={props.onCopy}>
-              {props.copied ? <CheckIcon /> : <CopyIcon />}
-              <span>{props.copied ? "Copied" : "Copy"}</span>
-            </button>
-          </div>
-        </Show>
-      </div>
+      <button
+        ref={moreButton}
+        type="button"
+        class="message-action-button message-more-button"
+        aria-label="More message actions"
+        aria-haspopup="menu"
+        aria-expanded={menu() !== null}
+        onClick={() => moreButton && props.actions.toggleMenu(props.message.id, moreButton)}
+      >
+        <MoreIcon />
+      </button>
+      <Show when={menu()}>
+        {(open) => (
+          <Menu
+            anchor={open().anchor}
+            owner={open().owner}
+            label="Message actions"
+            placement={props.message.author === "you" ? "bottom-end" : "bottom-start"}
+            groups={messageMenuGroups(props.message, props.actions)}
+            onClose={() => props.actions.closeAll()}
+          />
+        )}
+      </Show>
     </div>
   );
 }
 
-/** Which message's reaction picker or More menu is open, and the actions they run. */
+interface OpenMessageMenu {
+  messageId: string;
+  /** The More button, or the point of a right-click. */
+  anchor: Anchor;
+  /** For a right-click, the message's More button, which gets focus back. */
+  owner?: HTMLElement;
+}
+
+/** Which message's reaction picker or menu is open, and the actions they run. */
 export function createMessageActionsState(deps: {
   botId: Accessor<string | undefined>;
   onReply: (message: BotMessage) => void;
   onError: (message: string) => void;
 }) {
   const [openReactionMessageId, setOpenReactionMessageId] = createSignal<string | null>(null);
-  const [openMoreMessageId, setOpenMoreMessageId] = createSignal<string | null>(null);
+  const [menu, setMenu] = createSignal<OpenMessageMenu | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = createSignal<string | null>(null);
-  const [copiedMessageId, setCopiedMessageId] = createSignal<string | null>(null);
 
   function closeAll() {
     setOpenReactionMessageId(null);
-    setOpenMoreMessageId(null);
+    setMenu(null);
     setExpandedEmojiMessageId(null);
   }
 
   function togglePicker(messageId: string) {
-    setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
-    setOpenMoreMessageId(null);
-    setExpandedEmojiMessageId(null);
+    const opening = openReactionMessageId() !== messageId;
+    closeAll();
+    if (opening) setOpenReactionMessageId(messageId);
   }
 
-  function toggleMore(messageId: string) {
-    setOpenMoreMessageId((current) => (current === messageId ? null : messageId));
-    setOpenReactionMessageId(null);
-    setExpandedEmojiMessageId(null);
+  function toggleMenu(messageId: string, button: HTMLElement) {
+    const opening = menu()?.messageId !== messageId;
+    closeAll();
+    if (opening) setMenu({ messageId, anchor: button });
+  }
+
+  /** Opens the message menu for a right-click on the message, at the pointer. */
+  function openMenuAt(messageId: string, anchor: Anchor, owner?: HTMLElement) {
+    closeAll();
+    setMenu({ messageId, anchor, owner });
   }
 
   function toggleExpandedEmoji(messageId: string) {
@@ -146,15 +161,13 @@ export function createMessageActionsState(deps: {
 
   function reply(message: BotMessage) {
     deps.onReply(message);
-    setOpenReactionMessageId(null);
-    setOpenMoreMessageId(null);
+    closeAll();
   }
 
   async function react(message: BotMessage, emoji: MessageReaction | null) {
     const botId = deps.botId();
     if (!botId) return;
-    setOpenReactionMessageId(null);
-    setExpandedEmojiMessageId(null);
+    closeAll();
     try {
       await window.openbot.agent.setMessageReaction({ botId, messageId: message.id, emoji });
     } catch (error) {
@@ -178,23 +191,20 @@ export function createMessageActionsState(deps: {
         document.execCommand("copy");
         input.remove();
       }
-      setCopiedMessageId(message.id);
-      window.setTimeout(() => {
-        if (copiedMessageId() === message.id) setCopiedMessageId(null);
-      }, 1_400);
-    } catch (error) {
-      deps.onError(error instanceof Error ? error.message : "Could not copy the message.");
+      showToast({ message: "Copied" });
+    } catch {
+      showToast({ message: "Couldn't copy the message" });
     }
   }
 
   return {
     openReactionMessageId,
-    openMoreMessageId,
+    menu,
     expandedEmojiMessageId,
-    copiedMessageId,
     closeAll,
     togglePicker,
-    toggleMore,
+    toggleMenu,
+    openMenuAt,
     toggleExpandedEmoji,
     reply,
     react: (message: BotMessage, emoji: MessageReaction | null) => void react(message, emoji),

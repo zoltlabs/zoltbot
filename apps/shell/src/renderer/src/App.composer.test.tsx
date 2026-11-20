@@ -146,7 +146,7 @@ describe("Zoltbot connected desktop shell", () => {
 
     await screen.findByText("Ready to ship.");
     await fireEvent.click(screen.getByRole("button", { name: "Add reaction" }));
-    await fireEvent.click(screen.getByRole("menuitemradio", { name: "React with ❤️" }));
+    await fireEvent.click(screen.getByRole("button", { name: "React with ❤️" }));
     expect(window.openbot.agent.setMessageReaction).toHaveBeenCalledWith({
       botId: "chief",
       messageId: "assistant-actions",

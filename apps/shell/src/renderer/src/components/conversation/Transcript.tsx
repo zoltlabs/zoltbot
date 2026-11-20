@@ -340,6 +340,18 @@ export function TranscriptEntry(props: {
           fallback={
             <article
               class="message-entry"
+              onContextMenu={(event) => {
+                if (props.message.streaming) return;
+                event.preventDefault();
+                const more = event.currentTarget.querySelector<HTMLElement>(".message-more-button");
+                // Shift+F10 and the menu key give no pointer position; open by More instead.
+                const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+                props.actions.openMenuAt(
+                  props.message.id,
+                  fromKeyboard && more ? more : { x: event.clientX, y: event.clientY },
+                  more ?? undefined,
+                );
+              }}
               classList={{
                 "message-entry-animated": props.animate,
                 "message-entry-user": props.message.author === "you",
@@ -365,19 +377,7 @@ export function TranscriptEntry(props: {
                     onOpenArtifact={props.onOpenArtifact}
                   />
                 </div>
-                <MessageActions
-                  message={props.message}
-                  pickerOpen={props.actions.openReactionMessageId() === props.message.id}
-                  moreOpen={props.actions.openMoreMessageId() === props.message.id}
-                  expandedEmoji={props.actions.expandedEmojiMessageId() === props.message.id}
-                  copied={props.actions.copiedMessageId() === props.message.id}
-                  onTogglePicker={() => props.actions.togglePicker(props.message.id)}
-                  onToggleMore={() => props.actions.toggleMore(props.message.id)}
-                  onExpandEmoji={() => props.actions.toggleExpandedEmoji(props.message.id)}
-                  onReact={(emoji) => props.actions.react(props.message, emoji)}
-                  onReply={() => props.actions.reply(props.message)}
-                  onCopy={() => props.actions.copy(props.message)}
-                />
+                <MessageActions message={props.message} actions={props.actions} />
               </div>
               <Show when={props.message.reaction}>
                 {(reaction) => (

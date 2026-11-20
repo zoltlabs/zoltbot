@@ -1,5 +1,6 @@
 import { render } from "solid-js/web";
 import { App } from "./App";
+import { ToastRegion } from "./kit";
 import "./theme.css";
 import "./styles.css";
 import "./company.css";
@@ -22,5 +23,13 @@ if (!root) {
 if (new URLSearchParams(window.location.search).has("kit-gallery")) {
   void import("./kit/KitGallery").then(({ KitGallery }) => render(() => <KitGallery />, root));
 } else {
-  render(() => <App />, root);
+  render(
+    () => (
+      <>
+        <App />
+        <ToastRegion />
+      </>
+    ),
+    root,
+  );
 }

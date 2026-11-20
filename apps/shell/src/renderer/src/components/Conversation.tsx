@@ -301,18 +301,12 @@ export function Conversation(props: ConversationProps) {
     });
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      messageActions.closeAll();
       browser.hideBrowserPanel();
       setMediaPreview(null);
       settingsForm.setAvatarPickerOpen(false);
       props.onCloseAgentPicker();
     };
-    const closeMessageMenus = (event: MouseEvent) => {
-      if ((event.target as Element | null)?.closest(".message-actions")) return;
-      messageActions.closeAll();
-    };
     window.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("pointerdown", closeMessageMenus);
     const scrollResizeObserver = new ResizeObserver(() => updateScrollFade());
     if (scrollElement) scrollResizeObserver.observe(scrollElement);
     requestAnimationFrame(() => updateScrollFade());
@@ -320,7 +314,6 @@ export function Conversation(props: ConversationProps) {
       scrollResizeObserver.disconnect();
       unsubscribeImport();
       window.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("pointerdown", closeMessageMenus);
     });
   });
 
