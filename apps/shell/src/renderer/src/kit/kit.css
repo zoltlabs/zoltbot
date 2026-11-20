@@ -243,6 +243,14 @@
   color: var(--text-muted);
 }
 
+.zb-kit-search:focus-within {
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--openbot-orange) 76%, transparent);
+}
+
+.zb-kit-search input:focus-visible {
+  outline: none;
+}
+
 .zb-kit-search input {
   min-width: 0;
   height: 34px;

@@ -106,7 +106,11 @@ export function Menu(props: MenuProps) {
           }
           rovingKeydown(event, items(), { typeahead });
         }}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={(event) => {
+          // Keep a right-click inside the menu from reaching the row that opened it.
+          event.preventDefault();
+          event.stopPropagation();
+        }}
       >
         <Show when={props.header}>
           <div class="zb-kit-menu-header">{props.header}</div>
@@ -208,6 +212,7 @@ export function Popover(props: PopoverProps) {
         aria-label={props.label}
         data-kit-overlay="popover"
         tabIndex={-1}
+        onContextMenu={(event) => event.stopPropagation()}
         style={props.width ? { width: `${props.width}px` } : undefined}
       >
         {props.children}

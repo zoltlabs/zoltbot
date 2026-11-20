@@ -280,6 +280,55 @@ describe("Select", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("closes when its trigger is pressed again", () => {
+    render(() => (
+      <Select label="Reasoning" value="low" options={[...options]} onChange={vi.fn()} />
+    ));
+    const trigger = screen.getByRole("button", { name: "Reasoning: Low" });
+    click(trigger);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    click(trigger);
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("keeps focus on the same row when its options are rebuilt", async () => {
+    const [extra, setExtra] = createSignal("");
+    render(() => (
+      <Select
+        label="Reasoning"
+        value="low"
+        options={options.map((option) => ({ ...option, label: option.label + extra() }))}
+        onChange={vi.fn()}
+      />
+    ));
+    click(screen.getByRole("button", { name: "Reasoning: Low" }));
+    await waitFor(() => expect(screen.getByRole("option", { name: "Low" })).toHaveFocus());
+    press("ArrowDown");
+    setExtra("!");
+    expect(screen.getByRole("option", { name: "Medium!" })).toHaveFocus();
+  });
+
+  it("closes and ignores choices once it is disabled", () => {
+    const onChange = vi.fn();
+    const [disabled, setDisabled] = createSignal(false);
+    render(() => (
+      <Combobox
+        label="Model"
+        searchLabel="Search models"
+        emptyLabel="No models match"
+        value="low"
+        options={[...options]}
+        disabled={disabled()}
+        onChange={onChange}
+      />
+    ));
+    click(screen.getByRole("button", { name: "Model: Low" }));
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    setDisabled(true);
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("Combobox", () => {

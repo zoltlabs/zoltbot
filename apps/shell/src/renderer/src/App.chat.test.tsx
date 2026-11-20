@@ -325,8 +325,7 @@ describe("Zoltbot connected desktop shell", () => {
       turnId: "turn-1",
     });
     await waitFor(() => expect(trigger).toBeDisabled());
-    expect(trigger.closest(".provider-model-picker")).toHaveAttribute(
-      "title",
+    expect(trigger).toHaveAccessibleDescription(
       "Wait for the current work to finish before changing models.",
     );
 

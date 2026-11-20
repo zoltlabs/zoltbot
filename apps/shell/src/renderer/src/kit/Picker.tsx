@@ -1,4 +1,14 @@
-import { createMemo, createSignal, createUniqueId, For, type JSX, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  Index,
+  type JSX,
+  onMount,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import {
   floatingLayer,
@@ -93,6 +103,10 @@ function groupOptions<T extends string>(options: readonly PickerOption<T>[]) {
 export function Select<T extends string>(props: PickerProps<T>) {
   const [open, setOpen] = createSignal(false);
   let trigger: HTMLButtonElement | undefined;
+  // A picker that becomes disabled while open, such as the model picker once work starts, closes.
+  createEffect(() => {
+    if (props.disabled) setOpen(false);
+  });
   return (
     <>
       <Trigger
@@ -102,7 +116,7 @@ export function Select<T extends string>(props: PickerProps<T>) {
         ref={(element) => {
           trigger = element;
         }}
-        onOpen={() => setOpen(true)}
+        onOpen={() => setOpen(!open())}
       />
       <Show when={open() && trigger}>
         {(anchor) => <SelectList anchor={anchor()} picker={props} onClose={() => setOpen(false)} />}
@@ -134,7 +148,7 @@ function SelectList<T extends string>(props: {
     (current ?? items()[0])?.focus();
   });
   const choose = (option: PickerOption<T>) => {
-    if (option.disabled) return;
+    if (option.disabled || props.picker.disabled) return;
     returnFocus(props.anchor);
     props.onClose();
     props.picker.onChange(option.value);
@@ -155,27 +169,28 @@ function SelectList<T extends string>(props: {
           } else rovingKeydown(event, items(), { typeahead });
         }}
       >
-        <For each={groupOptions(props.picker.options)}>
+        {/* Rows keep their nodes when the options are rebuilt, so the focused row keeps focus. */}
+        <Index each={groupOptions(props.picker.options)}>
           {(group) => (
-            <div role="group" aria-label={group.name}>
-              <Show when={group.name}>
+            <div role="group" aria-label={group().name}>
+              <Show when={group().name}>
                 <div class="zb-kit-group-label" aria-hidden="true">
-                  {group.name}
+                  {group().name}
                 </div>
               </Show>
-              <For each={group.options}>
+              <Index each={group().options}>
                 {(option) => (
                   <OptionRow
-                    option={option}
-                    selected={option.value === props.picker.value}
-                    onChoose={() => choose(option)}
+                    option={option()}
+                    selected={option().value === props.picker.value}
+                    onChoose={() => choose(option())}
                     focusable
                   />
                 )}
-              </For>
+              </Index>
             </div>
           )}
-        </For>
+        </Index>
       </div>
     </Portal>
   );
@@ -243,6 +258,10 @@ export interface ComboboxProps<T extends string> extends PickerProps<T> {
 export function Combobox<T extends string>(props: ComboboxProps<T>) {
   const [open, setOpen] = createSignal(false);
   let trigger: HTMLButtonElement | undefined;
+  // A picker that becomes disabled while open, such as the model picker once work starts, closes.
+  createEffect(() => {
+    if (props.disabled) setOpen(false);
+  });
   return (
     <>
       <Trigger
@@ -252,7 +271,7 @@ export function Combobox<T extends string>(props: ComboboxProps<T>) {
         ref={(element) => {
           trigger = element;
         }}
-        onOpen={() => setOpen(true)}
+        onOpen={() => setOpen(!open())}
       />
       <Show when={open() && trigger}>
         {(anchor) => (
@@ -300,7 +319,7 @@ function ComboboxPanel<T extends string>(props: {
   });
 
   const choose = (option: PickerOption<T> | undefined) => {
-    if (!option || option.disabled) return;
+    if (!option || option.disabled || props.picker.disabled) return;
     returnFocus(props.anchor);
     props.onClose();
     props.picker.onChange(option.value);

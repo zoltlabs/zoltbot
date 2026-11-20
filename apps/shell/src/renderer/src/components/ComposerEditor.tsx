@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import type { BotProfile } from "../data";
 import { Suggestions } from "../kit";
 import { AgentAvatar } from "./AgentAvatar";
@@ -29,6 +29,8 @@ export function expandComposerMentions(value: string): string {
 export function ComposerEditor(props: ComposerEditorProps) {
   const [mention, setMention] = createSignal<MentionContext | null>(null);
   const [activeOption, setActiveOption] = createSignal(0);
+  const listId = createUniqueId();
+  const listOpen = () => mention() !== null && matchingBots().length > 0;
   const matchingBots = createMemo(() => {
     const query = mention()?.query.trim().toLocaleLowerCase() ?? "";
     return props.bots.filter(
@@ -174,6 +176,9 @@ export function ComposerEditor(props: ComposerEditorProps) {
         aria-label={props.ariaLabel}
         aria-disabled={props.disabled}
         aria-multiline="true"
+        aria-autocomplete="list"
+        aria-controls={listOpen() ? listId : undefined}
+        aria-activedescendant={listOpen() ? `${listId}-${activeOption()}` : undefined}
         spellcheck="true"
         onInput={() => {
           emitValue();
@@ -196,11 +201,13 @@ export function ComposerEditor(props: ComposerEditorProps) {
       <Show when={mention() && matchingBots().length > 0 && editor}>
         {(anchor) => (
           <Suggestions anchor={anchor()} placement="top-start" matchWidth>
-            <div class="mention-picker" role="listbox" aria-label="Tag an agent">
+            <div id={listId} class="mention-picker" role="listbox" aria-label="Tag an agent">
               <For each={matchingBots()}>
                 {(bot, index) => (
                   <button
                     type="button"
+                    id={`${listId}-${index()}`}
+                    tabIndex={-1}
                     role="option"
                     aria-selected={activeOption() === index()}
                     class="mention-picker-option"

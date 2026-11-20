@@ -3948,6 +3948,13 @@ textarea {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 
+.provider-model-disabled-reason {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .provider-model-field-label {
   color: var(--text-secondary);
   font-size: 12px;

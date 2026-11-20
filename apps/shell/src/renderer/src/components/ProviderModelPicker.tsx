@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo, createUniqueId, Show } from "solid-js";
 import type {
   AgentModelId,
   AgentModelOption,
@@ -16,7 +16,7 @@ interface ProviderModelPickerProps {
   ariaLabel?: string;
   label?: string;
   disabled?: boolean;
-  /** Why the picker is disabled, shown on hover. */
+  /** Why the picker is disabled. Shown under a field; read to screen readers on a pill. */
   disabledReason?: string;
   onChange: (model: AgentModelId) => void;
 }
@@ -54,13 +54,11 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     }),
   );
   const field = () => props.variant === "field";
+  const reasonId = createUniqueId();
+  const reason = () => (props.disabled ? props.disabledReason : undefined);
 
   return (
-    <span
-      class="provider-model-picker"
-      classList={{ "provider-model-picker-field": field() }}
-      title={props.disabled ? props.disabledReason : undefined}
-    >
+    <span class="provider-model-picker" classList={{ "provider-model-picker-field": field() }}>
       <Show when={field()}>
         <span class="provider-model-field-label" aria-hidden="true">
           {props.label ?? "Model"}
@@ -74,10 +72,16 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
         value={props.value}
         options={options()}
         disabled={props.disabled}
+        describedBy={reason() ? reasonId : undefined}
         placeholder={displayModelName(undefined, props.value)}
         class={field() ? "provider-model-trigger-field" : "provider-model-trigger-pill"}
         onChange={props.onChange}
       />
+      <Show when={reason()}>
+        <span id={reasonId} class={field() ? "provider-model-disabled-reason" : "sr-only"}>
+          {reason()}
+        </span>
+      </Show>
     </span>
   );
 }

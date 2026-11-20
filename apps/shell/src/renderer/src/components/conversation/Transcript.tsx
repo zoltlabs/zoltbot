@@ -347,10 +347,18 @@ export function TranscriptEntry(props: {
                 const more = event.currentTarget.querySelector<HTMLElement>(".message-more-button");
                 // Shift+F10 and the menu key give no pointer position; open by More instead.
                 const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+                const selected = window.getSelection();
+                const selection =
+                  selected &&
+                  !selected.isCollapsed &&
+                  event.currentTarget.contains(selected.anchorNode)
+                    ? selected.toString().trim()
+                    : "";
                 props.actions.openMenuAt(
                   props.message.id,
                   fromKeyboard && more ? more : { x: event.clientX, y: event.clientY },
                   more ?? undefined,
+                  selection || undefined,
                 );
               }}
               classList={{

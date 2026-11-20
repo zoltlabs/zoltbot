@@ -20,7 +20,8 @@ function renderActions(onReply = vi.fn()) {
         onContextMenu={(event) => {
           event.preventDefault();
           const more = event.currentTarget.querySelector<HTMLElement>(".message-more-button");
-          actions.openMenuAt(message.id, { x: 40, y: 40 }, more ?? undefined);
+          const selected = window.getSelection()?.toString() || undefined;
+          actions.openMenuAt(message.id, { x: 40, y: 40 }, more ?? undefined, selected);
         }}
       >
         <p>{message.body}</p>
@@ -83,6 +84,30 @@ describe("Message menu", () => {
     fireEvent.contextMenu(screen.getByTestId("message"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Reply" }));
     expect(onReply).toHaveBeenCalledWith(message);
+  });
+
+  it("copies the selected text when the message was right-clicked with a selection", async () => {
+    renderActions();
+    const paragraph = screen.getByText("Ready to ship.");
+    const range = document.createRange();
+    range.setStart(paragraph.firstChild as Text, 0);
+    range.setEnd(paragraph.firstChild as Text, 5);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    const selection = window.getSelection()?.toString() ?? "";
+    fireEvent.contextMenu(screen.getByTestId("message"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(selection));
+    window.getSelection()?.removeAllRanges();
+  });
+
+  it("keeps a right-click inside the open menu from reopening it", () => {
+    renderActions();
+    fireEvent.contextMenu(screen.getByTestId("message"));
+    const item = screen.getByRole("menuitem", { name: "Reply" });
+    item.focus();
+    fireEvent.contextMenu(item);
+    expect(item).toHaveFocus();
   });
 
   it("reacts from the emoji popover and returns focus to its button", async () => {

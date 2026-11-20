@@ -348,6 +348,9 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
           <h2 id="models-order" class="models-heading">
             {ROLES.find((item) => item.id === role())?.title}
           </h2>
+          <p class="models-consequence">
+            When one hits its limit, the next takes over until it resets.
+          </p>
           <fieldset class="models-roles">
             <legend class="sr-only">Role</legend>
             <For each={ROLES}>

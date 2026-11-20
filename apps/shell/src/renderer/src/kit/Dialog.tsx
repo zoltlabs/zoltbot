@@ -50,7 +50,7 @@ export function Dialog(props: DialogProps) {
   });
 
   const keydown = (event: KeyboardEvent) => {
-    if (event.key !== "Tab" || !panel) return;
+    if (event.key !== "Tab" || !panel || event.defaultPrevented) return;
     const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
     const first = focusable[0];
     const last = focusable.at(-1);

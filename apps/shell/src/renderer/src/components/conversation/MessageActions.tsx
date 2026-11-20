@@ -120,6 +120,8 @@ interface OpenMessageMenu {
   anchor: Anchor;
   /** For a right-click, the message's More button, which gets focus back. */
   owner?: HTMLElement;
+  /** Text selected in the message when it was right-clicked. Copy copies it instead. */
+  selection?: string;
 }
 
 /** Which message's reaction picker or menu is open, and the actions they run. */
@@ -131,6 +133,8 @@ export function createMessageActionsState(deps: {
   const [openReactionMessageId, setOpenReactionMessageId] = createSignal<string | null>(null);
   const [menu, setMenu] = createSignal<OpenMessageMenu | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = createSignal<string | null>(null);
+  // The menu closes before its item runs, so Copy reads the selection from here.
+  let lastSelection: { messageId: string; text: string } | null = null;
 
   function closeAll() {
     setOpenReactionMessageId(null);
@@ -147,13 +151,15 @@ export function createMessageActionsState(deps: {
   function toggleMenu(messageId: string, button: HTMLElement) {
     const opening = menu()?.messageId !== messageId;
     closeAll();
+    lastSelection = null;
     if (opening) setMenu({ messageId, anchor: button });
   }
 
   /** Opens the message menu for a right-click on the message, at the pointer. */
-  function openMenuAt(messageId: string, anchor: Anchor, owner?: HTMLElement) {
+  function openMenuAt(messageId: string, anchor: Anchor, owner?: HTMLElement, selection?: string) {
     closeAll();
-    setMenu({ messageId, anchor, owner });
+    setMenu({ messageId, anchor, owner, selection });
+    lastSelection = selection ? { messageId, text: selection } : null;
   }
 
   function toggleExpandedEmoji(messageId: string) {
@@ -177,7 +183,8 @@ export function createMessageActionsState(deps: {
   }
 
   async function copy(message: BotMessage) {
-    const text = message.body;
+    const text = lastSelection?.messageId === message.id ? lastSelection.text : message.body;
+    lastSelection = null;
     if (!text) return;
     try {
       if (navigator.clipboard?.writeText) {
