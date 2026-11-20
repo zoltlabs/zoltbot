@@ -18,6 +18,7 @@ import { expandComposerMentions } from "./ComposerEditor";
 import { PromptCard } from "./ConversationPrompts";
 import { AgentSettings, createAgentSettingsForm } from "./conversation/AgentSettings";
 import { createMediaPreview, MediaPreviewDialog } from "./conversation/Attachments";
+import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask-about";
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
 import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
@@ -581,6 +582,13 @@ export function Conversation(props: ConversationProps) {
       <PlanChecklist botId={props.bot?.id} />
       <PinStrip botId={props.bot?.id} />
       <HideConfirm />
+      <AskAboutThis
+        root={() => scrollElement}
+        onAsk={(words) => {
+          updateCurrentDraft({ text: withAskQuote(currentDraft().text, words) });
+          requestAnimationFrame(focusComposerEnd);
+        }}
+      />
       {branching.view()}
 
       <div
