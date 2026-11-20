@@ -26,6 +26,7 @@ import type {
 import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
+import { chooseAgent } from "./agent-choice";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
 import { companyTree } from "./company-tree";
 import { type CompanyReadResult, toCompanyOverview } from "./company-view";
@@ -261,10 +262,13 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const profiles = this.client
       .rows("agent")
       .filter((row) => row.archived !== true && row.hidden !== true);
-    const profile =
-      profiles.find((row) => row.id === input.profileId) ??
-      profiles.find((row) => row.kind === "profile") ??
-      profiles[0];
+    const project = input.projectId
+      ? this.client.rows("project").find((row) => row.id === input.projectId)
+      : undefined;
+    const profile = chooseAgent(profiles, {
+      profileId: input.profileId,
+      defaultAgentId: project?.defaultAgentId,
+    });
     if (!profile) throw new Error("Add an agent in Zoltbot first.");
     const now = new Date().toISOString();
     const id = randomUUID();
