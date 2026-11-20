@@ -29,5 +29,17 @@
   "chat.plan.pending": "Not started",
   "chat.plan.progress": "{done} of {total} done",
   "chat.plan.title": "Plan",
-  "kit.notifications": "Notifications"
+  "kit.notifications": "Notifications",
+  "palette.command.newChat": "New chat",
+  "palette.empty": "Nothing matches “{query}”",
+  "palette.group.agents": "Agents",
+  "palette.group.channels": "Channels",
+  "palette.group.chats": "Chats",
+  "palette.group.commands": "Commands",
+  "palette.group.pages": "Pages",
+  "palette.group.recent": "Recent",
+  "palette.group.tasks": "Tasks",
+  "palette.placeholder": "Search or run a command",
+  "palette.results": "Results",
+  "palette.title": "Command palette"
 }

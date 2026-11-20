@@ -35,6 +35,7 @@ import { useShortcut } from "./app-shortcuts";
 import { createConversationState } from "./app-state";
 import { createChannelsStore } from "./channels-store";
 import { ChannelPage } from "./components/ChannelPage";
+import { CommandPalette } from "./components/CommandPalette";
 import { Conversation } from "./components/Conversation";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
@@ -45,6 +46,7 @@ import { SidebarChannels } from "./components/SidebarChannels";
 import { TasksPage } from "./components/TasksPage";
 import type { BotProfile } from "./data";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
+import { paletteItems } from "./palette-items";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
 
@@ -139,6 +141,26 @@ export function App() {
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
     channels.open(null);
     setTasksOpen(true);
+  }
+
+  const [paletteOpen, setPaletteOpen] = createSignal(false);
+  useShortcut({
+    id: "app.palette",
+    keys: "Mod+K",
+    when: "global",
+    label: "Search or run a command",
+    run: () => {
+      if (!setupDone()) return false;
+      setPaletteOpen((open) => !open);
+    },
+  });
+
+  function openChannel(channelId: string) {
+    setMapOpen(false);
+    setTasksOpen(false);
+    setModelsOpen(false);
+    setAgentPickerOpen(false);
+    channels.open(channelId);
   }
 
   useShortcut({
@@ -770,6 +792,30 @@ export function App() {
             <ModelsSettings
               sidebarCollapsed={leftPanelCollapsed()}
               onShowSidebar={() => setSidebarCollapsed(false)}
+            />
+          </Show>
+          <Show when={paletteOpen()}>
+            <CommandPalette
+              items={() =>
+                paletteItems({
+                  bots: botList(),
+                  channels: channels.channels(),
+                  tasks: tasks.tasks(),
+                  openChat: selectBot,
+                  openChannel,
+                  openTasks,
+                  openMap: () => {
+                    channels.open(null);
+                    setMapOpen(true);
+                  },
+                  openModels: () => {
+                    channels.open(null);
+                    setModelsOpen(true);
+                  },
+                  newChat: () => setAgentPickerOpen(true),
+                })
+              }
+              onClose={() => setPaletteOpen(false)}
             />
           </Show>
           <Show when={permissionsOpen()}>
