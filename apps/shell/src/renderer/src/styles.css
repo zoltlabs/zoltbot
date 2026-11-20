@@ -2121,6 +2121,7 @@ textarea {
 
 .conversation-title {
   display: flex;
+  min-height: 28px;
   align-items: center;
   gap: 6px;
   border-radius: 6px;

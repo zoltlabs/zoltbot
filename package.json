@@ -38,6 +38,7 @@
     "test:shipping:ui": "playwright test --config playwright.shipping.config.ts",
     "test:sidebar": "playwright test --config playwright.sidebar.config.ts",
     "test:compare": "pnpm --filter @zoltbot/shell exec electron-vite build && pnpm --filter @zoltbot/shell exec playwright test e2e/compare",
+    "test:design": "pnpm --filter @zoltbot/shell exec electron-vite build && pnpm --filter @zoltbot/shell exec playwright test e2e/design",
     "test:compare:ui": "playwright test --config playwright.compare.config.ts",
     "postinstall": "node scripts/postinstall.mjs",
     "check:boundary": "node scripts/public-boundary.mjs",

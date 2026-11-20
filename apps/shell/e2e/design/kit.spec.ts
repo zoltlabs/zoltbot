@@ -3,46 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { openKitGallery } from "../bridge";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme } from "../harness";
-
-/**
- * Checks that an overlay is fully inside the viewport and that nothing covers
- * it: the topmost element at each corner and at its center belongs to it.
- */
-async function expectFullyVisible(page: Page, overlay: Locator, name: string) {
-  await expect(overlay, name).toBeVisible();
-  const box = await overlay.boundingBox();
-  const viewport = page.viewportSize();
-  if (!box || !viewport) throw new Error(`${name}: no box`);
-  expect(box.x, `${name} left edge`).toBeGreaterThanOrEqual(0);
-  expect(box.y, `${name} top edge`).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width, `${name} right edge`).toBeLessThanOrEqual(viewport.width);
-  expect(box.y + box.height, `${name} bottom edge`).toBeLessThanOrEqual(viewport.height);
-  const covered = await overlay.evaluate((element) => {
-    // Tooltips ignore the pointer; probe them as if they didn't.
-    const pointerEvents = (element as HTMLElement).style.pointerEvents;
-    (element as HTMLElement).style.pointerEvents = "auto";
-    const rect = element.getBoundingClientRect();
-    // Probe inside the rounded corners: the corner of the box itself is outside the shape.
-    const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
-    const inset = Math.max(3, Math.ceil(radius / 2) + 2);
-    const points = [
-      [rect.left + inset, rect.top + inset],
-      [rect.right - inset, rect.top + inset],
-      [rect.left + inset, rect.bottom - inset],
-      [rect.right - inset, rect.bottom - inset],
-      [rect.left + rect.width / 2, rect.top + rect.height / 2],
-    ];
-    const result = points
-      .filter(([x, y]) => {
-        const hit = document.elementFromPoint(x, y);
-        return !hit || !element.contains(hit);
-      })
-      .map(([x, y]) => `${Math.round(x)},${Math.round(y)}`);
-    (element as HTMLElement).style.pointerEvents = pointerEvents;
-    return result;
-  });
-  expect(covered, `${name}: covered points`).toEqual([]);
-}
+import { expectFullyVisible } from "./checks";
 
 /** Opens an overlay from `trigger`, checks it, closes it with Escape and checks focus returns. */
 async function checkOverlay(page: Page, trigger: Locator, name: string) {
