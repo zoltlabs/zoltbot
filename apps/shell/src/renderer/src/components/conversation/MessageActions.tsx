@@ -5,6 +5,7 @@ import type { BotMessage } from "../../data";
 import { t } from "../../i18n";
 import { type Anchor, Menu, Popover, showToast } from "../../kit";
 import type { BranchMode } from "./Branching";
+import { requestHide, setHidden } from "./hide-flow";
 import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
 import { messageMenuGroups } from "./messageMenu";
 import { isPinned, setPinned } from "./pins-store";
@@ -222,6 +223,15 @@ export function createMessageActionsState(deps: {
     copy: (message: BotMessage) => void copy(message),
     branch: (message: BotMessage, mode: BranchMode) => deps.onBranch(message, mode),
     isPinned: (message: BotMessage) => isPinned(deps.botId(), message.id),
+    hide: (message: BotMessage) => {
+      const botId = deps.botId();
+      closeAll();
+      if (botId) void requestHide(botId, message.id, deps.onError);
+    },
+    show: (message: BotMessage) => {
+      const botId = deps.botId();
+      if (botId) void setHidden(botId, message.id, false, deps.onError);
+    },
     pin: (message: BotMessage, pinned: boolean) => {
       const botId = deps.botId();
       closeAll();

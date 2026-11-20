@@ -17,7 +17,7 @@ export function pinnedRows(
   const byId = new Map(rows.map((row) => [row.id, row]));
   return readMessagePins(storedPins(snapshot, threadId)).flatMap((pin) => {
     const row = byId.get(pin.itemId);
-    return row && !row.aside && row.text.trim() ? [row] : [];
+    return row && !row.aside && !row.hidden && row.text.trim() ? [row] : [];
   });
 }
 

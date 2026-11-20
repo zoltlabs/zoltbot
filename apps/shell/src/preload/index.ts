@@ -229,6 +229,9 @@ const openbotApi: OpenBotDesktopApi = {
   pins: {
     set: (input) => ipcRenderer.invoke(IPC_CHANNELS.pinsSet, input),
   },
+  hidden: {
+    set: (input) => ipcRenderer.invoke(IPC_CHANNELS.hiddenSet, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

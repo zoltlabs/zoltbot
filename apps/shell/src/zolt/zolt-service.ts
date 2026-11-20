@@ -34,6 +34,7 @@ import { companyTree } from "./company-tree";
 import { contextService } from "./context-service";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import { DraftStore } from "./draft-store";
+import { withHidden } from "./hidden";
 import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
   type BotPreferences,
@@ -602,10 +603,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const conversation = this.conversation(botId);
     conversation.revision++;
     const items = this.items(botId);
-    const messages = withAsides(
-      this.client.snapshot,
+    const snapshot = this.client.snapshot;
+    const messages = withHidden(
+      snapshot,
       botId,
-      toMessages(this.client.snapshot, botId, items),
+      withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
     );
     for (const message of messages) {
       const reaction = this.preferences.reactions[`${botId}:${message.id}`];

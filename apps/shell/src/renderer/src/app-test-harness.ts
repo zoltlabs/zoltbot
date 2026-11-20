@@ -292,6 +292,9 @@ export function setUpAppTest() {
       pins: {
         set: vi.fn().mockResolvedValue(undefined),
       },
+      hidden: {
+        set: vi.fn().mockResolvedValue(undefined),
+      },
       aside: {
         ask: vi.fn().mockResolvedValue({ threadId: "aside-thread" }),
         continue: vi.fn().mockResolvedValue(undefined),

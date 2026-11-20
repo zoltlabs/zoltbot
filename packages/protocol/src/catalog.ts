@@ -321,6 +321,15 @@ const rawMethodCatalog = {
     object({ threadId: Id, itemId: Id }),
     object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),
   ),
+  /** C5: display only; the provider's session keeps the message (I2, I11). */
+  "message.hide": entry(
+    object({ threadId: Id, itemId: Id }),
+    object({ hidden: Type.Array(Id, { maxItems: 500 }) }),
+  ),
+  "message.unhide": entry(
+    object({ threadId: Id, itemId: Id }),
+    object({ hidden: Type.Array(Id, { maxItems: 500 }) }),
+  ),
   "message.unpin": entry(
     object({ threadId: Id, itemId: Id }),
     object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),

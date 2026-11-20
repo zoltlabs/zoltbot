@@ -197,3 +197,12 @@ export function PinIcon() {
     </svg>
   );
 }
+
+export function HideIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M3 10s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" />
+      <path d="M4 16 16 4" />
+    </svg>
+  );
+}

@@ -348,3 +348,13 @@ it("pins and unpins a message in sample mode", async () => {
   expect(row()?.value).toEqual([]);
   client.stop();
 });
+
+it("hides and shows a message in sample mode", async () => {
+  const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+  await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+  const call = client.getState().call;
+  const params = { threadId: "thread-meal-search", itemId: "item-1" };
+  expect(await call("message.hide", params)).toEqual({ hidden: ["item-1"] });
+  expect(await call("message.unhide", params)).toEqual({ hidden: [] });
+  client.stop();
+});

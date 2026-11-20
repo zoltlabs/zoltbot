@@ -31,6 +31,7 @@ import {
   EMPTY_DRAFT,
   SETTINGS_PANEL_STORAGE_KEY,
 } from "./conversation/constants";
+import { HideConfirm } from "./conversation/hide-flow";
 import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
 import { PlanChecklist } from "./conversation/PlanChecklist";
@@ -579,6 +580,7 @@ export function Conversation(props: ConversationProps) {
       <BranchBanner bot={props.bot} bots={props.bots} onOpenChat={props.onSelectAgent} />
       <PlanChecklist botId={props.bot?.id} />
       <PinStrip botId={props.bot?.id} />
+      <HideConfirm />
       {branching.view()}
 
       <div

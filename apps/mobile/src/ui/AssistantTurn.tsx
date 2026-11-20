@@ -6,8 +6,9 @@ import type { TranscriptRow } from "../data/timeline";
 import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Txt } from "./kit";
+import type { MarkActions } from "./message-marks";
 import type { RowTracker } from "./row-positions";
-import { Message, type PinActions } from "./Transcript";
+import { Message } from "./Transcript";
 
 /** The label stays readable while a decorative highlight signals progress. */
 function Progress({ label }: { label: string }) {
@@ -144,10 +145,10 @@ export function AssistantTurn({
   threadId,
   onForward,
   onInspect,
-  pins,
+  marks,
   track,
 }: {
-  pins?: PinActions;
+  marks?: MarkActions;
   /** Measures each message, so a pin can scroll to it. */
   track?: (rowId: string) => RowTracker;
   rows: TranscriptRow[];
@@ -178,7 +179,7 @@ export function AssistantTurn({
                 row={row.streaming && row !== last ? { ...row, streaming: false } : row}
                 threadId={threadId}
                 onForward={onForward}
-                {...(pins ? { pins } : {})}
+                {...(marks ? { marks } : {})}
               />
             </View>
           ))

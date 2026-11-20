@@ -17,7 +17,7 @@ export function pinnedMessages(
   const byId = new Map(messages.map((message) => [message.id, message]));
   return readMessagePins(storedPins(snapshot, threadId)).flatMap((pin) => {
     const message = byId.get(pin.itemId);
-    if (!message || message.aside || !message.text.trim()) return [];
+    if (!message || message.aside || message.hidden || !message.text.trim()) return [];
     const author =
       message.author === "user" ? "user" : message.author === "agent" ? "agent" : "assistant";
     return [{ messageId: message.id, author, text: message.text }];

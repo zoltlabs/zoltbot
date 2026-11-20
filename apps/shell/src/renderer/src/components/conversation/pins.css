@@ -72,7 +72,8 @@
   }
 }
 
-.message-entry.message-entry-jumped {
+.message-entry.message-entry-jumped,
+.message-hidden.message-entry-jumped {
   background: var(--openbot-hover);
   box-shadow: 0 0 0 6px var(--openbot-hover);
 }
@@ -80,4 +81,33 @@
 .message-entry[data-message-id]:focus-visible {
   outline: 2px solid var(--text-info);
   outline-offset: 6px;
+}
+
+/* C5: a hidden message, folded to one line. */
+.message-hidden {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.message-hidden-show {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-info);
+  font: inherit;
+}
+
+.message-hidden-show:hover {
+  background: var(--openbot-hover);
+}
+
+.message-hidden-show:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: 1px;
 }

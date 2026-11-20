@@ -8,6 +8,7 @@ export type * from "./branches";
 export * from "./browser";
 export * from "./company";
 export * from "./dictation";
+export type * from "./hidden";
 export type * from "./manager-cards";
 export type * from "./memory";
 export type * from "./pins";
@@ -40,6 +41,7 @@ import type {
 } from "./channels";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
@@ -118,6 +120,7 @@ export const IPC_CHANNELS = {
   ...QUEUE_ORDER_CHANNELS,
   ...ASIDE_CHANNELS,
   ...PIN_CHANNELS,
+  ...HIDDEN_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -495,6 +498,8 @@ export interface ConversationMessage {
   card?: ManagerCard;
   /** C2: part of a side question asked in this chat. */
   aside?: AsideLink;
+  /** C5: hidden from the chat; the agent still remembers it. */
+  hidden?: boolean;
 }
 
 export const MESSAGE_REACTIONS = ["👍", "👎", "❤️", "😂", "🎉", "😮"] as const;
@@ -744,4 +749,5 @@ export interface OpenBotDesktopApi {
   queue: QueueOrderDesktopApi;
   aside: AsideDesktopApi;
   pins: PinsDesktopApi;
+  hidden: HiddenDesktopApi;
 }

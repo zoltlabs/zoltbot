@@ -17,6 +17,8 @@ export interface Preferences {
   /** Shortcut id → key combination, only for shortcuts the owner rebound. */
   keyBindings: Record<string, string>;
   showInDock: boolean;
+  /** C5: the owner has seen that hiding a message doesn't make the agent forget it. */
+  hideConfirmed: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -25,6 +27,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   sounds: true,
   keyBindings: Object.freeze({}) as Record<string, string>,
   showInDock: true,
+  hideConfirmed: false,
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -41,6 +44,7 @@ const VALIDATORS: Validators = {
     isRecord(value) &&
     Object.entries(value).every(([id, keys]) => id.length > 0 && typeof keys === "string"),
   showInDock: (value): value is boolean => typeof value === "boolean",
+  hideConfirmed: (value): value is boolean => typeof value === "boolean",
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

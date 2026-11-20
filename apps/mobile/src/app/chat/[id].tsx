@@ -21,6 +21,7 @@ import { type Attachment, composeInput } from "../../data/attachments";
 import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
+import { withHidden } from "../../data/hidden";
 import { pendingFor } from "../../data/interactions";
 import { pinnedRows } from "../../data/pins";
 import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
@@ -50,11 +51,12 @@ import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Chip, Segmented, Txt } from "../../ui/kit";
+import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
 import { useRowPositions } from "../../ui/row-positions";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
-import { Message, type PinActions, type QueueActions } from "../../ui/Transcript";
+import { Message, type QueueActions } from "../../ui/Transcript";
 import { WakeStatus } from "../../ui/WakeStatus";
 
 export default function Chat() {
@@ -81,7 +83,11 @@ export default function Chat() {
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
-  const rows = withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue));
+  const rows = withHidden(
+    snapshot,
+    id,
+    withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+  );
   const positions = useRowPositions();
   const pinned = pinnedRows(snapshot, id, rows);
   const turn = runningTurn(snapshot, id);
@@ -96,28 +102,7 @@ export default function Chat() {
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
   const pinnedIds = new Set(pinned.map((row) => row.id));
-  const pins: PinActions | undefined = online
-    ? {
-        isPinned: (rowId) => pinnedIds.has(rowId),
-        set: (row, on) =>
-          void run(
-            on ? "message.pin" : "message.unpin",
-            { threadId: id, itemId: row.id },
-            { quiet: true },
-          ).then(
-            (done) =>
-              done && AccessibilityInfo.announceForAccessibility(on ? "Pinned" : "Unpinned"),
-            (error: unknown) =>
-              Alert.alert(
-                error instanceof Error && error.message === "pin_limit"
-                  ? "This chat has 50 pins. Unpin one first."
-                  : on
-                    ? "Couldn’t pin the message. Try again."
-                    : "Couldn’t unpin the message. Try again.",
-              ),
-          ),
-      }
-    : undefined;
+  const marks = online ? messageMarks(id, pinnedIds, run) : undefined;
   // Staff approvals are cards in the transcript, not the pinned request.
   const pending = pendingFor(snapshot, id).filter((row) => !isStaffApproval(row));
   const [selected, setSelected] = useState<string>();
@@ -300,7 +285,7 @@ export default function Chat() {
               <AssistantTurn
                 rows={entry.rows}
                 track={positions.row}
-                {...(pins ? { pins } : {})}
+                {...(marks ? { marks } : {})}
                 active={entry.active}
                 paused={!!request || !online}
                 onInspect={() => {
@@ -323,7 +308,7 @@ export default function Chat() {
               <Message
                 threadId={id}
                 row={row}
-                {...(pins ? { pins } : {})}
+                {...(marks ? { marks } : {})}
                 {...(online && !busy && editableQueued(snapshot, row.id)
                   ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
                   : {})}

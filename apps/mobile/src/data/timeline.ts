@@ -59,6 +59,8 @@ export interface TranscriptRow {
   brief?: boolean;
   /** C2: part of a side question; `question` marks the asked line. */
   aside?: { threadId: string; question: boolean };
+  /** C5: hidden from the chat; the agent still remembers it. */
+  hidden?: boolean;
 }
 
 /** What happened to a message you sent, read from the item, never from the send result. */

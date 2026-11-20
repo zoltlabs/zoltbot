@@ -3,10 +3,12 @@ import {
   type DomainEvent,
   type MethodName,
   macOnlyMethods,
+  messageHiddenKey,
   messagePinsKey,
   methodCatalog,
   queueOrderKey,
   unservedMethods,
+  withHiddenMessage,
   withMessagePin,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
@@ -447,6 +449,16 @@ export class FakeTransport implements Transport {
         const pins = withMessagePin(prior, String(p.itemId), method === "message.pin", now);
         this.put("settings", { key, value: pins });
         return { pins };
+      }
+      case "message.hide":
+      case "message.unhide": {
+        // As zoltd (message-hidden-api): display only; the item itself is unchanged.
+        this.find("thread", p.threadId);
+        const key = messageHiddenKey(String(p.threadId));
+        const prior = this.rows("settings").find((row) => row.key === key)?.value;
+        const hidden = withHiddenMessage(prior, String(p.itemId), method === "message.hide");
+        this.put("settings", { key, value: hidden });
+        return { hidden };
       }
       case "thread.continueAside":
         return this.put("thread", { ...this.find("thread", p.id), kind: "side" });

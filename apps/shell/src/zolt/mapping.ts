@@ -16,6 +16,7 @@ import type {
 import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
 import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
 import type { Row, Snapshot } from "./daemon-client";
+import { hiddenIds } from "./hidden";
 import { isZoltbotNotice, noticeFor, withManagerCards } from "./manager-cards";
 import { modelSwitchMessage } from "./models-service";
 
@@ -77,9 +78,11 @@ export function userText(item: Row): string {
     .join("\n");
 }
 
-export function previewText(items: Row[]): string {
+/** The chat's last words for the sidebar, skipping messages the owner hid (C5). */
+export function previewText(items: Row[], hidden: ReadonlySet<string> = new Set()): string {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i] as Row;
+    if (hidden.has(text(item.id))) continue;
     const value = item.kind === "user" ? userText(item) : text(body(item).text);
     if (isZoltbotNotice(item)) continue;
     if ((item.kind === "user" || item.kind === "message") && value.trim())
@@ -140,7 +143,7 @@ export function toBotSummary(
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     threadId,
     workspacePath: text(session?.cwd) || text(roots[0]?.path),
-    preview: previewText(threadItems(snapshot, threadId)),
+    preview: previewText(threadItems(snapshot, threadId), hiddenIds(snapshot, threadId)),
     updatedAt: text(thread.lastActivityAt) || null,
     avatarShape:
       preferences.avatarShape ??

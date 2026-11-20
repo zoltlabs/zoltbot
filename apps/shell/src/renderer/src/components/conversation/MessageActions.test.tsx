@@ -135,6 +135,7 @@ describe("Message menu", () => {
       branch: vi.fn(),
       isPinned: () => false,
       pin: vi.fn(),
+      hide: vi.fn(),
     };
     const empty = messageMenuGroups({ ...message, body: "" }, actions);
     expect(empty.flat().map((item) => item.id)).toEqual(["reply"]);
@@ -159,16 +160,17 @@ describe("Message menu", () => {
       branch: vi.fn(),
       isPinned: () => false,
       pin: vi.fn(),
+      hide: vi.fn(),
     };
     const ids = (entry: BotMessage) =>
       messageMenuGroups(entry, actions)
         .flat()
         .map((item) => item.id);
     expect(ids(message)).toEqual(["reply", "copy"]);
-    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "pin", "branch"]);
+    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "pin", "branch", "hide"]);
     expect(ids({ ...message, turnId: "t1", streaming: true })).toEqual(["reply", "copy"]);
     const own = { ...message, author: "you" as const, turnId: "t1" };
-    expect(ids(own)).toEqual(["reply", "copy", "pin", "branch", "edit"]);
+    expect(ids(own)).toEqual(["reply", "copy", "pin", "branch", "edit", "hide"]);
     for (const item of messageMenuGroups(own, actions).flat()) item.run();
     expect(actions.branch.mock.calls.map(([, mode]) => mode)).toEqual(["branch", "edit"]);
   });
@@ -176,7 +178,7 @@ describe("Message menu", () => {
   it("offers Pin on a settled message and Unpin once it is pinned", () => {
     const settled = { ...message, turnId: "t1" };
     const pin = vi.fn();
-    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn(), pin };
+    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn(), pin, hide: vi.fn() };
     const ids = (entry: BotMessage, pinned: boolean) =>
       messageMenuGroups(entry, { ...actions, isPinned: () => pinned })
         .flat()
@@ -190,5 +192,23 @@ describe("Message menu", () => {
       .find((item) => item.id === "unpin")
       ?.run();
     expect(pin).toHaveBeenCalledWith(settled, false);
+  });
+
+  it("offers Hide on settled messages that aren't hidden", () => {
+    const actions = {
+      reply: vi.fn(),
+      copy: vi.fn(),
+      branch: vi.fn(),
+      isPinned: () => false,
+      pin: vi.fn(),
+      hide: vi.fn(),
+    };
+    const ids = (entry: BotMessage) =>
+      messageMenuGroups(entry, actions)
+        .flat()
+        .map((item) => item.id);
+    expect(ids({ ...message, turnId: "t1" })).toContain("hide");
+    expect(ids({ ...message, turnId: "t1", hidden: true })).not.toContain("hide");
+    expect(ids(message)).not.toContain("hide");
   });
 });

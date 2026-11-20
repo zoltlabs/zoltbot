@@ -3,7 +3,7 @@ import type { BotMessage } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import type { MenuItem } from "../../kit";
 import type { BranchMode } from "./Branching";
-import { BranchIcon, CopyIcon, EditIcon, PinIcon, ReplyIcon } from "./icons";
+import { BranchIcon, CopyIcon, EditIcon, HideIcon, PinIcon, ReplyIcon } from "./icons";
 
 /** What a message menu item can do. The conversation supplies these. */
 export interface MessageMenuActions {
@@ -12,6 +12,7 @@ export interface MessageMenuActions {
   branch: (message: BotMessage, mode: BranchMode) => void;
   isPinned: (message: BotMessage) => boolean;
   pin: (message: BotMessage, pinned: boolean) => void;
+  hide: (message: BotMessage) => void;
 }
 
 /**
@@ -85,6 +86,14 @@ export const MESSAGE_MENU: readonly MessageMenuEntry[] = [
     group: 1,
     when: (message) => message.author === "you" && Boolean(message.turnId),
     run: (message, actions) => actions.branch(message, "edit"),
+  },
+  {
+    id: "hide",
+    label: "chat.message.hide",
+    icon: () => <MenuIcon icon={<HideIcon />} />,
+    group: 2,
+    when: (message) => pinnable(message) && !message.hidden,
+    run: (message, actions) => actions.hide(message),
   },
 ];
 

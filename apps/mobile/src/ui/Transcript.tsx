@@ -11,6 +11,7 @@ import { StaffCard } from "./interactions/StaffCard";
 import { Button, Txt } from "./kit";
 import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
+import type { MarkActions } from "./message-marks";
 import { pick } from "./SessionControls";
 
 /** C1: what the owner can do with a queued message. Move up / down only where there is room. */
@@ -42,26 +43,20 @@ function showActions(title: string, options: Option[]) {
   );
 }
 
-/** C4: Pin and Unpin, offered on messages that can be pinned. */
-export interface PinActions {
-  isPinned: (rowId: string) => boolean;
-  set: (row: TranscriptRow, pinned: boolean) => void;
-}
-
 function MessageActions({
   row,
   edit,
   forward,
   queue,
-  pins,
+  marks,
 }: {
   row: TranscriptRow;
   edit?: () => void;
   forward?: () => void;
   queue?: QueueActions;
-  pins?: PinActions;
+  marks?: MarkActions;
 }) {
-  const pinned = pins?.isPinned(row.id) ?? false;
+  const pinned = marks?.isPinned(row.id) ?? false;
   const [error, setError] = useState("");
   const options = [
     ...(queue
@@ -70,9 +65,10 @@ function MessageActions({
         ? [{ label: row.queued ? "Edit" : "Edit and send again", run: edit }]
         : []),
     ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
-    ...(pins && (pinned || pinnable(row))
-      ? [{ label: pinned ? "Unpin" : "Pin", run: () => pins.set(row, !pinned) }]
+    ...(marks && (pinned || pinnable(row))
+      ? [{ label: pinned ? "Unpin" : "Pin", run: () => marks.set(row, !pinned) }]
       : []),
+    ...(marks && pinnable(row) ? [{ label: "Hide", run: () => marks.hide(row, true) }] : []),
     {
       label: "Share message",
       run: () => {
@@ -237,11 +233,11 @@ export function Message({
   threadId,
   edits,
   queue,
-  pins,
+  marks,
 }: {
   row: TranscriptRow;
   compact?: boolean;
-  pins?: PinActions;
+  marks?: MarkActions;
   threadId?: string;
   /** Takes a queued message back so it can be edited. */
   onEdit?: (row: TranscriptRow) => void;
@@ -256,6 +252,7 @@ export function Message({
 }) {
   const { c } = useTheme();
   if (row.aside) return <AsideRow row={row} />;
+  if (row.hidden) return <HiddenRow {...(marks ? { onShow: () => marks.hide(row, false) } : {})} />;
   // Manager rows first: their notices are system rows too, like the switch note below.
   if (row.manager) return <ManagerCardView card={row.manager} />;
   if (row.notice) return <NoticeRow notice={row.notice} />;
@@ -422,7 +419,7 @@ export function Message({
         ) : null}
         <MessageActions
           row={row}
-          {...(pins ? { pins } : {})}
+          {...(marks ? { marks } : {})}
           {...(queue ? { queue } : {})}
           {...(row.queued && onEdit
             ? { edit: () => onEdit(row) }
@@ -470,7 +467,7 @@ export function Message({
       </Pressable>
       <MessageActions
         row={row}
-        {...(pins ? { pins } : {})}
+        {...(marks ? { marks } : {})}
         {...(onForward ? { forward: () => onForward(row) } : {})}
       />
     </View>
@@ -478,6 +475,7 @@ export function Message({
 }
 
 const styles = StyleSheet.create({
+  hidden: { flexDirection: "row", alignItems: "center", gap: 8 },
   artifact: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 14, gap: 6 },
   flex: { flex: 1 },
   mine: { alignItems: "flex-end", gap: 2 },
@@ -516,3 +514,17 @@ const styles = StyleSheet.create({
   asked: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 4 },
   askedDot: { width: 6, height: 6, borderRadius: 3 },
 });
+
+/** C5: a hidden message, folded to one line. Show brings it back. */
+function HiddenRow({ onShow }: { onShow?: () => void }) {
+  return (
+    <View style={styles.hidden}>
+      <Txt v="meta" tone="muted">
+        Hidden message
+      </Txt>
+      {onShow ? (
+        <Button kind="plain" label="Show" a11y="Show hidden message" onPress={onShow} />
+      ) : null}
+    </View>
+  );
+}

@@ -92,8 +92,10 @@ export function ToastRegion() {
                     type="button"
                     class="zb-kit-toast-action"
                     onClick={() => {
+                      // Read the action first: once the toast is gone, its Show no longer holds it.
+                      const { run } = action();
                       dismissToast(toast.id);
-                      action().run();
+                      run();
                     }}
                   >
                     {action().label}

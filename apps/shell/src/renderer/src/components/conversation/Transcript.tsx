@@ -17,6 +17,7 @@ import { AsideEntry } from "./Aside";
 import { AttachmentCards } from "./Attachments";
 import { BranchList } from "./Branching";
 import { ONBOARDING_CHOICES } from "./constants";
+import { HiddenMessage } from "./HiddenMessage";
 import { LinkIcon } from "./icons";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
 import { ThinkingDisclosure } from "./WorkingLine";
@@ -149,7 +150,7 @@ export function MessageBody(props: {
         {(referenced) => (
           <div class="message-reply-context">
             <span>{referenced().author === "you" ? "You" : "Agent"}</span>
-            <p>{referenced().body || "Attachment"}</p>
+            <p>{referenced().hidden ? t("chat.hide.row") : referenced().body || "Attachment"}</p>
           </div>
         )}
       </Show>
@@ -342,108 +343,124 @@ export function TranscriptEntry(props: {
     return <AsideEntry message={props.message} onOpenChat={props.onSelectAgent} />;
   return (
     <Show
-      when={props.message.exchange}
+      when={!props.message.hidden}
       fallback={
-        <Show
-          when={props.message.kind === "thinking"}
-          fallback={
-            <article
-              class="message-entry"
-              data-message-id={props.message.id}
-              onContextMenu={(event) => {
-                if (props.message.streaming) return;
-                event.preventDefault();
-                const more = event.currentTarget.querySelector<HTMLElement>(".message-more-button");
-                // Shift+F10 and the menu key give no pointer position; open by More instead.
-                const fromKeyboard = event.clientX === 0 && event.clientY === 0;
-                const selected = window.getSelection();
-                const selection =
-                  selected &&
-                  !selected.isCollapsed &&
-                  event.currentTarget.contains(selected.anchorNode)
-                    ? selected.toString().trim()
-                    : "";
-                props.actions.openMenuAt(
-                  props.message.id,
-                  fromKeyboard && more ? more : { x: event.clientX, y: event.clientY },
-                  more ?? undefined,
-                  selection || undefined,
-                );
-              }}
-              classList={{
-                "message-entry-animated": props.animate,
-                "message-entry-user": props.message.author === "you",
-                "message-entry-bot": props.message.author === "bot",
-              }}
-            >
-              <div class="message-shell">
-                <div
-                  class={props.message.author === "you" ? "user-bubble" : "bot-bubble"}
-                  classList={{ "bot-bubble-streaming": props.message.streaming === true }}
-                >
-                  <MessageBody
-                    message={props.message}
-                    referencedMessage={props.messages.find(
-                      (candidate) => candidate.id === props.message.replyToMessageId,
-                    )}
-                    bots={props.bots}
-                    onSelectAgent={props.onSelectAgent}
-                    onOpenLink={props.onOpenLink}
-                    onPreview={props.onPreview}
-                    onAttachmentAction={props.onAttachmentAction}
-                    openArtifactVersionId={props.openArtifactVersionId}
-                    onOpenArtifact={props.onOpenArtifact}
-                  />
-                </div>
-                <MessageActions message={props.message} actions={props.actions} />
-              </div>
-              <Show when={props.message.reaction}>
-                {(reaction) => (
-                  <button
-                    type="button"
-                    class="message-reaction-pill"
-                    aria-label={t("chat.message.removeReaction", { emoji: reaction() })}
-                    onClick={() => props.actions.react(props.message, null)}
-                  >
-                    {reaction()}
-                  </button>
-                )}
-              </Show>
-              <BranchList branches={branchesHere()} onOpenChat={props.onSelectAgent} />
-            </article>
-          }
-        >
-          <div classList={{ "thinking-entry-animated": props.animate }}>
-            <ThinkingDisclosure message={props.message} />
-          </div>
-        </Show>
+        <>
+          <HiddenMessage
+            messageId={props.message.id}
+            onShow={() => props.actions.show(props.message)}
+          />
+          <Show when={branchesHere().length > 0}>
+            <BranchList branches={branchesHere()} onOpenChat={props.onSelectAgent} />
+          </Show>
+        </>
       }
     >
-      {(exchange) => (
-        <article
-          class="exchange-message-entry"
-          classList={{ "exchange-message-entry-animated": props.animate }}
-        >
-          <ExchangeSystemRow
-            message={props.message}
-            bots={props.bots}
-            onSelectAgent={props.onSelectAgent}
-          />
+      <Show
+        when={props.message.exchange}
+        fallback={
           <Show
-            when={
-              exchange().direction === "incoming" && (props.message.attachments?.length ?? 0) > 0
+            when={props.message.kind === "thinking"}
+            fallback={
+              <article
+                class="message-entry"
+                data-message-id={props.message.id}
+                onContextMenu={(event) => {
+                  if (props.message.streaming) return;
+                  event.preventDefault();
+                  const more =
+                    event.currentTarget.querySelector<HTMLElement>(".message-more-button");
+                  // Shift+F10 and the menu key give no pointer position; open by More instead.
+                  const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+                  const selected = window.getSelection();
+                  const selection =
+                    selected &&
+                    !selected.isCollapsed &&
+                    event.currentTarget.contains(selected.anchorNode)
+                      ? selected.toString().trim()
+                      : "";
+                  props.actions.openMenuAt(
+                    props.message.id,
+                    fromKeyboard && more ? more : { x: event.clientX, y: event.clientY },
+                    more ?? undefined,
+                    selection || undefined,
+                  );
+                }}
+                classList={{
+                  "message-entry-animated": props.animate,
+                  "message-entry-user": props.message.author === "you",
+                  "message-entry-bot": props.message.author === "bot",
+                }}
+              >
+                <div class="message-shell">
+                  <div
+                    class={props.message.author === "you" ? "user-bubble" : "bot-bubble"}
+                    classList={{ "bot-bubble-streaming": props.message.streaming === true }}
+                  >
+                    <MessageBody
+                      message={props.message}
+                      referencedMessage={props.messages.find(
+                        (candidate) => candidate.id === props.message.replyToMessageId,
+                      )}
+                      bots={props.bots}
+                      onSelectAgent={props.onSelectAgent}
+                      onOpenLink={props.onOpenLink}
+                      onPreview={props.onPreview}
+                      onAttachmentAction={props.onAttachmentAction}
+                      openArtifactVersionId={props.openArtifactVersionId}
+                      onOpenArtifact={props.onOpenArtifact}
+                    />
+                  </div>
+                  <MessageActions message={props.message} actions={props.actions} />
+                </div>
+                <Show when={props.message.reaction}>
+                  {(reaction) => (
+                    <button
+                      type="button"
+                      class="message-reaction-pill"
+                      aria-label={t("chat.message.removeReaction", { emoji: reaction() })}
+                      onClick={() => props.actions.react(props.message, null)}
+                    >
+                      {reaction()}
+                    </button>
+                  )}
+                </Show>
+                <BranchList branches={branchesHere()} onOpenChat={props.onSelectAgent} />
+              </article>
             }
           >
-            <div class="exchange-agent-attachments">
-              <AttachmentCards
-                attachments={props.message.attachments ?? []}
-                onPreview={props.onPreview}
-                onAction={props.onAttachmentAction}
-              />
+            <div classList={{ "thinking-entry-animated": props.animate }}>
+              <ThinkingDisclosure message={props.message} />
             </div>
           </Show>
-        </article>
-      )}
+        }
+      >
+        {(exchange) => (
+          <article
+            class="exchange-message-entry"
+            classList={{ "exchange-message-entry-animated": props.animate }}
+          >
+            <ExchangeSystemRow
+              message={props.message}
+              bots={props.bots}
+              onSelectAgent={props.onSelectAgent}
+            />
+            <Show
+              when={
+                exchange().direction === "incoming" && (props.message.attachments?.length ?? 0) > 0
+              }
+            >
+              <div class="exchange-agent-attachments">
+                <AttachmentCards
+                  attachments={props.message.attachments ?? []}
+                  onPreview={props.onPreview}
+                  onAction={props.onAttachmentAction}
+                />
+              </div>
+            </Show>
+          </article>
+        )}
+      </Show>
     </Show>
   );
 }

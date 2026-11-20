@@ -45,6 +45,8 @@ export interface BotMessage {
   card?: ManagerCard;
   /** C2: part of a side question; holds the aside's thread id. */
   aside?: { threadId: string };
+  /** C5: hidden from the chat; the agent still remembers it. */
+  hidden?: boolean;
 }
 
 export interface BotProfile {
