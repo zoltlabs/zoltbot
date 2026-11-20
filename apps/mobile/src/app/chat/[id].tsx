@@ -1,9 +1,10 @@
-import type { ArtifactTarget } from "@zoltbot/protocol";
+import { type ArtifactTarget, isStopPhrase } from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -100,6 +101,15 @@ export default function Chat() {
   const send = async () => {
     const message = draft.trim();
     if (!message && !attachments.length) return;
+    // A bare "stop" while the agent works stops the turn instead of queueing a message.
+    if (turn && !attachments.length && isStopPhrase(message)) {
+      const stopped = await run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
+      if (stopped) {
+        setDraft("");
+        AccessibilityInfo.announceForAccessibility("Stopped");
+      }
+      return;
+    }
     const result = await run("turn.send", {
       threadId: id,
       input: composeInput(message, attachments),

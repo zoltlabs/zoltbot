@@ -554,13 +554,18 @@ export function App() {
       .catch((error) => appendUiError(bot.id, error, "Resume failed"));
   }
 
-  function stopActiveTurn() {
+  /** Resolves true once the running turn was interrupted. */
+  function stopActiveTurn(): Promise<boolean> {
     const bot = activeBot();
     const turnId = bot ? activeTurns()[bot.id] : null;
-    if (!bot || !turnId) return;
-    void window.openbot.agent
-      .interrupt({ botId: bot.id, turnId })
-      .catch((error) => appendUiError(bot.id, error, "Stop failed"));
+    if (!bot || !turnId) return Promise.resolve(false);
+    return window.openbot.agent.interrupt({ botId: bot.id, turnId }).then(
+      () => true,
+      (error) => {
+        appendUiError(bot.id, error, "Stop failed");
+        return false;
+      },
+    );
   }
 
   async function refreshAccountUsage(): Promise<AccountUsage> {

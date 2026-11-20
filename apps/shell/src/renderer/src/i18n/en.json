@@ -49,6 +49,8 @@
   "chat.plan.pending": "Not started",
   "chat.plan.progress": "{done} of {total} done",
   "chat.plan.title": "Plan",
+  "chat.stop.phrases": "stop|ok stop|okay stop|stop please|please stop|stop it|stop now",
+  "chat.stopped": "Stopped",
   "kit.notifications": "Notifications",
   "memory.agent.open": "Open",
   "memory.empty": "Nothing saved yet. Agents add what they learn as they work.",

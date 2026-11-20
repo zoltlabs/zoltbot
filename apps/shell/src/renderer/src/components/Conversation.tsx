@@ -36,6 +36,7 @@ import { PlanChecklist } from "./conversation/PlanChecklist";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
+import { stopInstead } from "./conversation/stop-phrase";
 import { AgentSetupCard, OnboardingStep, TranscriptEntry } from "./conversation/Transcript";
 import { AgentActivityIndicator } from "./conversation/WorkingLine";
 import { createDictation } from "./Dictation";
@@ -82,7 +83,7 @@ interface ConversationProps {
   onCloseBrowserTab: (tabId: string) => void;
   onToggleLeftSidebar: () => void;
   onOpenAgentSetup: () => Promise<void>;
-  onStop: () => void;
+  onStop: () => Promise<boolean>;
   /** Opens the Tasks page for a project, from its Organization panel. */
   onOpenTasks?: (projectId: string) => void;
   onOpenMemory?: (agentId: string) => void;
@@ -476,6 +477,9 @@ export function Conversation(props: ConversationProps) {
       (!text.trim() && attachments.length === 0)
     )
       return;
+    const stop = await stopInstead(text, attachments.length, props.activeTurnId, props.onStop);
+    if (stop === "stopped") setDrafts((current) => ({ ...current, [botId]: EMPTY_DRAFT }));
+    if (stop !== "send") return;
     stickToLatest = true;
     setSubmitting(true);
     setComposerError(null);
