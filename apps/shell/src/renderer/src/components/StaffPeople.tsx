@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { StaffActionInput, StaffPerson } from "../../../shared/staff";
+import { Select } from "../kit";
 import { createStaffStore } from "../staff-store";
 import { StaffCard } from "./StaffCard";
 import "../staff.css";
@@ -249,26 +250,32 @@ function ArchiveForm(props: {
   onCancel: () => void;
   onArchive: (moveTo: string) => void;
 }) {
-  const id = `staff-archive-${props.person.botId.replace(/[^\w-]/g, "-")}`;
+  const [moveTo, setMoveTo] = createSignal("");
   return (
     <form
       class="staff-form"
       aria-label={`Archive ${props.person.name}`}
       onSubmit={(event) => {
         event.preventDefault();
-        props.onArchive(String(new FormData(event.currentTarget).get("moveTo") ?? ""));
+        props.onArchive(moveTo());
       }}
-      onKeyDown={(event) => event.key === "Escape" && props.onCancel()}
+      onKeyDown={(event) => {
+        // The kit list closes itself on Escape; only close the form when nothing is open.
+        if (event.key === "Escape" && !event.defaultPrevented) props.onCancel();
+      }}
     >
-      <label for={`${id}-move`}>
-        Queued tasks go to
-        <select id={`${id}-move`} name="moveTo">
-          <option value="">Their manager</option>
-          <For each={props.others}>
-            {(other) => <option value={other.botId}>{other.name}</option>}
-          </For>
-        </select>
-      </label>
+      <div class="staff-field">
+        <span aria-hidden="true">Queued tasks go to</span>
+        <Select
+          label="Queued tasks go to"
+          value={moveTo()}
+          options={[
+            { value: "", label: "Their manager" },
+            ...props.others.map((other) => ({ value: other.botId, label: other.name })),
+          ]}
+          onChange={setMoveTo}
+        />
+      </div>
       <p class="staff-card-note">Running work finishes first. Their chat stays readable.</p>
       <div class="organization-actions">
         <button type="button" class="organization-button" onClick={props.onCancel}>

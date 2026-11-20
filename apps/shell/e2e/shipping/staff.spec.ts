@@ -147,9 +147,8 @@ test("staff approvals and the organization's Edit and Archive", async ({ page })
 
     await people.getByRole("button", { name: "Archive Nova", exact: true }).click();
     const archive = people.getByRole("form", { name: "Archive Nova" });
-    await archive.getByRole("combobox", { name: "Queued tasks go to" }).selectOption({
-      label: "Ivy",
-    });
+    await archive.getByRole("button", { name: /^Queued tasks go to:/ }).click();
+    await page.getByRole("option", { name: "Ivy" }).click();
     expect(await axeViolations(page)).toEqual([]);
     await archive.getByRole("button", { name: "Archive Nova", exact: true }).click();
     await expect(people.getByText("Nova", { exact: true })).toHaveCount(0);

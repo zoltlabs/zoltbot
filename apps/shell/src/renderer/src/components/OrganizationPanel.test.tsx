@@ -212,9 +212,8 @@ describe("OrganizationPanel", () => {
     const people = await screen.findByRole("region", { name: "People" });
     await fireEvent.click(within(people).getByRole("button", { name: "Archive Ivy" }));
     const form = within(people).getByRole("form", { name: "Archive Ivy" });
-    await fireEvent.change(within(form).getByRole("combobox", { name: "Queued tasks go to" }), {
-      target: { value: "lead" },
-    });
+    await fireEvent.click(within(form).getByRole("button", { name: /^Queued tasks go to:/ }));
+    await fireEvent.click(screen.getByRole("option", { name: "Robin" }));
     await fireEvent.click(within(form).getByRole("button", { name: "Archive Ivy" }));
     expect(agent.staffAction).toHaveBeenCalledWith({
       action: "archive",

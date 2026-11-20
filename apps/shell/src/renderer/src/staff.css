@@ -65,7 +65,8 @@
   padding: 10px 12px;
 }
 
-.staff-form label {
+.staff-form label,
+.staff-form .staff-field {
   display: grid;
   gap: 4px;
   color: var(--text-secondary);
@@ -73,7 +74,6 @@
 }
 
 .staff-form input,
-.staff-form select,
 .staff-form textarea {
   border: 1px solid var(--openbot-line-strong);
   border-radius: 8px;
