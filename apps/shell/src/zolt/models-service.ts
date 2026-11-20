@@ -79,7 +79,11 @@ export function modelsService(client: DaemonClient): ModelsDesktopApi {
   const view = (row: unknown) => toAccountView(row as Row, client.rows("agentDefinition"));
   const signIn = (value: unknown): ModelSignIn => {
     const row = (value ?? {}) as Row;
-    return { command: text(row.command), configDirectory: text(row.configDirectory) };
+    return {
+      command: text(row.command),
+      configDirectory: text(row.configDirectory),
+      ...(text(row.slashCommand) ? { slashCommand: text(row.slashCommand) } : {}),
+    };
   };
   return {
     async read() {

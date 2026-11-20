@@ -23,13 +23,49 @@ export const ordersKey = "models.orders";
 /** A limit without a reset time is assumed to last this long. */
 export const defaultLimitMs = 60 * 60_000;
 
-/**
- * The variable each coding tool reads its sign-in folder from. Only these tools can hold more
- * than one sign-in; every other tool has just its own.
- */
-const homeKeys: Record<string, string> = { claude: "CLAUDE_CONFIG_DIR", codex: "CODEX_HOME" };
-export const accountHomeKey = (definition: Pick<AgentDefinition, "adapter">) =>
-  homeKeys[definition.adapter];
+type ToolKind = Pick<AgentDefinition, "adapter" | "id" | "flavor" | "auth">;
+/** The variable each adapter reads its sign-in folder from. */
+const adapterHomeKeys: Record<string, string> = {
+  claude: "CLAUDE_CONFIG_DIR",
+  codex: "CODEX_HOME",
+  pi: "PI_CODING_AGENT_DIR",
+};
+/** The same for ACP tools, by flavor. Each was checked in the tool's source or docs. */
+const acpHomeKeys: Record<string, string> = {
+  opencode: "XDG_DATA_HOME",
+  grok: "GROK_HOME",
+  cline: "CLINE_DIR",
+  qwen: "QWEN_HOME",
+  kimi: "KIMI_SHARE_DIR",
+};
+/** Every sign-in folder variable, for code that passes a tool's folders through. */
+export const accountHomeKeys = [
+  ...new Set([...Object.values(adapterHomeKeys), ...Object.values(acpHomeKeys)]),
+];
+export const accountHomeKey = (definition: ToolKind) =>
+  adapterHomeKeys[definition.adapter] ??
+  (definition.adapter === "acp" ? acpHomeKeys[definition.flavor ?? definition.id] : undefined);
+/** Sign-in commands for ACP tools whose definitions name none, by flavor. */
+const acpLoginArgs: Record<string, string[]> = { cline: ["auth"], kimi: ["login"], qwen: [] };
+/** The tool's own sign-in command. An empty one opens the tool, which signs in from inside. */
+export function loginArgs(definition: ToolKind): string[] | undefined {
+  if (definition.auth?.loginCommand) return definition.auth.loginCommand;
+  if (definition.adapter === "claude") return ["auth", "login"];
+  if (definition.adapter === "codex") return ["login"];
+  if (definition.adapter === "pi" && !definition.auth?.apiKeyEnv) return [];
+  if (definition.adapter === "acp") return acpLoginArgs[definition.flavor ?? definition.id];
+  return undefined;
+}
+/** What to type inside a tool whose sign-in command only opens it. */
+export function slashCommand(definition: ToolKind): string | undefined {
+  if (definition.adapter === "pi") return "/login";
+  if (definition.adapter === "acp" && (definition.flavor ?? definition.id) === "qwen")
+    return "/auth";
+  return undefined;
+}
+/** A tool can hold more than one sign-in when its folder can move and Zoltbot can sign it in. */
+export const canAddAccounts = (definition: ToolKind) =>
+  accountHomeKey(definition) !== undefined && loginArgs(definition) !== undefined;
 export const defaultAccountId = (definitionId: string) => `default:${definitionId}`;
 
 export interface StoredAccount {
@@ -110,7 +146,7 @@ export function listAccounts(state: DomainState, now = Date.now()): ModelAccount
       provider: definition.adapter,
       configDirectory: row.configDirectory,
       isDefault,
-      canAddAccounts: accountHomeKey(definition) !== undefined,
+      canAddAccounts: canAddAccounts(definition),
       login: login ?? "unknown",
       ...(limit
         ? {

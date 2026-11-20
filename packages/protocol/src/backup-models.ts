@@ -58,7 +58,12 @@ export const ModelSwitchNoteSchema = object({
   text: Text,
 });
 export type ModelSwitchNote = Static<typeof ModelSwitchNoteSchema>;
-const SignInSchema = object({ command: Text, configDirectory: Text });
+const SignInSchema = object({
+  command: Text,
+  configDirectory: Text,
+  /** What to type inside the tool when the command only opens it. */
+  slashCommand: OptionalText,
+});
 const ok = object({ ok: Type.Boolean() });
 export const backupModelMethods = {
   "modelAccount.list": {

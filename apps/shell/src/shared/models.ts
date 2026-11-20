@@ -41,6 +41,8 @@ export interface ModelsOverview {
 export interface ModelSignIn {
   command: string;
   configDirectory: string;
+  /** What to type inside the tool when the command only opens it. */
+  slashCommand?: string;
 }
 
 export interface AddModelAccountInput {

@@ -76,7 +76,11 @@ export function backupModelsApi(host: {
     if (!call) throw new Error("provider_login_unavailable");
     const result = await call(definitionId, folder);
     await host.prepareData(result);
-    return { command: result.command, configDirectory: result.configDirectory };
+    return {
+      command: result.command,
+      configDirectory: result.configDirectory,
+      ...(result.slashCommand ? { slashCommand: result.slashCommand } : {}),
+    };
   };
   function entries(value: unknown, state: DomainState): BackupEntry[] {
     if (!Array.isArray(value) || value.length > 8) throw new Error("invalid_backup_order");

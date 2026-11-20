@@ -20,6 +20,7 @@ import type { LaunchContributions, LaunchManifest } from "../../connections/src/
 import { canonicalApprovalRoot } from "./approval-paths.js";
 import { type ArtifactToolSurface, frozenArtifactGuidance } from "./artifacts/binding.js";
 import { cleanupStaging } from "./artifacts/staging.js";
+import { accountHomeKeys } from "./backup-models/records.js";
 import { type BrowserBinding, browserGuidance, materializeBrowser } from "./browser/runtime.js";
 import type { connectionsRuntime } from "./connections-runtime.js";
 import { forkPermission } from "./fork-configuration.js";
@@ -169,13 +170,16 @@ export class NativeRuntimeHost implements RuntimeHost {
     const legacyResume = !!stable.previous && !saved?.launchManifest;
     const providerHome = Object.fromEntries(
       [
-        "HOME",
-        "CLAUDE_CONFIG_DIR",
-        "CODEX_HOME",
-        "GEMINI_HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_DATA_HOME",
-        "XDG_STATE_HOME",
+        ...new Set([
+          "HOME",
+          "CLAUDE_CONFIG_DIR",
+          "CODEX_HOME",
+          "GEMINI_HOME",
+          "XDG_CONFIG_HOME",
+          "XDG_DATA_HOME",
+          "XDG_STATE_HOME",
+          ...accountHomeKeys,
+        ]),
       ].map((key) => [key, stable.definition.launch.env[key] ?? null]),
     );
     const normalizeHome = (input: unknown) => {

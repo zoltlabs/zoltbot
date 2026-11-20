@@ -37,7 +37,7 @@ export interface OwnedRuntime extends RuntimeHost {
   accountLoginInfo?(
     definitionId: string,
     configDirectory?: string,
-  ): Promise<{ provider: string; command: string; configDirectory: string }>;
+  ): Promise<{ provider: string; command: string; configDirectory: string; slashCommand?: string }>;
   /** Whether a definition, in an account's config folder when given, is signed in. */
   accountLogin?(
     definitionId: string,

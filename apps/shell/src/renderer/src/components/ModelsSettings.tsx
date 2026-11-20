@@ -248,15 +248,20 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
             </For>
           </ul>
           <Show when={overview() && !accounts().length}>
-            <p class="models-empty">
-              No coding tools are set up yet. Add an agent first.
-            </p>
+            <p class="models-empty">No coding tools are set up yet. Add an agent first.</p>
           </Show>
           <Show when={signIn()}>
             {(current) => (
               <div class="models-signin">
                 <p>Run this in Terminal to sign in to {current().account}:</p>
                 <code class="models-command">{current().info.command}</code>
+                <Show when={current().info.slashCommand}>
+                  {(typed) => (
+                    <p>
+                      Then type <code>{typed()}</code>.
+                    </p>
+                  )}
+                </Show>
                 <div class="models-actions">
                   <button
                     type="button"

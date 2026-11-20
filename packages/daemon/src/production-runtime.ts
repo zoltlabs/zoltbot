@@ -5,7 +5,12 @@ import { knowledgeScopeHash } from "@zoltbot/knowledge";
 import { AgentDefinitionSchema, parse } from "@zoltbot/protocol";
 import type { OwnedRuntime, RuntimeContext } from "./api.js";
 import { createArtifactBinding } from "./artifacts/binding.js";
-import { accountHomeKey } from "./backup-models/records.js";
+import {
+  accountHomeKey,
+  accountHomeKeys,
+  loginArgs,
+  slashCommand,
+} from "./backup-models/records.js";
 import { ownedBrowser } from "./browser/evidence.js";
 import { browserObserver } from "./browser/observation.js";
 import { browserBinding, browserReadiness } from "./browser/runtime.js";
@@ -295,24 +300,22 @@ export function productionRuntime(
     const value = await (await load()).hosts.definition(account(definitionId, configDirectory));
     const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
     const keys = [
-      "HOME",
-      "CLAUDE_CONFIG_DIR",
-      "CODEX_HOME",
-      "GEMINI_HOME",
-      "XDG_CONFIG_HOME",
-      "XDG_DATA_HOME",
-      "XDG_STATE_HOME",
+      ...new Set([
+        "HOME",
+        "CLAUDE_CONFIG_DIR",
+        "CODEX_HOME",
+        "GEMINI_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME",
+        ...accountHomeKeys,
+      ]),
     ];
     const env = keys.flatMap((key) =>
       value.launch.env[key] ? [`${key}=${quote(value.launch.env[key] as string)}`] : [],
     );
-    const args =
-      value.auth?.loginCommand ??
-      (value.adapter === "claude"
-        ? ["auth", "login"]
-        : value.adapter === "codex"
-          ? ["login"]
-          : undefined);
+    const args = loginArgs(value);
+    const typed = slashCommand(value);
     if (!args) throw new Error("login_command_unavailable");
     return {
       provider: value.adapter,
@@ -323,8 +326,9 @@ export function productionRuntime(
             path.join(value.launch.env.HOME ?? "", ".claude"))
           : value.adapter === "codex"
             ? (value.launch.env.CODEX_HOME ?? path.join(value.launch.env.HOME ?? "", ".codex"))
-            : (value.launch.env.HOME ?? ""),
+            : (value.launch.env[accountHomeKey(value) ?? ""] ?? value.launch.env.HOME ?? ""),
       command: ["env", ...env, quote(value.launch.command), ...args.map(quote)].join(" "),
+      ...(typed ? { slashCommand: typed } : {}),
     };
   }
   return {

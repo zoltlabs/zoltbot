@@ -15,6 +15,7 @@ import {
   versionFromOutput,
 } from "@zoltbot/detect";
 import type { AgentDefinition } from "@zoltbot/protocol";
+import { accountHomeKeys } from "./backup-models/records.js";
 import type { Redactor } from "./logging.js";
 import { NativeProcesses } from "./native-processes.js";
 import { RuntimeFiles } from "./runtime-files.js";
@@ -112,13 +113,16 @@ export function providerHosts(options: {
     const version = versionFromOutput(result.stdout);
     const home = Object.fromEntries(
       [
-        "HOME",
-        "CLAUDE_CONFIG_DIR",
-        "CODEX_HOME",
-        "GEMINI_HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_DATA_HOME",
-        "XDG_STATE_HOME",
+        ...new Set([
+          "HOME",
+          "CLAUDE_CONFIG_DIR",
+          "CODEX_HOME",
+          "GEMINI_HOME",
+          "XDG_CONFIG_HOME",
+          "XDG_DATA_HOME",
+          "XDG_STATE_HOME",
+          ...accountHomeKeys,
+        ]),
       ].flatMap((key) => (value.launch.env[key] ? [[key, value.launch.env[key] as string]] : [])),
     );
     const auth =
