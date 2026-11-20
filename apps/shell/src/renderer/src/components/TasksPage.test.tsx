@@ -124,14 +124,12 @@ describe("TasksPage", () => {
   it("filters by team and owner", async () => {
     renderPage();
     await screen.findByText("Refund endpoint");
-    await fireEvent.change(screen.getByRole("combobox", { name: "Owner" }), {
-      target: { value: "kai" },
-    });
+    await fireEvent.click(screen.getByRole("button", { name: "Owner: Anyone" }));
+    await fireEvent.click(screen.getByRole("option", { name: "Kai" }));
     expect(screen.queryByText("Refund endpoint")).toBeNull();
     expect(screen.getByText("Migrate invoices")).toBeVisible();
-    await fireEvent.change(screen.getByRole("combobox", { name: "Team" }), {
-      target: { value: "payments" },
-    });
+    await fireEvent.click(screen.getByRole("button", { name: "Team: All teams" }));
+    await fireEvent.click(screen.getByRole("option", { name: "Payments" }));
     expect(screen.getByText("No tasks match these filters.")).toBeVisible();
   });
 

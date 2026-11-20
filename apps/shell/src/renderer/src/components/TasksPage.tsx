@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { BotProfile } from "../data";
+import { Select } from "../kit";
 import { createStaffStore } from "../staff-store";
 import { groupTasks, statusLabel, TASK_GROUPS, type TaskGroup, taskAge } from "../tasks";
 import type { TasksStore } from "../tasks-store";
@@ -378,15 +379,16 @@ function Filter(props: {
   onChange: (value: string) => void;
 }) {
   return (
-    <label class="tasks-filter">
-      <span class="sr-only">{props.label}</span>
-      <select value={props.value} onChange={(event) => props.onChange(event.currentTarget.value)}>
-        <option value={ALL}>{props.all}</option>
-        <For each={props.options}>
-          {(option) => <option value={option.id}>{option.name}</option>}
-        </For>
-      </select>
-    </label>
+    <Select
+      label={props.label}
+      value={props.value}
+      class="tasks-filter"
+      options={[
+        { value: ALL, label: props.all },
+        ...props.options.map((option) => ({ value: option.id, label: option.name })),
+      ]}
+      onChange={props.onChange}
+    />
   );
 }
 

@@ -123,36 +123,16 @@
   margin-bottom: 14px;
 }
 
-.tasks-filter select {
-  height: 28px;
+.zb-kit-trigger.tasks-filter {
   max-width: 220px;
-  appearance: none;
-  border: 1px solid var(--openbot-line-strong);
   border-radius: 999px;
-  background-color: var(--surface-pill);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-row-meta) 50%),
-    linear-gradient(135deg, var(--text-row-meta) 50%, transparent 50%);
-  background-position:
-    calc(100% - 14px) 12px,
-    calc(100% - 10px) 12px;
-  background-repeat: no-repeat;
-  background-size:
-    4px 4px,
-    4px 4px;
-  padding: 0 26px 0 11px;
+  background: var(--surface-pill);
   color: var(--text-secondary);
   font-size: 12px;
-  cursor: pointer;
 }
 
-.tasks-filter select:hover {
-  background-color: var(--surface-pill-hover);
-}
-
-.tasks-filter select:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--openbot-orange) 76%, transparent);
-  outline-offset: 2px;
+.zb-kit-trigger.tasks-filter:hover {
+  background: var(--surface-pill-hover);
 }
 
 .tasks-error {
