@@ -195,3 +195,19 @@ it("shows a row's detail at the trailing edge, after the title", () => {
   expect(html.indexOf("Ada</span>")).toBeLessThan(html.indexOf("2 min</span>"));
   expect(html).toMatch(/<\/div><span[^>]*>2 min<\/span>/);
 });
+
+it("shows a row's error under the title and reads it with the row", () => {
+  const html = renderToStaticMarkup(
+    createElement(kit.Row as unknown as (props: Record<string, unknown>) => ReactNode, {
+      title: "Nov 20, 9:00 AM",
+      detail: "Skipped",
+      error: "Previous occurrence is still active",
+      onPress: () => {},
+    }),
+  );
+  expect(html).toContain(
+    'aria-label="Nov 20, 9:00 AM, Skipped, Previous occurrence is still active"',
+  );
+  expect(html.indexOf("9:00 AM</span>")).toBeLessThan(html.indexOf("still active</span>"));
+  expect(html).toContain(dark.danger);
+});

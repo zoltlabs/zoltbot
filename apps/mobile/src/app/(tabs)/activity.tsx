@@ -10,7 +10,7 @@ import { mono, useTheme } from "../../theme";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { TabScreen } from "../../ui/chrome";
 import { StaffCard } from "../../ui/interactions/StaffCard";
-import { Button, Card, Chip, Group, Row, Section, Txt } from "../../ui/kit";
+import { Button, Card, Chip, Group, styles as kitStyles, Row, Section, Txt } from "../../ui/kit";
 
 function Approval({
   item,
@@ -137,6 +137,51 @@ function Approval({
   );
 }
 
+/**
+ * A request that needs the person: its title, then Zolt's reason for it when Zolt has triaged
+ * it. The reason is the item's content, so it reads in full rather than as a muted caption.
+ */
+function NeedsYouRow({
+  item,
+  last,
+}: {
+  item: Exclude<NeedsYouItem, { kind: "approval" }>;
+  last: boolean;
+}) {
+  const { c } = useTheme();
+  const kind = item.kind === "review" ? "Needs review" : item.label;
+  const when = item.kind === "review" ? "" : ago(item.createdAt);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={[`${kind}: ${item.title}`, item.why, when].filter(Boolean).join(", ")}
+      onPress={() =>
+        item.kind === "review" ? router.navigate("/tasks") : router.push(`/chat/${item.threadId}`)
+      }
+      style={({ pressed }) => [
+        kitStyles.row,
+        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+        pressed && { backgroundColor: c["bg-active"] },
+      ]}
+    >
+      <View style={[kitStyles.rowText, styles.needsText]}>
+        <Txt v="bodyMedium" lines={2}>
+          {item.title}
+        </Txt>
+        {item.why ? <Txt tone="secondary">{item.why}</Txt> : null}
+      </View>
+      <View style={styles.needsSide}>
+        <Chip label={kind} tone="attention" />
+        {when ? (
+          <Txt v="meta" tone="muted">
+            {when}
+          </Txt>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function Overview() {
   const snapshot = useSnapshot();
   const online = useClient((state) => state.status === "online");
@@ -176,24 +221,7 @@ export default function Overview() {
       {rest.length ? (
         <Group>
           {rest.map((item, index) => (
-            <Row
-              key={item.id}
-              title={item.title}
-              detail={item.kind === "review" ? undefined : ago(item.createdAt)}
-              last={index === rest.length - 1}
-              label={`${item.kind === "review" ? "Needs review" : item.label}: ${item.title}`}
-              onPress={() =>
-                item.kind === "review"
-                  ? router.navigate("/tasks")
-                  : router.push(`/chat/${item.threadId}`)
-              }
-              right={
-                <Chip
-                  label={item.kind === "review" ? "Needs review" : item.label}
-                  tone="attention"
-                />
-              }
-            />
+            <NeedsYouRow key={item.id} item={item} last={index === rest.length - 1} />
           ))}
         </Group>
       ) : null}
@@ -245,6 +273,8 @@ export default function Overview() {
 }
 
 const styles = StyleSheet.create({
+  needsText: { gap: 2 },
+  needsSide: { alignItems: "flex-end", gap: 4 },
   flex: { flex: 1 },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   code: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, overflow: "hidden" },

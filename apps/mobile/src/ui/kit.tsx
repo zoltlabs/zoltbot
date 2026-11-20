@@ -127,6 +127,7 @@ export function Row({
   title,
   titleLines = 1,
   detail,
+  error,
   left,
   right,
   onPress,
@@ -143,6 +144,8 @@ export function Row({
    * purpose: a second line of text under the title is a caption, so leave it out.
    */
   detail?: string | undefined;
+  /** Why this thing failed or was skipped, shown under the title in the danger color. */
+  error?: string | undefined;
   left?: ReactNode;
   right?: ReactNode;
   onPress?: () => void;
@@ -161,6 +164,11 @@ export function Row({
         <Txt v="bodyMedium" lines={titleLines}>
           {title}
         </Txt>
+        {error ? (
+          <Txt v="meta" tone="danger">
+            {error}
+          </Txt>
+        ) : null}
       </View>
       {detail ? (
         <Txt
@@ -189,7 +197,9 @@ export function Row({
         disabled: Boolean(disabled),
         ...(checked === undefined ? {} : { checked }),
       }}
-      accessibilityLabel={label ?? [title, detail].filter(Boolean).join(", ")}
+      accessibilityLabel={[label ?? [title, detail].filter(Boolean).join(", "), error]
+        .filter(Boolean)
+        .join(", ")}
       style={({ pressed }) => [...style, pressed && { backgroundColor: c["bg-active"] }]}
     >
       {content}

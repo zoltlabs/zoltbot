@@ -72,6 +72,9 @@ function cronOf(draft: Draft, current: Schedule): string | undefined {
   const days = draft.days === "custom" ? current.days : draft.days;
   return writeSchedule({ kind: "time", ...clock, days });
 }
+/** Run statuses whose reason says why the run did not happen or stopped. */
+const failed = new Set(["quarantined", "skipped", "missed", "expired"]);
+
 const summary = (value: { cron: string; timezone: string; notify: string; paused: boolean }) =>
   [
     value.paused ? "Paused" : "On",
@@ -321,6 +324,7 @@ export default function RoutineScreen() {
                     runLabel[occurrence.status] ??
                     occurrence.status
                   }
+                  error={failed.has(occurrence.status) ? occurrence.reason : undefined}
                   onPress={threadId ? () => router.push(`/chat/${threadId}`) : undefined}
                   last={index === runs.length - 1}
                 />
