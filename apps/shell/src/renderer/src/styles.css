@@ -1519,6 +1519,9 @@ textarea {
   grid-column: 3;
   grid-row: 1;
   min-width: 0;
+  /* The panel sits in .conversation-slot (display: contents), so `.app-frame > *` misses it.
+     Without this, a long chat grows the panel past the window and hides the composer. */
+  min-height: 0;
   flex-direction: column;
   background: var(--openbot-main);
   transition: padding-right var(--panel-resize-duration, 260ms) cubic-bezier(0.22, 1, 0.36, 1);
