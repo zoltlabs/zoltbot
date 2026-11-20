@@ -27,7 +27,7 @@ import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { chooseAgent } from "./agent-choice";
-import { asideSource, withAsides } from "./asides";
+import { asideSource, asideThreads, withAsides } from "./asides";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
 import { decidePlan, readCompany, refreshBrief } from "./company-service";
 import { companyTree } from "./company-tree";
@@ -51,6 +51,7 @@ import {
   visibleThreads,
 } from "./mapping";
 import { modelsService, switchDialogFor } from "./models-service";
+import { pinnedMessages } from "./pins";
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
@@ -618,6 +619,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       revision: conversation.revision,
       messages: [...messages, ...conversation.pending],
       plan: latestPlan(items),
+      pins: pinnedMessages(this.client.snapshot, botId, messages),
     };
   }
 
@@ -666,12 +668,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       const staff = staffProject(change.aggregateType, row);
       if (staff !== undefined) this.companyDirty.add(staff || null);
       if (threadId) this.dirty.add(threadId);
-      const asked = threadId ? asideSource(this.client.snapshot, threadId) : undefined;
-      if (asked) this.dirty.add(asked);
-      // A continued aside leaves its chat: that chat drops the aside's lines.
-      const source = (row.fork as Row | undefined)?.sourceThreadId;
-      if (change.aggregateType === "thread" && typeof source === "string") this.dirty.add(source);
-      for (const id of relatedThreads(this.client.snapshot, change.aggregateType, row))
+      for (const id of [
+        ...asideThreads(this.client.snapshot, change.aggregateType, row, threadId),
+        ...relatedThreads(this.client.snapshot, change.aggregateType, row),
+      ])
         this.dirty.add(id);
     }
     this.scheduleFlush();

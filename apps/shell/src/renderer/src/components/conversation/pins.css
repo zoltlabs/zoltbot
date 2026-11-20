@@ -1,0 +1,83 @@
+/* C4: the pinned-message strip under the chat header, in the transcript's column. */
+.pin-strip {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 2 * 12px);
+  max-width: 656px;
+  margin: 0 auto 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pin-strip-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.pin-strip-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pin-chip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  max-width: 240px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.pin-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-more {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.pin-chip:hover {
+  background: var(--openbot-hover);
+}
+
+.pin-chip:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: 1px;
+}
+
+.message-entry[data-message-id] {
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .message-entry[data-message-id] {
+    transition: background-color 0.6s ease;
+  }
+}
+
+.message-entry.message-entry-jumped {
+  background: var(--openbot-hover);
+  box-shadow: 0 0 0 6px var(--openbot-hover);
+}
+
+.message-entry[data-message-id]:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: 6px;
+}

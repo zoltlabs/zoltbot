@@ -332,3 +332,19 @@ it("answers a side question in a hidden aside and can continue it as a chat", as
   await call("thread.continueAside", { id: threadId });
   expect(thread(threadId)?.kind).toBe("side");
 });
+
+it("pins and unpins a message in sample mode", async () => {
+  const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+  await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+  const call = client.getState().call;
+  const params = { threadId: "thread-meal-search", itemId: "item-1" };
+  expect(await call("message.pin", params)).toMatchObject({ pins: [{ itemId: "item-1" }] });
+  const row = () =>
+    client
+      .getState()
+      .snapshot.entities.settings?.find((r) => r.key === "chat.pins.thread-meal-search");
+  expect(row()?.value).toHaveLength(1);
+  expect(await call("message.unpin", params)).toEqual({ pins: [] });
+  expect(row()?.value).toEqual([]);
+  client.stop();
+});

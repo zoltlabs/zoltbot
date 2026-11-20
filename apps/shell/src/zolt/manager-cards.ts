@@ -1,3 +1,4 @@
+import { messagePinsThread } from "@zoltbot/protocol";
 import type {
   ConversationMessage,
   ConversationNotice,
@@ -382,6 +383,8 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
   if (kind === "message") return [text(row.fromThread)].filter(Boolean);
   if (kind === "settings" && text(row.key).startsWith("team.wait."))
     return [text(row.key).slice("team.wait.".length)];
+  const pinned = kind === "settings" ? messagePinsThread(row.key) : undefined;
+  if (pinned) return [pinned];
   return [];
 }
 

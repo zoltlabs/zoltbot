@@ -289,6 +289,9 @@ export function setUpAppTest() {
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
       },
+      pins: {
+        set: vi.fn().mockResolvedValue(undefined),
+      },
       aside: {
         ask: vi.fn().mockResolvedValue({ threadId: "aside-thread" }),
         continue: vi.fn().mockResolvedValue(undefined),

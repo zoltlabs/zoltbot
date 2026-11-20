@@ -59,6 +59,7 @@ import { taintObserver } from "./knowledge-taint.js";
 import { macIdentity } from "./link-identity.js";
 import { Logger, Redactor } from "./logging.js";
 import { messageApi } from "./message-api.js";
+import { messagePinsApi } from "./message-pins-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
 import { projectFilesApi } from "./project-files.js";
@@ -387,6 +388,7 @@ async function startOwnedDaemon(
     publish,
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
+  const pins = messagePinsApi({ store, privacy, redactor, publish });
   const compare = compareApi({
     store,
     privacy,
@@ -610,6 +612,7 @@ async function startOwnedDaemon(
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
+          (await pins(request.method, params, commandId)) ??
           (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??

@@ -23,6 +23,7 @@ function reserved(key: string) {
     key.startsWith("runtime.privateRef.") ||
     key.startsWith("runtime.configuration.") ||
     key.startsWith("knowledge.exclusions.") ||
+    key.startsWith("chat.pins.") ||
     reservedChiefKeys.has(key) ||
     key === identityReferenceKey
   );

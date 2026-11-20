@@ -3,9 +3,11 @@ import {
   type DomainEvent,
   type MethodName,
   macOnlyMethods,
+  messagePinsKey,
   methodCatalog,
   queueOrderKey,
   unservedMethods,
+  withMessagePin,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
 import { answerChannel } from "./fake-channels.js";
@@ -435,6 +437,16 @@ export class FakeTransport implements Transport {
           "created",
         );
         return { threadId: asideId };
+      }
+      case "message.pin":
+      case "message.unpin": {
+        // As zoltd (message-pins-api): one settings row per chat, newest pin first.
+        this.find("thread", p.threadId);
+        const key = messagePinsKey(String(p.threadId));
+        const prior = this.rows("settings").find((row) => row.key === key)?.value;
+        const pins = withMessagePin(prior, String(p.itemId), method === "message.pin", now);
+        this.put("settings", { key, value: pins });
+        return { pins };
       }
       case "thread.continueAside":
         return this.put("thread", { ...this.find("thread", p.id), kind: "side" });

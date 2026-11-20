@@ -10,6 +10,7 @@ export * from "./company";
 export * from "./dictation";
 export type * from "./manager-cards";
 export type * from "./memory";
+export type * from "./pins";
 export type * from "./queue-order";
 export type * from "./spend";
 export type * from "./staff";
@@ -41,6 +42,7 @@ import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
+import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
@@ -115,6 +117,7 @@ export const IPC_CHANNELS = {
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
   ...ASIDE_CHANNELS,
+  ...PIN_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -522,6 +525,8 @@ export interface ConversationSnapshot {
   messages: ConversationMessage[];
   /** The steps of the agent's newest plan in this chat; empty when it keeps none. */
   plan?: PlanStep[];
+  /** C4: pinned messages, newest pin first. */
+  pins?: PinnedMessage[];
 }
 
 /** One step of an agent's plan. */
@@ -738,4 +743,5 @@ export interface OpenBotDesktopApi {
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;
   aside: AsideDesktopApi;
+  pins: PinsDesktopApi;
 }

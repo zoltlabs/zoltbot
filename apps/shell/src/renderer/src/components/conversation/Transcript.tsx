@@ -349,6 +349,7 @@ export function TranscriptEntry(props: {
           fallback={
             <article
               class="message-entry"
+              data-message-id={props.message.id}
               onContextMenu={(event) => {
                 if (props.message.streaming) return;
                 event.preventDefault();

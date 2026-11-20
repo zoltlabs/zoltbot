@@ -7,6 +7,7 @@ import { type Anchor, Menu, Popover, showToast } from "../../kit";
 import type { BranchMode } from "./Branching";
 import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
 import { messageMenuGroups } from "./messageMenu";
+import { isPinned, setPinned } from "./pins-store";
 
 export function MessageActions(props: { message: BotMessage; actions: MessageActionsState }) {
   let reactionButton: HTMLButtonElement | undefined;
@@ -220,6 +221,19 @@ export function createMessageActionsState(deps: {
     react: (message: BotMessage, emoji: MessageReaction | null) => void react(message, emoji),
     copy: (message: BotMessage) => void copy(message),
     branch: (message: BotMessage, mode: BranchMode) => deps.onBranch(message, mode),
+    isPinned: (message: BotMessage) => isPinned(deps.botId(), message.id),
+    pin: (message: BotMessage, pinned: boolean) => {
+      const botId = deps.botId();
+      closeAll();
+      if (!botId) return;
+      setPinned(botId, message.id, pinned)
+        .then(() =>
+          showToast({ message: t(pinned ? "chat.message.pinned" : "chat.message.unpinned") }),
+        )
+        .catch((error: unknown) =>
+          deps.onError(error instanceof Error ? error.message : String(error)),
+        );
+    },
   };
 }
 

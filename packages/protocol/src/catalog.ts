@@ -316,6 +316,15 @@ const rawMethodCatalog = {
   ),
   /** C2: turns an aside into a normal chat, listed like any other. */
   "thread.continueAside": entry(object({ id: Id }), ThreadSchema),
+  /** C4: pins are newest first. Pinning fails with pin_limit past 50 pins in one chat. */
+  "message.pin": entry(
+    object({ threadId: Id, itemId: Id }),
+    object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),
+  ),
+  "message.unpin": entry(
+    object({ threadId: Id, itemId: Id }),
+    object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),
+  ),
   /** C1: `order` lists every queued item id of the thread; fails with queue_changed otherwise. */
   "turn.reorderQueued": entry(
     object({ threadId: Id, order: Type.Array(Id, { maxItems: 200 }) }),

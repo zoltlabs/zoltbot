@@ -129,7 +129,13 @@ describe("Message menu", () => {
   });
 
   it("skips entries that don't apply and keeps groups in order", () => {
-    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn() };
+    const actions = {
+      reply: vi.fn(),
+      copy: vi.fn(),
+      branch: vi.fn(),
+      isPinned: () => false,
+      pin: vi.fn(),
+    };
     const empty = messageMenuGroups({ ...message, body: "" }, actions);
     expect(empty.flat().map((item) => item.id)).toEqual(["reply"]);
 
@@ -147,17 +153,42 @@ describe("Message menu", () => {
   });
 
   it("offers Branch on any finished message and Edit on the owner's own", () => {
-    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn() };
+    const actions = {
+      reply: vi.fn(),
+      copy: vi.fn(),
+      branch: vi.fn(),
+      isPinned: () => false,
+      pin: vi.fn(),
+    };
     const ids = (entry: BotMessage) =>
       messageMenuGroups(entry, actions)
         .flat()
         .map((item) => item.id);
     expect(ids(message)).toEqual(["reply", "copy"]);
-    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "branch"]);
+    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "pin", "branch"]);
     expect(ids({ ...message, turnId: "t1", streaming: true })).toEqual(["reply", "copy"]);
     const own = { ...message, author: "you" as const, turnId: "t1" };
-    expect(ids(own)).toEqual(["reply", "copy", "branch", "edit"]);
+    expect(ids(own)).toEqual(["reply", "copy", "pin", "branch", "edit"]);
     for (const item of messageMenuGroups(own, actions).flat()) item.run();
     expect(actions.branch.mock.calls.map(([, mode]) => mode)).toEqual(["branch", "edit"]);
+  });
+
+  it("offers Pin on a settled message and Unpin once it is pinned", () => {
+    const settled = { ...message, turnId: "t1" };
+    const pin = vi.fn();
+    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn(), pin };
+    const ids = (entry: BotMessage, pinned: boolean) =>
+      messageMenuGroups(entry, { ...actions, isPinned: () => pinned })
+        .flat()
+        .map((item) => item.id);
+    expect(ids(settled, false)).toContain("pin");
+    expect(ids({ ...settled, streaming: true }, false)).not.toContain("pin");
+    expect(ids(settled, true)).toContain("unpin");
+    expect(ids(settled, true)).not.toContain("pin");
+    messageMenuGroups(settled, { ...actions, isPinned: () => true })
+      .flat()
+      .find((item) => item.id === "unpin")
+      ?.run();
+    expect(pin).toHaveBeenCalledWith(settled, false);
   });
 });

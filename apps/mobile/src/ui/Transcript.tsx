@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
+import { pinnable } from "../data/pins";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { useSnapshot } from "../state/link";
 import { mono, useTheme } from "../theme";
@@ -41,17 +42,26 @@ function showActions(title: string, options: Option[]) {
   );
 }
 
+/** C4: Pin and Unpin, offered on messages that can be pinned. */
+export interface PinActions {
+  isPinned: (rowId: string) => boolean;
+  set: (row: TranscriptRow, pinned: boolean) => void;
+}
+
 function MessageActions({
   row,
   edit,
   forward,
   queue,
+  pins,
 }: {
   row: TranscriptRow;
   edit?: () => void;
   forward?: () => void;
   queue?: QueueActions;
+  pins?: PinActions;
 }) {
+  const pinned = pins?.isPinned(row.id) ?? false;
   const [error, setError] = useState("");
   const options = [
     ...(queue
@@ -60,6 +70,9 @@ function MessageActions({
         ? [{ label: row.queued ? "Edit" : "Edit and send again", run: edit }]
         : []),
     ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
+    ...(pins && (pinned || pinnable(row))
+      ? [{ label: pinned ? "Unpin" : "Pin", run: () => pins.set(row, !pinned) }]
+      : []),
     {
       label: "Share message",
       run: () => {
@@ -224,9 +237,11 @@ export function Message({
   threadId,
   edits,
   queue,
+  pins,
 }: {
   row: TranscriptRow;
   compact?: boolean;
+  pins?: PinActions;
   threadId?: string;
   /** Takes a queued message back so it can be edited. */
   onEdit?: (row: TranscriptRow) => void;
@@ -407,6 +422,7 @@ export function Message({
         ) : null}
         <MessageActions
           row={row}
+          {...(pins ? { pins } : {})}
           {...(queue ? { queue } : {})}
           {...(row.queued && onEdit
             ? { edit: () => onEdit(row) }
@@ -452,7 +468,11 @@ export function Message({
       >
         {prose}
       </Pressable>
-      <MessageActions row={row} {...(onForward ? { forward: () => onForward(row) } : {})} />
+      <MessageActions
+        row={row}
+        {...(pins ? { pins } : {})}
+        {...(onForward ? { forward: () => onForward(row) } : {})}
+      />
     </View>
   );
 }

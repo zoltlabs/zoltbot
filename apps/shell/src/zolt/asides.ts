@@ -14,6 +14,14 @@ export function asideSource(snapshot: Snapshot, threadId: string): string | unde
   return text((thread.fork as Row | undefined)?.sourceThreadId) || undefined;
 }
 
+/** Chats that show a changed row because of an aside: the aside's chat, or the chat it left. */
+export function asideThreads(snapshot: Snapshot, kind: string, row: Row, threadId: string) {
+  const ids = [threadId ? asideSource(snapshot, threadId) : undefined];
+  // A continued aside leaves its chat: that chat drops the aside's lines.
+  if (kind === "thread") ids.push(text((row.fork as Row | undefined)?.sourceThreadId));
+  return ids.filter((id): id is string => !!id);
+}
+
 export function asideMessages(snapshot: Snapshot, threadId: string): ConversationMessage[] {
   const asides = (snapshot.entities.thread ?? [])
     .filter(

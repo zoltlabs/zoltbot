@@ -236,5 +236,11 @@
   "usage.summary": "{cost}, {tokens} tokens",
   "usage.table.caption": "Usage by agent",
   "usage.title": "Usage",
-  "usage.total": "Total"
+  "usage.total": "Total",
+  "chat.message.pin": "Pin",
+  "chat.message.unpin": "Unpin",
+  "pins.title": "Pinned messages",
+  "pins.more": "{count} more",
+  "chat.message.pinned": "Pinned",
+  "chat.message.unpinned": "Unpinned"
 }

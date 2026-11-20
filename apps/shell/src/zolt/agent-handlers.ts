@@ -19,6 +19,7 @@ import {
   parseUpdateBot,
   requireString,
 } from "./parsers";
+import { pinHandlers } from "./pins-service";
 import { queueOrderHandlers } from "./queue-order-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
@@ -81,6 +82,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...artifactRepositoryHandlers(service.client),
     ...queueOrderHandlers(service.client),
     ...asideHandlers(service.client),
+    ...pinHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

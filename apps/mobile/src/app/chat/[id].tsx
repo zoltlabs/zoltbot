@@ -22,6 +22,7 @@ import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
+import { pinnedRows } from "../../data/pins";
 import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
@@ -49,9 +50,11 @@ import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Chip, Segmented, Txt } from "../../ui/kit";
+import { PinStrip } from "../../ui/PinStrip";
+import { useRowPositions } from "../../ui/row-positions";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
-import { Message, type QueueActions } from "../../ui/Transcript";
+import { Message, type PinActions, type QueueActions } from "../../ui/Transcript";
 import { WakeStatus } from "../../ui/WakeStatus";
 
 export default function Chat() {
@@ -79,6 +82,8 @@ export default function Chat() {
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
   const rows = withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue));
+  const positions = useRowPositions();
+  const pinned = pinnedRows(snapshot, id, rows);
   const turn = runningTurn(snapshot, id);
   const who = profileName(snapshot, thread?.agentId);
   const chief = chiefThreadId(snapshot.entities) === id;
@@ -90,6 +95,29 @@ export default function Chat() {
     (g) => g.id === compareMember?.compareId || g.summaryThreadId === id,
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
+  const pinnedIds = new Set(pinned.map((row) => row.id));
+  const pins: PinActions | undefined = online
+    ? {
+        isPinned: (rowId) => pinnedIds.has(rowId),
+        set: (row, on) =>
+          void run(
+            on ? "message.pin" : "message.unpin",
+            { threadId: id, itemId: row.id },
+            { quiet: true },
+          ).then(
+            (done) =>
+              done && AccessibilityInfo.announceForAccessibility(on ? "Pinned" : "Unpinned"),
+            (error: unknown) =>
+              Alert.alert(
+                error instanceof Error && error.message === "pin_limit"
+                  ? "This chat has 50 pins. Unpin one first."
+                  : on
+                    ? "Couldn’t pin the message. Try again."
+                    : "Couldn’t unpin the message. Try again.",
+              ),
+          ),
+      }
+    : undefined;
   // Staff approvals are cards in the transcript, not the pinned request.
   const pending = pendingFor(snapshot, id).filter((row) => !isStaffApproval(row));
   const [selected, setSelected] = useState<string>();
@@ -212,6 +240,14 @@ export default function Chat() {
         </Pressable>
       </View>
       <PlanChecklist key={id} plan={latestPlan(snapshot, id)} />
+      <PinStrip
+        pins={pinned}
+        onJump={(row) => {
+          followLatest.current = false;
+          setFollowing(false);
+          void positions.jump(row.id, scroll);
+        }}
+      />
       <ChatWaiting threadId={id} />
 
       <ScrollView
@@ -257,59 +293,67 @@ export default function Chat() {
         {conversation(rows, snapshot, turn ? text(turn.id) : undefined).map((entry) => {
           const row = entry.kind === "row" ? entry.row : undefined;
           return entry.kind === "assistant" ? (
-            <AssistantTurn
+            <View
               key={`${entry.id}:${entry.rows[0]?.id ?? "pending"}`}
-              rows={entry.rows}
-              active={entry.active}
-              paused={!!request || !online}
-              onInspect={() => {
-                followLatest.current = false;
-                setFollowing(false);
-              }}
-              threadId={id}
-              {...(online
-                ? {
-                    onForward: (message: TranscriptRow) =>
-                      router.push(
-                        `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
-                      ),
-                  }
-                : {})}
-            />
+              onLayout={positions.block(entry.rows.map((r) => r.id))}
+            >
+              <AssistantTurn
+                rows={entry.rows}
+                track={positions.row}
+                {...(pins ? { pins } : {})}
+                active={entry.active}
+                paused={!!request || !online}
+                onInspect={() => {
+                  followLatest.current = false;
+                  setFollowing(false);
+                }}
+                threadId={id}
+                {...(online
+                  ? {
+                      onForward: (message: TranscriptRow) =>
+                        router.push(
+                          `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
+                        ),
+                    }
+                  : {})}
+              />
+            </View>
           ) : row ? (
-            <Message
-              threadId={id}
-              key={row.id}
-              row={row}
-              {...(online && !busy && editableQueued(snapshot, row.id)
-                ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
-                : {})}
-              {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
-              {...(row.turnId && edits.get(row.turnId)?.length
-                ? {
-                    edits: {
-                      count: edits.get(row.turnId)?.length ?? 0,
-                      open: () => router.push(`/chat/${edits.get(row.turnId ?? "")?.[0]}`),
-                    },
-                  }
-                : {})}
-              {...(online
-                ? {
-                    onForward: (message: TranscriptRow) =>
-                      router.push(
-                        `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
-                      ),
-                  }
-                : {})}
-              {...(compareReadOnly
-                ? {}
-                : {
-                    onEditSent: (sent: TranscriptRow) =>
-                      router.push(
-                        `/chat/edit?id=${encodeURIComponent(id)}&turnId=${encodeURIComponent(sent.turnId ?? "")}`,
-                      ),
-                  })}
-            />
+            <View key={row.id} ref={positions.node(row.id)} onLayout={positions.block([row.id])}>
+              <Message
+                threadId={id}
+                row={row}
+                {...(pins ? { pins } : {})}
+                {...(online && !busy && editableQueued(snapshot, row.id)
+                  ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
+                  : {})}
+                {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
+                {...(row.turnId && edits.get(row.turnId)?.length
+                  ? {
+                      edits: {
+                        count: edits.get(row.turnId)?.length ?? 0,
+                        open: () => router.push(`/chat/${edits.get(row.turnId ?? "")?.[0]}`),
+                      },
+                    }
+                  : {})}
+                {...(online
+                  ? {
+                      onForward: (message: TranscriptRow) =>
+                        router.push(
+                          `/chat/send?id=${encodeURIComponent(id)}&item=${encodeURIComponent(message.id)}`,
+                        ),
+                    }
+                  : {})}
+                {...(compareReadOnly
+                  ? {}
+                  : {
+                      onEditSent: (sent: TranscriptRow) =>
+                        router.push(
+                          `/chat/edit?id=${encodeURIComponent(id)}&turnId=${encodeURIComponent(sent.turnId ?? "")}`,
+                        ),
+                    })}
+              />
+            </View>
           ) : null;
         })}
         <ChatOutcome threadId={id} />

@@ -3,13 +3,15 @@ import type { BotMessage } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import type { MenuItem } from "../../kit";
 import type { BranchMode } from "./Branching";
-import { BranchIcon, CopyIcon, EditIcon, ReplyIcon } from "./icons";
+import { BranchIcon, CopyIcon, EditIcon, PinIcon, ReplyIcon } from "./icons";
 
 /** What a message menu item can do. The conversation supplies these. */
 export interface MessageMenuActions {
   reply: (message: BotMessage) => void;
   copy: (message: BotMessage) => void;
   branch: (message: BotMessage, mode: BranchMode) => void;
+  isPinned: (message: BotMessage) => boolean;
+  pin: (message: BotMessage, pinned: boolean) => void;
 }
 
 /**
@@ -23,9 +25,13 @@ export interface MessageMenuEntry {
   /** Entries with the same group sit together; a separator is drawn between groups. */
   group: number;
   /** Whether the entry applies to this message. Defaults to always. */
-  when?: (message: BotMessage) => boolean;
+  when?: (message: BotMessage, actions: MessageMenuActions) => boolean;
   run: (message: BotMessage, actions: MessageMenuActions) => void;
 }
+
+/** Only settled messages the daemon keeps can be pinned: not a pending send or a live reply. */
+const pinnable = (message: BotMessage) =>
+  Boolean(message.turnId) && !message.streaming && Boolean(message.body?.trim());
 
 /** Gives the message icons, which are drawn with strokes, the menu's size and color. */
 function MenuIcon(props: { icon: JSX.Element }) {
@@ -47,6 +53,22 @@ export const MESSAGE_MENU: readonly MessageMenuEntry[] = [
     group: 0,
     when: (message) => Boolean(message.body),
     run: (message, actions) => actions.copy(message),
+  },
+  {
+    id: "pin",
+    label: "chat.message.pin",
+    icon: () => <MenuIcon icon={<PinIcon />} />,
+    group: 0,
+    when: (message, actions) => pinnable(message) && !actions.isPinned(message),
+    run: (message, actions) => actions.pin(message, true),
+  },
+  {
+    id: "unpin",
+    label: "chat.message.unpin",
+    icon: () => <MenuIcon icon={<PinIcon />} />,
+    group: 0,
+    when: (message, actions) => actions.isPinned(message),
+    run: (message, actions) => actions.pin(message, false),
   },
   {
     id: "branch",
@@ -74,7 +96,7 @@ export function messageMenuGroups(
 ): MenuItem[][] {
   const groups = new Map<number, MenuItem[]>();
   for (const entry of entries) {
-    if (entry.when && !entry.when(message)) continue;
+    if (entry.when && !entry.when(message, actions)) continue;
     const group = groups.get(entry.group) ?? [];
     group.push({
       id: entry.id,

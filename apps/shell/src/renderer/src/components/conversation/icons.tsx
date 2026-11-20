@@ -188,3 +188,12 @@ export function EditIcon() {
     </svg>
   );
 }
+
+export function PinIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M7.5 3.5h5l-.75 5 2.75 2.5h-9l2.75-2.5z" />
+      <path d="M10 11v5.5" />
+    </svg>
+  );
+}
