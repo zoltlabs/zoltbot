@@ -194,6 +194,7 @@ function OptionRow<T extends string>(props: {
     <div
       id={props.id}
       role="option"
+      aria-label={props.option.detail ? `${props.option.label}, ${props.option.detail}` : undefined}
       class="zb-kit-option"
       data-label={props.option.label}
       classList={{ active: props.active }}
@@ -234,6 +235,8 @@ export interface ComboboxProps<T extends string> extends PickerProps<T> {
   searchLabel: string;
   /** Shown when nothing matches, for example "No models match". */
   emptyLabel: string;
+  /** Names the open panel when it should differ from `label`, for example "Choose agent model". */
+  panelLabel?: string;
 }
 
 /** Picks one value from a long list with search, such as the model or agent picker. */
@@ -314,7 +317,7 @@ function ComboboxPanel<T extends string>(props: {
         ref={element}
         class="zb-kit-floating zb-kit-combobox"
         role="dialog"
-        aria-label={props.picker.label}
+        aria-label={props.picker.panelLabel ?? props.picker.label}
         data-kit-overlay="combobox"
       >
         <div class="zb-kit-search">
