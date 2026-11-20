@@ -171,6 +171,8 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                     classList={{
                       "models-pill-limit": account.atLimit,
                       "models-pill-use": !account.atLimit && account.inUse > 0,
+                      "models-pill-ready":
+                        !account.atLimit && account.inUse === 0 && account.login === "signed_in",
                     }}
                   >
                     {account.atLimit ? "At limit" : account.inUse > 0 ? "In use" : "Ready"}

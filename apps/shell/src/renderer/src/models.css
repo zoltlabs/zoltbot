@@ -116,6 +116,10 @@
   color: var(--text-info);
 }
 
+.models-pill-ready {
+  color: var(--text-success);
+}
+
 .models-row-actions,
 .models-actions {
   display: flex;
