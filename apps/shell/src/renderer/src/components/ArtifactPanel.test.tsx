@@ -15,7 +15,10 @@ const REPORT: ArtifactSummary = {
 function stubPrepare(prepare: (hash: string) => Promise<{ url: string }>) {
   Object.defineProperty(window, "openbot", {
     configurable: true,
-    value: { artifacts: { prepare: vi.fn(prepare) } },
+    value: {
+      artifacts: { prepare: vi.fn(prepare) },
+      share: { status: vi.fn().mockResolvedValue({ kind: "unavailable" }) },
+    },
   });
 }
 

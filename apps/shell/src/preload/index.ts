@@ -204,6 +204,14 @@ const openbotApi: OpenBotDesktopApi = {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),
     setBudget: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendSetBudget, input),
   },
+  share: {
+    status: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareStatus, input),
+    publish: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactSharePublish, input),
+    setVisibility: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareSetVisibility, input),
+    replace: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareReplace, input),
+    unpublish: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareUnpublish, input),
+    copy: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareCopy, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

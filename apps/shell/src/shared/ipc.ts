@@ -1,6 +1,7 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export type * from "./artifact-share";
 export type * from "./branches";
 export * from "./browser";
 export * from "./company";
@@ -12,6 +13,7 @@ export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
 
+import { ARTIFACT_SHARE_CHANNELS, type ArtifactShareDesktopApi } from "./artifact-share";
 import type {
   BranchInput,
   BranchOrigin,
@@ -100,6 +102,7 @@ export const IPC_CHANNELS = {
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
+  ...ARTIFACT_SHARE_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -715,4 +718,5 @@ export interface OpenBotDesktopApi {
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
+  share: ArtifactShareDesktopApi;
 }

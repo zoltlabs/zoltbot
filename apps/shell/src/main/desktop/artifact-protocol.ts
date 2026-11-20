@@ -39,6 +39,8 @@ export function artifactProtocol(options: {
 }) {
   const manifests = new Map<string, ArtifactManifest>();
   return {
+    /** Reads a manifest or file from the daemon, as publishing does (S1). */
+    asset: (kind: "manifest" | "blob", hash: string) => options.asset(kind, hash),
     async prepare(manifestHash: string) {
       if (!/^[a-f0-9]{64}$/.test(manifestHash)) throw Error("artifact_manifest_invalid");
       const bytes = await options.asset("manifest", manifestHash);

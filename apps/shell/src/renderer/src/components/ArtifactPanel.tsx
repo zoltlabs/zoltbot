@@ -1,5 +1,6 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import type { ArtifactSummary } from "../../../shared/ipc";
+import { ArtifactShare } from "./ArtifactShare";
 import { PanelResizer } from "./PanelResizer";
 
 const KIND_LABELS: Record<string, string> = {
@@ -128,6 +129,15 @@ export function ArtifactPanel(props: {
           <h2>{props.artifact.title}</h2>
           <span>{artifactKindLabel(props.artifact)}</span>
         </div>
+        <Show when={props.artifact.manifestHash}>
+          {(hash) => (
+            <ArtifactShare
+              artifactId={props.artifact.id}
+              manifestHash={hash()}
+              title={props.artifact.title}
+            />
+          )}
+        </Show>
         <button
           type="button"
           class="agent-settings-nav-button"

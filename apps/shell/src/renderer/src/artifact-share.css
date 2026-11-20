@@ -1,0 +1,39 @@
+/* Share in the artifact panel (S1). Colors are theme tokens. */
+
+.artifact-share {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.artifact-share-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.artifact-share-choice {
+  align-self: flex-start;
+}
+
+.artifact-share-url {
+  width: 100%;
+}
+
+.artifact-share-older {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.artifact-share-unpublish {
+  align-self: flex-start;
+  color: var(--text-danger);
+}
+
+.artifact-share [aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.7;
+}

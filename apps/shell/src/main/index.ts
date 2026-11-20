@@ -5,6 +5,7 @@ import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   Menu,
@@ -42,6 +43,7 @@ import { notificationForAgentEvent } from "./agent-notifications";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
 import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
+import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
@@ -156,6 +158,9 @@ const account = cloudAccount({
       }
     : {}),
   referenceFile: join(paths.dataDir, "shell", "account-keychain-reference"),
+  // Publishing an artifact (S1) reads its files from the daemon and copies the link.
+  readArtifact: async (kind, hash) => Buffer.from(await artifacts.asset(kind, hash)),
+  writeClipboard: (text) => clipboard.writeText(text),
   openBrowser: (url) => shell.openExternal(url),
   deviceName: hostname(),
 });
@@ -322,6 +327,10 @@ function registerIpcHandlers(setupFile: string): void {
       }
     });
   for (const [channel, handler] of Object.entries(accountHandlers(account)))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    artifactShareHandlers(account, daemonShareRecords(client)),
+  ))
     handleTrusted(channel, handler);
   const pickProjectFolder = folderPicker(() => {
     const options: OpenDialogOptions = {

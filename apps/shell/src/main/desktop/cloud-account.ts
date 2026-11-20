@@ -120,11 +120,30 @@ export function cloudAccount(options: CloudAccountOptions) {
     }
     return null;
   }
+  /** A published copy by its id, and whether it shows this version (S1). One /view call. */
+  async function artifactLink(id: string, manifestHash: string) {
+    const { digest } = await localManifest(manifestHash);
+    const view = (await request(`/artifacts/${artifactId(id)}/view`)) as {
+      manifestHash?: unknown;
+      visibility?: unknown;
+    };
+    if (view.visibility !== "private" && view.visibility !== "public")
+      throw new Error("invalid_artifact_response");
+    // Never send the content capability from /view across renderer IPC.
+    return {
+      id,
+      visibility: view.visibility as "private" | "public",
+      url: `${origin}/s/${id}`,
+      current: view.manifestHash === digest,
+    };
+  }
   async function uploadArtifact(
     manifestHash: string,
     title: string,
     orgId: string,
     confirm: boolean,
+    /** Added to the upload key so a new publish never resumes a deleted upload (S1). */
+    nonce = "",
   ) {
     if (
       !confirm ||
@@ -163,7 +182,9 @@ export function cloudAccount(options: CloudAccountOptions) {
         orgId,
         title,
         manifest,
-        idempotencyKey: createHash("sha256").update(`${manifestHash}\0${title}`).digest("hex"),
+        idempotencyKey: createHash("sha256")
+          .update(`${manifestHash}\0${title}${nonce ? `\0${nonce}` : ""}`)
+          .digest("hex"),
       }),
     )) as { id: string; state: string; uploaded: string[] };
     if (!/^[a-f0-9-]{36}$/.test(reservation.id)) throw new Error("invalid_upload_response");
@@ -299,8 +320,13 @@ export function cloudAccount(options: CloudAccountOptions) {
         return status();
       }),
     export: () => serialized(() => request("/export")),
-    uploadArtifact: (manifestHash: string, title: string, orgId: string, confirm: boolean) =>
-      serialized(() => uploadArtifact(manifestHash, title, orgId, confirm)),
+    uploadArtifact: (
+      manifestHash: string,
+      title: string,
+      orgId: string,
+      confirm: boolean,
+      nonce?: string,
+    ) => serialized(() => uploadArtifact(manifestHash, title, orgId, confirm, nonce)),
     findArtifact: (manifestHash: string, title: string) =>
       serialized(() => findArtifact(manifestHash, title)),
     setArtifactVisibility: (input: {
@@ -325,6 +351,13 @@ export function cloudAccount(options: CloudAccountOptions) {
           }),
         );
         return onlineArtifact(input.id, digest, input.title);
+      }),
+    artifactLink: (id: string, manifestHash: string) =>
+      serialized(() => artifactLink(id, manifestHash)),
+    /** Takes the online copy down; its link stops working. */
+    deleteArtifact: (id: string) =>
+      serialized(async () => {
+        await request(`/artifacts/${artifactId(id)}`, "DELETE", JSON.stringify({ confirm: true }));
       }),
     copyArtifactLink: (id: string) =>
       serialized(async () => {

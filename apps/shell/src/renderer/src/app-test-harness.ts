@@ -289,6 +289,14 @@ export function setUpAppTest() {
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
       },
+      share: {
+        status: vi.fn().mockResolvedValue({ kind: "unavailable" }),
+        publish: vi.fn(),
+        setVisibility: vi.fn(),
+        replace: vi.fn(),
+        unpublish: vi.fn().mockResolvedValue(undefined),
+        copy: vi.fn().mockResolvedValue(undefined),
+      },
       spend: {
         list: vi.fn().mockResolvedValue({ rows: [], budgets: [], projects: [] }),
         setBudget: vi.fn().mockResolvedValue(undefined),
