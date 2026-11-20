@@ -20,6 +20,12 @@ The website publishes released entries only; Unreleased stays in this repository
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
 - Fix: Mac command rules require fresh approval when a prefix only selects options.
 
+## v0.1.8: Clearer setup
+
+November 19, 2026
+
+- Fix: Remove the redundant, all-capital setup label above the heading on Mac.
+
 ## v0.1.7: Team channels, task management and a new desktop
 
 November 19, 2026
