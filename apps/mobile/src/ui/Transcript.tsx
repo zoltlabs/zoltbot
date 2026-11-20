@@ -1,3 +1,4 @@
+import { splitQuote } from "@zoltbot/protocol";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
@@ -13,6 +14,7 @@ import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import type { MarkActions } from "./message-marks";
 import { pick } from "./SessionControls";
+import { SwipeReply } from "./SwipeReply";
 
 /** C1: what the owner can do with a queued message. Move up / down only where there is room. */
 export interface QueueActions {
@@ -64,6 +66,7 @@ function MessageActions({
       : edit
         ? [{ label: row.queued ? "Edit" : "Edit and send again", run: edit }]
         : []),
+    ...(marks?.reply && pinnable(row) ? [{ label: "Reply", run: () => marks.reply?.(row) }] : []),
     ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
     ...(marks && (pinned || pinnable(row))
       ? [{ label: pinned ? "Unpin" : "Pin", run: () => marks.set(row, !pinned) }]
@@ -365,49 +368,62 @@ export function Message({
         </Txt>
       </View>
     );
-  if (row.kind === "user")
+  const reply = marks?.reply && pinnable(row) ? () => marks.reply?.(row) : undefined;
+  if (row.kind === "user") {
+    // C6: a sent reply starts with its quote; show the quote above the words.
+    const quoted = splitQuote(row.text);
+    const words = quoted ? quoted.rest : row.text;
     return (
       <View style={styles.mine}>
-        <Pressable
-          disabled={!(row.turnId && onEditSent) && !queue}
-          onLongPress={() =>
-            queue
-              ? showActions(
-                  "Message actions",
-                  queuedOptions(onEdit ? () => onEdit(row) : undefined, queue),
-                )
-              : onEditSent?.(row)
-          }
-          accessibilityLabel={`You: ${row.text}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
-          {...(queue
-            ? {
-                accessibilityHint: "Touch and hold for more actions",
-                accessibilityActions: queuedOptions(
-                  onEdit ? () => onEdit(row) : undefined,
-                  queue,
-                ).map((option) => ({ name: option.label, label: option.label })),
-                onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) =>
-                  queuedOptions(onEdit ? () => onEdit(row) : undefined, queue)
-                    .find((option) => option.label === event.nativeEvent.actionName)
-                    ?.run(),
-              }
-            : {})}
-          {...(row.turnId && onEditSent
-            ? {
-                accessibilityHint: "Touch and hold to edit and send again",
-                accessibilityActions: [{ name: "edit", label: "Edit and send again" }],
-                onAccessibilityAction: () => onEditSent(row),
-              }
-            : {})}
-          style={[styles.bubble, { backgroundColor: c["bg-popover"] }]}
-        >
-          {row.artifactReference ? (
-            <Txt v="meta" tone="secondary">
-              Artifact reference: {row.artifactReference}
-            </Txt>
-          ) : null}
-          <Txt selectable>{row.text}</Txt>
-        </Pressable>
+        <SwipeReply {...(reply ? { onReply: reply } : {})}>
+          <Pressable
+            disabled={!(row.turnId && onEditSent) && !queue}
+            onLongPress={() =>
+              queue
+                ? showActions(
+                    "Message actions",
+                    queuedOptions(onEdit ? () => onEdit(row) : undefined, queue),
+                  )
+                : onEditSent?.(row)
+            }
+            accessibilityLabel={`You${quoted ? `, replying to “${quoted.quote}”` : ""}: ${words}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
+            {...(queue
+              ? {
+                  accessibilityHint: "Touch and hold for more actions",
+                  accessibilityActions: queuedOptions(
+                    onEdit ? () => onEdit(row) : undefined,
+                    queue,
+                  ).map((option) => ({ name: option.label, label: option.label })),
+                  onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) =>
+                    queuedOptions(onEdit ? () => onEdit(row) : undefined, queue)
+                      .find((option) => option.label === event.nativeEvent.actionName)
+                      ?.run(),
+                }
+              : {})}
+            {...(row.turnId && onEditSent
+              ? {
+                  accessibilityHint: "Touch and hold to edit and send again",
+                  accessibilityActions: [{ name: "edit", label: "Edit and send again" }],
+                  onAccessibilityAction: () => onEditSent(row),
+                }
+              : {})}
+            style={[styles.bubble, { backgroundColor: c["bg-popover"] }]}
+          >
+            {row.artifactReference ? (
+              <Txt v="meta" tone="secondary">
+                Artifact reference: {row.artifactReference}
+              </Txt>
+            ) : null}
+            {quoted ? (
+              <View style={[styles.quote, { borderLeftColor: c["border-strong"] }]}>
+                <Txt v="meta" tone="secondary" lines={3}>
+                  {quoted.quote}
+                </Txt>
+              </View>
+            ) : null}
+            {words ? <Txt selectable>{words}</Txt> : null}
+          </Pressable>
+        </SwipeReply>
         {edits?.count ? (
           <Button
             kind="plain"
@@ -436,6 +452,7 @@ export function Message({
         ) : null}
       </View>
     );
+  }
   const prose =
     row.kind === "message" && !compact ? (
       <View style={{ gap: 4 }}>
@@ -455,16 +472,18 @@ export function Message({
   if (row.kind !== "message" || row.streaming || compact) return prose;
   return (
     <View style={{ gap: 4 }}>
-      <Pressable
-        onLongPress={() => onForward?.(row)}
-        accessibilityHint={onForward ? "Touch and hold to send to another chat" : undefined}
-        accessibilityActions={
-          onForward ? [{ name: "forward", label: "Send to another chat" }] : undefined
-        }
-        onAccessibilityAction={() => onForward?.(row)}
-      >
-        {prose}
-      </Pressable>
+      <SwipeReply {...(reply ? { onReply: reply } : {})}>
+        <Pressable
+          onLongPress={() => onForward?.(row)}
+          accessibilityHint={onForward ? "Touch and hold to send to another chat" : undefined}
+          accessibilityActions={
+            onForward ? [{ name: "forward", label: "Send to another chat" }] : undefined
+          }
+          onAccessibilityAction={() => onForward?.(row)}
+        >
+          {prose}
+        </Pressable>
+      </SwipeReply>
       <MessageActions
         row={row}
         {...(marks ? { marks } : {})}
@@ -492,6 +511,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
   },
   prose: { lineHeight: 22 },
+  quote: { borderLeftWidth: 2, paddingLeft: 8, marginBottom: 4 },
   tool: {
     flexDirection: "row",
     alignItems: "center",

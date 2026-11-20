@@ -1,4 +1,4 @@
-// C4 and C5: Pin, Unpin, Hide and Show for the chat's messages.
+// C4, C5 and C6: Reply, Pin, Unpin, Hide and Show for the chat's messages.
 import { AccessibilityInfo, Alert } from "react-native";
 import type { TranscriptRow } from "../data/view";
 import { usePrefs } from "../state/prefs";
@@ -13,9 +13,16 @@ export interface MarkActions {
   isPinned: (rowId: string) => boolean;
   set: (row: TranscriptRow, pinned: boolean) => void;
   hide: (row: TranscriptRow, hidden: boolean) => void;
+  /** Quotes the message in the composer. */
+  reply?: (row: TranscriptRow) => void;
 }
 
-export function messageMarks(threadId: string, pinnedIds: Set<string>, run: Run): MarkActions {
+export function messageMarks(
+  threadId: string,
+  pinnedIds: Set<string>,
+  run: Run,
+  reply?: (row: TranscriptRow) => void,
+): MarkActions {
   const call = (method: string, row: TranscriptRow, done: string, failed: string) =>
     void run(method, { threadId, itemId: row.id }, { quiet: true }).then(
       (sent) => sent !== undefined && AccessibilityInfo.announceForAccessibility(done),
@@ -27,6 +34,7 @@ export function messageMarks(threadId: string, pinnedIds: Set<string>, run: Run)
         ),
     );
   return {
+    ...(reply ? { reply } : {}),
     isPinned: (rowId) => pinnedIds.has(rowId),
     set: (row, on) =>
       on

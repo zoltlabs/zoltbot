@@ -25,6 +25,8 @@ beforeAll(async () => {
       resolveDir: path.resolve("apps/mobile/src/ui"),
       contents: `
       export { AssistantTurn } from './AssistantTurn';
+      export { Message } from './Transcript';
+      export { ReplyBar } from './ReplyBar';
       export { ChatOutcome } from './ChatOutcome';
       export { default as Options } from '../app/chat/options';
       export { default as ToolResult } from '../app/chat/tool';
@@ -96,6 +98,7 @@ beforeAll(async () => {
       },
       View: component("div"),
     },
+    PanResponder: { create: () => ({ panHandlers: {} }) },
     Platform: { OS: "ios" },
     Alert: { alert() {} },
     Share: { share: async () => ({}) },
@@ -247,4 +250,23 @@ it("offers browser handoff without collecting credentials in an empty form", () 
   expect(html).toContain("Open example.invalid");
   expect(html).toContain("Continue");
   expect(html).not.toContain("textarea");
+});
+it("shows a sent reply's quote above its words and offers Reply", () => {
+  const marks = { isPinned: () => false, set() {}, hide() {}, reply() {} };
+  const html = render("Message", {
+    threadId: "chat",
+    marks,
+    row: { id: "u", kind: "user", turnId: "t", text: "> The build is green\n\nShip it?" },
+  });
+  expect(html).toContain("The build is green");
+  expect(html).toContain("Ship it?");
+  expect(html).not.toContain("&gt; The build");
+  expect(html).toContain("replying to “The build is green”");
+  const bar = render("ReplyBar", {
+    row: { id: "m", kind: "message", text: "The build is green" },
+    name: "Builder",
+    onCancel() {},
+  });
+  expect(bar).toContain("Replying to Builder");
+  expect(bar).toContain('aria-label="Cancel reply"');
 });

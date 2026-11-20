@@ -2858,7 +2858,14 @@ textarea {
 
 .user-bubble .message-reply-context {
   border-left-color: rgba(20, 20, 20, 0.22);
-  color: rgba(20, 20, 20, 0.58);
+  color: rgba(20, 20, 20, 0.7);
+}
+
+.message-reply-context-sent p {
+  display: -webkit-box;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .user-bubble .message-copy {

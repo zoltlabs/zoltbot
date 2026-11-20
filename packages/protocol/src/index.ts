@@ -30,6 +30,7 @@ export * from "./native-compaction.js";
 export * from "./orchestration.js";
 export * from "./private-values.js";
 export * from "./quick-chat.js";
+export * from "./reply-quote.js";
 export * from "./session-order.js";
 export * from "./shipping.js";
 export * from "./skill-views.js";

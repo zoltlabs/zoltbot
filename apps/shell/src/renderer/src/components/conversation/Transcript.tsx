@@ -1,3 +1,4 @@
+import { splitQuote } from "@zoltbot/protocol";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type {
   AgentModelId,
@@ -144,6 +145,12 @@ export function MessageBody(props: {
   openArtifactVersionId: string | null;
   onOpenArtifact: (artifact: ArtifactSummary) => void;
 }) {
+  // A sent reply carries its quote in the text; show it as the reply context.
+  const sent = () =>
+    props.message.author === "you" && !props.referencedMessage
+      ? splitQuote(props.message.body)
+      : undefined;
+  const words = () => sent()?.rest ?? props.message.body;
   return (
     <>
       <Show when={props.referencedMessage}>
@@ -154,10 +161,18 @@ export function MessageBody(props: {
           </div>
         )}
       </Show>
-      <Show when={props.message.body}>
+      <Show when={sent()}>
+        {(reply) => (
+          <div class="message-reply-context message-reply-context-sent">
+            <span class="sr-only">{t("chat.reply.quoted")}</span>
+            <p>{reply().quote}</p>
+          </div>
+        )}
+      </Show>
+      <Show when={words()}>
         <p class="message-copy">
           <RichMessageText
-            body={props.message.body}
+            body={words()}
             bots={props.bots}
             onSelectAgent={props.onSelectAgent}
             onOpenLink={props.onOpenLink}

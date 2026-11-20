@@ -1,4 +1,4 @@
-import { type ArtifactTarget, isStopPhrase } from "@zoltbot/protocol";
+import { type ArtifactTarget, isStopPhrase, quoteText, withQuote } from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
@@ -53,6 +53,7 @@ import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
+import { ReplyBar } from "../../ui/ReplyBar";
 import { useRowPositions } from "../../ui/row-positions";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
@@ -102,7 +103,15 @@ export default function Chat() {
   );
   const compareReadOnly = compareMember?.ceiling === "read_only" || compare?.summaryThreadId === id;
   const pinnedIds = new Set(pinned.map((row) => row.id));
-  const marks = online ? messageMarks(id, pinnedIds, run) : undefined;
+  // C6: the message being replied to; its quote goes ahead of the words when sent.
+  const [replyTo, setReplyTo] = useState<TranscriptRow>();
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const marks = online
+    ? messageMarks(id, pinnedIds, run, (row) => {
+        setReplyTo(row);
+        input.current?.focus();
+      })
+    : undefined;
   // Staff approvals are cards in the transcript, not the pinned request.
   const pending = pendingFor(snapshot, id).filter((row) => !isStaffApproval(row));
   const [selected, setSelected] = useState<string>();
@@ -123,9 +132,10 @@ export default function Chat() {
   }, [turn]);
   const send = async () => {
     const message = draft.trim();
+    const words = replyTo ? withQuote(quoteText(replyTo.text), message) : message;
     if (!message && !attachments.length) return;
     // A bare "stop" while the agent works stops the turn instead of queueing a message.
-    if (turn && !attachments.length && isStopPhrase(message)) {
+    if (turn && !attachments.length && !replyTo && isStopPhrase(message)) {
       const stopped = await run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
       if (stopped) {
         setDraft("");
@@ -138,18 +148,19 @@ export default function Chat() {
         Alert.alert("Side questions can’t include attachments.");
         return;
       }
-      const asked = await run("turn.aside", { threadId: id, text: message });
+      const asked = await run("turn.aside", { threadId: id, text: words });
       if (asked) {
         followLatest.current = true;
         setFollowing(true);
         setDraft("");
+        setReplyTo(undefined);
         AccessibilityInfo.announceForAccessibility("Asked aside");
       }
       return;
     }
     const result = await run("turn.send", {
       threadId: id,
-      input: composeInput(message, attachments),
+      input: composeInput(words, attachments),
       ...(artifactTarget ? { artifactTarget } : {}),
       mode: canSteer && delivery === "steer" ? "steer" : "queue",
     });
@@ -160,6 +171,7 @@ export default function Chat() {
       setDraft("");
       setAttachments([]);
       setArtifactTarget(undefined);
+      setReplyTo(undefined);
     }
   };
   const stop = () => turn && void run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
@@ -381,6 +393,9 @@ export default function Chat() {
         ]}
         accessibilityLabel={`Message ${title}`}
       >
+        {replyTo ? (
+          <ReplyBar row={replyTo} name={who} onCancel={() => setReplyTo(undefined)} />
+        ) : null}
         {artifactTarget ? (
           <View style={{ gap: 8 }}>
             <Txt tone="secondary">
@@ -414,6 +429,7 @@ export default function Chat() {
         </View>
         <View style={styles.inputRow}>
           <TextInput
+            ref={input}
             value={draft}
             onChangeText={setDraft}
             placeholder={canAside && delivery === "aside" ? "Ask aside…" : "Message"}

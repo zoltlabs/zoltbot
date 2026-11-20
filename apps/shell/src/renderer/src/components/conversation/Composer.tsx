@@ -1,3 +1,4 @@
+import { quoteText, withQuote } from "@zoltbot/protocol";
 import { For, Show } from "solid-js";
 import type { DraftAttachment, QueueSnapshot } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
@@ -41,9 +42,16 @@ export function Composer(props: {
   const aside = createAsideMode({
     botId: () => props.bot?.id,
     working: () => Boolean(props.activeTurnId),
-    text: () => props.text,
+    // C6: a side question asked while replying carries the quote too.
+    text: () =>
+      props.replyTarget?.body
+        ? withQuote(quoteText(props.replyTarget.body), props.text.trim())
+        : props.text,
     hasAttachments: () => props.attachments.length > 0,
-    clear: () => props.onTextChange(""),
+    clear: () => {
+      props.onTextChange("");
+      props.onCancelReply();
+    },
   });
   return (
     <div class="composer-wrap">

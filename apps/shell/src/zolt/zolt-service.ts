@@ -51,6 +51,7 @@ import {
   toResolution,
   visibleThreads,
 } from "./mapping";
+import { messageParts } from "./message-parts";
 import { modelsService, switchDialogFor } from "./models-service";
 import { pinnedMessages } from "./pins";
 import { changesSpend } from "./spend-view";
@@ -454,14 +455,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const attachments = (input.attachmentDraftIds ?? [])
       .map((id) => this.drafts.get(id))
       .filter((draft): draft is { path: string; summary: DraftAttachment } => Boolean(draft));
-    const parts: Row[] = [];
-    if (words) parts.push({ type: "text", text: words });
-    for (const attachment of attachments)
-      parts.push(
-        attachment.summary.kind === "image"
-          ? { type: "image", path: attachment.path, mimeType: attachment.summary.mimeType }
-          : { type: "file", path: attachment.path },
-      );
+    const parts = messageParts(this.items(input.botId), input.replyToMessageId, words, attachments);
     if (!parts.length) throw new Error("Write a message first.");
     const conversation = this.conversation(input.botId);
     const pendingId = `pending:${randomUUID()}`;

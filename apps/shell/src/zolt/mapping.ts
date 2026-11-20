@@ -1,4 +1,4 @@
-import { queueOrderKey } from "@zoltbot/protocol";
+import { queueOrderKey, splitQuote } from "@zoltbot/protocol";
 import type { BranchOrigin } from "../shared/branches";
 import type {
   AgentPromptQuestion,
@@ -78,6 +78,12 @@ export function userText(item: Row): string {
     .join("\n");
 }
 
+/** A sent reply's own words, without the quote it starts with (C6). */
+const previewWords = (value: string) => {
+  const reply = splitQuote(value.trim());
+  return reply ? reply.rest || reply.quote : value;
+};
+
 /** The chat's last words for the sidebar, skipping messages the owner hid (C5). */
 export function previewText(items: Row[], hidden: ReadonlySet<string> = new Set()): string {
   for (let i = items.length - 1; i >= 0; i--) {
@@ -86,7 +92,7 @@ export function previewText(items: Row[], hidden: ReadonlySet<string> = new Set(
     const value = item.kind === "user" ? userText(item) : text(body(item).text);
     if (isZoltbotNotice(item)) continue;
     if ((item.kind === "user" || item.kind === "message") && value.trim())
-      return value.replace(/\s+/g, " ").trim().slice(0, 140);
+      return previewWords(value).replace(/\s+/g, " ").trim().slice(0, 140);
   }
   return "";
 }
