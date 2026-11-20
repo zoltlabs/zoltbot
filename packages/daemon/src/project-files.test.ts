@@ -96,6 +96,15 @@ describe("project updates", () => {
       expect(store.record("project", "p1")?.designFiles ?? null).toBeNull();
       await api("project.update", { id: "p1", changes: { defaultAgentId: "agent-2" } }, "e");
       expect(store.record("project", "p1")?.defaultAgentId).toBe("agent-2");
+      await api(
+        "project.update",
+        { id: "p1", changes: { artifactRepositoryMode: "every_save" } },
+        "f",
+      );
+      expect(store.record("project", "p1")?.artifactRepositoryMode).toBe("every_save");
+      await expect(
+        api("project.update", { id: "p1", changes: { artifactRepositoryMode: "sometimes" } }, "g"),
+      ).rejects.toThrow();
       await api("project.update", { id: "p1", changes: { goal: "", instructions: "" } }, "c");
       expect(store.record("project", "p1")).toMatchObject({ goal: "", instructions: "" });
       await expect(

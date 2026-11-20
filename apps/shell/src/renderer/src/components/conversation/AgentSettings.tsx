@@ -25,6 +25,7 @@ import {
   SETTINGS_PANEL_MIN,
 } from "./constants";
 import { BackIcon, CloseIcon } from "./icons";
+import { RepositoryMode } from "./RepositoryMode";
 
 /** Editable copies of the agent's profile fields, refreshed when the agent changes. */
 export function createAgentSettingsForm() {
@@ -288,6 +289,7 @@ export function AgentSettings(props: {
           </div>
         </Show>
         <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
+        <Show when={props.bot?.id}>{(botId) => <RepositoryMode botId={botId()} />}</Show>
       </div>
     </aside>
   );

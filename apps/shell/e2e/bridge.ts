@@ -266,6 +266,12 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         unpublish: call(channels.artifactShareUnpublish),
         copy: call(channels.artifactShareCopy),
       },
+      repository: {
+        state: call(channels.artifactRepositoryState),
+        add: call(channels.artifactRepositoryAdd),
+        mode: call(channels.artifactRepositoryMode),
+        setMode: call(channels.artifactRepositorySetMode),
+      },
       // The headless page has no view scheme, so it reports no installed map.
       views: {
         getMap: async () => null,

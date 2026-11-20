@@ -1,5 +1,6 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import type { ArtifactSummary } from "../../../shared/ipc";
+import { ArtifactRepository } from "./ArtifactRepository";
 import { ArtifactShare } from "./ArtifactShare";
 import { PanelResizer } from "./PanelResizer";
 
@@ -149,6 +150,9 @@ export function ArtifactPanel(props: {
           </svg>
         </button>
       </header>
+      <Show when={props.artifact.id} keyed>
+        {(id) => <ArtifactRepository artifactId={id} />}
+      </Show>
       <div class="artifact-panel-body">
         <Show
           when={frame().url}

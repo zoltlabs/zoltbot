@@ -212,6 +212,12 @@ const openbotApi: OpenBotDesktopApi = {
     unpublish: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareUnpublish, input),
     copy: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareCopy, input),
   },
+  repository: {
+    state: (artifactId) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositoryState, artifactId),
+    add: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositoryAdd, input),
+    mode: (botId) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositoryMode, botId),
+    setMode: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositorySetMode, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

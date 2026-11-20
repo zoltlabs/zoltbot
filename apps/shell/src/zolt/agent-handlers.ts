@@ -1,4 +1,5 @@
 import { IPC_CHANNELS } from "../shared/ipc";
+import { artifactRepositoryHandlers } from "./artifact-repository-service";
 import { branchHandlers } from "./branch-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
 import { parseTaskAction } from "./manager-cards";
@@ -75,6 +76,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...threadActionHandlers(service.client),
     ...memoryHandlers(service.client),
     ...spendHandlers(service.client),
+    ...artifactRepositoryHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

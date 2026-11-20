@@ -289,6 +289,12 @@ export function setUpAppTest() {
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
       },
+      repository: {
+        state: vi.fn().mockResolvedValue(null),
+        add: vi.fn(),
+        mode: vi.fn().mockResolvedValue(null),
+        setMode: vi.fn().mockResolvedValue(undefined),
+      },
       share: {
         status: vi.fn().mockResolvedValue({ kind: "unavailable" }),
         publish: vi.fn(),

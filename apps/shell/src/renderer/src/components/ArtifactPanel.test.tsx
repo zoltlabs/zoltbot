@@ -18,6 +18,8 @@ function stubPrepare(prepare: (hash: string) => Promise<{ url: string }>) {
     value: {
       artifacts: { prepare: vi.fn(prepare) },
       share: { status: vi.fn().mockResolvedValue({ kind: "unavailable" }) },
+      repository: { state: vi.fn().mockResolvedValue(null) },
+      agent: { onEvent: vi.fn(() => () => {}) },
     },
   });
 }

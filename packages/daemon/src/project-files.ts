@@ -90,6 +90,7 @@ const editable = {
     "designFiles",
     "defaultAgentId",
     "artifactDesignContextId",
+    "artifactRepositoryMode",
   ],
   subproject: ["name", "goal", "instructions"],
 } as const;

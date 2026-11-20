@@ -33,7 +33,36 @@
   color: var(--text-danger);
 }
 
-.artifact-share [aria-disabled="true"] {
+.artifact-share [aria-disabled="true"],
+.artifact-repository [aria-disabled="true"] {
   cursor: default;
   opacity: 0.7;
+}
+
+/* S2: the repository line under the artifact panel's header. */
+.artifact-repository {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--openbot-line);
+  font-size: 12px;
+}
+
+.artifact-repository:empty {
+  display: none;
+}
+
+.artifact-repository-state {
+  color: var(--text-secondary);
+}
+
+.artifact-repository-state:empty {
+  display: none;
+}
+
+.artifact-repository .memory-error {
+  flex-basis: 100%;
+  margin: 0;
 }
