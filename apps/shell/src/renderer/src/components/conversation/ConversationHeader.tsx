@@ -1,6 +1,7 @@
-import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createSignal, createUniqueId, For, onMount, Show } from "solid-js";
 import type { AgentModelId, AgentModelOption, AgentStatus } from "../../../../shared/ipc";
 import type { BotProfile } from "../../data";
+import { Suggestions } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { OrganizationIcon } from "../OrganizationPanel";
 import { ProviderModelPicker } from "../ProviderModelPicker";
@@ -137,6 +138,9 @@ function AgentPicker(props: {
   const [pickerQuery, setPickerQuery] = createSignal("");
   const [activePickerOption, setActivePickerOption] = createSignal(0);
   let pickerInput: HTMLInputElement | undefined;
+  const [field, setField] = createSignal<HTMLLabelElement>();
+  const listId = createUniqueId();
+  const optionId = (index: number) => `${listId}-${index}`;
   const filteredBots = createMemo(() => {
     const query = pickerQuery().trim().toLowerCase();
     return query
@@ -164,13 +168,16 @@ function AgentPicker(props: {
 
   return (
     <div class="agent-picker-root no-drag">
-      <label class="agent-recipient-field">
+      <label ref={setField} class="agent-recipient-field">
         <span>To:</span>
         <input
           ref={(element) => (pickerInput = element)}
           role="combobox"
           aria-label="To:"
           aria-expanded="true"
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={optionId(activePickerOption())}
           placeholder="Search or create agents"
           value={pickerQuery()}
           onInput={(event) => {
@@ -180,35 +187,47 @@ function AgentPicker(props: {
           onKeyDown={handleKeyDown}
         />
       </label>
-      <div class="agent-picker-menu" role="listbox">
-        <button
-          type="button"
-          role="option"
-          aria-selected={activePickerOption() === 0}
-          class="agent-picker-option agent-picker-create"
-          disabled={props.creatingAgent}
-          onClick={props.onCreateAgent}
-        >
-          <span class="agent-picker-plus">
-            <PlusIcon />
-          </span>
-          <span>{props.creatingAgent ? "Creating agent…" : "Create new agent"}</span>
-        </button>
-        <For each={filteredBots()}>
-          {(bot, index) => (
-            <button
-              type="button"
-              role="option"
-              aria-selected={activePickerOption() === index() + 1}
-              class="agent-picker-option"
-              onClick={() => props.onSelectAgent(bot.id)}
-            >
-              <AgentAvatar bot={bot} />
-              <span>{bot.name}</span>
-            </button>
-          )}
-        </For>
-      </div>
+      <Show when={field()}>
+        {(anchor) => (
+          <Suggestions anchor={anchor()} placement="bottom-start" matchWidth>
+            <div id={listId} class="agent-picker-menu" role="listbox" aria-label="Agents">
+              <button
+                type="button"
+                id={optionId(0)}
+                tabIndex={-1}
+                role="option"
+                aria-selected={activePickerOption() === 0}
+                class="agent-picker-option agent-picker-create"
+                disabled={props.creatingAgent}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={props.onCreateAgent}
+              >
+                <span class="agent-picker-plus">
+                  <PlusIcon />
+                </span>
+                <span>{props.creatingAgent ? "Creating agent…" : "Create new agent"}</span>
+              </button>
+              <For each={filteredBots()}>
+                {(bot, index) => (
+                  <button
+                    type="button"
+                    id={optionId(index() + 1)}
+                    tabIndex={-1}
+                    role="option"
+                    aria-selected={activePickerOption() === index() + 1}
+                    class="agent-picker-option"
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={() => props.onSelectAgent(bot.id)}
+                  >
+                    <AgentAvatar bot={bot} />
+                    <span>{bot.name}</span>
+                  </button>
+                )}
+              </For>
+            </div>
+          </Suggestions>
+        )}
+      </Show>
     </div>
   );
 }
