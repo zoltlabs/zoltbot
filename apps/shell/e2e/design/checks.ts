@@ -97,7 +97,7 @@ export async function triggerProblems(page: Page, trigger: Locator, name: string
   return problems;
 }
 
-/** Every visible, enabled control on the page that opens a menu, listbox or dialog. */
+/** Every visible, enabled control on the page that opens a menu, listbox or dialog, outside inert content. */
 export async function overlayTriggers(page: Page): Promise<{ locator: Locator; name: string }[]> {
   const triggers = page.locator(
     "[aria-haspopup]:not([disabled]):not([aria-disabled='true']):visible",
@@ -106,6 +106,8 @@ export async function overlayTriggers(page: Page): Promise<{ locator: Locator; n
   const found: { locator: Locator; name: string }[] = [];
   for (let index = 0; index < count; index++) {
     const locator = triggers.nth(index);
+    // Content behind a page is inert: nobody can reach it, so it isn't checked.
+    if (await locator.evaluate((element) => element.closest("[inert]") !== null)) continue;
     const name =
       (await locator.getAttribute("aria-label")) ||
       (await locator.innerText()).trim().split("\n")[0] ||
@@ -134,6 +136,7 @@ export async function layoutProblems(page: Page): Promise<string[]> {
       return `${element.tagName.toLowerCase()}${classes ? `.${classes}` : ""} "${label}"`;
     };
     const visible = (element: Element) => {
+      if (element.closest("[inert]")) return false;
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return false;
       const style = getComputedStyle(element);
