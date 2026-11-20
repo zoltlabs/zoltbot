@@ -7,6 +7,7 @@ import type {
   AttachmentSummary,
 } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
+import { Menu } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { ArtifactCards } from "../ArtifactPanel";
 import { ChoiceCard } from "../ConversationPrompts";
@@ -27,6 +28,7 @@ export function ExchangeSystemRow(props: {
   onSelectAgent: (botId: string) => void;
 }) {
   const [agentsOpen, setAgentsOpen] = createSignal(false);
+  let agentsTrigger: HTMLButtonElement | undefined;
   const exchange = () => props.message.exchange;
   const recipients = () => exchange()?.recipientBotIds ?? [];
   const sender = () => {
@@ -67,6 +69,7 @@ export function ExchangeSystemRow(props: {
           fallback={
             <div class="exchange-agent-picker">
               <button
+                ref={agentsTrigger}
                 type="button"
                 class="exchange-agent-trigger exchange-agent-trigger-outgoing"
                 aria-haspopup="menu"
@@ -83,28 +86,25 @@ export function ExchangeSystemRow(props: {
                 </span>
                 <span>{agentCountLabel()}</span>
               </button>
-              <Show when={agentsOpen()}>
-                <div class="exchange-agent-menu" role="menu">
-                  <For each={recipients()}>
-                    {(recipientId) => {
-                      const recipient = () => props.bots.find((bot) => bot.id === recipientId);
-                      return (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          class="exchange-agent-menu-item"
-                          onClick={() => {
-                            setAgentsOpen(false);
-                            props.onSelectAgent(recipientId);
-                          }}
-                        >
-                          <ExchangeAgentAvatar bot={recipient()} />
-                          <span>{recipient()?.name ?? recipientId}</span>
-                        </button>
-                      );
-                    }}
-                  </For>
-                </div>
+              <Show when={agentsOpen() && agentsTrigger}>
+                {(anchor) => (
+                  <Menu
+                    anchor={anchor()}
+                    label={agentCountLabel()}
+                    groups={[
+                      recipients().map((recipientId) => {
+                        const recipient = props.bots.find((bot) => bot.id === recipientId);
+                        return {
+                          id: recipientId,
+                          label: recipient?.name ?? recipientId,
+                          icon: <ExchangeAgentAvatar bot={recipient} />,
+                          run: () => props.onSelectAgent(recipientId),
+                        };
+                      }),
+                    ]}
+                    onClose={() => setAgentsOpen(false)}
+                  />
+                )}
               </Show>
             </div>
           }

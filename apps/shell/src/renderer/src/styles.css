@@ -3360,50 +3360,10 @@ textarea {
   height: 16px;
 }
 
-.exchange-agent-menu-item .exchange-agent-avatar {
-  width: 18px;
-  height: 18px;
-  flex-basis: 18px;
-}
 
-.exchange-agent-menu-item .exchange-agent-avatar .agent-mark {
-  width: 18px;
-  height: 18px;
-}
 
-.exchange-agent-menu {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 8px);
-  left: 50%;
-  display: grid;
-  min-width: 170px;
-  gap: 2px;
-  transform: translateX(-50%);
-  border: 1px solid var(--openbot-line-strong);
-  border-radius: 12px;
-  background: var(--surface-dialog);
-  padding: 5px;
-  box-shadow: 0 14px 34px rgb(var(--shade) / calc(0.42 * var(--shade-strength)));
-  text-align: left;
-}
 
-.exchange-agent-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  padding: 6px 8px;
-  color: var(--openbot-white);
-  font-size: 12px;
-  text-align: left;
-}
 
-.exchange-agent-menu-item:hover {
-  background: rgb(var(--ink) / 0.08);
-}
 
 .exchange-agent-message {
   margin-top: 11px;
