@@ -4,12 +4,10 @@ import type {
   ChannelMember,
   ChannelPostView,
   ChannelRequestView,
-  ChannelWaitingView,
 } from "../../data/channels";
 import { recipientLabel } from "../../data/channels";
 import { touch, type as typography, useTheme } from "../../theme";
 import { BotAvatar } from "../BotAvatar";
-import { StopGlyph } from "../icons";
 import { Txt } from "../kit";
 
 export function LeadBadge() {
@@ -66,51 +64,6 @@ export function PillButton({
       {icon}
       <Txt v="chip">{label}</Txt>
     </Pressable>
-  );
-}
-
-/** The request being worked on, under the header. Tapping it opens the channel sheet. */
-export function RequestBar({
-  request,
-  meta,
-  onOpen,
-  onStop,
-  disabled,
-}: {
-  request: ChannelRequestView;
-  meta: string;
-  onOpen: () => void;
-  onStop: () => void;
-  disabled?: boolean;
-}) {
-  const { c } = useTheme();
-  return (
-    <View style={[styles.bar, { backgroundColor: c["bg-raised"], borderColor: c.border }]}>
-      <Pressable
-        onPress={onOpen}
-        accessibilityRole="button"
-        accessibilityLabel={`${request.title}, ${meta}`}
-        accessibilityHint="Opens requests and members"
-        style={styles.barText}
-      >
-        <RequestDot state={request.state} />
-        <View style={styles.grow}>
-          <Txt v="bodyMedium" lines={1} style={styles.barTitle}>
-            {request.title}
-          </Txt>
-          <Txt v="meta" tone="muted" lines={1}>
-            {meta}
-          </Txt>
-        </View>
-      </Pressable>
-      <PillButton
-        label="Stop"
-        a11y={`Stop ${request.title}`}
-        icon={<StopGlyph color={c.text} />}
-        onPress={onStop}
-        disabled={disabled}
-      />
-    </View>
   );
 }
 
@@ -189,33 +142,6 @@ export function Notice({ text }: { text: string }) {
   );
 }
 
-/** Questions a member still owes an answer to. */
-export function WaitingBlock({ rows }: { rows: readonly ChannelWaitingView[] }) {
-  const { c } = useTheme();
-  return (
-    <>
-      {rows.map((row) => (
-        <View
-          key={`${row.postId}:${row.threadId}`}
-          accessible
-          accessibilityLabel={`Waiting on ${row.name}. ${row.question}`}
-          style={[styles.waiting, { borderColor: c.attention }]}
-        >
-          <BotAvatar id={row.threadId} size={22} />
-          <View style={styles.grow}>
-            <Txt v="bodyMedium">{`Waiting on ${row.name}`}</Txt>
-            {row.question ? (
-              <Txt v="meta" tone="muted" lines={3}>
-                {row.question}
-              </Txt>
-            ) : null}
-          </View>
-        </View>
-      ))}
-    </>
-  );
-}
-
 /** A round icon button in the header, as in the mockups. */
 export function HeaderButton({
   label,
@@ -256,20 +182,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  bar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingLeft: 12,
-    paddingRight: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  barText: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, minHeight: touch },
-  barTitle: { fontSize: 14 },
   grow: { flex: 1, minWidth: 0 },
   post: { gap: 6 },
   own: { alignItems: "flex-end" },
@@ -286,16 +198,6 @@ const styles = StyleSheet.create({
   whoName: { fontSize: 14 },
   indent: { paddingLeft: 36 },
   notice: { textAlign: "center", paddingHorizontal: 24 },
-  waiting: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "dashed",
-  },
   headerButton: {
     width: touch,
     height: touch,

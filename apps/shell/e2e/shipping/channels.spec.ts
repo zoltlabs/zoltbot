@@ -52,7 +52,7 @@ const chat = (id: string, title: string, kind: "manager" | "side"): [string, str
  * who owes a reply; the owner's post with an @mention reaches Mira and starts a request, which
  * the owner then stops.
  */
-test("team channels route posts, show requests and who owes a reply", async ({ page }) => {
+test("team channels route posts and show requests", async ({ page }) => {
   const fixture = await compareFixture();
   // The team's chats exist before the shell connects, as they would after a restart.
   seed(fixture, [
@@ -150,9 +150,6 @@ test("team channels route posts, show requests and who owes a reply", async ({ p
     await expect(main.getByRole("heading", { name: "#payments" })).toBeFocused();
     const posts = main.getByRole("list", { name: "Posts" });
     await expect(posts.getByText("Lead")).toBeVisible();
-    await expect(main.getByRole("region", { name: "Waiting for replies" })).toContainText(
-      "Theo owes Payments a reply",
-    );
     await expect(posts.getByText("Old post 1", { exact: true })).toHaveCount(0);
     expect(await axeViolations(page)).toEqual([]);
     await posts.getByRole("button", { name: "Show earlier" }).click();
@@ -174,12 +171,12 @@ test("team channels route posts, show requests and who owes a reply", async ({ p
     await expect(posts.getByText("@Mira please take the refund endpoint")).toBeVisible();
     await expect(posts.getByText("to Mira")).toBeVisible();
 
-    const bar = main.getByRole("region", { name: "Current request" });
-    await expect(bar).toContainText("@Mira please take the refund endpoint");
     expect(await axeViolations(page)).toEqual([]);
 
-    await bar.getByRole("button", { name: "Stop" }).click();
-    await expect(bar.getByRole("button", { name: "Resume" })).toBeVisible();
+    await panel.getByRole("button", { name: "Stop @Mira please take the refund endpoint" }).click();
+    await expect(
+      panel.getByRole("button", { name: "Resume @Mira please take the refund endpoint" }),
+    ).toBeVisible();
     await expect(
       panel.getByRole("button", { name: "Archive @Mira please take the refund endpoint" }),
     ).toBeVisible();

@@ -93,17 +93,16 @@ describe("ChannelPage", () => {
     Object.defineProperty(window, "openbot", { configurable: true, value: { agent } });
   });
 
-  it("shows speakers, the lead, the request and who owes a reply", async () => {
+  it("shows speakers, the lead and the requests", async () => {
     const { onOpenChat } = renderPage();
     expect(await screen.findByRole("heading", { name: "#payments" })).toBeVisible();
     const posts = screen.getByRole("list", { name: "Posts" });
     expect(within(posts).getByText("You")).toBeVisible();
     expect(within(posts).getByText("Lead")).toBeVisible();
     expect(within(posts).getByText("Refund endpoint · Running")).toBeVisible();
-    const bar = screen.getByRole("region", { name: "Current request" });
-    expect(within(bar).getByText("Running · Payments · 1 task")).toBeVisible();
-    const waiting = screen.getByRole("region", { name: "Waiting for replies" });
-    expect(waiting.textContent).toContain("Theo owes Payments a reply");
+    const details = screen.getByRole("complementary", { name: "Channel details" });
+    expect(within(details).getByText("Running · Payments · 1 task")).toBeVisible();
+    expect(screen.queryByText(/owes .* a reply/)).toBeNull();
     await fireEvent.click(within(posts).getByRole("button", { name: "Payments" }));
     expect(onOpenChat).toHaveBeenCalledWith("lead");
   });
@@ -166,13 +165,10 @@ describe("ChannelPage", () => {
     finish();
   });
 
-  it("asks before stopping a request with running tasks", async () => {
+  it("stops and resumes a request from the details panel", async () => {
     renderPage();
-    const bar = await screen.findByRole("region", { name: "Current request" });
-    await fireEvent.click(within(bar).getByRole("button", { name: "Stop" }));
-    expect(agent.channelRequest).not.toHaveBeenCalled();
-    expect(within(bar).getByText("Stops 1 task.")).toBeVisible();
-    await fireEvent.click(within(bar).getByRole("button", { name: "Stop request" }));
+    const details = await screen.findByRole("complementary", { name: "Channel details" });
+    await fireEvent.click(within(details).getByRole("button", { name: /^Stop / }));
     await waitFor(() =>
       expect(agent.channelRequest).toHaveBeenCalledWith({
         requestId: "request-p1",
@@ -180,8 +176,8 @@ describe("ChannelPage", () => {
         revision: 2,
       }),
     );
-    expect(within(bar).getByText(/^Stopped/)).toBeVisible();
-    expect(within(bar).getByRole("button", { name: "Resume" })).toBeVisible();
+    expect(within(details).getByText(/^Stopped/)).toBeVisible();
+    expect(within(details).getByRole("button", { name: /^Resume / })).toBeVisible();
   });
 
   it("rolls back a refused post with an error", async () => {

@@ -1,6 +1,6 @@
-import { createEffect, createMemo, createSignal, For, on, onMount, Show } from "solid-js";
-import type { ChannelDetail, ChannelPostView, ChannelRequestView } from "../../../shared/channels";
-import { currentRequest, openTasks, REQUEST_STATE_LABELS, shortTime, taskLine } from "../channels";
+import { createEffect, createMemo, For, on, onMount, Show } from "solid-js";
+import type { ChannelDetail, ChannelPostView } from "../../../shared/channels";
+import { shortTime, taskLine } from "../channels";
 import type { ChannelsStore } from "../channels-store";
 import { ChannelComposer } from "./ChannelComposer";
 import { ChannelPanel } from "./ChannelPanel";
@@ -13,7 +13,7 @@ interface ChannelPageProps {
   onOpenChat: (threadId: string) => void;
 }
 
-/** A team channel in place of the conversation: posts, the current request and who owes a reply. */
+/** A team channel in place of the conversation: posts, with members and requests beside them. */
 export function ChannelPage(props: ChannelPageProps) {
   let heading: HTMLHeadingElement | undefined;
   let transcript: HTMLOListElement | undefined;
@@ -87,7 +87,6 @@ export function ChannelPage(props: ChannelPageProps) {
         {(current) => (
           <div class="channel-body">
             <div class="channel-main">
-              <RequestBar detail={current()} store={props.store} />
               <ol ref={transcript} class="channel-transcript" aria-label="Posts" tabIndex={-1}>
                 <Show when={current().more}>
                   <li class="channel-earlier">
@@ -108,7 +107,6 @@ export function ChannelPage(props: ChannelPageProps) {
                   {(post) => <Post post={post} detail={current()} onOpenChat={props.onOpenChat} />}
                 </For>
               </ol>
-              <Waiting detail={current()} />
               <Show when={props.store.error()}>
                 <p class="channel-error" role="alert">
                   {props.store.error()}
@@ -195,152 +193,5 @@ function Post(props: {
         )}
       </For>
     </>
-  );
-}
-
-function RequestBar(props: { detail: ChannelDetail; store: ChannelsStore }) {
-  const request = createMemo(() => currentRequest(props.detail.requests));
-  const [confirming, setConfirming] = createSignal(false);
-  const [reassigning, setReassigning] = createSignal(false);
-  createEffect(
-    on(
-      () => request()?.id,
-      () => {
-        setConfirming(false);
-        setReassigning(false);
-      },
-    ),
-  );
-  function stop(current: ChannelRequestView) {
-    if (openTasks(current).length && !confirming()) {
-      setConfirming(true);
-      return;
-    }
-    setConfirming(false);
-    void props.store.act(current, "stop");
-  }
-  return (
-    <Show when={request()}>
-      {(current) => (
-        <section class="channel-request-bar" aria-label="Current request">
-          <div class="channel-request-bar-copy">
-            <span class="channel-request-bar-title">{current().title}</span>
-            <span class="channel-request-meta">
-              <span class={`task-dot channel-dot-${current().state}`} aria-hidden="true" />
-              {REQUEST_STATE_LABELS[current().state]} · {current().leadName}
-              <Show when={current().tasks.length > 0}>
-                {` · ${current().tasks.length} ${current().tasks.length === 1 ? "task" : "tasks"}`}
-              </Show>
-            </span>
-          </div>
-          <Show
-            when={!confirming()}
-            fallback={
-              <div class="channel-request-bar-actions" role="group" aria-label="Stop request">
-                <span class="channel-confirm-copy">
-                  Stops {openTasks(current()).length}{" "}
-                  {openTasks(current()).length === 1 ? "task" : "tasks"}.
-                </span>
-                <button
-                  type="button"
-                  class="channel-button channel-button-danger"
-                  ref={(button) => requestAnimationFrame(() => button.focus())}
-                  onClick={() => stop(current())}
-                >
-                  Stop request
-                </button>
-                <button type="button" class="channel-button" onClick={() => setConfirming(false)}>
-                  Cancel
-                </button>
-              </div>
-            }
-          >
-            <div class="channel-request-bar-actions">
-              <Show
-                when={reassigning()}
-                fallback={
-                  <button
-                    type="button"
-                    class="channel-button"
-                    disabled={props.detail.members.length < 2}
-                    onClick={() => setReassigning(true)}
-                  >
-                    Reassign
-                  </button>
-                }
-              >
-                <select
-                  class="channel-select"
-                  aria-label="New lead"
-                  ref={(select) => requestAnimationFrame(() => select.focus())}
-                  onChange={(event) => {
-                    const lead = event.currentTarget.value;
-                    setReassigning(false);
-                    if (lead) void props.store.act(current(), "reassign", lead);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") setReassigning(false);
-                  }}
-                  onBlur={() => setReassigning(false)}
-                >
-                  <option value="">Choose a lead</option>
-                  <For
-                    each={props.detail.members.filter(
-                      (member) => member.threadId !== current().leadThreadId,
-                    )}
-                  >
-                    {(member) => <option value={member.threadId}>{member.name}</option>}
-                  </For>
-                </select>
-              </Show>
-              <Show
-                when={current().state === "stopped"}
-                fallback={
-                  <button type="button" class="channel-button" onClick={() => stop(current())}>
-                    Stop
-                  </button>
-                }
-              >
-                <button
-                  type="button"
-                  class="channel-button"
-                  onClick={() => void props.store.act(current(), "resume")}
-                >
-                  Resume
-                </button>
-              </Show>
-            </div>
-          </Show>
-        </section>
-      )}
-    </Show>
-  );
-}
-
-function Waiting(props: { detail: ChannelDetail }) {
-  return (
-    <Show when={props.detail.waiting.length > 0}>
-      <section class="channel-waiting" aria-labelledby="channel-waiting-title">
-        <h2 id="channel-waiting-title" class="channel-waiting-title">
-          Waiting for replies
-        </h2>
-        <ul class="channel-panel-list">
-          <For each={props.detail.waiting}>
-            {(row) => (
-              <li class="channel-waiting-row">
-                <span class="task-dot task-dot-waiting" aria-hidden="true" />
-                <span>
-                  <strong>{row.name}</strong> owes {row.askedBy === "You" ? "you" : row.askedBy} a
-                  reply
-                </span>
-                <time class="channel-post-time" dateTime={row.since}>
-                  {shortTime(row.since)}
-                </time>
-              </li>
-            )}
-          </For>
-        </ul>
-      </section>
-    </Show>
   );
 }

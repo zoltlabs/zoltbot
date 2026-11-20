@@ -9,22 +9,15 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { currentRequest, requestMeta } from "../../data/channels";
 import { useChannel } from "../../state/channel";
 import { touch, useTheme } from "../../theme";
 import { ChannelComposer } from "../../ui/channel/ChannelComposer";
-import {
-  HeaderButton,
-  Notice,
-  PostRow,
-  RequestBar,
-  WaitingBlock,
-} from "../../ui/channel/ChannelParts";
+import { HeaderButton, Notice, PostRow } from "../../ui/channel/ChannelParts";
 import { OfflineBanner } from "../../ui/chrome";
 import { Icon } from "../../ui/icons";
 import { Button, Txt } from "../../ui/kit";
 
-/** A team channel: the owner's posts, the team's replies, task events and open questions. */
+/** A team channel: the owner's posts, the team's replies and task events. */
 export default function ChannelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { c } = useTheme();
@@ -32,7 +25,6 @@ export default function ChannelScreen() {
   const channel = useChannel(id);
   const { view, transcript } = channel;
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const request = view ? currentRequest(view.requests) : null;
   const name = view ? `#${view.name}` : "";
   const openInfo = () => router.push({ pathname: "/channel/info", params: { id } });
 
@@ -73,15 +65,6 @@ export default function ChannelScreen() {
       <View style={styles.banner}>
         <OfflineBanner />
       </View>
-      {request ? (
-        <RequestBar
-          request={request}
-          meta={requestMeta(request)}
-          onOpen={openInfo}
-          onStop={() => channel.perform(request, "stop")}
-          disabled={!channel.online || channel.acting === request.id}
-        />
-      ) : null}
       {view ? (
         <ScrollView
           ref={scroll}
@@ -116,7 +99,6 @@ export default function ChannelScreen() {
               <Notice key={entry.key} text={entry.text} />
             ),
           )}
-          <WaitingBlock rows={view.waiting} />
         </ScrollView>
       ) : (
         <View style={[styles.grow, styles.center]}>

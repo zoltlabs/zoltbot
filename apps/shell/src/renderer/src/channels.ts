@@ -15,10 +15,10 @@ export const REQUEST_STATE_LABELS: Record<ChannelRequestState, string> = {
   archived: "Archived",
 };
 
-/** Actions the request panel offers in each state; the bar offers Reassign, Stop and Resume. */
+/** Actions the request panel offers in each state. */
 export const PANEL_ACTIONS: Record<ChannelRequestState, ChannelRequestActionName[]> = {
-  open: ["archive"],
-  running: ["archive"],
+  open: ["stop", "archive"],
+  running: ["stop", "archive"],
   stopped: ["resume", "archive"],
   done: ["archive"],
   archived: ["restore"],
@@ -37,13 +37,6 @@ const TASK_LINES: Record<string, { tone: string; label: string }> = {
 /** The dot tone and label for a task line in the transcript. */
 export function taskLine(state: string): { tone: string; label: string } {
   return TASK_LINES[state] ?? { tone: "queued", label: "Queued" };
-}
-
-/** Tasks a Stop would cancel. */
-export function openTasks(request: ChannelRequestView) {
-  return request.tasks.filter((task) =>
-    ["queued", "running", "blocked", "review"].includes(task.state),
-  );
 }
 
 /** The state an action leaves a request in, shown before the daemon answers. */
@@ -131,16 +124,6 @@ export function optimisticPost(
     question: false,
     createdAt: at,
   };
-}
-
-/** The request the bar shows: the newest one still open or running, else the newest stopped one. */
-export function currentRequest(requests: readonly ChannelRequestView[]) {
-  const newest = [...requests].reverse();
-  return (
-    newest.find((request) => request.state === "open" || request.state === "running") ??
-    newest.find((request) => request.state === "stopped") ??
-    null
-  );
 }
 
 export function shortTime(iso: string, now = Date.now()): string {

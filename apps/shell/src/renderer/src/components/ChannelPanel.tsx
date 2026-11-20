@@ -13,6 +13,7 @@ interface ChannelPanelProps {
 }
 
 const ACTION_LABELS: Partial<Record<ChannelRequestActionName, string>> = {
+  stop: "Stop",
   resume: "Resume",
   archive: "Archive",
   restore: "Restore",

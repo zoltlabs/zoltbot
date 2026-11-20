@@ -97,33 +97,6 @@
   flex-direction: column;
 }
 
-.channel-request-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 4px 16px 0;
-  border: 1px solid var(--openbot-line);
-  border-radius: 10px;
-  background: var(--surface-inset);
-  padding: 8px 10px 8px 12px;
-}
-
-.channel-request-bar-copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.channel-request-bar-title {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .channel-request-meta {
   display: inline-flex;
   align-items: center;
@@ -132,54 +105,6 @@
   font-size: 12px;
 }
 
-.channel-request-bar-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-}
-
-.channel-confirm-copy {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.channel-button {
-  height: 28px;
-  border: 1px solid var(--openbot-line-strong);
-  border-radius: 7px;
-  background: var(--surface-trigger);
-  padding: 0 10px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.channel-button:hover:not(:disabled) {
-  background: var(--surface-pill-hover);
-}
-
-.channel-button:disabled {
-  color: var(--text-placeholder);
-}
-
-.channel-button-danger {
-  border-color: var(--danger);
-  color: var(--text-danger);
-}
-
-.channel-select {
-  height: 28px;
-  border: 1px solid var(--openbot-line-strong);
-  border-radius: 7px;
-  background: var(--surface-field);
-  padding: 0 6px;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.channel-button:focus-visible,
-.channel-select:focus-visible,
 .channel-send:focus-visible,
 .channel-link:focus-visible,
 .channel-text-button:focus-visible {
@@ -291,31 +216,11 @@
   font-size: 12px;
 }
 
-.channel-waiting {
-  margin: 0 16px 8px;
-  border-top: 1px solid var(--openbot-line);
-  padding-top: 8px;
-}
-
-.channel-waiting-title,
 .channel-panel-title {
   margin: 0 0 6px;
   color: var(--text-group-heading);
   font-size: 12px;
   font-weight: 500;
-}
-
-.channel-waiting-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.channel-waiting-row strong {
-  color: var(--text-primary);
-  font-weight: 600;
 }
 
 .channel-error {
