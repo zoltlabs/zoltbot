@@ -1,14 +1,14 @@
 import { terms } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { macFolder, newProject } from "../data/projects";
 import { text } from "../data/view";
 import { newId, useAction } from "../state/actions";
 import { useClient, useSnapshot } from "../state/link";
 import { touch, type as typography, useTheme } from "../theme";
 import { OfflineBanner } from "../ui/chrome";
-import { Button, Txt } from "../ui/kit";
+import { Button, showConfirmSheet, Txt } from "../ui/kit";
 
 export default function ProjectSheet() {
   const { id, repoId } = useLocalSearchParams<{ id?: string; repoId?: string }>();
@@ -54,22 +54,16 @@ export default function ProjectSheet() {
     if (result) router.back();
   };
   const archive = () =>
-    Alert.alert(
-      `Archive this ${terms.workspace.one}?`,
-      `It will leave your ${terms.workspace.one} list. Its files stay on your Mac.`,
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Archive",
-          style: "destructive",
-          onPress: () => {
-            void run("project.archive", { id, confirmed: true }).then((result) => {
-              if (result) router.dismissTo("/projects");
-            });
-          },
-        },
-      ],
-    );
+    showConfirmSheet({
+      title: `Archive this ${terms.workspace.one}?`,
+      body: `It will leave your ${terms.workspace.one} list. Its files stay on your Mac.`,
+      confirmLabel: `Archive ${terms.workspace.one}`,
+      onConfirm: () => {
+        void run("project.archive", { id, confirmed: true }).then((result) => {
+          if (result) router.dismissTo("/projects");
+        });
+      },
+    });
   const field = {
     ...typography.body,
     minHeight: touch,

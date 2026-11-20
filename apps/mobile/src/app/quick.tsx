@@ -36,7 +36,7 @@ import { useClient, useLink, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
 import { Icon, StopGlyph } from "../ui/icons";
-import { Button, Chip, Group, Row, Txt } from "../ui/kit";
+import { Button, Chip, Group, Row, showConfirmSheet, showMenu, Txt } from "../ui/kit";
 import { Markdown } from "../ui/Markdown";
 import { QuickHandoff } from "../ui/QuickHandoff";
 
@@ -234,27 +234,27 @@ export default function Quick() {
       { text: "Cancel", style: "cancel" as const },
     ]);
   const manage = (row: Chat) =>
-    Alert.alert(row.title, undefined, [
-      {
-        text: "Rename",
-        onPress: () =>
-          Alert.prompt("Rename chat", undefined, (title) => {
-            if (title?.trim())
-              void call("quickChat.rename", { id: row.id, title: title.trim() }).catch((error) =>
-                setNotice(errorText(error)),
-              );
-          }),
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () =>
-          Alert.alert("Delete this chat?", "Its messages are removed from your Mac.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () =>
+    showMenu(
+      [
+        {
+          label: "Rename",
+          onPress: () =>
+            Alert.prompt("Rename chat", undefined, (title) => {
+              if (title?.trim())
+                void call("quickChat.rename", { id: row.id, title: title.trim() }).catch((error) =>
+                  setNotice(errorText(error)),
+                );
+            }),
+        },
+        {
+          label: "Delete chat…",
+          destructive: true,
+          onPress: () =>
+            showConfirmSheet({
+              title: `Delete ${row.title}?`,
+              body: "Its messages are removed from your Mac.",
+              confirmLabel: "Delete chat",
+              onConfirm: () =>
                 void call("quickChat.delete", { id: row.id, confirmed: true }).then(
                   () => {
                     drafts.delete(row.id);
@@ -262,11 +262,11 @@ export default function Quick() {
                   },
                   (error) => setNotice(errorText(error)),
                 ),
-            },
-          ]),
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+            }),
+        },
+      ],
+      row.title,
+    );
   const ready = Boolean(connections?.some(usable));
   return (
     <KeyboardAvoidingView

@@ -18,7 +18,7 @@ import { useAction } from "../state/actions";
 import { useClient } from "../state/link";
 import { mono, touch, useTheme } from "../theme";
 import { Icon } from "./icons";
-import { Avatar, Button, Card, Chip, Txt } from "./kit";
+import { Avatar, Button, Card, Chip, showConfirmSheet, Txt } from "./kit";
 
 type ResultCardData = Extract<ManagerCard, { kind: "result" }>;
 
@@ -77,17 +77,15 @@ function TaskLine({ row, now }: { row: DelegationRow; now: number }) {
   const active = ACTIVE.includes(status);
   const meta = rowMeta(shown, now);
   const stop = () =>
-    Alert.alert("Stop this task?", `${row.owner.name} stops now. You can retry it later.`, [
-      { text: "Keep running", style: "cancel" },
-      {
-        text: "Stop",
-        style: "destructive",
-        onPress: () =>
-          void run("task.cancel", { id: row.taskId, confirmed: true }).then((result) => {
-            if (result) setStopped(true);
-          }),
-      },
-    ]);
+    showConfirmSheet({
+      title: "Stop this task?",
+      body: `${row.owner.name} stops now. You can retry it later.`,
+      confirmLabel: "Stop task",
+      onConfirm: () =>
+        void run("task.cancel", { id: row.taskId, confirmed: true }).then((result) => {
+          if (result) setStopped(true);
+        }),
+    });
   return (
     <>
       <Pressable

@@ -1,7 +1,7 @@
 import { chiefName } from "@zoltbot/ui/chief/data";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, AppState, StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { type PhonePref, preferenceKey, readPhonePrefs } from "../../data/preferences";
 import { since, text } from "../../data/view";
 import { useAction } from "../../state/actions";
@@ -9,7 +9,7 @@ import { useClient, useLink, useSnapshot } from "../../state/link";
 import { type ThemePreference, usePrefs } from "../../state/prefs";
 import { usePush } from "../../state/push";
 import { TabScreen } from "../../ui/chrome";
-import { Button, Chip, Group, Row, Section, Segmented, Txt } from "../../ui/kit";
+import { Button, Chip, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
 import { Toggle } from "../../ui/Toggle";
 
 export default function Settings() {
@@ -54,31 +54,19 @@ export default function Settings() {
   }, [online, definitions]);
 
   const remove = (id: string, name: string) =>
-    Alert.alert(
-      `Remove ${name}?`,
-      "It stops reaching your Mac at once. You can pair it again later.",
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => void run("device.revoke", { id, confirmed: true }),
-        },
-      ],
-    );
+    showConfirmSheet({
+      title: `Remove ${name}?`,
+      body: "It stops reaching your Mac at once. You can pair it again later.",
+      confirmLabel: "Remove device",
+      onConfirm: () => void run("device.revoke", { id, confirmed: true }),
+    });
   const unpair = () =>
-    Alert.alert(
-      "Unpair this iPhone?",
-      "It forgets your Mac. You can scan a new code to pair again.",
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Unpair",
-          style: "destructive",
-          onPress: () => void useLink.getState().disconnect(),
-        },
-      ],
-    );
+    showConfirmSheet({
+      title: "Unpair this iPhone?",
+      body: "It forgets your Mac. You can scan a new code to pair again.",
+      confirmLabel: "Unpair iPhone",
+      onConfirm: () => void useLink.getState().disconnect(),
+    });
 
   return (
     <TabScreen title="Settings">

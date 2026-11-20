@@ -2,7 +2,7 @@ import { fileDiffs } from "@zoltbot/ui/chat/tools/diff-data";
 import { body } from "@zoltbot/ui/chat/types";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { threadChanges } from "../../data/changes";
 import { threadSession } from "../../data/session";
@@ -12,7 +12,7 @@ import { useClient, useLink, useSnapshot } from "../../state/link";
 import { useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { DiffBlock } from "../../ui/interactions/parts";
-import { Button, Card, Chip, Txt } from "../../ui/kit";
+import { Button, Card, Chip, showConfirmSheet, Txt } from "../../ui/kit";
 
 /** Whether the Mac can put files back to before a turn, from a dry run; unknown until it answers. */
 type Restore = { files: string[] } | "read_only" | undefined;
@@ -64,19 +64,13 @@ export default function Changes() {
   }, [key, sessionId, online]);
 
   const revert = (turnId: string, files: string[]) =>
-    Alert.alert(
-      "Restore files to before this?",
-      `${files.length} ${files.length === 1 ? "file goes" : "files go"} back, including later edits to ${files.length === 1 ? "it" : "them"}. The chat itself stays.`,
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Restore",
-          style: "destructive",
-          onPress: () =>
-            void run("session.rewind", { id: sessionId, turnId, dryRun: false, confirmed: true }),
-        },
-      ],
-    );
+    showConfirmSheet({
+      title: "Restore files to before this?",
+      body: `${files.length} ${files.length === 1 ? "file goes" : "files go"} back, including later edits to ${files.length === 1 ? "it" : "them"}. The chat itself stays.`,
+      confirmLabel: "Restore files",
+      onConfirm: () =>
+        void run("session.rewind", { id: sessionId, turnId, dryRun: false, confirmed: true }),
+    });
 
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingTop: insets.top + 4 }]}>

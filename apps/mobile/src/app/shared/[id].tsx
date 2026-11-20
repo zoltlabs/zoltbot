@@ -15,7 +15,7 @@ import {
 } from "../../state/sharing";
 import { touch, useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
-import { Button, Group, Row, Txt } from "../../ui/kit";
+import { Button, Group, Row, showConfirmSheet, Txt } from "../../ui/kit";
 
 function ReviewDraft({ draft }: { draft: SharedDraft }) {
   const { c } = useTheme();
@@ -92,31 +92,25 @@ function ReviewDraft({ draft }: { draft: SharedDraft }) {
     }
   };
   const discard = () =>
-    Alert.alert(
-      sentThread ? "Remove sent draft?" : "Discard shared draft?",
-      "This removes the draft from this iPhone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            if (locked.current) return;
-            locked.current = true;
-            setBusy(true);
-            void removeSharedDraft(draft.id)
-              .then(() => router.replace("/shared"))
-              .catch((value: unknown) => {
-                error("Could not remove draft", value);
-              })
-              .finally(() => {
-                locked.current = false;
-                setBusy(false);
-              });
-          },
-        },
-      ],
-    );
+    showConfirmSheet({
+      title: sentThread ? "Remove sent draft?" : "Discard shared draft?",
+      body: "This removes the draft from this iPhone.",
+      confirmLabel: sentThread ? "Remove draft" : "Discard draft",
+      onConfirm: () => {
+        if (locked.current) return;
+        locked.current = true;
+        setBusy(true);
+        void removeSharedDraft(draft.id)
+          .then(() => router.replace("/shared"))
+          .catch((value: unknown) => {
+            error("Could not remove draft", value);
+          })
+          .finally(() => {
+            locked.current = false;
+            setBusy(false);
+          });
+      },
+    });
   return (
     <ScrollView
       automaticallyAdjustKeyboardInsets

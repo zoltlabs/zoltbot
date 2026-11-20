@@ -1,7 +1,7 @@
 import { type Interaction, InteractionSchema, parse } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   inboxRow,
@@ -19,7 +19,7 @@ import { touch, useTheme } from "../../theme";
 import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { InteractionCard } from "../../ui/interactions/InteractionCard";
-import { Button, Card, Chip, Txt } from "../../ui/kit";
+import { Button, Card, Chip, showMenu, Txt } from "../../ui/kit";
 import { Markdown } from "../../ui/Markdown";
 
 /** One conversation as letters: the newest from the agent open, the rest folded. */
@@ -72,16 +72,22 @@ export default function InboxThread() {
     );
   const thread = row.thread;
   const more = () =>
-    Alert.alert(thread.title || "Conversation", undefined, [
-      ...snoozeTimes().map((time) => ({
-        text: `Later: ${time.label}`,
-        onPress: () =>
-          void run("thread.snooze", { id, until: time.at.toISOString() }, { key: `snooze:${id}` }),
-      })),
-      { text: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
-      { text: "Open as chat", onPress: () => router.push(`/chat/${id}`) },
-      { text: "Cancel", style: "cancel" as const },
-    ]);
+    showMenu(
+      [
+        ...snoozeTimes().map((time) => ({
+          label: `Later: ${time.label}`,
+          onPress: () =>
+            void run(
+              "thread.snooze",
+              { id, until: time.at.toISOString() },
+              { key: `snooze:${id}` },
+            ),
+        })),
+        { label: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
+        { label: "Open as chat", onPress: () => router.push(`/chat/${id}`) },
+      ],
+      thread.title || "Conversation",
+    );
   const settle = async () => {
     if (await run("thread.settle", { id })) router.back();
   };

@@ -2,7 +2,7 @@ import { Value } from "@sinclair/typebox/value";
 import { type KnowledgeItem, KnowledgeItemSchema, type Scope } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import {
   blankKnowledge,
   isConflict,
@@ -17,7 +17,7 @@ import { useClient, useSnapshot } from "../state/link";
 import { sans, touch, type as typography, useTheme } from "../theme";
 import { Conflict } from "../ui/Conflict";
 import { OfflineBanner } from "../ui/chrome";
-import { Button, Group, Row, Section, Txt } from "../ui/kit";
+import { Button, Group, Row, Section, showConfirmSheet, Txt } from "../ui/kit";
 import { pick } from "../ui/SessionControls";
 
 /**
@@ -62,22 +62,20 @@ export default function KnowledgeEdit() {
     }
   };
   const archive = () =>
-    Alert.alert("Archive this entry?", "Agents stop seeing it in new chats.", [
-      { text: "Keep", style: "cancel" },
-      {
-        text: "Archive",
-        style: "destructive",
-        onPress: () =>
-          void run(
-            "knowledge.archive",
-            { id: base.id, expectedRevision: current?.revision ?? base.revision },
-            { quiet: true },
-          ).then(
-            () => router.back(),
-            (cause: unknown) => setError(writeError(cause)),
-          ),
-      },
-    ]);
+    showConfirmSheet({
+      title: "Archive this entry?",
+      body: "Agents stop seeing it in new chats.",
+      confirmLabel: "Archive entry",
+      onConfirm: () =>
+        void run(
+          "knowledge.archive",
+          { id: base.id, expectedRevision: current?.revision ?? base.revision },
+          { quiet: true },
+        ).then(
+          () => router.back(),
+          (cause: unknown) => setError(writeError(cause)),
+        ),
+    });
 
   const field = [
     typography.body,

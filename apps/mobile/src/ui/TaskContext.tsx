@@ -1,11 +1,11 @@
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { Row } from "../data/transport";
 import { holdText, text } from "../data/view";
 import { useAction } from "../state/actions";
 import { BrowserContext } from "./BrowserContext";
 import { ConnectionsContext } from "./ConnectionsContext";
 import { KnowledgeContext } from "./KnowledgeContext";
-import { Button, Txt } from "./kit";
+import { Button, showConfirmSheet, Txt } from "./kit";
 import { ShippingContext } from "./ShippingContext";
 import { SkillsContext } from "./SkillsContext";
 import { WorktreeChanges } from "./WorktreeChanges";
@@ -20,14 +20,12 @@ export function TaskContext({ task, online }: { task: Row; online: boolean }) {
   const id = text(task.id);
   const state = text(task.state);
   const stop = () =>
-    Alert.alert("Stop this task?", "The agent stops now. You can retry it later.", [
-      { text: "Keep running", style: "cancel" },
-      {
-        text: "Stop",
-        style: "destructive",
-        onPress: () => void run("task.cancel", { id, confirmed: true }),
-      },
-    ]);
+    showConfirmSheet({
+      title: "Stop this task?",
+      body: "The agent stops now. You can retry it later.",
+      confirmLabel: "Stop task",
+      onConfirm: () => void run("task.cancel", { id, confirmed: true }),
+    });
   const hold = state === "queued" || state === "blocked" ? holdText(task) : "";
   return (
     <View style={styles.stack}>

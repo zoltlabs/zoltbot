@@ -1,7 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import { type Connection, ConnectionSchema } from "@zoltbot/protocol";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { healthLabel, isConflict, writeError } from "../data/manage";
 import { since } from "../data/view";
@@ -9,7 +9,7 @@ import { useAction } from "../state/actions";
 import { useClient, useLink } from "../state/link";
 import { useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
-import { Chip, Group, Row, Txt } from "../ui/kit";
+import { Chip, Group, Row, showConfirmSheet, Txt } from "../ui/kit";
 import { pick } from "../ui/SessionControls";
 
 const call = (method: string, params: unknown) =>
@@ -64,39 +64,33 @@ export default function Connections() {
       .then((value) => ((value ?? {}) as { sessionIds?: string[] }).sessionIds ?? [])
       .catch(() => undefined);
     if (!sessions) return setError("Could not check which chats use it.");
-    Alert.alert(
-      `Disconnect ${connection.name}?`,
-      sessions.length
+    showConfirmSheet({
+      title: `Disconnect ${connection.name}?`,
+      body: sessions.length
         ? `${sessions.length} running ${sessions.length === 1 ? "chat stops" : "chats stop"}. Sign in again on your Mac to reconnect.`
         : "Sign in again on your Mac to reconnect.",
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Disconnect",
-          style: "destructive",
-          onPress: () =>
-            void run(
-              "connection.disconnect",
-              {
-                id: connection.id,
-                confirmed: true,
-                stopSessions: sessions.length > 0,
-                expectedVersion: connection.version,
-                expectedSessionIds: sessions,
-              },
-              { quiet: true },
-            )
-              .catch((cause: unknown) =>
-                setError(
-                  isConflict(cause)
-                    ? `${connection.name} changed on your Mac. Check it and try again.`
-                    : writeError(cause),
-                ),
-              )
-              .then(refresh),
-        },
-      ],
-    );
+      confirmLabel: `Disconnect ${connection.name}`,
+      onConfirm: () =>
+        void run(
+          "connection.disconnect",
+          {
+            id: connection.id,
+            confirmed: true,
+            stopSessions: sessions.length > 0,
+            expectedVersion: connection.version,
+            expectedSessionIds: sessions,
+          },
+          { quiet: true },
+        )
+          .catch((cause: unknown) =>
+            setError(
+              isConflict(cause)
+                ? `${connection.name} changed on your Mac. Check it and try again.`
+                : writeError(cause),
+            ),
+          )
+          .then(refresh),
+    });
   };
   const open = (connection: Connection) => {
     const actions = [

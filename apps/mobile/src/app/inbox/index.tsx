@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   inbox,
@@ -15,7 +15,7 @@ import { useAction } from "../../state/actions";
 import { useSnapshot } from "../../state/link";
 import { useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
-import { Avatar, Chip, Group, Txt } from "../../ui/kit";
+import { Avatar, Chip, Group, showMenu, Txt } from "../../ui/kit";
 
 /** The Inbox: every conversation filed by what it needs from you, read like mail. */
 export default function Inbox() {
@@ -28,18 +28,24 @@ export default function Inbox() {
   const rows = items.filter((row) => row.mailbox === box);
   // Long-press is the phone's version of the Mac's e, h and u keys.
   const actions = (id: string, title: string, settled: boolean) =>
-    Alert.alert(title || "Conversation", undefined, [
-      ...snoozeTimes().map((time) => ({
-        text: `Later: ${time.label}`,
-        onPress: () =>
-          void run("thread.snooze", { id, until: time.at.toISOString() }, { key: `snooze:${id}` }),
-      })),
-      settled
-        ? { text: "Move to Inbox", onPress: () => void run("thread.unarchive", { id }) }
-        : { text: "Settle", onPress: () => void run("thread.settle", { id }) },
-      { text: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
-      { text: "Cancel", style: "cancel" as const },
-    ]);
+    showMenu(
+      [
+        ...snoozeTimes().map((time) => ({
+          label: `Later: ${time.label}`,
+          onPress: () =>
+            void run(
+              "thread.snooze",
+              { id, until: time.at.toISOString() },
+              { key: `snooze:${id}` },
+            ),
+        })),
+        settled
+          ? { label: "Move to Inbox", onPress: () => void run("thread.unarchive", { id }) }
+          : { label: "Settle", onPress: () => void run("thread.settle", { id }) },
+        { label: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
+      ],
+      title || "Conversation",
+    );
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingTop: insets.top }]}>
       <BackBar label="Home" />
