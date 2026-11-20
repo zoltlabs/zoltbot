@@ -1,3 +1,4 @@
+import type { BranchOrigin } from "../shared/branches";
 import type {
   AgentPromptQuestion,
   ArtifactSummary,
@@ -86,6 +87,16 @@ export function previewText(items: Row[]): string {
   return "";
 }
 
+/** Where a chat was branched from, from the fork provenance on its thread row. */
+export function branchOrigin(thread: Row): BranchOrigin | undefined {
+  const fork = thread.fork as Row | undefined;
+  const point = fork?.boundary as Row | undefined;
+  const at = text(point?.kind);
+  if (!text(fork?.sourceThreadId) || !text(point?.turnId)) return undefined;
+  if (at !== "before_user" && at !== "after_turn") return undefined;
+  return { botId: text(fork?.sourceThreadId), turnId: text(point?.turnId), at };
+}
+
 export function toBotSummary(
   snapshot: Snapshot,
   thread: Row,
@@ -99,6 +110,7 @@ export function toBotSummary(
   const project = (snapshot.entities.project ?? []).find((row) => row.id === projectId);
   const roots = Array.isArray(project?.roots) ? (project.roots as Row[]) : [];
   const seed = hash(threadId);
+  const branchedFrom = branchOrigin(thread);
   return {
     id: threadId,
     name: text(thread.title) || text(profile?.name) || "New chat",
@@ -106,6 +118,7 @@ export function toBotSummary(
     description: text(profile?.roleText),
     notifications: preferences.notifications ?? true,
     contextFull: preferences.contextFull ?? "ask",
+    ...(branchedFrom ? { branchedFrom } : {}),
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     threadId,

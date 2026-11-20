@@ -14,6 +14,7 @@ import { ArtifactCards } from "../ArtifactPanel";
 import { ChoiceCard } from "../ConversationPrompts";
 import { ProviderModelPicker } from "../ProviderModelPicker";
 import { AttachmentCards } from "./Attachments";
+import { BranchList } from "./Branching";
 import { ONBOARDING_CHOICES } from "./constants";
 import { LinkIcon } from "./icons";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
@@ -323,6 +324,8 @@ export function TranscriptEntry(props: {
   message: BotMessage;
   messages: BotMessage[];
   bots: BotProfile[];
+  /** Chats branched from this one, by the message each shows under. */
+  branches?: ReadonlyMap<string, BotProfile[]>;
   animate: boolean;
   actions: MessageActionsState;
   onSelectAgent: (botId: string) => void;
@@ -332,6 +335,7 @@ export function TranscriptEntry(props: {
   openArtifactVersionId: string | null;
   onOpenArtifact: (artifact: ArtifactSummary) => void;
 }) {
+  const branchesHere = () => props.branches?.get(props.message.id) ?? [];
   return (
     <Show
       when={props.message.exchange}
@@ -400,6 +404,7 @@ export function TranscriptEntry(props: {
                   </button>
                 )}
               </Show>
+              <BranchList branches={branchesHere()} onOpenChat={props.onSelectAgent} />
             </article>
           }
         >

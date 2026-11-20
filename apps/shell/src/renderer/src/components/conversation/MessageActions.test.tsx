@@ -11,6 +11,7 @@ function renderActions(onReply = vi.fn()) {
   const actions = createMessageActionsState({
     botId: () => "chief",
     onReply,
+    onBranch: vi.fn(),
     onError: vi.fn(),
   });
   render(() => (
@@ -128,7 +129,7 @@ describe("Message menu", () => {
   });
 
   it("skips entries that don't apply and keeps groups in order", () => {
-    const actions = { reply: vi.fn(), copy: vi.fn() };
+    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn() };
     const empty = messageMenuGroups({ ...message, body: "" }, actions);
     expect(empty.flat().map((item) => item.id)).toEqual(["reply"]);
 
@@ -143,5 +144,20 @@ describe("Message menu", () => {
       ["pin"],
       ["hide"],
     ]);
+  });
+
+  it("offers Branch on any finished message and Edit on the owner's own", () => {
+    const actions = { reply: vi.fn(), copy: vi.fn(), branch: vi.fn() };
+    const ids = (entry: BotMessage) =>
+      messageMenuGroups(entry, actions)
+        .flat()
+        .map((item) => item.id);
+    expect(ids(message)).toEqual(["reply", "copy"]);
+    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "branch"]);
+    expect(ids({ ...message, turnId: "t1", streaming: true })).toEqual(["reply", "copy"]);
+    const own = { ...message, author: "you" as const, turnId: "t1" };
+    expect(ids(own)).toEqual(["reply", "copy", "branch", "edit"]);
+    for (const item of messageMenuGroups(own, actions).flat()) item.run();
+    expect(actions.branch.mock.calls.map(([, mode]) => mode)).toEqual(["branch", "edit"]);
   });
 });

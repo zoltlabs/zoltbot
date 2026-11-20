@@ -92,6 +92,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     parentId: stored.parentId,
     projectName: stored.projectName,
     contextFull: stored.contextFull,
+    ...(stored.branchedFrom ? { branchedFrom: stored.branchedFrom } : {}),
   };
 }
 

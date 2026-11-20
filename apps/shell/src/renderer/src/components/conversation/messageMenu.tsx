@@ -2,12 +2,14 @@ import type { JSX } from "solid-js";
 import type { BotMessage } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import type { MenuItem } from "../../kit";
-import { CopyIcon, ReplyIcon } from "./icons";
+import type { BranchMode } from "./Branching";
+import { BranchIcon, CopyIcon, EditIcon, ReplyIcon } from "./icons";
 
 /** What a message menu item can do. The conversation supplies these. */
 export interface MessageMenuActions {
   reply: (message: BotMessage) => void;
   copy: (message: BotMessage) => void;
+  branch: (message: BotMessage, mode: BranchMode) => void;
 }
 
 /**
@@ -45,6 +47,22 @@ export const MESSAGE_MENU: readonly MessageMenuEntry[] = [
     group: 0,
     when: (message) => Boolean(message.body),
     run: (message, actions) => actions.copy(message),
+  },
+  {
+    id: "branch",
+    label: "chat.message.branch",
+    icon: () => <MenuIcon icon={<BranchIcon />} />,
+    group: 1,
+    when: (message) => Boolean(message.turnId) && !message.streaming,
+    run: (message, actions) => actions.branch(message, "branch"),
+  },
+  {
+    id: "edit",
+    label: "chat.message.edit",
+    icon: () => <MenuIcon icon={<EditIcon />} />,
+    group: 1,
+    when: (message) => message.author === "you" && Boolean(message.turnId),
+    run: (message, actions) => actions.branch(message, "edit"),
   },
 ];
 

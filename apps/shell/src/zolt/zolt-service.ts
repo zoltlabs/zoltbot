@@ -108,7 +108,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   readonly context: ReturnType<typeof contextService>;
 
   constructor(
-    private readonly client: DaemonClient,
+    readonly client: DaemonClient,
     private readonly dataPath: string,
   ) {
     super();

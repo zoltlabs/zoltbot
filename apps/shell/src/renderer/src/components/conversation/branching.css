@@ -1,0 +1,70 @@
+/* S3: the branch dialog's preview, the banner in a branched chat and branch lists on messages. */
+.branch-preview {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+}
+
+.branch-text {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+}
+
+.branch-error {
+  margin: 8px 0 0;
+  color: var(--text-danger);
+}
+
+.branch-banner {
+  flex: 0 0 auto;
+  width: calc(100% - 2 * 12px);
+  max-width: 656px;
+  margin: 0 auto 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 24px;
+}
+
+.branch-link {
+  min-height: 24px;
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--text-info);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.branch-link:focus-visible,
+.branch-count:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.branch-list {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.branch-count {
+  min-height: 24px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 12px;
+  padding: 0 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.branch-count:hover {
+  background: var(--openbot-hover);
+}
+
+.branch-list ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}

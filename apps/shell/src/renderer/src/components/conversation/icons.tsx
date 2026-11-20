@@ -168,3 +168,23 @@ export function ChevronIcon() {
     </svg>
   );
 }
+
+export function BranchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <circle cx="6" cy="4.5" r="1.75" />
+      <circle cx="6" cy="15.5" r="1.75" />
+      <circle cx="14" cy="7.5" r="1.75" />
+      <path d="M6 6.25v7.5M14 9.25c0 3-3.5 3-7.25 4.75" />
+    </svg>
+  );
+}
+
+export function EditIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M12.5 4.5 15.5 7.5 7.5 15.5H4.5v-3z" />
+      <path d="M11 6l3 3" />
+    </svg>
+  );
+}

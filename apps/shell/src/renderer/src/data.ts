@@ -1,3 +1,4 @@
+import type { BranchOrigin } from "../../shared/branches";
 import {
   type AgentExchangeSummary,
   type AgentModelId,
@@ -69,6 +70,7 @@ export interface BotProfile {
   parentId?: string | null;
   projectName?: string;
   contextFull?: ContextFullAction;
+  branchedFrom?: BranchOrigin;
 }
 
 export function accentForAvatarColor(color: BotAvatarColor): BotAccent {

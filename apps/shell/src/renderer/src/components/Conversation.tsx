@@ -18,6 +18,7 @@ import { expandComposerMentions } from "./ComposerEditor";
 import { PromptCard } from "./ConversationPrompts";
 import { AgentSettings, createAgentSettingsForm } from "./conversation/AgentSettings";
 import { createMediaPreview, MediaPreviewDialog } from "./conversation/Attachments";
+import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
 import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
 import { Composer } from "./conversation/Composer";
@@ -34,6 +35,7 @@ import { createMessageActionsState } from "./conversation/MessageActions";
 import { PlanChecklist } from "./conversation/PlanChecklist";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
 import { createRightPanelState } from "./conversation/right-panel-state";
+import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
 import { AgentSetupCard, OnboardingStep, TranscriptEntry } from "./conversation/Transcript";
 import { AgentActivityIndicator } from "./conversation/WorkingLine";
 import { createDictation } from "./Dictation";
@@ -169,9 +171,8 @@ export function Conversation(props: ConversationProps) {
       Boolean(props.queue?.paused) ||
       Boolean(props.queue?.deliveries.some((item) => item.status === "queued")),
   );
-  const seenMessageIds = new Set<string>();
-  const [fadeAtTop, setFadeAtTop] = createSignal(false);
-  const [fadeAtBottom, setFadeAtBottom] = createSignal(false);
+  const { fadeAtTop, fadeAtBottom, update: updateFade } = createScrollFade();
+  const markMessageSeen = createSeenMessages(() => props.bot?.id);
   let scrollElement: HTMLDivElement | undefined;
   let conversationPanel: HTMLElement | undefined;
   let browserSurface: HTMLDivElement | undefined;
@@ -244,19 +245,7 @@ export function Conversation(props: ConversationProps) {
     });
   }
 
-  function updateScrollFade(element = scrollElement) {
-    if (!element) return;
-    const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
-    setFadeAtTop(element.scrollTop > 2);
-    setFadeAtBottom(remaining > 2);
-  }
-
-  const markMessageSeen = (messageId: string): boolean => {
-    const key = `${props.bot?.id ?? "none"}:${messageId}`;
-    if (seenMessageIds.has(key)) return false;
-    seenMessageIds.add(key);
-    return true;
-  };
+  const updateScrollFade = (element = scrollElement) => updateFade(element);
 
   const updateCurrentDraft = (patch: Partial<ComposerDraft>) => {
     const id = props.bot?.id;
@@ -274,7 +263,14 @@ export function Conversation(props: ConversationProps) {
   const messageActions = createMessageActionsState({
     botId: () => props.bot?.id,
     onReply: (message) => updateCurrentDraft({ replyToMessageId: message.id }),
+    onBranch: (message, mode) => branching.open(message, mode),
     onError: setComposerError,
+  });
+  const branches = createMemo(() => branchesByMessage(props.bots, props.bot?.id, props.messages));
+  const branching = createBranching({
+    bot: () => props.bot,
+    onOpenChat: props.onSelectAgent,
+    onDraft: (botId, text) => setDrafts((all) => ({ ...all, [botId]: { ...EMPTY_DRAFT, text } })),
   });
 
   useShortcut({
@@ -570,7 +566,9 @@ export function Conversation(props: ConversationProps) {
           else browser.showBrowserPanel();
         }}
       />
+      <BranchBanner bot={props.bot} bots={props.bots} onOpenChat={props.onSelectAgent} />
       <PlanChecklist botId={props.bot?.id} />
+      {branching.view()}
 
       <div
         class="conversation-scroll"
@@ -646,6 +644,7 @@ export function Conversation(props: ConversationProps) {
                   message={message}
                   messages={props.messages}
                   bots={props.bots}
+                  branches={branches()}
                   animate={animateEntrance}
                   actions={messageActions}
                   onSelectAgent={props.onSelectAgent}

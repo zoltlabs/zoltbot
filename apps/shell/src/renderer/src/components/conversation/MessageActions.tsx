@@ -4,6 +4,7 @@ import { MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "../../../../shared/ip
 import type { BotMessage } from "../../data";
 import { t } from "../../i18n";
 import { type Anchor, Menu, Popover, showToast } from "../../kit";
+import type { BranchMode } from "./Branching";
 import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
 import { messageMenuGroups } from "./messageMenu";
 
@@ -128,6 +129,7 @@ interface OpenMessageMenu {
 export function createMessageActionsState(deps: {
   botId: Accessor<string | undefined>;
   onReply: (message: BotMessage) => void;
+  onBranch: (message: BotMessage, mode: BranchMode) => void;
   onError: (message: string) => void;
 }) {
   const [openReactionMessageId, setOpenReactionMessageId] = createSignal<string | null>(null);
@@ -217,6 +219,7 @@ export function createMessageActionsState(deps: {
     reply,
     react: (message: BotMessage, emoji: MessageReaction | null) => void react(message, emoji),
     copy: (message: BotMessage) => void copy(message),
+    branch: (message: BotMessage, mode: BranchMode) => deps.onBranch(message, mode),
   };
 }
 

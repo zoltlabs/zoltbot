@@ -1,6 +1,7 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export type * from "./branches";
 export * from "./browser";
 export * from "./company";
 export * from "./dictation";
@@ -8,6 +9,13 @@ export type * from "./manager-cards";
 export type * from "./staff";
 export * from "./views";
 
+import type {
+  BranchInput,
+  BranchOrigin,
+  BranchPreview,
+  BranchRequest,
+  BranchResult,
+} from "./branches";
 import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
@@ -55,6 +63,8 @@ export const IPC_CHANNELS = {
   agentReadConversation: "agent:read-conversation",
   agentReadContext: "agent:read-context",
   agentCompact: "agent:compact",
+  agentBranchPreview: "agent:branch-preview",
+  agentBranch: "agent:branch",
   agentSendMessage: "agent:send-message",
   agentSetMessageReaction: "agent:set-message-reaction",
   agentChooseAttachments: "agent:choose-attachments",
@@ -270,6 +280,8 @@ export interface BotSummary {
   projectName: string;
   /** What happens when the chat's context is nearly full; "ask" when unset. */
   contextFull?: ContextFullAction;
+  /** Set when this chat was branched from another one. */
+  branchedFrom?: BranchOrigin;
 }
 
 /** Compact the chat on its own when its context is nearly full, or ask first. */
@@ -597,6 +609,10 @@ export interface AgentDesktopApi {
   readContext: (botId: string) => Promise<ContextUsage | null>;
   /** Asks the chat's agent to compact its context. */
   compact: (botId: string) => Promise<void>;
+  /** How a branch from this point would be made. */
+  branchPreview: (input: BranchInput) => Promise<BranchPreview>;
+  /** Starts a new chat from a point in this one. */
+  branch: (request: BranchRequest) => Promise<BranchResult>;
   chooseAttachments: () => Promise<DraftAttachment[]>;
   onAttachmentImport: (listener: (event: AttachmentImportEvent) => void) => () => void;
   discardDraftAttachment: (attachmentId: string) => Promise<void>;

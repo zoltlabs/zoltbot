@@ -240,6 +240,14 @@ export function setUpAppTest() {
         })),
         readContext: vi.fn().mockResolvedValue(null),
         compact: vi.fn().mockResolvedValue(undefined),
+        branchPreview: vi.fn().mockResolvedValue({
+          available: true,
+          kind: "native",
+          copiedMessages: 0,
+          omittedMessages: 0,
+          reason: "",
+        }),
+        branch: vi.fn().mockResolvedValue({ botId: "branch-1", ready: true, failed: false }),
         chooseAttachments: vi.fn().mockResolvedValue([]),
         onAttachmentImport: vi.fn((listener) => {
           emitAttachmentImport = listener;
