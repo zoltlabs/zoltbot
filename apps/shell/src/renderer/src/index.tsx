@@ -11,6 +11,8 @@ import "./tasks.css";
 import "./models.css";
 import "./channels.css";
 import "./account.css";
+import "./documents.css";
+import "./documents-review.css";
 
 const root = document.getElementById("root");
 

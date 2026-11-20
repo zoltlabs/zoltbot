@@ -1,5 +1,6 @@
 import { IPC_CHANNELS } from "../shared/ipc";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
+import { documentHandlers } from "./documents/handlers";
 import { parseTaskAction } from "./manager-cards";
 import { modelHandlers } from "./model-handlers";
 import {
@@ -65,6 +66,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentListTasks]: () => service.listTasks(),
     [IPC_CHANNELS.agentReviewTask]: (input) => service.reviewTask(parseReviewTask(input)),
     ...modelHandlers(service),
+    ...documentHandlers(service.documents, service.artifactTexts),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

@@ -110,6 +110,16 @@
   --button-voice-text: #141414;
   --button-voice-hover: #fff;
   --button-voice-hover-text: #0d0d0d;
+
+  /* Documents: changes under review and passages with comments. Text keeps its own color. */
+  --diff-added-bg: rgba(84, 185, 166, 0.2);
+  --diff-added-line: #74cbbb;
+  --diff-removed-bg: rgba(255, 130, 120, 0.14);
+  --diff-removed-text: #f0b4ae;
+  --diff-active-ring: #f0c46a;
+  --comment-mark-bg: rgba(240, 196, 106, 0.16);
+  --comment-mark-line: rgba(240, 196, 106, 0.72);
+  --comment-mark-active-bg: rgba(240, 196, 106, 0.34);
 }
 
 @media (prefers-color-scheme: light) {
@@ -186,5 +196,14 @@
     --button-voice-text: #f5f5f4;
     --button-voice-hover: #000;
     --button-voice-hover-text: #fff;
+
+    --diff-added-bg: rgba(29, 117, 102, 0.13);
+    --diff-added-line: #1d7566;
+    --diff-removed-bg: rgba(179, 53, 44, 0.08);
+    --diff-removed-text: #a8352c;
+    --diff-active-ring: #855500;
+    --comment-mark-bg: rgba(240, 175, 40, 0.2);
+    --comment-mark-line: rgba(160, 104, 0, 0.75);
+    --comment-mark-active-bg: rgba(240, 175, 40, 0.42);
   }
 }

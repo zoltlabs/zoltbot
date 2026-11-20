@@ -15,7 +15,13 @@ const REPORT: ArtifactSummary = {
 function stubPrepare(prepare: (hash: string) => Promise<{ url: string }>) {
   Object.defineProperty(window, "openbot", {
     configurable: true,
-    value: { artifacts: { prepare: vi.fn(prepare) } },
+    value: {
+      artifacts: { prepare: vi.fn(prepare) },
+      // One version of an HTML artifact: no version picker, no compare and no save.
+      documents: {
+        artifactVersions: vi.fn(async () => ({ projectId: null, markdown: false, versions: [] })),
+      },
+    },
   });
 }
 
