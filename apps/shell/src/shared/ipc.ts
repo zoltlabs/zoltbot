@@ -1,4 +1,5 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
+import type { PreferencesDesktopApi } from "./preferences";
 
 export * from "./browser";
 export * from "./company";
@@ -645,6 +646,8 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** Desktop-only preferences. Optional so test pages without it still load. */
+  preferences?: PreferencesDesktopApi;
   views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;

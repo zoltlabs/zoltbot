@@ -9,6 +9,7 @@ import {
   type UpdateStatus,
   type ViewHostEvent,
 } from "../shared/ipc";
+import { PREFERENCE_CHANNELS, type Preferences } from "../shared/preferences";
 
 const attachmentImportListeners = new Set<(event: AttachmentImportEvent) => void>();
 
@@ -142,6 +143,16 @@ const openbotApi: OpenBotDesktopApi = {
       const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => listener(status);
       ipcRenderer.on(IPC_CHANNELS.updateEvent, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.updateEvent, handler);
+    },
+  },
+  preferences: {
+    get: () => ipcRenderer.invoke(PREFERENCE_CHANNELS.preferencesGet),
+    set: (patch) => ipcRenderer.invoke(PREFERENCE_CHANNELS.preferencesSet, patch),
+    onChange: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, preferences: Preferences) =>
+        listener(preferences);
+      ipcRenderer.on(PREFERENCE_CHANNELS.preferencesEvent, handler);
+      return () => ipcRenderer.removeListener(PREFERENCE_CHANNELS.preferencesEvent, handler);
     },
   },
   maintenance: {

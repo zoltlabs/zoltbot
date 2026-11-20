@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
+import { preferenceHandlers } from "../src/main/desktop/preferences-handlers";
 import { IPC_CHANNELS } from "../src/shared/ipc";
+import { normalizePreferences, parsePreferencesPatch } from "../src/shared/preferences";
 import { agentHandlers, type Handler } from "../src/zolt/agent-handlers";
 import type { ZoltService } from "../src/zolt/zolt-service";
 
@@ -39,6 +41,7 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
   };
   return {
     ...agentHandlers(service),
+    ...preferenceHandlers(memoryPreferences(), () => undefined),
     [IPC_CHANNELS.accountGetStatus]: () => account,
     [IPC_CHANNELS.accountSignIn]: () => account,
     [IPC_CHANNELS.accountSignOut]: () => account,
@@ -182,6 +185,22 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         install: async () => undefined,
         onEvent: () => () => undefined,
       },
+      // Preferences live in memory for the page's lifetime; a change reaches this page's listeners.
+      preferences: (() => {
+        const changed = new Set<(preferences: unknown) => void>();
+        return {
+          get: call("preferences:get"),
+          set: async (patch: unknown) => {
+            const saved = await call("preferences:set")(patch);
+            for (const listener of changed) listener(saved);
+            return saved;
+          },
+          onChange: (listener: (preferences: unknown) => void) => {
+            changed.add(listener);
+            return () => changed.delete(listener);
+          },
+        };
+      })(),
       maintenance: {
         exportData: async () => ({ saved: false }),
         exportDiagnostics: async () => ({ saved: false }),
@@ -248,4 +267,16 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
 interface ZoltWindow {
   __zoltInvoke(channel: string, input: unknown): Promise<unknown>;
   __zoltEmit(event: unknown): void;
+}
+
+/** Preferences kept in memory, validated the same way as the app's file. */
+function memoryPreferences() {
+  let values = normalizePreferences({});
+  return {
+    read: async () => values,
+    update: async (patch: unknown) => {
+      values = normalizePreferences({ ...values, ...parsePreferencesPatch(patch) });
+      return values;
+    },
+  };
 }

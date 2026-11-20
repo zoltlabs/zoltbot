@@ -25,6 +25,7 @@ import {
   type ExportResult,
   IPC_CHANNELS,
 } from "../shared/ipc";
+import { PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
 import { DaemonClient } from "../zolt/daemon-client";
 import {
@@ -48,8 +49,10 @@ import { frameRequestAllowed } from "./desktop/frame-isolation";
 import { hostedOrigins } from "./desktop/hosted-origins";
 import { desktopKitAsset } from "./desktop/kit-assets";
 import { desktopAccountClient } from "./desktop/native-account-client";
+import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
+import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
@@ -162,6 +165,7 @@ let isQuitting = false;
 let shutdownStarted = false;
 
 const SETUP_FILE = "zoltbot-shell-setup-v1.json";
+const PREFERENCES_FILE = "zoltbot-preferences.json";
 
 // The desktop build compiles the speech helper; ZOLTBOT_SPEECH_HELPER points tests at a fake.
 const speechHelperPath =
@@ -292,6 +296,18 @@ function registerIpcHandlers(setupFile: string): void {
     artifacts.prepare(requireString(hash, "manifestHash")),
   );
 
+  const preferencesFile = join(app.getPath("userData"), PREFERENCES_FILE);
+  const preferences = preferenceHandlers(
+    {
+      read: () => readPreferences(preferencesFile),
+      update: (patch) => updatePreferences(preferencesFile, patch),
+    },
+    (saved) => {
+      for (const window of BrowserWindow.getAllWindows())
+        window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
+    },
+  );
+  for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))
