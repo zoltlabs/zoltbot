@@ -19,7 +19,7 @@ const SOURCES = import.meta.glob<string>(["./**/*.{tsx,css}", "!./**/*.test.tsx"
 });
 
 /** Class names in TSX class attributes and CSS selectors that look like captions. */
-export function captionClasses(source: string, css: boolean): string[] {
+function captionClasses(source: string, css: boolean): string[] {
   const places = css
     ? [...source.matchAll(/(?:^|[\s,>+~}])\.([a-z][\w-]*)/gm)].map((match) => match[1] ?? "")
     : [...source.matchAll(/class(?:List)?=\{?["'`{]([^"'`}]*)/g)].map((match) => match[1] ?? "");

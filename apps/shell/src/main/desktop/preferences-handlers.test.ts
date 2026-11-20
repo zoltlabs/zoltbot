@@ -32,7 +32,11 @@ describe("preference handlers", () => {
 
   it("applies quick changes in order without losing one", async () => {
     const { get, set } = fileHandlers();
-    await Promise.all([set({ theme: "light" }), set({ sounds: false }), set({ textSize: "large" })]);
+    await Promise.all([
+      set({ theme: "light" }),
+      set({ sounds: false }),
+      set({ textSize: "large" }),
+    ]);
     expect(await get()).toMatchObject({ theme: "light", sounds: false, textSize: "large" });
   });
 
