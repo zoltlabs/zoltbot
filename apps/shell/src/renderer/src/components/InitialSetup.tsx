@@ -147,7 +147,6 @@ export function InitialSetup(props: InitialSetupProps) {
         aria-describedby={props.reviewing ? undefined : "initial-setup-description"}
       >
         <header class="initial-setup-header">
-          <p class="initial-setup-eyebrow">Zoltbot setup</p>
           <h1 id="initial-setup-title">
             {props.reviewing ? "Agents & permissions" : "Set up a coding agent"}
           </h1>
