@@ -1,10 +1,12 @@
 import type { ArtifactTarget } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
+import { artifactActions } from "../../data/artifact-actions";
 import { comparisonVersions, revisionAvailable, versionDraft } from "../../data/artifacts";
 import { text } from "../../data/view";
 import { useChatDraft } from "../../state/chat-draft";
 import { useSnapshot } from "../../state/link";
+import { ArtifactActions } from "../../ui/ArtifactActions";
 import { ArtifactPreview } from "../../ui/ArtifactPreview";
 import { Choice, DetailScreen, Field } from "../../ui/DetailScreen";
 import { Button, Card, Txt } from "../../ui/kit";
@@ -21,6 +23,7 @@ export default function ArtifactVersions() {
   );
   const [feedback, setFeedback] = useState("");
   const same = baseline === alternative;
+  const actions = artifactActions(snapshot, id);
   const choices = options.map((o) => ({
     value: text(o.version.id),
     label: `${o.label}${o.available ? "" : " · unavailable"}`,
@@ -112,6 +115,14 @@ export default function ArtifactVersions() {
           hint="Describe what should change. Your message stays unsent until you review it in chat."
         />
       ) : null}
+      {actions.length ? (
+        <Txt v="cardTitle" accessibilityRole="header">
+          Links and repository
+        </Txt>
+      ) : null}
+      {actions.map((view) => (
+        <ArtifactActions key={view.artifactId} view={view} />
+      ))}
     </DetailScreen>
   );
 }

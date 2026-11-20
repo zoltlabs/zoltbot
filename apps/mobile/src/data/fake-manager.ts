@@ -481,6 +481,20 @@ function usageRecords(store: ManagerRows, from: string): Row[] {
 export function answerManager(method: string, p: Row, store: ManagerRows): unknown {
   const now = store.at();
   switch (method) {
+    case "artifact.add_to_repository": {
+      // S10: a held version stays held unless the owner chose Save anyway.
+      const artifact = store.rows("artifact").find((row) => row.id === p.id);
+      if (!artifact) throw new Error("artifact_unavailable");
+      const held = artifact.repositoryState === "held_secret" && p.allowHeld !== true;
+      store.put("artifact", {
+        ...artifact,
+        repositoryState: held ? "held_secret" : "written",
+        updatedAt: now,
+      });
+      return held
+        ? { held: true }
+        : { root: String(artifact.repositoryRoot ?? ""), partial: false };
+    }
     case "usage.query":
       return usageRecords(store, typeof p.from === "string" ? p.from : "");
     case "modelAccount.list":
