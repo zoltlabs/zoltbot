@@ -1,4 +1,7 @@
 {
+  "chat.context.compact": "Compact chat",
+  "chat.context.compacting": "Compacting…",
+  "chat.context.meter": "Context {percent}% full",
   "chat.plan.completed": "Done",
   "chat.plan.in_progress": "In progress",
   "chat.plan.pending": "Not started",

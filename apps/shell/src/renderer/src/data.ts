@@ -8,6 +8,7 @@ import {
   BOT_AVATAR_SHAPES,
   type BotAvatarColor,
   type BotAvatarShape,
+  type ContextFullAction,
   type ConversationNotice,
   type ManagerCard,
   type MessageReaction,
@@ -67,6 +68,7 @@ export interface BotProfile {
   roleLabel?: string;
   parentId?: string | null;
   projectName?: string;
+  contextFull?: ContextFullAction;
 }
 
 export function accentForAvatarColor(color: BotAvatarColor): BotAccent {

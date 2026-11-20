@@ -19,7 +19,7 @@ import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
-import { latestPlan, modelState, threadSession } from "../../data/session";
+import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import type { Row } from "../../data/transport";
 import {
@@ -39,6 +39,7 @@ import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { ChatOutcome, ChatWaiting } from "../../ui/ChatOutcome";
+import { ContextChip } from "../../ui/ContextChip";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { ForkBanner } from "../../ui/ForkBanner";
 import { Icon, StopGlyph } from "../../ui/icons";
@@ -146,6 +147,11 @@ export default function Chat() {
             ) : null}
           </View>
         </Pressable>
+        <ContextChip
+          threadId={id}
+          turnId={turn ? text(turn.id) : undefined}
+          compactions={compactions(snapshot, id)}
+        />
         <Pressable
           onPress={() => router.push(`/chat/options?id=${encodeURIComponent(id)}`)}
           accessibilityRole="button"

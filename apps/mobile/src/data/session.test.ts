@@ -3,6 +3,9 @@ import { parseMarkdown } from "./markdown.js";
 import { pushResponse, readPushTarget } from "./push.js";
 import { sampleSnapshot } from "./sample.js";
 import {
+  compactions,
+  contextPercent,
+  contextTone,
   latestPlan,
   modeError,
   modeLabel,
@@ -12,6 +15,7 @@ import {
   planOpen,
   runningBackground,
   threadSession,
+  toContextUsage,
 } from "./session.js";
 import { childSummary, interactionLine, toolTitle, transcript } from "./timeline.js";
 
@@ -276,5 +280,32 @@ describe("markdown", () => {
         { text: "link", href: "http://x" },
       ],
     });
+  });
+});
+
+describe("context use", () => {
+  it("reads the daemon's answer and picks a tone", () => {
+    expect(toContextUsage({})).toBeNull();
+    expect(toContextUsage({ used: 5 })).toBeNull();
+    const usage = toContextUsage({ used: 85_000, size: 100_000 });
+    expect(usage).toEqual({ used: 85_000, size: 100_000 });
+    expect(contextPercent({ used: 120, size: 100 })).toBe(100);
+    expect(contextTone({ used: 79.6, size: 100 })).toBe("neutral");
+    expect(contextTone({ used: 80, size: 100 })).toBe("attention");
+    expect(contextTone({ used: 95, size: 100 })).toBe("danger");
+  });
+  it("counts a chat's compactions", () => {
+    const withNotes = {
+      ...snapshot,
+      entities: {
+        ...snapshot.entities,
+        item: [
+          { id: "n1", threadId: "a", kind: "note", body: { code: "context_compacted" } },
+          { id: "n2", threadId: "b", kind: "note", body: { code: "context_compacted" } },
+          { id: "n3", threadId: "a", kind: "note", body: { code: "model_switch" } },
+        ],
+      },
+    };
+    expect(compactions(withNotes, "a")).toBe(1);
   });
 });

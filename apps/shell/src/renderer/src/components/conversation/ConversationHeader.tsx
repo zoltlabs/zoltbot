@@ -6,6 +6,8 @@ import { AgentAvatar } from "../AgentAvatar";
 import { OrganizationIcon } from "../OrganizationPanel";
 import { ProviderModelPicker } from "../ProviderModelPicker";
 import { SidebarToggleIcon } from "../Sidebar";
+import { ContextBar, ContextMeter } from "./ContextMeter";
+import { createContextUsage } from "./context";
 import { ComputerIcon, PlusIcon } from "./icons";
 
 export function ConversationHeader(props: {
@@ -32,99 +34,106 @@ export function ConversationHeader(props: {
   screenOpen: boolean;
   onToggleScreen: () => void;
 }) {
+  const context = createContextUsage(() => props.bot?.id);
   return (
-    <header class="window-drag conversation-header">
-      <Show when={props.leftSidebarCollapsed}>
-        <button
-          type="button"
-          class="sidebar-icon-button sidebar-restore-button no-drag"
-          aria-label="Show sidebar"
-          aria-controls="bot-sidebar"
-          aria-expanded="false"
-          title="Show sidebar"
-          onClick={props.onToggleLeftSidebar}
-        >
-          <SidebarToggleIcon />
-        </button>
-      </Show>
-      <Show
-        when={props.agentPickerOpen}
-        fallback={
-          <>
-            <Show when={props.bot}>
-              {(bot) => (
-                <button
-                  type="button"
-                  class="conversation-title no-drag"
-                  aria-label="View agent settings"
-                  onClick={() => {
-                    props.onOpenSettings();
-                  }}
-                >
-                  <AgentAvatar bot={bot()} />
-                  <h1>{bot().name}</h1>
-                </button>
-              )}
-            </Show>
-            <div class="conversation-header-actions no-drag">
+    <>
+      <header class="window-drag conversation-header">
+        <Show when={props.leftSidebarCollapsed}>
+          <button
+            type="button"
+            class="sidebar-icon-button sidebar-restore-button no-drag"
+            aria-label="Show sidebar"
+            aria-controls="bot-sidebar"
+            aria-expanded="false"
+            title="Show sidebar"
+            onClick={props.onToggleLeftSidebar}
+          >
+            <SidebarToggleIcon />
+          </button>
+        </Show>
+        <Show
+          when={props.agentPickerOpen}
+          fallback={
+            <>
               <Show when={props.bot}>
-                <ProviderModelPicker
-                  value={props.modelValue}
-                  modelOptions={props.modelOptions}
-                  agentStatus={props.agentStatus}
-                  disabled={props.modelDisabled}
-                  disabledReason={
-                    props.working
-                      ? "Wait for the current work to finish before changing models."
-                      : "Models appear once a coding agent is set up."
-                  }
-                  onChange={props.onModelChange}
-                />
+                {(bot) => (
+                  <button
+                    type="button"
+                    class="conversation-title no-drag"
+                    aria-label="View agent settings"
+                    onClick={() => {
+                      props.onOpenSettings();
+                    }}
+                  >
+                    <AgentAvatar bot={bot()} />
+                    <h1>{bot().name}</h1>
+                  </button>
+                )}
               </Show>
-              <Show when={props.bot?.projectId}>
+              <div class="conversation-header-actions no-drag">
+                <ContextMeter context={context} />
+                <Show when={props.bot}>
+                  <ProviderModelPicker
+                    value={props.modelValue}
+                    modelOptions={props.modelOptions}
+                    agentStatus={props.agentStatus}
+                    disabled={props.modelDisabled}
+                    disabledReason={
+                      props.working
+                        ? "Wait for the current work to finish before changing models."
+                        : "Models appear once a coding agent is set up."
+                    }
+                    onChange={props.onModelChange}
+                  />
+                </Show>
+                <Show when={props.bot?.projectId}>
+                  <button
+                    type="button"
+                    class="header-panel-toggle computer-button"
+                    aria-label="Organization"
+                    aria-controls="organization-side-panel"
+                    aria-expanded={props.organizationOpen}
+                    onClick={() => props.onToggleOrganization()}
+                  >
+                    <OrganizationIcon />
+                  </button>
+                </Show>
                 <button
                   type="button"
                   class="header-panel-toggle computer-button"
-                  aria-label="Organization"
-                  aria-controls="organization-side-panel"
-                  aria-expanded={props.organizationOpen}
-                  onClick={() => props.onToggleOrganization()}
+                  classList={{ "computer-button-agent-active": props.browserControlled }}
+                  aria-label={
+                    props.browserControlled
+                      ? `${props.browserControllerName ?? "Agent"} is controlling the browser`
+                      : props.screenOpen
+                        ? "Hide computer"
+                        : "Open computer"
+                  }
+                  aria-expanded={props.screenOpen}
+                  onClick={props.onToggleScreen}
                 >
-                  <OrganizationIcon />
+                  <ComputerIcon />
+                  <Show when={props.browserControlled}>
+                    <span class="computer-control-dot" aria-hidden="true" />
+                  </Show>
                 </button>
-              </Show>
-              <button
-                type="button"
-                class="header-panel-toggle computer-button"
-                classList={{ "computer-button-agent-active": props.browserControlled }}
-                aria-label={
-                  props.browserControlled
-                    ? `${props.browserControllerName ?? "Agent"} is controlling the browser`
-                    : props.screenOpen
-                      ? "Hide computer"
-                      : "Open computer"
-                }
-                aria-expanded={props.screenOpen}
-                onClick={props.onToggleScreen}
-              >
-                <ComputerIcon />
-                <Show when={props.browserControlled}>
-                  <span class="computer-control-dot" aria-hidden="true" />
-                </Show>
-              </button>
-            </div>
-          </>
-        }
-      >
-        <AgentPicker
-          bots={props.bots}
-          creatingAgent={props.creatingAgent}
-          onCreateAgent={props.onCreateAgent}
-          onSelectAgent={props.onSelectAgent}
-          onClose={props.onCloseAgentPicker}
-        />
+              </div>
+            </>
+          }
+        >
+          <AgentPicker
+            bots={props.bots}
+            creatingAgent={props.creatingAgent}
+            onCreateAgent={props.onCreateAgent}
+            onSelectAgent={props.onSelectAgent}
+            onClose={props.onCloseAgentPicker}
+          />
+        </Show>
+      </header>
+      <Show when={!props.agentPickerOpen}>
+        <ContextBar context={context} bot={props.bot} onSelectAgent={props.onSelectAgent} />
       </Show>
-    </header>
+    </>
   );
 }
 

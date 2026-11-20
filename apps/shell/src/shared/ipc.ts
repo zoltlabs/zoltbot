@@ -53,6 +53,8 @@ export const IPC_CHANNELS = {
   agentUpdateBot: "agent:update-bot",
   agentDeleteBot: "agent:delete-bot",
   agentReadConversation: "agent:read-conversation",
+  agentReadContext: "agent:read-context",
+  agentCompact: "agent:compact",
   agentSendMessage: "agent:send-message",
   agentSetMessageReaction: "agent:set-message-reaction",
   agentChooseAttachments: "agent:choose-attachments",
@@ -170,6 +172,8 @@ export interface AgentProviderStatus {
 
 export interface CreateBotInput {
   projectId?: string | null;
+  /** Start the chat with this agent profile instead of the default one. */
+  profileId?: string;
 }
 
 export interface AppSetupState {
@@ -264,6 +268,17 @@ export interface BotSummary {
   roleLabel: string;
   parentId: string | null;
   projectName: string;
+  /** What happens when the chat's context is nearly full; "ask" when unset. */
+  contextFull?: ContextFullAction;
+}
+
+/** Compact the chat on its own when its context is nearly full, or ask first. */
+export type ContextFullAction = "compact" | "ask";
+
+/** How much of a chat's context window its live session uses, in tokens. */
+export interface ContextUsage {
+  used: number;
+  size: number;
 }
 
 /** A model id reported by the provider, such as "claude-opus-5". */
@@ -335,6 +350,7 @@ export interface UpdateBotInput {
   reasoningEffort?: AgentReasoningEffort;
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
+  contextFull?: ContextFullAction;
 }
 
 export type ConversationMessageAuthor = "user" | "assistant" | "agent" | "system";
@@ -577,6 +593,10 @@ export interface AgentDesktopApi {
   updateBot: (input: UpdateBotInput) => Promise<BotSummary>;
   deleteBot: (botId: string) => Promise<void>;
   readConversation: (botId: string) => Promise<ConversationSnapshot>;
+  /** How full the chat's context is, or null when its agent doesn't say. */
+  readContext: (botId: string) => Promise<ContextUsage | null>;
+  /** Asks the chat's agent to compact its context. */
+  compact: (botId: string) => Promise<void>;
   chooseAttachments: () => Promise<DraftAttachment[]>;
   onAttachmentImport: (listener: (event: AttachmentImportEvent) => void) => () => void;
   discardDraftAttachment: (attachmentId: string) => Promise<void>;

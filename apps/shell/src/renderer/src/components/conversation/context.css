@@ -1,0 +1,88 @@
+/* S4: the context meter in the chat header and the "almost full" bar under it. */
+.context-meter {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.context-meter:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: -2px;
+}
+
+.context-meter svg {
+  width: 16px;
+  height: 16px;
+  transform: rotate(-90deg);
+  fill: none;
+  stroke-width: 2;
+}
+
+.context-meter-track {
+  stroke: var(--openbot-line-strong);
+}
+
+.context-meter-fill {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.context-meter-warn {
+  color: var(--text-warning);
+}
+
+.context-meter-full {
+  color: var(--text-danger);
+}
+
+.context-bar {
+  display: flex;
+  flex: 0 0 auto;
+  width: calc(100% - 24px);
+  max-width: 656px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 4px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+  padding: 4px 4px 4px 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.context-bar-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.context-bar-button {
+  min-height: 28px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.context-bar-button:hover:not(:disabled) {
+  background: var(--openbot-hover);
+}
+
+.context-bar-button:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: 1px;
+}
+
+.context-bar-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

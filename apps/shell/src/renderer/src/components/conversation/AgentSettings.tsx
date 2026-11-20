@@ -10,6 +10,7 @@ import type {
 } from "../../../../shared/ipc";
 import type { BotProfile } from "../../data";
 import { AVATAR_COLORS, AVATAR_SHAPES } from "../../data";
+import { t } from "../../i18n";
 import { Select } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { PanelResizer } from "../PanelResizer";
@@ -256,6 +257,18 @@ export function AgentSettings(props: {
           >
             <span />
           </button>
+        </div>
+        <div class="agent-settings-model-row agent-settings-context-row">
+          <span aria-hidden="true">{t("agent.contextFull.label")}</span>
+          <Select
+            label={t("agent.contextFull.label")}
+            value={props.bot?.contextFull ?? "ask"}
+            options={[
+              { value: "compact" as const, label: t("agent.contextFull.compact") },
+              { value: "ask" as const, label: t("agent.contextFull.ask") },
+            ]}
+            onChange={(value) => void props.save({ contextFull: value })}
+          />
         </div>
       </div>
     </aside>

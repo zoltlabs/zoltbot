@@ -194,6 +194,8 @@ it("dispatches authenticated durable chat through the daemon to a real native ch
     );
     const active = daemon.store.snapshot().session?.find((row) => row.state === "ready");
     if (!active) throw new Error("fixture_session_missing");
+    expect(await call("session.context", { threadId: "thread" })).toEqual({ used: 20, size: 1000 });
+    expect(await call("session.context", { threadId: "no-such-thread" })).toEqual({});
     const compact = await call("session.compact", { id: active.id }, "compact:once");
     expect(compact).toEqual({ ok: true });
     expect(await call("session.compact", { id: active.id }, "compact:once")).toEqual(compact);

@@ -161,3 +161,26 @@ describe("latestPlan", () => {
     expect(latestPlan([plan("bad", "not a list")])).toEqual([]);
   });
 });
+
+describe("compaction notes", () => {
+  it("shows a finished compaction as a Compacted line", () => {
+    const messages = toMessages(snapshot({}), "thread", [
+      {
+        id: "compact",
+        threadId: "thread",
+        kind: "note",
+        seq: 1,
+        createdAt: at(1),
+        body: {
+          code: "context_compacted",
+          trigger: "manual",
+          tokensBefore: 1000,
+          tokensAfter: 100,
+        },
+      },
+    ]);
+    expect(messages).toEqual([
+      expect.objectContaining({ id: "compact", source: "system", text: "Compacted" }),
+    ]);
+  });
+});

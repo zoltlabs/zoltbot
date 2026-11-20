@@ -62,6 +62,7 @@ describe("Zoltbot connected desktop shell", () => {
   });
 
   it("refreshes stored history when the daemon becomes ready after the window opens", async () => {
+    let historyReady = false;
     vi.mocked(window.openbot.agent.getStatus).mockResolvedValue({
       phase: "starting",
       cliVersion: "0.144.1",
@@ -70,32 +71,31 @@ describe("Zoltbot connected desktop shell", () => {
       message: "Starting Zoltbot…",
       fullAccess: true,
     });
-    vi.mocked(window.openbot.agent.readConversation)
-      .mockResolvedValueOnce({
-        botId: "chief",
-        threadId: "thread-chief",
-        activeTurnId: null,
-        revision: 0,
-        messages: [],
-      })
-      .mockResolvedValueOnce({
-        botId: "chief",
-        threadId: "thread-chief",
-        activeTurnId: null,
-        revision: 1,
-        messages: [
-          {
-            id: "restored-answer",
-            author: "assistant",
-            text: "Restored after the daemon became ready",
-            createdAt: "2026-08-12T10:00:00.000Z",
-            status: "completed",
-          },
-        ],
-      });
+    const readConversation = vi.mocked(window.openbot.agent.readConversation);
+    readConversation.mockImplementation(async (botId) => ({
+      botId,
+      threadId: "thread-chief",
+      activeTurnId: null,
+      revision: historyReady ? 1 : 0,
+      messages: historyReady
+        ? [
+            {
+              id: "restored-answer",
+              author: "assistant",
+              text: "Restored after the daemon became ready",
+              createdAt: "2026-08-12T10:00:00.000Z",
+              status: "completed",
+            },
+          ]
+        : [],
+    }));
 
     render(() => <App />);
     await screen.findByText("Connecting to Zoltbot…");
+    // The app's own read loads the queue too; the plan checklist reads the chat on its own.
+    await waitFor(() => expect(window.openbot.agent.listQueue).toHaveBeenCalledWith("chief"));
+    const readsBeforeReady = readConversation.mock.calls.length;
+    historyReady = true;
     emitAgentEvent?.({
       type: "status",
       status: {
@@ -109,7 +109,7 @@ describe("Zoltbot connected desktop shell", () => {
     });
 
     expect(await screen.findByText("Restored after the daemon became ready")).toBeInTheDocument();
-    expect(window.openbot.agent.readConversation).toHaveBeenCalledTimes(2);
+    expect(readConversation.mock.calls.length).toBeGreaterThan(readsBeforeReady);
   });
 
   it("filters and switches backend bots", async () => {
@@ -149,9 +149,9 @@ describe("Zoltbot connected desktop shell", () => {
     expect(row).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Add webhook retries")).toBeVisible();
 
-    await fireEvent.keyDown(window, { key: "t", metaKey: true });
+    await fireEvent.keyDown(window, { key: "t", ctrlKey: true });
     expect(screen.queryByRole("main", { name: "Tasks" })).not.toBeInTheDocument();
-    await fireEvent.keyDown(window, { key: "t", metaKey: true });
+    await fireEvent.keyDown(window, { key: "t", ctrlKey: true });
     expect(screen.getByRole("main", { name: "Tasks" })).toBeVisible();
   });
 

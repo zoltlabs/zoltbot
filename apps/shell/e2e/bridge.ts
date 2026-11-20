@@ -141,6 +141,8 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         updateBot: call(channels.agentUpdateBot),
         deleteBot: call(channels.agentDeleteBot),
         readConversation: call(channels.agentReadConversation),
+        readContext: call(channels.agentReadContext),
+        compact: call(channels.agentCompact),
         chooseAttachments: call(channels.agentChooseAttachments),
         onAttachmentImport: () => () => undefined,
         discardDraftAttachment: call(channels.agentDiscardDraftAttachment),

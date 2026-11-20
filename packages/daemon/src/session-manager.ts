@@ -6,10 +6,8 @@ import {
   type DomainState,
   handle,
   type Outcome,
-  requestNativeCompaction,
   requestTurnInterrupt,
   routineProfile,
-  settleNativeCompaction,
 } from "@zoltbot/core";
 import {
   type AgentEvent,
@@ -54,6 +52,7 @@ export type { PreparedRuntime, RuntimeHost } from "./runtime-host.js";
 
 import { resolveRuntimeCredentials } from "./runtime-credentials.js";
 import { RuntimeWorker } from "./runtime-worker.js";
+import { performCompact, readContextUsage } from "./session-compaction.js";
 
 export class SessionManager {
   private readonly entries = new Map<string, RuntimeEntry>();
@@ -704,64 +703,24 @@ export class SessionManager {
     instructions: string | undefined,
     commandId: string,
   ): Promise<{ ok: true }> {
-    return this.track(this.performCompact(sessionId, instructions, commandId));
-  }
-  private async performCompact(
-    sessionId: string,
-    instructions: string | undefined,
-    commandId: string,
-  ): Promise<{ ok: true }> {
-    const previous = this.options.store.receipt<Record<string, unknown>>(commandId);
-    if (previous) {
-      if (previous.result?.kind !== "compact" || previous.result.sessionId !== sessionId)
-        throw new Error("command_receipt_conflict");
-      const item = this.options.store.snapshot().item?.find((row) => row.id === previous.result.id);
-      if ((item?.body as Record<string, unknown> | undefined)?.state === "uncertain")
-        throw new Error("compaction_delivery_uncertain");
-      return { ok: true };
-    }
-    if (this.stopped) throw new Error("runtime_closed");
-    const entry = [...this.entries.values()].find((entry) => entry.sessionId === sessionId);
-    if (entry)
-      this.assertMutable(String(this.options.store.record("session", sessionId)?.threadId));
-    if (!entry) throw new Error("runtime_session_unavailable");
-    const id = randomUUID(),
-      attempt = randomUUID(),
-      before = this.options.store.lastSeq();
-    let produced = false;
-    this.options.store.dispatch(commandId, (state) => {
-      produced = true;
-      return requestNativeCompaction(state, sessionId, id, attempt, {
+    return this.track(
+      performCompact(
+        {
+          options: this.options,
+          entries: this.entries,
+          failedHandles: this.failedHandles,
+          stopped: () => this.stopped,
+          assertMutable: (id) => this.assertMutable(id),
+        },
+        sessionId,
+        instructions,
         commandId,
-        at: new Date().toISOString(),
-        actor: { kind: "human", id: "local-owner" },
-      });
-    });
-    if (!produced) return { ok: true };
-    this.options.publish(this.options.store.eventsSince(before));
-    try {
-      await entry.native.compact(instructions);
-      this.commit((state, context) =>
-        settleNativeCompaction(state, id, attempt, "acknowledged", context),
-      );
-      void entry.worker.wake();
-      return { ok: true };
-    } catch {
-      const item = this.options.store.snapshot().item?.find((row) => row.id === id);
-      if ((item?.body as Record<string, unknown> | undefined)?.state === "completed")
-        return { ok: true };
-      this.commit((state, context) =>
-        settleNativeCompaction(state, id, attempt, "uncertain", context),
-      );
-      try {
-        await entry.worker.close();
-      } catch {
-        for (const [threadId, owned] of this.entries)
-          if (owned === entry) this.failedHandles.set(threadId, entry.native);
-        this.options.onError?.("runtime_cleanup_failed");
-      }
-      throw new Error("compaction_delivery_uncertain");
-    }
+      ),
+    );
+  }
+  /** How full a thread's live session context is, when its provider reports it. */
+  contextUsage(threadId: string) {
+    return readContextUsage(this.entries, threadId);
   }
   /** Stops any live session handle for a thread before archiving or deleting it. */
   async stopThread(threadId: string, forceCleanup = false): Promise<void> {

@@ -113,7 +113,10 @@ export async function confirmOnboardingModel(): Promise<void> {
 
 /** Installs a mocked `window.openbot` bridge and resets the event emitters. */
 export function setUpAppTest() {
-  emitAgentEvent = undefined;
+  const agentListeners = new Set<(event: AgentEvent) => void>();
+  emitAgentEvent = (event) => {
+    for (const listener of [...agentListeners]) listener(event);
+  };
   emitAttachmentImport = undefined;
   emitUpdateStatus = undefined;
   window.localStorage.clear();
@@ -235,6 +238,8 @@ export function setUpAppTest() {
           revision: 0,
           messages: [],
         })),
+        readContext: vi.fn().mockResolvedValue(null),
+        compact: vi.fn().mockResolvedValue(undefined),
         chooseAttachments: vi.fn().mockResolvedValue([]),
         onAttachmentImport: vi.fn((listener) => {
           emitAttachmentImport = listener;
@@ -262,8 +267,10 @@ export function setUpAppTest() {
         reviewTask: vi.fn().mockResolvedValue(undefined),
         listChannels: vi.fn().mockResolvedValue([]),
         onEvent: vi.fn((listener) => {
-          emitAgentEvent = listener;
-          return () => undefined;
+          agentListeners.add(listener);
+          return () => {
+            agentListeners.delete(listener);
+          };
         }),
       },
       browser: {

@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { modelState, threadSession } from "../../data/session";
 import { text } from "../../data/view";
+import { t } from "../../i18n";
 import { useAction } from "../../state/actions";
 import { useClient, useSnapshot } from "../../state/link";
 import { DetailScreen } from "../../ui/DetailScreen";
@@ -14,6 +15,7 @@ export default function ChatOptions() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const snapshot = useSnapshot();
   const { run, busy } = useAction();
+  const compact = useAction();
   const online = useClient((state) => state.status === "online");
   const session = threadSession(snapshot, id);
   const compareMember = snapshot.entities.compareMember?.find((member) => member.threadId === id);
@@ -58,6 +60,23 @@ export default function ChatOptions() {
             }
           />
           <Button label="Fork chat" disabled={!online} onPress={() => open("fork")} />
+          {session ? (
+            <Button
+              label={compact.busy ? t("chat.context.compacting") : t("chat.context.compact")}
+              disabled={
+                !online ||
+                compact.busy ||
+                (snapshot.entities.turn ?? []).some(
+                  (turn) => turn.sessionId === session.id && turn.status === "running",
+                )
+              }
+              onPress={() => {
+                void compact.run("session.compact", { id: text(session.id) }).then((result) => {
+                  if (result) router.back();
+                });
+              }}
+            />
+          ) : null}
         </>
       ) : null}
       {chief ? (

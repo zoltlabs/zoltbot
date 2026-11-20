@@ -91,6 +91,8 @@ const openbotApi: OpenBotDesktopApi = {
     updateBot: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentUpdateBot, input),
     deleteBot: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentDeleteBot, botId),
     readConversation: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentReadConversation, botId),
+    readContext: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentReadContext, botId),
+    compact: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentCompact, botId),
     chooseAttachments: () => ipcRenderer.invoke(IPC_CHANNELS.agentChooseAttachments),
     onAttachmentImport: (listener) => {
       attachmentImportListeners.add(listener);

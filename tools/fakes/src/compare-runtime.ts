@@ -10,6 +10,8 @@ export class CompareFakeSession implements AgentSession {
   readonly eventsQueue = new AsyncQueue<AgentEvent>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private turn = "";
+  /** Context tokens in use; a message about a long context fills it to 85%. Zero reports none. */
+  private contextUsed = 0;
   readonly replies: unknown[] = [];
   interrupted = 0;
   private finish: (() => void) | undefined;
@@ -39,6 +41,12 @@ export class CompareFakeSession implements AgentSession {
       turnId = `${this.nativeId}-${this.received.length}`;
     this.turn = turnId;
     await this.eventsQueue.push({ t: "turn.started", turnId });
+    // "long context" fills 85% of the window, "very long context" 95%.
+    const said = (pattern: RegExp) =>
+      input.some((part) => part.type === "text" && pattern.test(part.text));
+    if (said(/very long context/i)) this.contextUsed = 95_000;
+    else if (said(/long context/i)) this.contextUsed = 85_000;
+    else if (this.contextUsed) this.contextUsed += 2_000;
     // A message that asks for a checklist gets a plan: three steps, the last finishing with the turn.
     const plan = input.some((part) => part.type === "text" && /\bchecklist\b/i.test(part.text));
     const steps = ["Read the notes", "Draft the summary", "Check the links"];
@@ -128,10 +136,20 @@ export class CompareFakeSession implements AgentSession {
   }
   async setModel() {}
   async setMode() {}
-  async compact() {}
+  async compact() {
+    const before = this.contextUsed;
+    if (before) this.contextUsed = 12_000;
+    await this.eventsQueue.push({ t: "compaction", state: "started", trigger: "manual" });
+    await this.eventsQueue.push({
+      t: "compaction",
+      state: "done",
+      trigger: "manual",
+      ...(before ? { tokensBefore: before, tokensAfter: this.contextUsed } : {}),
+    });
+  }
   async rename() {}
   async contextUsage() {
-    return undefined;
+    return this.contextUsed ? { used: this.contextUsed, size: 100_000 } : undefined;
   }
   async close() {
     clearTimeout(this.timer);

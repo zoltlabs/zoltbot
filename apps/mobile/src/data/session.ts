@@ -172,3 +172,39 @@ export function latestPlan(snapshot: Snapshot, threadId: string) {
 export function planOpen(plan: { done: number; total: number }, choice: boolean | undefined) {
   return choice ?? plan.done < plan.total;
 }
+
+/** How much of a chat's context window its session uses, in tokens. */
+export interface ContextUsage {
+  used: number;
+  size: number;
+}
+
+/** Percent of the context window in use, rounded and capped at 100. */
+export function contextPercent(usage: ContextUsage): number {
+  return Math.min(100, Math.round((usage.used / usage.size) * 100));
+}
+
+/** The chip's tone: a warning from 80%, danger from 95%. */
+export function contextTone(usage: ContextUsage): "neutral" | "attention" | "danger" {
+  // The raw share, not the rounded percent, so the phone warns exactly when the desktop does.
+  const share = usage.used / usage.size;
+  return share >= 0.95 ? "danger" : share >= 0.8 ? "attention" : "neutral";
+}
+
+/** Reads `session.context`'s answer; null when the agent doesn't report a window. */
+export function toContextUsage(value: unknown): ContextUsage | null {
+  const row = (value ?? {}) as { used?: unknown; size?: unknown };
+  const size = typeof row.size === "number" && row.size > 0 ? row.size : 0;
+  if (!size) return null;
+  return { used: typeof row.used === "number" ? row.used : 0, size };
+}
+
+/** How many times a chat's context has been compacted; a change means it is worth reading again. */
+export function compactions(snapshot: Snapshot, threadId: string): number {
+  return (snapshot.entities.item ?? []).filter(
+    (row) =>
+      row.threadId === threadId &&
+      row.kind === "note" &&
+      ((row.body ?? {}) as Row).code === "context_compacted",
+  ).length;
+}

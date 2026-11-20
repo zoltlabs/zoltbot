@@ -30,6 +30,7 @@ import { chooseAgent } from "./agent-choice";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
 import { decidePlan, readCompany, refreshBrief } from "./company-service";
 import { companyTree } from "./company-tree";
+import { contextService } from "./context-service";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import { DraftStore } from "./draft-store";
 import { relatedThreads, runTaskAction } from "./manager-cards";
@@ -103,6 +104,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   /** Coding tool sign-ins and backup orders. */
   readonly accounts: ReturnType<typeof modelsService>;
+  /** How full each chat's context is, and compaction. */
+  readonly context: ReturnType<typeof contextService>;
 
   constructor(
     private readonly client: DaemonClient,
@@ -110,6 +113,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   ) {
     super();
     this.accounts = modelsService(client);
+    this.context = contextService(client, (botId) => this.preferences.bots[botId]?.contextFull);
+    this.context.attach(this);
     client.onChange((change) => this.changed(change));
   }
 
@@ -356,6 +361,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     if (input.notifications !== undefined) local.notifications = input.notifications;
     if (input.avatarShape) local.avatarShape = input.avatarShape;
     if (input.avatarColor) local.avatarColor = input.avatarColor;
+    if (input.contextFull) local.contextFull = input.contextFull;
     this.preferences.bots[input.botId] = local;
     await Promise.all([...calls, this.save()]);
     this.markBots();

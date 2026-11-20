@@ -4,6 +4,7 @@ import type {
   BotAvatarColor,
   BotAvatarShape,
   BotSummary,
+  ContextFullAction,
   ConversationMessage,
   PlanStep,
   QueueDelivery,
@@ -22,6 +23,7 @@ export const text = (value: unknown): string => (typeof value === "string" ? val
 
 export interface BotPreferences {
   notifications?: boolean;
+  contextFull?: ContextFullAction;
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
 }
@@ -103,6 +105,7 @@ export function toBotSummary(
     role: text(profile?.name),
     description: text(profile?.roleText),
     notifications: preferences.notifications ?? true,
+    contextFull: preferences.contextFull ?? "ask",
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     threadId,
@@ -164,6 +167,20 @@ export function latestPlan(items: Row[]): PlanStep[] {
   });
 }
 
+/** A centered "Compacted" line where the provider finished compacting the chat's context. */
+function compactedMessage(item: Row): ConversationMessage | undefined {
+  if (body(item).code !== "context_compacted") return undefined;
+  return {
+    id: text(item.id),
+    author: "assistant",
+    source: "system",
+    text: "Compacted",
+    createdAt: text(item.createdAt),
+    status: "completed",
+    itemType: "compacted",
+  };
+}
+
 export function toMessages(
   snapshot: Snapshot,
   threadId: string,
@@ -209,7 +226,7 @@ export function toMessages(
       continue;
     }
     if (item.kind === "note") {
-      const notice = modelSwitchMessage(item);
+      const notice = modelSwitchMessage(item) ?? compactedMessage(item);
       if (notice) messages.push(notice);
       continue;
     }

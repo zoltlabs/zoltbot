@@ -65,6 +65,10 @@ export function runtimeApi(options: {
     }
     if (method === "model.catalog") return modelCatalog(options.store.snapshot());
     const manager = options.manager;
+    if (method === "session.context")
+      return (manager?.contextUsage(String(params.threadId)) ?? Promise.resolve(null)).then(
+        (usage) => usage ?? {},
+      );
     // The Mac serves these; it just has no agents running to apply them to.
     if (!manager && sessionControls.has(method)) throw new Error("runtime_unavailable");
     if (!manager) return undefined;

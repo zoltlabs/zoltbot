@@ -127,6 +127,11 @@ export function parseUpdateBot(value: unknown): UpdateBotInput {
     if (!isAvatarColor(value.avatarColor)) throw new Error("Invalid avatar color.");
     result.avatarColor = value.avatarColor;
   }
+  if (value.contextFull !== undefined) {
+    if (value.contextFull !== "compact" && value.contextFull !== "ask")
+      throw new Error("Invalid context setting.");
+    result.contextFull = value.contextFull;
+  }
   return result;
 }
 
@@ -254,9 +259,12 @@ export function parseMacPermission(input: unknown): MacPermissionId {
   return input;
 }
 
-export function parseCreateBot(input: unknown): { projectId?: string } {
+export function parseCreateBot(input: unknown): { projectId?: string; profileId?: string } {
   if (input === undefined || input === null) return {};
   if (!isObject(input)) throw new Error("Chat details are invalid.");
-  if (input.projectId === undefined || input.projectId === null) return {};
-  return { projectId: requireString(input.projectId, "projectId") };
+  const result: { projectId?: string; profileId?: string } = {};
+  if (input.projectId !== undefined && input.projectId !== null)
+    result.projectId = requireString(input.projectId, "projectId");
+  if (input.profileId !== undefined) result.profileId = requireString(input.profileId, "profileId");
+  return result;
 }

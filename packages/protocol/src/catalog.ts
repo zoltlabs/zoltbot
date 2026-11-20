@@ -312,6 +312,14 @@ const rawMethodCatalog = {
   "turn.interrupt": entry(object({ threadId: Id, turnId: Id }), ok),
   "turn.retry": entry(object({ threadId: Id }), ok),
   "session.compact": entry(object({ id: Id, instructions: OptionalText }), ok),
+  /** How much of the thread's live session context is used. Empty when the provider doesn't say. */
+  "session.context": entry(
+    object({ threadId: Id }),
+    object({
+      used: Type.Optional(Type.Integer({ minimum: 0 })),
+      size: Type.Optional(Type.Integer({ minimum: 1 })),
+    }),
+  ),
   "session.connect": entry(object({ threadId: Id, previousSessionId: Type.Optional(Id) }), ok),
   "session.setModel": entry(
     object({ id: Id, model: Text, effort: OptionalText, cacheWarningAccepted: Type.Boolean() }),

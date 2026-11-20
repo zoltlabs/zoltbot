@@ -36,6 +36,8 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentDeleteBot]: (botId) => service.deleteBot(requireString(botId, "botId")),
     [IPC_CHANNELS.agentReadConversation]: (botId) =>
       service.readConversation(requireString(botId, "botId")),
+    [IPC_CHANNELS.agentReadContext]: (botId) => service.context.read(requireString(botId, "botId")),
+    [IPC_CHANNELS.agentCompact]: (botId) => service.context.compact(requireString(botId, "botId")),
     [IPC_CHANNELS.agentSendMessage]: (input) => service.sendMessage(parseSendMessage(input)),
     [IPC_CHANNELS.agentSetMessageReaction]: (input) =>
       service.setMessageReaction(parseMessageReaction(input)),

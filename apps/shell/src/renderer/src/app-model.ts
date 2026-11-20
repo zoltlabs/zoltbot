@@ -91,6 +91,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     roleLabel: stored.roleLabel,
     parentId: stored.parentId,
     projectName: stored.projectName,
+    contextFull: stored.contextFull,
   };
 }
 
