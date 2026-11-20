@@ -134,7 +134,14 @@ export function useDismiss(options: {
 }): void {
   createEffect(() => {
     if (!options.open()) return;
-    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Focus goes back to the trigger; for a point anchor, to whatever had focus.
+    const anchor = options.anchor();
+    const returnTo =
+      anchor instanceof HTMLElement
+        ? anchor
+        : document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
     const token: OpenOverlay = { floating: options.floating };
     openStack.push(token);
     const keydown = (event: KeyboardEvent) => {

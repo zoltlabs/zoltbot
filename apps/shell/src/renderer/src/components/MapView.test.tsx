@@ -124,7 +124,7 @@ describe("map permissions", () => {
 
     await fireEvent.keyDown(act, { key: "Escape" });
     expect(screen.queryByRole("switch")).toBeNull();
-    expect(button).toHaveFocus();
+    await waitFor(() => expect(button).toHaveFocus());
   });
 
   it("says when the permissions couldn't be saved", async () => {

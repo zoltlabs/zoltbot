@@ -1,3 +1,4 @@
+import type { Placement } from "@floating-ui/dom";
 import { For, type JSX, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import {
@@ -139,13 +140,19 @@ export interface PopoverProps {
   onClose: () => void;
   /** Width in pixels. Height follows the content and scrolls when space runs out. */
   width?: number;
+  /** Which side of the anchor it opens on. Flips when there isn't room. */
+  placement?: Placement;
   children: JSX.Element;
 }
 
 /** A non-modal panel attached to a control, for content that isn't a list of actions. */
 export function Popover(props: PopoverProps) {
   let element: HTMLDivElement | undefined;
-  useFloatingPosition({ anchor: () => props.anchor, floating: () => element });
+  useFloatingPosition({
+    anchor: () => props.anchor,
+    floating: () => element,
+    placement: props.placement,
+  });
   useDismiss({
     open: () => true,
     anchor: () => props.anchor,

@@ -1,5 +1,6 @@
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { ViewPermission, ViewShortcut } from "../../../shared/ipc";
+import { Popover } from "../kit";
 
 /** What each permission lets a view do, as the grant card and the permissions menu show it. */
 export const permissionText: Record<ViewPermission, { label: string; detail?: string }> = {
@@ -110,91 +111,73 @@ interface PermissionsMenuProps {
 /** The header button that shows what the view may do, with a switch to grant or revoke each. */
 export function PermissionsMenu(props: PermissionsMenuProps) {
   const [open, setOpen] = createSignal(false);
-  const menuId = `view-permissions-${Math.random().toString(36).slice(2)}`;
-  let root: HTMLDivElement | undefined;
   let button: HTMLButtonElement | undefined;
 
-  const close = (refocus: boolean) => {
-    setOpen(false);
-    if (refocus) button?.focus();
-  };
-
-  onMount(() => {
-    const pointer = (event: PointerEvent) => {
-      if (open() && root && !root.contains(event.target as Node)) close(false);
-    };
-    const keydown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || !open()) return;
-      event.preventDefault();
-      close(root?.contains(document.activeElement) ?? false);
-    };
-    document.addEventListener("pointerdown", pointer);
-    document.addEventListener("keydown", keydown);
-    onCleanup(() => {
-      document.removeEventListener("pointerdown", pointer);
-      document.removeEventListener("keydown", keydown);
-    });
-  });
-
   return (
-    <div ref={root} class="view-permissions no-drag">
+    <div class="view-permissions no-drag">
       <button
         ref={button}
         type="button"
         class="view-permissions-button"
+        aria-haspopup="dialog"
         aria-expanded={open()}
-        aria-controls={menuId}
         onClick={() => setOpen(!open())}
       >
         Permissions
       </button>
-      <Show when={open()}>
-        <section
-          id={menuId}
-          class="view-permissions-popover"
-          aria-label={`${props.name} permissions`}
-        >
-          <For each={props.requested}>
-            {(permission) => {
-              const on = () => props.granted.includes(permission);
-              return (
-                <div class="view-permissions-row">
-                  <span>
-                    <strong>{permissionText[permission].label}</strong>
-                    <Show when={permissionText[permission].detail}>
-                      {(detail) => <span>{detail()}</span>}
-                    </Show>
-                  </span>
-                  <button
-                    type="button"
-                    role="switch"
-                    class="settings-switch"
-                    classList={{ "settings-switch-on": on() }}
-                    aria-checked={on()}
-                    aria-label={permissionText[permission].label}
-                    // Stays focusable while a change saves, so keyboard focus isn't lost.
-                    aria-disabled={props.busy}
-                    onClick={() => {
-                      if (props.busy) return;
-                      props.onSave(
-                        on()
-                          ? props.granted.filter((item) => item !== permission)
-                          : [...props.granted, permission],
-                      );
-                    }}
-                  >
-                    <span />
-                  </button>
-                </div>
-              );
-            }}
-          </For>
-          <Show when={props.error}>
-            <p class="view-grant-error" role="alert">
-              {props.error}
-            </p>
-          </Show>
-        </section>
+      <Show when={open() && button}>
+        {(anchor) => (
+          <Popover
+            anchor={anchor()}
+            label={`${props.name} permissions`}
+            placement="bottom-end"
+            width={320}
+            onClose={() => setOpen(false)}
+          >
+            <div class="view-permissions-popover">
+              <For each={props.requested}>
+                {(permission) => {
+                  const on = () => props.granted.includes(permission);
+                  return (
+                    <div class="view-permissions-row">
+                      <span>
+                        <strong>{permissionText[permission].label}</strong>
+                        <Show when={permissionText[permission].detail}>
+                          {(detail) => <span>{detail()}</span>}
+                        </Show>
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        class="settings-switch"
+                        classList={{ "settings-switch-on": on() }}
+                        aria-checked={on()}
+                        aria-label={permissionText[permission].label}
+                        // Stays focusable while a change saves, so keyboard focus isn't lost.
+                        aria-disabled={props.busy}
+                        onClick={() => {
+                          if (props.busy) return;
+                          props.onSave(
+                            on()
+                              ? props.granted.filter((item) => item !== permission)
+                              : [...props.granted, permission],
+                          );
+                        }}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  );
+                }}
+              </For>
+              <Show when={props.error}>
+                <p class="view-grant-error" role="alert">
+                  {props.error}
+                </p>
+              </Show>
+            </div>
+          </Popover>
+        )}
       </Show>
     </div>
   );
