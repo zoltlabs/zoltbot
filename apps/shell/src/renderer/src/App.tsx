@@ -31,6 +31,7 @@ import {
   toBotProfile,
   withoutBot,
 } from "./app-model";
+import { useShortcut } from "./app-shortcuts";
 import { createConversationState } from "./app-state";
 import { createChannelsStore } from "./channels-store";
 import { ChannelPage } from "./components/ChannelPage";
@@ -43,6 +44,7 @@ import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
 import { TasksPage } from "./components/TasksPage";
 import type { BotProfile } from "./data";
+import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
 
@@ -50,12 +52,16 @@ export function App() {
   const [botList, setBotList] = createSignal<BotProfile[]>([]);
   const [modelOptions, setModelOptions] = createSignal<AgentModelOption[]>([]);
   const [activeBotId, setActiveBotId] = createSignal("");
-  const [mapOpen, setMapOpen] = createSignal(false);
-  const [tasksOpen, setTasksOpen] = createSignal(false);
+  const pages = createPages(CHAT_ROUTE);
   const [tasksProject, setTasksProject] = createSignal<string | null>(null);
+  const [mapOpen, setMapOpen] = pageFlag(pages, "map");
+  const [tasksOpen, setTasksOpen] = pageFlag(pages, "tasks", () => ({
+    id: "tasks",
+    projectId: tasksProject(),
+  }));
+  const [modelsOpen, setModelsOpen] = pageFlag(pages, "models");
   const tasks = createTasksStore();
   const staff = createStaffStore(() => null);
-  const [modelsOpen, setModelsOpen] = createSignal(false);
   const channels = createChannelsStore();
   const channelOpen = () => channels.openId() !== null;
   const conversationState = createConversationState(activeBotId);
@@ -135,16 +141,16 @@ export function App() {
     setTasksOpen(true);
   }
 
-  onMount(() => {
-    const toggleTasks = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-      if (event.key.toLowerCase() !== "t" || !setupDone()) return;
-      event.preventDefault();
+  useShortcut({
+    id: "app.tasks",
+    keys: PAGES.tasks.shortcut ?? "Mod+T",
+    when: "global",
+    label: "Show or hide Tasks",
+    run: () => {
+      if (!setupDone()) return false;
       if (tasksOpen()) setTasksOpen(false);
       else openTasks();
-    };
-    window.addEventListener("keydown", toggleTasks);
-    onCleanup(() => window.removeEventListener("keydown", toggleTasks));
+    },
   });
 
   onMount(() => {

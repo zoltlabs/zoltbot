@@ -56,3 +56,24 @@ export function createPages(initial: Route) {
       setState((current) => removeRoutes(current, gone, fallback)),
   };
 }
+
+/** The chat page as a route, used when another page closes. */
+export const CHAT_ROUTE: Route = { id: "chat", threadId: "" };
+
+/**
+ * An open/closed signal pair backed by the page history, so code that opens and closes one
+ * page at a time keeps working while the pages move to routes.
+ */
+export function pageFlag(
+  pages: Pages,
+  id: Exclude<RouteId, "chat" | "channel">,
+  route: () => Route = () => ({ id }) as Route,
+): [() => boolean, (open: boolean) => void] {
+  return [
+    () => pages.is(id),
+    (open) => {
+      if (open) pages.navigate(route());
+      else if (pages.is(id)) pages.replace(CHAT_ROUTE);
+    },
+  ];
+}
