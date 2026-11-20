@@ -31,7 +31,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { text } from "../data/view";
+import { ago, text } from "../data/view";
 import { useClient, useLink, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
@@ -310,7 +310,7 @@ export default function Quick() {
                     <Row
                       key={row.id}
                       title={row.title}
-                      meta={new Date(row.updatedAt).toLocaleString()}
+                      detail={ago(row.updatedAt)}
                       last={index === chats.length - 1}
                       onPress={() => router.setParams({ id: row.id })}
                       right={

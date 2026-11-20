@@ -100,7 +100,6 @@ export default function Settings() {
           <Group>
             <Toggle
               label="Mac online"
-              note="Turn off to see the offline view."
               value={status !== "mac_offline"}
               onChange={(value) => fake.setMacOnline(value)}
               last
@@ -141,7 +140,7 @@ export default function Settings() {
       <Group>
         <Row
           title="Push permission"
-          meta={push.label}
+          detail={push.label}
           right={
             <Button
               label="Enable"
@@ -173,13 +172,7 @@ export default function Settings() {
       <Group>
         <Row
           title={macName || "Your Mac"}
-          meta={
-            online
-              ? "Runs your agents"
-              : lastSeenAt
-                ? `Last seen ${since(lastSeenAt)}`
-                : "Runs your agents"
-          }
+          detail={!online && lastSeenAt ? `Last seen ${since(lastSeenAt)}` : undefined}
           right={
             <Chip label={online ? "Connected" : "Offline"} tone={online ? "ok" : "neutral"} dot />
           }
@@ -191,7 +184,7 @@ export default function Settings() {
             <Row
               key={text(device.id)}
               title={name}
-              meta={
+              detail={
                 self ? `Paired ${since(device.pairedAt)}` : `Last seen ${since(device.lastSeenAt)}`
               }
               right={

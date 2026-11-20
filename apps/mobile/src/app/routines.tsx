@@ -3,7 +3,7 @@ import { type Routine, RoutineSchema } from "@zoltbot/protocol";
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { routineStatus, scheduleLabel } from "../data/manage";
+import { routineStatus } from "../data/manage";
 import { useSnapshot } from "../state/link";
 import { useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
@@ -29,7 +29,7 @@ export default function Routines() {
               <Row
                 key={routine.id}
                 title={routine.name}
-                meta={`${routine.event ? "On GitHub events" : scheduleLabel(routine.schedule.cron)} · ${routineStatus(routine)}`}
+                detail={routine.paused ? undefined : routineStatus(routine)}
                 right={routine.paused ? <Chip label="Paused" /> : undefined}
                 onPress={() => router.push(`/routine/${routine.id}`)}
                 last={index === routines.length - 1}

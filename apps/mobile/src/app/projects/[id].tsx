@@ -3,11 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Snapshot } from "../../data/transport";
 import {
   ago,
   directionRows,
-  profileName,
   projectSummaries,
   scopeRows,
   taskStateLabel,
@@ -26,13 +24,7 @@ const tones: Record<string, ChipTone> = {
   failed: "danger",
 };
 
-function Entries({
-  snapshot,
-  entries,
-}: {
-  snapshot: Snapshot;
-  entries: ReturnType<typeof scopeRows>;
-}) {
+function Entries({ entries }: { entries: ReturnType<typeof scopeRows> }) {
   const { c } = useTheme();
   return (
     <Group>
@@ -40,12 +32,11 @@ function Entries({
         const row = entry.row;
         const isTask = entry.type === "task";
         const threadId = isTask ? text(row.threadId) : text(row.id);
-        const who = profileName(snapshot, isTask ? row.ownerAgentId : row.agentId);
         return (
           <Row
             key={`${entry.type}-${text(row.id)}`}
             title={text(row.title)}
-            meta={`${isTask ? "Task" : "Chat"} · ${who} · ${ago(entry.at)}`}
+            detail={ago(entry.at)}
             left={
               <Icon
                 name={isTask ? "task" : "chats"}
@@ -140,7 +131,7 @@ export default function Project() {
         </View>
         <OfflineBanner />
         {rootEntries.length ? (
-          <Entries snapshot={snapshot} entries={rootEntries} />
+          <Entries entries={rootEntries} />
         ) : !project.directions.length ? (
           <Txt v="meta" tone="muted" style={styles.empty}>
             Nothing here yet.
@@ -190,7 +181,7 @@ export default function Project() {
                   Nothing here yet.
                 </Txt>
               ) : null}
-              {open && entries.length ? <Entries snapshot={snapshot} entries={entries} /> : null}
+              {open && entries.length ? <Entries entries={entries} /> : null}
             </View>
           );
         })}

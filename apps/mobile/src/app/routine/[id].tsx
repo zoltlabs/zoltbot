@@ -316,13 +316,11 @@ export default function RoutineScreen() {
                     hour: "numeric",
                     minute: "2-digit",
                   })}
-                  meta={[
-                    runLabel[occurrence.status] ?? occurrence.status,
-                    occurrence.outcome ? outcomeLabel[occurrence.outcome] : "",
-                    occurrence.reason ?? "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  detail={
+                    (occurrence.outcome ? outcomeLabel[occurrence.outcome] : undefined) ??
+                    runLabel[occurrence.status] ??
+                    occurrence.status
+                  }
                   onPress={threadId ? () => router.push(`/chat/${threadId}`) : undefined}
                   last={index === runs.length - 1}
                 />

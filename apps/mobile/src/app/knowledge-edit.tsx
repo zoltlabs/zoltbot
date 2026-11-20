@@ -124,7 +124,7 @@ export default function KnowledgeEdit() {
           <Group>
             <Row
               title="You"
-              meta="Every project"
+              detail="Every project"
               checked={scope.type === "user"}
               disabled={locked}
               onPress={() => setScope(userScope)}

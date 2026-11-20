@@ -145,7 +145,7 @@ export default function ZoltSettings() {
       <Group>
         <Toggle
           label="Check in on its own"
-          note={`${wake.used} of ${wake.allowance} used today`}
+          detail={`${wake.used} of ${wake.allowance} used today`}
           value={wake.enabled}
           disabled={locked}
           onChange={(enabled) => proactive({ enabled })}
@@ -186,12 +186,7 @@ export default function ZoltSettings() {
             />
           </>
         ) : null}
-        <Row
-          title="This phone"
-          meta="Needs you and results"
-          onPress={() => router.navigate("/settings")}
-          last
-        />
+        <Row title="This phone" onPress={() => router.navigate("/settings")} last />
       </Group>
     </ScrollView>
   );

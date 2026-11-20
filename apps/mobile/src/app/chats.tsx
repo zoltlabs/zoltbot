@@ -1,7 +1,7 @@
 import { chiefName } from "@zoltbot/ui/chief/data";
 import { router } from "expo-router";
 import { StyleSheet } from "react-native";
-import { ago, chats, place, profileName, text } from "../data/view";
+import { ago, chats, text } from "../data/view";
 import { useSnapshot } from "../state/link";
 import { useSharing } from "../state/sharing";
 import { BotAvatar } from "../ui/BotAvatar";
@@ -30,7 +30,7 @@ export default function Chats() {
             <Row
               key={text(group.id)}
               title={text(group.title) || "Compare"}
-              meta={`Compare · ${text(group.state)}`}
+              detail={text(group.state)}
               right={<Chip label="Read only" />}
               last={index === groups.length - 1}
               onPress={() => router.push(`/chat/compare/${text(group.id)}`)}
@@ -48,27 +48,9 @@ export default function Chats() {
             <Row
               key={text(thread.id)}
               title={chief ? chiefName(snapshot.entities) : text(thread.title)}
-              meta={
-                chief
-                  ? "Your main agent"
-                  : [
-                      thread.taskId ? "Task" : "Chat",
-                      profileName(snapshot, thread.agentId),
-                      place(snapshot, thread),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-              }
               left={<BotAvatar id={text(thread.id)} zolt={chief} working={working} />}
-              right={
-                working ? (
-                  <Chip label="Working" tone="accent" dot />
-                ) : (
-                  <Txt v="meta" tone="muted">
-                    {ago(thread.lastActivityAt)}
-                  </Txt>
-                )
-              }
+              right={working ? <Chip label="Working" tone="accent" dot /> : undefined}
+              detail={working ? undefined : ago(thread.lastActivityAt)}
               last={index === list.length - 1}
               onPress={() => router.push(`/chat/${text(thread.id)}`)}
             />

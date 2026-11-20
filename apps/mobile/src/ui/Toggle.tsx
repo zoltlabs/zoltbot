@@ -5,14 +5,15 @@ import { Row } from "./kit";
 /** A settings row with a switch; tapping the row flips it too. */
 export function Toggle({
   label,
-  note,
+  detail,
   value,
   onChange,
   last,
   disabled,
 }: {
   label: string;
-  note?: string;
+  /** A value such as a count, shown at the trailing edge. */
+  detail?: string | undefined;
   value: boolean;
   onChange: (value: boolean) => void;
   last?: boolean;
@@ -22,7 +23,7 @@ export function Toggle({
   return (
     <Row
       title={label}
-      {...(note ? { meta: note } : {})}
+      detail={detail}
       last={last ?? false}
       onPress={() => onChange(!value)}
       checked={value}

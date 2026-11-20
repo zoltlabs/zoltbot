@@ -141,7 +141,7 @@ export default function Fork() {
           <Row
             key={text(profile.id)}
             title={text(profile.name)}
-            meta={text(profile.tool)}
+            detail={text(profile.tool)}
             checked={destination === text(profile.id)}
             disabled={locked}
             onPress={() => setDestination(text(profile.id))}

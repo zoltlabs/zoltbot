@@ -141,7 +141,7 @@ function ReviewDraft({ draft }: { draft: SharedDraft }) {
           <Row
             key={recipient.id}
             title={recipient.name}
-            meta={recipient.id === recipientId ? "Selected" : "Tap to select"}
+            detail={recipient.id === recipientId ? "Selected" : undefined}
             disabled={busy || Boolean(sentThread)}
             last={index === recipients.length - 1}
             onPress={() => setRecipientId(recipient.id)}

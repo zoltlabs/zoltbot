@@ -156,7 +156,7 @@ export default function EditMessage() {
         <Group>
           <Toggle
             label="Restore files to before this"
-            note={`${files.files.length} ${files.files.length === 1 ? "file" : "files"} · this chat sees them too`}
+            detail={`${files.files.length} ${files.files.length === 1 ? "file" : "files"}`}
             value={restore}
             disabled={working}
             onChange={setRestore}

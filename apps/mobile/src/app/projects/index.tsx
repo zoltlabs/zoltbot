@@ -104,9 +104,7 @@ export default function Projects() {
             <Row
               key={text(profile.id)}
               title={text(profile.name)}
-              meta={[definitionName(snapshot, profile.definitionId), text(profile.model)]
-                .filter(Boolean)
-                .join(" · ")}
+              detail={definitionName(snapshot, profile.definitionId)}
               left={<Avatar id={text(profile.id)} />}
               right={<Icon name="chevron" size={16} stroke={2} color={c["text-muted"]} />}
               last={index === people.length - 1}

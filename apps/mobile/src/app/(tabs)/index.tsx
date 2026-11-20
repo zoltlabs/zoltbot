@@ -54,7 +54,7 @@ function Branch({ node, depth = 0, online }: { node: TeamNode; depth?: number; o
                 last
                 label={working ? `${title}, working` : title}
                 left={<BotAvatar id={id} working={working} />}
-                meta={working ? "Working" : undefined}
+                detail={working ? "Working" : undefined}
                 onPress={() => router.push(`/chat/${encodeURIComponent(id)}`)}
               />
             );
@@ -105,7 +105,7 @@ export default function Home() {
           titleLines={2}
           last
           left={<BotAvatar id="zolt" zolt size={40} working={chief.working} />}
-          meta={chief.working ? "Working" : threadId ? undefined : "Set up your main chat"}
+          detail={chief.working ? "Working" : threadId ? undefined : "Not set up"}
           disabled={!threadId && !online}
           onPress={() =>
             threadId

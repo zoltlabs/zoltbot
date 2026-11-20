@@ -179,7 +179,7 @@ export default function Overview() {
             <Row
               key={item.id}
               title={item.title}
-              meta={item.why ?? item.meta}
+              detail={item.kind === "review" ? undefined : ago(item.createdAt)}
               last={index === rest.length - 1}
               label={`${item.kind === "review" ? "Needs review" : item.label}: ${item.title}`}
               onPress={() =>
@@ -205,7 +205,7 @@ export default function Overview() {
             <Row
               key={row.threadId}
               title={row.title}
-              meta={`${row.who} · ${row.activity}`}
+              detail={row.activity}
               mono={row.activity !== "Thinking" && row.activity !== "Writing"}
               left={<BotAvatar id={row.threadId} working />}
               right={<Chip label={row.isTask ? "Task" : "Chat"} tone="accent" dot />}
@@ -229,7 +229,7 @@ export default function Overview() {
               <Row
                 key={row.threadId}
                 title={row.title}
-                meta={`${row.who} · ${ago(row.at)}`}
+                detail={ago(row.at)}
                 left={<BotAvatar id={row.threadId} />}
                 right={row.failed ? <Chip label="Failed" tone="danger" /> : undefined}
                 last={index === done.length - 1}

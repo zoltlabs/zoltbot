@@ -134,12 +134,9 @@ export default function Connections() {
                 <Row
                   key={connection.id}
                   title={connection.name}
-                  meta={[
-                    where(connection),
-                    connection.checkedAt ? `Checked ${since(connection.checkedAt)}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  detail={
+                    connection.checkedAt ? `Checked ${since(connection.checkedAt)}` : undefined
+                  }
                   right={<Chip label={health.label} tone={health.tone} dot />}
                   onPress={online && !busy ? () => open(connection) : undefined}
                   last={index === items.length - 1}

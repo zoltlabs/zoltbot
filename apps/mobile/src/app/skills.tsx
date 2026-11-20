@@ -145,7 +145,7 @@ export default function Skills() {
                 <Toggle
                   key={skill.id}
                   label={skill.name}
-                  note={
+                  detail={
                     assignment
                       ? assignment.revision < skill.current_revision
                         ? `Version ${assignment.revision} · ${skill.current_revision} available`

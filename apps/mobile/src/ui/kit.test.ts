@@ -182,3 +182,16 @@ it("lists the menu items as VoiceOver actions", () => {
   );
   expect(html).toContain('data-actions="Pin"');
 });
+
+it("shows a row's detail at the trailing edge, after the title", () => {
+  const html = renderToStaticMarkup(
+    createElement(kit.Row as unknown as (props: Record<string, unknown>) => ReactNode, {
+      title: "Ada",
+      detail: "2 min",
+      onPress: () => {},
+    }),
+  );
+  expect(html).toContain('aria-label="Ada, 2 min"');
+  expect(html.indexOf("Ada</span>")).toBeLessThan(html.indexOf("2 min</span>"));
+  expect(html).toMatch(/<\/div><span[^>]*>2 min<\/span>/);
+});

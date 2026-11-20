@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ago } from "../data/view";
 import { sharingAvailable, useSharing } from "../state/sharing";
 import { useTheme } from "../theme";
 import { BackBar } from "../ui/chrome";
@@ -46,7 +47,7 @@ export default function SharedInbox() {
               <Row
                 key={draft.id}
                 title={draft.text.trim() || "Shared photos"}
-                meta={`${draft.images.length} photos · ${new Date(draft.createdAt).toLocaleString()}`}
+                detail={ago(draft.createdAt)}
                 last={index === drafts.length - 1}
                 onPress={() => router.push({ pathname: "/shared/[id]", params: { id: draft.id } })}
               />

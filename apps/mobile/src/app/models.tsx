@@ -192,7 +192,7 @@ export default function Models() {
                   <Row
                     key={`${entry.accountId}:${entry.model ?? ""}`}
                     title={model}
-                    meta={name}
+                    detail={name}
                     left={
                       <View style={[styles.num, { backgroundColor: c["bg-sunken"] }]}>
                         <Txt v="chip">{String(index + 1)}</Txt>

@@ -126,7 +126,7 @@ export function Group({ children }: { children: ReactNode }) {
 export function Row({
   title,
   titleLines = 1,
-  meta,
+  detail,
   left,
   right,
   onPress,
@@ -138,7 +138,11 @@ export function Row({
 }: {
   title: string;
   titleLines?: number;
-  meta?: string;
+  /**
+   * A value such as a count or a time, shown at the trailing edge. Rows have no subtitle on
+   * purpose: a second line of text under the title is a caption, so leave it out.
+   */
+  detail?: string | undefined;
   left?: ReactNode;
   right?: ReactNode;
   onPress?: () => void;
@@ -157,12 +161,17 @@ export function Row({
         <Txt v="bodyMedium" lines={titleLines}>
           {title}
         </Txt>
-        {meta ? (
-          <Txt v="meta" tone="muted" lines={1} style={mono ? styles.mono : undefined}>
-            {meta}
-          </Txt>
-        ) : null}
       </View>
+      {detail ? (
+        <Txt
+          v="meta"
+          tone="muted"
+          lines={1}
+          style={[styles.rowDetail, mono ? styles.mono : undefined]}
+        >
+          {detail}
+        </Txt>
+      ) : null}
       {right}
     </>
   );
@@ -180,7 +189,7 @@ export function Row({
         disabled: Boolean(disabled),
         ...(checked === undefined ? {} : { checked }),
       }}
-      accessibilityLabel={label ?? [title, meta].filter(Boolean).join(", ")}
+      accessibilityLabel={label ?? [title, detail].filter(Boolean).join(", ")}
       style={({ pressed }) => [...style, pressed && { backgroundColor: c["bg-active"] }]}
     >
       {content}
@@ -502,7 +511,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  rowText: { flex: 1, minWidth: 0, gap: 1 },
+  rowText: { flex: 1, minWidth: 0 },
+  rowDetail: { flexShrink: 1, maxWidth: "45%", textAlign: "right" },
   mono: { fontFamily: mono, fontSize: 11 },
   chip: {
     flexDirection: "row",

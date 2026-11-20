@@ -66,7 +66,7 @@ export default function Knowledge() {
                   <Row
                     key={item.id}
                     title={item.title}
-                    meta={`${kindLabel(item.kind)} · ${item.body.replace(/\s+/g, " ")}`}
+                    detail={kindLabel(item.kind)}
                     right={
                       item.verification === "unverified" ? (
                         <Chip label="Agent" tone="accent" />
