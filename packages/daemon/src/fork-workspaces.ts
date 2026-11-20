@@ -6,15 +6,21 @@ export function forkWorkspaceBusy(
   threadId: string,
   sessionId: string,
 ): boolean {
+  // C2: an aside is read-only, so it neither waits for the folder nor holds it.
+  const aside = (id: unknown) => state.thread?.some((r) => r.id === id && r.kind === "aside");
+  if (aside(threadId)) return false;
   const session = state.session?.find((r) => r.id === sessionId);
   if (
     !session?.cwd ||
-    !state.thread?.some((r) => (r.fork as ForkProvenance | undefined)?.cwd === session.cwd)
+    !state.thread?.some(
+      (r) => r.kind !== "aside" && (r.fork as ForkProvenance | undefined)?.cwd === session.cwd,
+    )
   )
     return false;
   const others = (state.session ?? []).filter(
     (r) =>
       r.threadId !== threadId &&
+      !aside(r.threadId) &&
       r.cwd === session.cwd &&
       ["starting", "ready", "running"].includes(String(r.state)),
   );

@@ -43,6 +43,8 @@ export interface BotMessage {
   items?: string[];
   notice?: ConversationNotice;
   card?: ManagerCard;
+  /** C2: part of a side question; holds the aside's thread id. */
+  aside?: { threadId: string };
 }
 
 export interface BotProfile {

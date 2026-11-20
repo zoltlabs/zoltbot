@@ -214,6 +214,7 @@ export function drawerChats(
         !thread.taskId &&
         thread.kind !== "task" &&
         thread.kind !== "manager" &&
+        thread.kind !== "aside" &&
         !excluded.has(thread.id) &&
         threadProject(snapshot, thread) === projectId,
     )

@@ -385,6 +385,59 @@ export class FakeTransport implements Transport {
         }
         return method === "turn.sendQueuedNow" ? { ok: true, delivery: "next" } : { ok: true };
       }
+      case "turn.aside": {
+        // As zoltd (aside-api): a hidden read-only copy answers; the chat itself is unchanged.
+        const source = this.find("thread", p.threadId);
+        const asideId = `aside-${this.rows("thread").length + 1}`;
+        this.put(
+          "thread",
+          {
+            ...source,
+            id: asideId,
+            kind: "aside",
+            title: String(p.text).split("\n")[0]?.slice(0, 60),
+            createdAt: now,
+            lastActivityAt: now,
+            fork: { kind: "copied", sourceThreadId: p.threadId, permissionCeiling: "read_only" },
+          },
+          "created",
+        );
+        const turnId = `${asideId}-turn`;
+        this.put(
+          "turn",
+          { id: turnId, threadId: asideId, status: "completed", startedAt: now, endedAt: now },
+          "created",
+        );
+        this.put(
+          "item",
+          {
+            id: `${asideId}-q`,
+            threadId: asideId,
+            turnId,
+            seq: 1,
+            kind: "user",
+            createdAt: now,
+            body: { input: [{ type: "text", text: p.text }] },
+          },
+          "created",
+        );
+        this.put(
+          "item",
+          {
+            id: `${asideId}-a`,
+            threadId: asideId,
+            turnId,
+            seq: 2,
+            kind: "message",
+            createdAt: now,
+            body: { text: "It's in the sample project's README." },
+          },
+          "created",
+        );
+        return { threadId: asideId };
+      }
+      case "thread.continueAside":
+        return this.put("thread", { ...this.find("thread", p.id), kind: "side" });
       case "turn.interrupt": {
         this.put("turn", { ...this.find("turn", p.turnId), status: "interrupted", endedAt: now });
         for (const item of this.rows("item"))

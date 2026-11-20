@@ -309,6 +309,13 @@ const rawMethodCatalog = {
     object({ id: Id, disposition: values(["started", "queued", "handled"]) }),
   ),
   "turn.cancelQueued": entry(object({ threadId: Id, id: Id }), ok),
+  /** C2: asks a side question in a read-only copy of the chat; returns the aside's thread id. */
+  "turn.aside": entry(
+    object({ threadId: Id, text: Type.String({ minLength: 1, maxLength: 4000 }) }),
+    object({ threadId: Id }),
+  ),
+  /** C2: turns an aside into a normal chat, listed like any other. */
+  "thread.continueAside": entry(object({ id: Id }), ThreadSchema),
   /** C1: `order` lists every queued item id of the thread; fails with queue_changed otherwise. */
   "turn.reorderQueued": entry(
     object({ threadId: Id, order: Type.Array(Id, { maxItems: 200 }) }),

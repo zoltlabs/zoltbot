@@ -3,6 +3,7 @@ import type { PreferencesDesktopApi } from "./preferences";
 
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
+export type * from "./aside";
 export type * from "./branches";
 export * from "./browser";
 export * from "./company";
@@ -20,6 +21,7 @@ import {
   type ArtifactRepositoryDesktopApi,
 } from "./artifact-repository";
 import { ARTIFACT_SHARE_CHANNELS, type ArtifactShareDesktopApi } from "./artifact-share";
+import { ASIDE_CHANNELS, type AsideDesktopApi, type AsideLink } from "./aside";
 import type {
   BranchInput,
   BranchOrigin,
@@ -112,6 +114,7 @@ export const IPC_CHANNELS = {
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
+  ...ASIDE_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -487,6 +490,8 @@ export interface ConversationMessage {
   reaction?: MessageReaction | null;
   notice?: ConversationNotice;
   card?: ManagerCard;
+  /** C2: part of a side question asked in this chat. */
+  aside?: AsideLink;
 }
 
 export const MESSAGE_REACTIONS = ["👍", "👎", "❤️", "😂", "🎉", "😮"] as const;
@@ -732,4 +737,5 @@ export interface OpenBotDesktopApi {
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;
+  aside: AsideDesktopApi;
 }

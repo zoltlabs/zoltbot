@@ -1,10 +1,12 @@
 import { For, Show } from "solid-js";
 import type { DraftAttachment, QueueSnapshot } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
+import { t } from "../../i18n";
 import { Menu } from "../../kit";
 import { ComposerEditor } from "../ComposerEditor";
 import { type createDictation, DictationButton } from "../Dictation";
 import { fileBadge, formatFileSize } from "./Attachments";
+import { createAsideMode } from "./aside-mode";
 import { CloseIcon, FileIcon, PlusIcon, StopIcon } from "./icons";
 import { QueueList } from "./QueueList";
 
@@ -36,6 +38,13 @@ export function Composer(props: {
   onStop: () => void;
 }) {
   let attachButton: HTMLButtonElement | undefined;
+  const aside = createAsideMode({
+    botId: () => props.bot?.id,
+    working: () => Boolean(props.activeTurnId),
+    text: () => props.text,
+    hasAttachments: () => props.attachments.length > 0,
+    clear: () => props.onTextChange(""),
+  });
   return (
     <div class="composer-wrap">
       <Show when={props.showAttachments && attachButton}>
@@ -93,9 +102,9 @@ export function Composer(props: {
           </div>
         )}
       </Show>
-      <Show when={props.error}>
+      <Show when={props.error ?? aside.error()}>
         <div class="composer-error" role="alert">
-          {props.error}
+          {props.error ?? aside.error()}
         </div>
       </Show>
       <QueueList
@@ -136,17 +145,19 @@ export function Composer(props: {
               props.onboardingModelRequired
             }
             placeholder={
-              !props.agentReady
-                ? "Set up a coding agent to start"
-                : props.onboardingModelRequired
-                  ? "Choose a model to continue"
-                  : props.replyTarget
-                    ? "Reply…"
-                    : `Message ${props.agentPickerOpen ? "agent" : (props.bot?.name ?? "agent")}`
+              aside.active()
+                ? t("aside.placeholder")
+                : !props.agentReady
+                  ? "Set up a coding agent to start"
+                  : props.onboardingModelRequired
+                    ? "Choose a model to continue"
+                    : props.replyTarget
+                      ? "Reply…"
+                      : `Message ${props.agentPickerOpen ? "agent" : (props.bot?.name ?? "agent")}`
             }
             ariaLabel={`Message ${props.agentPickerOpen ? "agent" : (props.bot?.name ?? "agent")}`}
             onValueChange={props.onTextChange}
-            onSubmit={props.onSubmit}
+            onSubmit={(options) => (aside.wanted(options) ? void aside.ask() : props.onSubmit())}
           />
         </div>
         <Show when={props.dictation.available()}>
@@ -174,6 +185,19 @@ export function Composer(props: {
             </button>
           }
         >
+          <button
+            type="button"
+            class="composer-aside-toggle"
+            aria-pressed={aside.active()}
+            title={t("aside.askHint")}
+            aria-keyshortcuts="Alt+Enter"
+            onClick={aside.toggle}
+          >
+            {t("aside.ask")}
+          </button>
+          <span class="sr-only" aria-live="polite">
+            {aside.announcement()}
+          </span>
           <button
             type="button"
             class="voice-button voice-button-active"

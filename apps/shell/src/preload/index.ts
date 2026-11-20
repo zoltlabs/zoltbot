@@ -222,6 +222,10 @@ const openbotApi: OpenBotDesktopApi = {
     reorder: (input) => ipcRenderer.invoke(IPC_CHANNELS.queueReorder, input),
     sendNow: (input) => ipcRenderer.invoke(IPC_CHANNELS.queueSendNow, input),
   },
+  aside: {
+    ask: (input) => ipcRenderer.invoke(IPC_CHANNELS.asideAsk, input),
+    continue: (input) => ipcRenderer.invoke(IPC_CHANNELS.asideContinue, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

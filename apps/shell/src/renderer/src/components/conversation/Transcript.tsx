@@ -13,6 +13,7 @@ import { AgentAvatar } from "../AgentAvatar";
 import { ArtifactCards } from "../ArtifactPanel";
 import { ChoiceCard } from "../ConversationPrompts";
 import { ProviderModelPicker } from "../ProviderModelPicker";
+import { AsideEntry } from "./Aside";
 import { AttachmentCards } from "./Attachments";
 import { BranchList } from "./Branching";
 import { ONBOARDING_CHOICES } from "./constants";
@@ -336,6 +337,9 @@ export function TranscriptEntry(props: {
   onOpenArtifact: (artifact: ArtifactSummary) => void;
 }) {
   const branchesHere = () => props.branches?.get(props.message.id) ?? [];
+  // A message stays an aside or not for its whole life, so this choice needn't be reactive.
+  if (props.message.aside)
+    return <AsideEntry message={props.message} onOpenChat={props.onSelectAgent} />;
   return (
     <Show
       when={props.message.exchange}

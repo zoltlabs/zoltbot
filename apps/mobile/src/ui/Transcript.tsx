@@ -4,6 +4,7 @@ import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { useSnapshot } from "../state/link";
 import { mono, useTheme } from "../theme";
+import { AsideRow } from "./AsideRow";
 import { Icon } from "./icons";
 import { StaffCard } from "./interactions/StaffCard";
 import { Button, Txt } from "./kit";
@@ -239,6 +240,7 @@ export function Message({
   queue?: QueueActions;
 }) {
   const { c } = useTheme();
+  if (row.aside) return <AsideRow row={row} />;
   // Manager rows first: their notices are system rows too, like the switch note below.
   if (row.manager) return <ManagerCardView card={row.manager} />;
   if (row.notice) return <NoticeRow notice={row.notice} />;

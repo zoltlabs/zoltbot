@@ -345,7 +345,7 @@ export function workingNow(snapshot: Snapshot): WorkingRow[] {
       .map((turn) => text(turn.threadId)),
   );
   return rows(snapshot, "thread")
-    .filter((thread) => running.has(text(thread.id)))
+    .filter((thread) => running.has(text(thread.id)) && thread.kind !== "aside")
     .map((thread) => ({
       threadId: text(thread.id),
       title: text(thread.title),
@@ -418,7 +418,7 @@ export function chats(snapshot: Snapshot) {
   const working = new Set(workingNow(snapshot).map((row) => row.threadId));
   const chief = chiefThreadId(snapshot.entities);
   return rows(snapshot, "thread")
-    .filter(live)
+    .filter((thread) => live(thread) && thread.kind !== "aside")
     .sort(
       (a, b) =>
         Number(b.id === chief) - Number(a.id === chief) ||

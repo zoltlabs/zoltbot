@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
+  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { artifactReference } from "../../data/artifacts";
+import { withAsides } from "../../data/asides";
 import { type Attachment, composeInput } from "../../data/attachments";
 import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
@@ -76,7 +78,7 @@ export default function Chat() {
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
-  const rows = inQueueOrder(transcript(snapshot, id), queue);
+  const rows = withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue));
   const turn = runningTurn(snapshot, id);
   const who = profileName(snapshot, thread?.agentId);
   const chief = chiefThreadId(snapshot.entities) === id;
@@ -99,7 +101,13 @@ export default function Chat() {
   // Steering reaches the running turn only where the agent supports it; otherwise it waits.
   const canSteer =
     !artifactTarget && !!turn && (session?.capabilities as Row | undefined)?.steer === "native";
-  const [delivery, setDelivery] = useState<"steer" | "queue">("steer");
+  // C2: while the agent works, a message can also go as a side question, without stopping it.
+  const canAside = !artifactTarget && !!turn;
+  const [delivery, setDelivery] = useState<"steer" | "queue" | "aside">("steer");
+  // The choice ends with the turn, as on the Mac: the next turn starts at Send now.
+  useEffect(() => {
+    if (!turn) setDelivery("steer");
+  }, [turn]);
   const send = async () => {
     const message = draft.trim();
     if (!message && !attachments.length) return;
@@ -112,11 +120,25 @@ export default function Chat() {
       }
       return;
     }
+    if (canAside && delivery === "aside") {
+      if (attachments.length) {
+        Alert.alert("Side questions can’t include attachments.");
+        return;
+      }
+      const asked = await run("turn.aside", { threadId: id, text: message });
+      if (asked) {
+        followLatest.current = true;
+        setFollowing(true);
+        setDraft("");
+        AccessibilityInfo.announceForAccessibility("Asked aside");
+      }
+      return;
+    }
     const result = await run("turn.send", {
       threadId: id,
       input: composeInput(message, attachments),
       ...(artifactTarget ? { artifactTarget } : {}),
-      mode: canSteer ? delivery : "queue",
+      mode: canSteer && delivery === "steer" ? "steer" : "queue",
     });
     if (result) {
       followLatest.current = true;
@@ -348,14 +370,15 @@ export default function Chat() {
               account={chatAccount(snapshot, id)}
             />
           )}
-          {canSteer && !compareReadOnly ? (
-            <Segmented<"steer" | "queue">
+          {canAside && !compareReadOnly ? (
+            <Segmented<"steer" | "queue" | "aside">
               label="Send while the agent works"
-              value={delivery}
+              value={delivery === "steer" && !canSteer ? "queue" : delivery}
               onChange={setDelivery}
               options={[
-                { value: "steer", label: "Send now" },
+                ...(canSteer ? [{ value: "steer" as const, label: "Send now" }] : []),
                 { value: "queue", label: "Queue next" },
+                { value: "aside", label: "Aside" },
               ]}
             />
           ) : null}
@@ -364,7 +387,7 @@ export default function Chat() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Message"
+            placeholder={canAside && delivery === "aside" ? "Ask aside…" : "Message"}
             placeholderTextColor={c["text-dim"]}
             multiline
             editable={online && !!thread}

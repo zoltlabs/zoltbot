@@ -35,6 +35,7 @@ import { assetServer } from "./api-assets.js";
 import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
+import { asideApi } from "./aside-api.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
 import { channelApi } from "./channel-service.js";
@@ -380,6 +381,12 @@ async function startOwnedDaemon(
         })
       : options.setup;
   const forks = forkApi({ store, ...(manager ? { manager } : {}), privacy, publish });
+  const asides = asideApi({
+    store,
+    privacy,
+    publish,
+    ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
+  });
   const compare = compareApi({
     store,
     privacy,
@@ -602,6 +609,7 @@ async function startOwnedDaemon(
           (await wakes.api(request.method, params, commandId)) ??
           (await settings(request.method, params, commandId)) ??
           (await forks(request.method, params, commandId)) ??
+          (await asides(request.method, params, commandId)) ??
           (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??

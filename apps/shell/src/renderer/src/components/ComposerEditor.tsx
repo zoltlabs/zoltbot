@@ -11,7 +11,8 @@ interface ComposerEditorProps {
   ariaLabel: string;
   disabled: boolean;
   onValueChange: (value: string) => void;
-  onSubmit: () => void;
+  /** `aside` is set when ⌥Enter sent it (C2). */
+  onSubmit: (options?: { aside: boolean }) => void;
 }
 
 interface MentionContext {
@@ -141,7 +142,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      props.onSubmit();
+      props.onSubmit(event.altKey ? { aside: true } : undefined);
     }
   }
 

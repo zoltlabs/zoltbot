@@ -317,3 +317,18 @@ describe("client over the fake transport", () => {
     client.stop();
   });
 });
+
+it("answers a side question in a hidden aside and can continue it as a chat", async () => {
+  const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+  await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+  const call = client.getState().call;
+  const thread = (id: string) =>
+    client.getState().snapshot.entities.thread?.find((row) => row.id === id);
+  const { threadId } = (await call("turn.aside", {
+    threadId: "thread-meal-search",
+    text: "Where?",
+  })) as { threadId: string };
+  expect(thread(threadId)?.kind).toBe("aside");
+  await call("thread.continueAside", { id: threadId });
+  expect(thread(threadId)?.kind).toBe("side");
+});

@@ -84,7 +84,8 @@ export const ThreadSchema = object({
   projectId: Type.Optional(Id),
   node: Type.Optional(ScopeSchema),
   taskId: Type.Optional(Id),
-  kind: values(["main", "task", "side", "manager"]),
+  /** "aside" (C2): a hidden read-only copy that answers one side question; never listed as a chat. */
+  kind: values(["main", "task", "side", "manager", "aside"]),
   title: Text,
   titleSource: values(["auto", "human", "provider"]),
   pinned: Type.Boolean(),

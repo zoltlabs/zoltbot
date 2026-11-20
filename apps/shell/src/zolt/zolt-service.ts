@@ -27,6 +27,7 @@ import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
 import { chooseAgent } from "./agent-choice";
+import { asideSource, withAsides } from "./asides";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
 import { decidePlan, readCompany, refreshBrief } from "./company-service";
 import { companyTree } from "./company-tree";
@@ -600,7 +601,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const conversation = this.conversation(botId);
     conversation.revision++;
     const items = this.items(botId);
-    const messages = toMessages(this.client.snapshot, botId, items);
+    const messages = withAsides(
+      this.client.snapshot,
+      botId,
+      toMessages(this.client.snapshot, botId, items),
+    );
     for (const message of messages) {
       const reaction = this.preferences.reactions[`${botId}:${message.id}`];
       if (reaction) message.reaction = reaction;
@@ -661,6 +666,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       const staff = staffProject(change.aggregateType, row);
       if (staff !== undefined) this.companyDirty.add(staff || null);
       if (threadId) this.dirty.add(threadId);
+      const asked = threadId ? asideSource(this.client.snapshot, threadId) : undefined;
+      if (asked) this.dirty.add(asked);
+      // A continued aside leaves its chat: that chat drops the aside's lines.
+      const source = (row.fork as Row | undefined)?.sourceThreadId;
+      if (change.aggregateType === "thread" && typeof source === "string") this.dirty.add(source);
       for (const id of relatedThreads(this.client.snapshot, change.aggregateType, row))
         this.dirty.add(id);
     }
@@ -671,7 +681,15 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private streamed(item: Row): void {
     const botId = text(item.threadId);
     const conversation = this.conversations.get(botId);
-    if (!conversation) return;
+    if (!conversation) {
+      // An aside's answer streams into the chat it was asked in.
+      const asked = asideSource(this.client.snapshot, botId);
+      if (asked && this.conversations.has(asked)) {
+        this.dirty.add(asked);
+        this.scheduleFlush();
+      }
+      return;
+    }
     const id = text(item.id);
     const next = text(body(item).text);
     const previous = conversation.texts.get(id);

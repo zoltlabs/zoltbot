@@ -57,6 +57,8 @@ export interface TranscriptRow {
   event?: "brief" | "wake" | "notice";
   /** Zolt's morning brief: a message in the turn the brief wake-up started. */
   brief?: boolean;
+  /** C2: part of a side question; `question` marks the asked line. */
+  aside?: { threadId: string; question: boolean };
 }
 
 /** What happened to a message you sent, read from the item, never from the send result. */

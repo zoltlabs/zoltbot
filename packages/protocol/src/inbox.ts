@@ -186,6 +186,8 @@ export function inboxRows(
   const rows: { thread: Row; mailbox: Mailbox }[] = [];
   for (const thread of state.thread ?? []) {
     if (options.projectId && thread.projectId !== options.projectId) continue;
+    // C2: an aside shows inside its chat, never as a row of its own.
+    if (thread.kind === "aside") continue;
     const mailbox = facts.mailbox(thread, now);
     if (!mailbox) continue;
     counts[mailbox] += 1;

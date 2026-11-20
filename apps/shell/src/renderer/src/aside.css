@@ -1,0 +1,85 @@
+/* C2: side questions, indented under the chat message they followed. */
+.aside-entry {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  max-width: min(560px, 85%);
+  margin: 2px 0 2px 28px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--border);
+  border-radius: 0 10px 10px 0;
+  background: var(--surface-inset, var(--shade));
+}
+
+.aside-question {
+  margin-top: 8px;
+}
+
+.aside-answer {
+  margin-bottom: 8px;
+}
+
+.aside-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.aside-copy {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.aside-pending {
+  color: var(--text-secondary);
+}
+
+.aside-continue {
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.aside-continue:hover {
+  background: var(--surface-hover, var(--surface));
+}
+
+.aside-continue:focus-visible,
+.composer-aside-toggle:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.aside-error {
+  margin: 0;
+  color: var(--text-danger);
+  font-size: 12px;
+}
+
+.composer-aside-toggle {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.composer-aside-toggle[aria-pressed="true"] {
+  border-color: var(--text-accent);
+  background: var(--text-accent);
+  color: var(--surface);
+  font-weight: 600;
+}
