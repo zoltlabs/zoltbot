@@ -46,6 +46,7 @@ import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
 import { createChatActions } from "./components/sidebar/chat-actions";
 import { TasksPage } from "./components/TasksPage";
+import { UsagePage } from "./components/UsagePage";
 import type { BotProfile } from "./data";
 import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
@@ -65,6 +66,7 @@ export function App() {
     projectId: tasksProject(),
   }));
   const [modelsOpen, setModelsOpen] = pageFlag(pages, "models");
+  const [usageOpen, setUsageOpen] = pageFlag(pages, "usage");
   const [memoryAgent, setMemoryAgent] = createSignal<string | null>(null);
   const [memoryOpen, setMemoryOpen] = pageFlag(pages, "memory", () => ({
     id: "memory",
@@ -152,6 +154,7 @@ export function App() {
     setMapOpen(false);
     setModelsOpen(false);
     setMemoryOpen(false);
+    setUsageOpen(false);
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
     channels.open(null);
@@ -175,6 +178,7 @@ export function App() {
     setTasksOpen(false);
     setModelsOpen(false);
     setMemoryOpen(false);
+    setUsageOpen(false);
     setAgentPickerOpen(false);
     channels.open(channelId);
   }
@@ -386,6 +390,12 @@ export function App() {
     setMemoryOpen(true);
   }
 
+  function openUsage() {
+    closePages();
+    setAgentPickerOpen(false);
+    setUsageOpen(true);
+  }
+
   /** Closes the channel and every page, so the conversation shows. */
   function closePages() {
     channels.open(null);
@@ -393,6 +403,7 @@ export function App() {
     setTasksOpen(false);
     setModelsOpen(false);
     setMemoryOpen(false);
+    setUsageOpen(false);
   }
 
   function selectBot(botId: string) {
@@ -401,6 +412,7 @@ export function App() {
     setTasksOpen(false);
     setModelsOpen(false);
     setMemoryOpen(false);
+    setUsageOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -604,7 +616,7 @@ export function App() {
     bots: botList,
     // Covered by a page or channel, the open chat isn't being read.
     activeBotId: () =>
-      mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen()
+      mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || usageOpen() || channelOpen()
         ? undefined
         : activeBot()?.id,
     clearLocalUnread: clearReplyIndicators,
@@ -691,7 +703,12 @@ export function App() {
               tasks={tasks.tasks()}
               staffApprovals={staff.approvals().length}
               activeBotId={
-                mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen()
+                mapOpen() ||
+                tasksOpen() ||
+                modelsOpen() ||
+                memoryOpen() ||
+                usageOpen() ||
+                channelOpen()
                   ? ""
                   : (activeBot()?.id ?? "")
               }
@@ -707,6 +724,7 @@ export function App() {
                     setTasksOpen(false);
                     setModelsOpen(false);
                     setMemoryOpen(false);
+                    setUsageOpen(false);
                     setAgentPickerOpen(false);
                     channels.open(channelId);
                   }}
@@ -717,6 +735,7 @@ export function App() {
                 setTasksOpen(false);
                 setModelsOpen(false);
                 setMemoryOpen(false);
+                setUsageOpen(false);
                 setMapOpen(true);
               }}
               onOpenTasks={() => openTasks()}
@@ -730,6 +749,8 @@ export function App() {
               memoryOpen={memoryOpen()}
               memoryReviews={memory.proposals().length}
               onOpenMemory={() => openMemory()}
+              usageOpen={usageOpen()}
+              onOpenUsage={openUsage}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -771,7 +792,13 @@ export function App() {
           <div
             class="conversation-slot"
             inert={
-              mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || channelOpen() || undefined
+              mapOpen() ||
+              tasksOpen() ||
+              modelsOpen() ||
+              memoryOpen() ||
+              usageOpen() ||
+              channelOpen() ||
+              undefined
             }
           >
             <Conversation
@@ -841,6 +868,12 @@ export function App() {
               }}
             />
           </Show>
+          <Show when={usageOpen()}>
+            <UsagePage
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+            />
+          </Show>
           <Show when={memoryOpen()}>
             <MemoryPage
               store={memory}
@@ -874,6 +907,7 @@ export function App() {
                     setModelsOpen(true);
                   },
                   openMemory: () => openMemory(),
+                  openUsage,
                   // The picker lives in the conversation, which a page or channel covers.
                   newChat: () => {
                     closePages();

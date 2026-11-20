@@ -78,6 +78,14 @@
   --text-info-strong: rgba(221, 233, 255, 0.94);
   --text-file-badge: #ff9d69;
   --text-warning: #f0c46a;
+
+  /* Chart series (S6), in this fixed order; checked for color-vision separation. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-other: #6b6b68;
   /* Status text on the owner's light message bubble, the same in both themes. */
   --text-user-bubble-meta: #666664;
 
@@ -167,6 +175,13 @@
     --text-info-strong: #1a4a9e;
     --text-file-badge: #a8471a;
     --text-warning: #855500;
+
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-3: #1baf7a;
+    --chart-4: #eda100;
+    --chart-5: #e87ba4;
+    --chart-other: #a3a3a0;
 
     --danger: #b8463d;
     --avatar-neutral: #2a2a28;

@@ -200,6 +200,10 @@ const openbotApi: OpenBotDesktopApi = {
     archive: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryArchive, input),
     decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecide, input),
   },
+  spend: {
+    list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),
+    setBudget: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendSetBudget, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

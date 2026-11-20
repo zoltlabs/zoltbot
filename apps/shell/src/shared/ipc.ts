@@ -7,6 +7,7 @@ export * from "./company";
 export * from "./dictation";
 export type * from "./manager-cards";
 export type * from "./memory";
+export type * from "./spend";
 export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
@@ -30,6 +31,7 @@ import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
+import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
@@ -97,6 +99,7 @@ export const IPC_CHANNELS = {
   agentEvent: "agent:event",
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
+  ...SPEND_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -598,6 +601,8 @@ export type AgentEvent =
   | { type: "company-changed"; projectId: string | null }
   /** What agents remember changed (S5). */
   | { type: "memory-changed" }
+  /** Usage records or budgets changed (S6). */
+  | { type: "spend-changed" }
   | { type: "browser-changed"; tabs: BrowserTab[]; activeTabId: string | null }
   | { type: "browser-control-changed"; state: BrowserControlState }
   | { type: "error"; botId?: string; code: string; message: string };
@@ -709,4 +714,5 @@ export interface OpenBotDesktopApi {
   dictation: DictationDesktopApi;
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
+  spend: SpendDesktopApi;
 }

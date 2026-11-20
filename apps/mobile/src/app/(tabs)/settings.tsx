@@ -153,6 +153,7 @@ export default function Settings() {
         <Row title="Knowledge" onPress={() => router.push("/knowledge")} />
         <Row title="Skills" onPress={() => router.push("/skills")} />
         <Row title="Models" onPress={() => router.push("/models")} />
+        <Row title="Usage" onPress={() => router.push("/usage")} />
         <Row title="Connections" onPress={() => router.push("/connections")} last />
       </Group>
 

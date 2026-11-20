@@ -457,9 +457,32 @@ function accounts(store: ManagerRows): Row[] {
 }
 
 /** Answers the manager and backup model calls, or undefined for any other method. */
+/** S6: a sample of usage records, one or two per session over the last few days. */
+function usageRecords(store: ManagerRows, from: string): Row[] {
+  const now = Date.parse(store.at());
+  return store
+    .rows("session")
+    .flatMap((session, index) =>
+      [0, 1].slice(0, (index % 2) + 1).map((run) => ({
+        id: `usage-${String(session.id)}-${run}`,
+        sessionId: session.id,
+        inputTokens: 1200 * (index + 1) + run * 400,
+        outputTokens: 300 * (index + 1),
+        costUsd: Math.round(18 * (index + 1) + run * 7) / 100,
+        costKnown: index !== 3,
+        injectedTokens: 0,
+        recordedAt: new Date(now - (index * 30 + run * 3) * 3_600_000).toISOString(),
+      })),
+    )
+    .filter((record) => record.recordedAt >= from)
+    .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
+}
+
 export function answerManager(method: string, p: Row, store: ManagerRows): unknown {
   const now = store.at();
   switch (method) {
+    case "usage.query":
+      return usageRecords(store, typeof p.from === "string" ? p.from : "");
     case "modelAccount.list":
       return { items: accounts(store), orders: value(store, "models.orders") };
     case "backupOrder.set": {

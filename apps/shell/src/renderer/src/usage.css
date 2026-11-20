@@ -1,0 +1,268 @@
+/* The Usage page (S6). Colors are theme tokens; series colors are --chart-1 to --chart-5. */
+
+.usage-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.usage-body > .memory-toolbar {
+  margin-bottom: 0;
+}
+
+.usage-totals {
+  display: flex;
+  gap: 32px;
+  margin: 0;
+}
+
+.usage-totals dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.usage-totals dd {
+  margin: 2px 0 0;
+  color: var(--text-heading);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-figure {
+  margin: 0;
+}
+
+.usage-chart-title {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.usage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.usage-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.usage-plot {
+  position: relative;
+  display: flex;
+  gap: 8px;
+}
+
+.usage-axis {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 168px;
+}
+
+.usage-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  color: var(--text-row-meta);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.usage-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.usage-bars {
+  display: block;
+  overflow: visible;
+}
+
+.usage-grid {
+  stroke: var(--openbot-line);
+  stroke-width: 1;
+}
+
+.usage-baseline {
+  stroke: var(--openbot-line-strong);
+  stroke-width: 1;
+}
+
+.usage-day {
+  fill: var(--text-row-meta);
+  font-size: 11px;
+}
+
+.usage-hit {
+  fill: transparent;
+}
+
+.usage-tooltip {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  min-width: 160px;
+  max-width: 240px;
+  border: 1px solid var(--openbot-line-strong);
+  border-radius: 8px;
+  background: var(--surface-popover);
+  box-shadow: 0 8px 24px rgb(var(--shade) / calc(0.4 * var(--shade-strength)));
+  padding: 8px 10px;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.usage-tooltip-day {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+}
+
+.usage-tooltip-row {
+  display: flex;
+  margin: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+}
+
+.usage-tooltip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-tooltip-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-tooltip-total {
+  margin-top: 4px;
+  border-top: 1px solid var(--openbot-line);
+  padding-top: 4px;
+  font-weight: 600;
+}
+
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.usage-table th,
+.usage-table td {
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 7px 8px;
+  text-align: left;
+  font-weight: 400;
+}
+
+.usage-table thead th {
+  padding-block: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.usage-table tbody th {
+  max-width: 0;
+  width: 60%;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-table .usage-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.usage-sort {
+  min-height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 2px 4px;
+  color: inherit;
+  font: inherit;
+}
+
+.usage-sort-active {
+  color: var(--openbot-white);
+  font-weight: 600;
+}
+
+.usage-sort-active::after {
+  content: " ↓" / "";
+}
+
+.usage-sort:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.usage-budget {
+  border: 1px solid var(--openbot-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.usage-budget-title {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.usage-budget-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.usage-budget-row > span {
+  margin-right: auto;
+}
+
+.usage-budget-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.usage-budget-field input {
+  width: 110px;
+}
+
+.agent-usage-line {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

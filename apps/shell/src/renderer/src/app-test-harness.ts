@@ -289,6 +289,10 @@ export function setUpAppTest() {
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
       },
+      spend: {
+        list: vi.fn().mockResolvedValue({ rows: [], budgets: [], projects: [] }),
+        setBudget: vi.fn().mockResolvedValue(undefined),
+      },
       browser: {
         open: vi.fn().mockResolvedValue(undefined),
         activate: vi.fn().mockResolvedValue(undefined),

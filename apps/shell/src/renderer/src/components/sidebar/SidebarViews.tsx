@@ -1,4 +1,4 @@
-// The sidebar's page buttons: Map, Tasks, Models and Memory.
+// The sidebar's page buttons: Map, Tasks, Models, Memory and Usage.
 import { Show } from "solid-js";
 import { t } from "../../i18n";
 import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
@@ -15,11 +15,24 @@ function MemoryIcon() {
   );
 }
 
+function UsageIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <path
+        d="M4 16.5h12M6 13.5v-3M10 13.5v-8M14 13.5v-5"
+        stroke-width="1.6"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+
 export function SidebarViews(props: {
   mapOpen: boolean;
   tasksOpen: boolean;
   modelsOpen?: boolean;
   memoryOpen?: boolean;
+  usageOpen?: boolean;
   /** Tasks and approvals waiting on the owner. */
   needsYou: number;
   /** What agents proposed to remember, waiting for review. */
@@ -28,6 +41,7 @@ export function SidebarViews(props: {
   onOpenTasks: () => void;
   onOpenModels?: (() => void) | undefined;
   onOpenMemory?: (() => void) | undefined;
+  onOpenUsage?: (() => void) | undefined;
 }) {
   return (
     <div class="sidebar-views">
@@ -94,6 +108,20 @@ export function SidebarViews(props: {
               <span class="sr-only"> {t("sidebar.views.toReview")}</span>
             </span>
           </Show>
+        </button>
+      </Show>
+      <Show when={props.onOpenUsage}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.usageOpen === true }}
+          aria-pressed={props.usageOpen === true}
+          onClick={() => props.onOpenUsage?.()}
+        >
+          <span class="sidebar-map-icon">
+            <UsageIcon />
+          </span>
+          <span class="bot-row-copy">{t("usage.title")}</span>
         </button>
       </Show>
     </div>

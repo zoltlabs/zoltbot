@@ -7,7 +7,8 @@ export type Route =
   | { id: "tasks"; projectId: string | null }
   | { id: "map" }
   | { id: "models" }
-  | { id: "memory"; agentId: string | null };
+  | { id: "memory"; agentId: string | null }
+  | { id: "usage" };
 
 export type RouteId = Route["id"];
 

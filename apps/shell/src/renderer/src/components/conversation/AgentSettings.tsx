@@ -15,6 +15,7 @@ import { Select } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { PanelResizer } from "../PanelResizer";
 import { ProviderModelPicker } from "../ProviderModelPicker";
+import { AgentUsage } from "./AgentUsage";
 import {
   AVATAR_COLOR_LABELS,
   AVATAR_SHAPE_LABELS,
@@ -286,6 +287,7 @@ export function AgentSettings(props: {
             </button>
           </div>
         </Show>
+        <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
       </div>
     </aside>
   );

@@ -44,6 +44,13 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   {
+    name: "usage",
+    open: async (page) => {
+      await sidebar(page).getByRole("button", { name: "Usage", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Usage" }).first()).toBeVisible();
+    },
+  },
+  {
     name: "map",
     open: async (page) => {
       await sidebar(page).getByRole("button", { name: "Map", exact: true }).click();
