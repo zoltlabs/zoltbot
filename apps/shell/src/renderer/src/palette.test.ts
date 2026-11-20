@@ -65,6 +65,12 @@ describe("rankPalette", () => {
     expect(matchScore("website", "Website")).toBeGreaterThan(0);
   });
 
+  it("never lets a recent item outrank a better match", () => {
+    const both = [item("chat:map", "chats", "Map review"), item("page:map", "pages", "Map")];
+    const sections = rankPalette(both, "map", ["chat:map"]);
+    expect(sections.map((section) => section.group)).toEqual(["pages", "chats"]);
+  });
+
   it("puts a recent item ahead of an equal match", () => {
     const twins = [item("a", "chats", "Notes"), item("b", "chats", "Notes")];
     expect(rankPalette(twins, "notes", ["b"])[0]?.items.map((entry) => entry.id)).toEqual([

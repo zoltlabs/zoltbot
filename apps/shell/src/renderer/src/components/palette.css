@@ -34,7 +34,8 @@
 }
 
 .command-palette-input:focus-visible {
-  outline: none;
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: -2px;
 }
 
 .command-palette-list {
@@ -65,7 +66,8 @@
 }
 
 .command-palette-option[aria-selected="true"] {
-  background: var(--openbot-hover);
+  background: var(--surface-option-selected);
+  box-shadow: inset 2px 0 0 var(--text-primary);
 }
 
 .command-palette-label {
@@ -83,6 +85,10 @@
   font-size: 12px;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.command-palette-empty:empty {
+  display: none;
 }
 
 .command-palette-empty {

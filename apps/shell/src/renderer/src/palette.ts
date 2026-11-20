@@ -80,7 +80,7 @@ export function rankPalette(
   recent: readonly string[],
 ): PaletteSection[] {
   const recentRank = new Map(recent.map((id, index) => [id, index]));
-  const byGroup = new Map<PaletteGroup, { item: PaletteItem; score: number }[]>();
+  const byGroup = new Map<PaletteGroup, { item: PaletteItem; score: number; recency: number }[]>();
   if (!query.trim()) {
     const recentItems = recent
       .map((id) => items.find((item) => item.id === id))
@@ -100,12 +100,17 @@ export function rankPalette(
   for (const item of items) {
     const score = itemScore(query, item);
     if (score === null) continue;
-    const boosted = score + (recentRank.has(item.id) ? 50 - (recentRank.get(item.id) ?? 0) : 0);
-    byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { item, score: boosted }]);
+    const recency = recentRank.get(item.id) ?? Number.POSITIVE_INFINITY;
+    byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { item, score, recency }]);
   }
   return [...byGroup.entries()]
     .map(([group, matches]) => {
-      matches.sort((a, b) => b.score - a.score || a.item.label.localeCompare(b.item.label));
+      matches.sort(
+        (a, b) =>
+          b.score - a.score ||
+          (a.recency === b.recency ? 0 : a.recency < b.recency ? -1 : 1) ||
+          a.item.label.localeCompare(b.item.label),
+      );
       return { group, best: matches[0]?.score ?? 0, items: matches.slice(0, GROUP_LIMIT) };
     })
     .sort(

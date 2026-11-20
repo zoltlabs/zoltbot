@@ -362,6 +362,14 @@ export function App() {
     }
   }
 
+  /** Closes the channel and every page, so the conversation shows. */
+  function closePages() {
+    channels.open(null);
+    setMapOpen(false);
+    setTasksOpen(false);
+    setModelsOpen(false);
+  }
+
   function selectBot(botId: string) {
     channels.open(null);
     setMapOpen(false);
@@ -805,14 +813,18 @@ export function App() {
                   openChannel,
                   openTasks,
                   openMap: () => {
-                    channels.open(null);
+                    closePages();
                     setMapOpen(true);
                   },
                   openModels: () => {
-                    channels.open(null);
+                    closePages();
                     setModelsOpen(true);
                   },
-                  newChat: () => setAgentPickerOpen(true),
+                  // The picker lives in the conversation, which a page or channel covers.
+                  newChat: () => {
+                    closePages();
+                    setAgentPickerOpen(true);
+                  },
                 })
               }
               onClose={() => setPaletteOpen(false)}

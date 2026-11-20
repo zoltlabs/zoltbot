@@ -73,9 +73,12 @@ export function paletteItems(sources: PaletteSources): PaletteItem[] {
     label: t("palette.command.newChat"),
     run: sources.newChat,
   });
-  // Commands registered with keys, except Escape-style ones that only make sense in place.
+  // App-wide commands registered with keys. Ones that only make sense in place, such as
+  // Escape, and ones that repeat a page above are left out.
+  const repeats = new Set(["app.palette", "app.tasks", "app.map", "app.models"]);
   for (const shortcut of shortcuts.list()) {
-    if (shortcut.id === "app.palette" || shortcut.keys === "Escape") continue;
+    if (shortcut.when !== "global" || repeats.has(shortcut.id) || shortcut.keys === "Escape")
+      continue;
     items.push({
       id: `command:${shortcut.id}`,
       group: "commands",

@@ -55,6 +55,11 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
   });
   onMount(() => input?.focus());
   createEffect(on(query, () => setActive(0), { defer: true }));
+  // The list rebuilds when chats, channels or tasks change; keep the highlight on a real row.
+  createEffect(() => {
+    const count = flat().length;
+    if (active() >= count) setActive(Math.max(0, count - 1));
+  });
   createEffect(() => {
     const index = active();
     document.getElementById(optionId(index))?.scrollIntoView?.({ block: "nearest" });
@@ -64,11 +69,25 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
     const next = rememberRecent(recent(), item.id);
     setRecent(next);
     saveRecent(next);
-    props.onClose();
     item.run();
+    props.onClose();
+    // A page or channel the item opened covers what had focus before, so focus can't go back
+    // there. Move it to the new view's heading instead.
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body && !active.closest("[inert]")) return;
+      const heading = [...document.querySelectorAll<HTMLElement>("main h1, h1")].find(
+        (element) => !element.closest("[inert]") && element.getClientRects().length > 0,
+      );
+      if (!heading) return;
+      if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+      heading.focus();
+    });
   }
 
   function keydown(event: KeyboardEvent) {
+    // The Enter that confirms text typed with an input method isn't a choice.
+    if (event.isComposing) return;
     const count = flat().length;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -107,11 +126,11 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
             class="command-palette-input"
             type="text"
             role="combobox"
-            aria-expanded="true"
+            aria-expanded={flat().length > 0}
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={flat().length ? optionId(active()) : undefined}
-            aria-label={t("palette.title")}
+            aria-label={t("palette.placeholder")}
             placeholder={t("palette.placeholder")}
             autocomplete="off"
             spellcheck={false}
@@ -119,12 +138,7 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
             onInput={(event) => setQuery(event.currentTarget.value)}
             onKeyDown={keydown}
           />
-          <div
-            id={listId}
-            class="command-palette-list"
-            role="listbox"
-            aria-label={t("palette.results")}
-          >
+          <div id={listId} class="command-palette-list" role="listbox">
             <For each={sections()}>
               {(section) => {
                 const headingId = `command-palette-group-${section.group}`;
@@ -146,7 +160,9 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
                             onPointerMove={() => setActive(index())}
                             onClick={() => run(item)}
                           >
-                            <span class="command-palette-label">{item.label}</span>
+                            <span class="command-palette-label" title={item.label}>
+                              {item.label}
+                            </span>
                             <Show when={item.detail}>
                               <span class="command-palette-detail">{item.detail}</span>
                             </Show>
@@ -159,11 +175,10 @@ export function CommandPalette(props: { items: () => PaletteItem[]; onClose: () 
               }}
             </For>
           </div>
-          <Show when={query().trim() && !flat().length}>
-            <p class="command-palette-empty" role="status">
-              {t("palette.empty", { query: query().trim() })}
-            </p>
-          </Show>
+          {/* Always mounted, so a screen reader announces when its text changes. */}
+          <p class="command-palette-empty" role="status">
+            {query().trim() && !flat().length ? t("palette.empty", { query: query().trim() }) : ""}
+          </p>
         </section>
       </div>
     </Portal>

@@ -31,7 +31,7 @@ describe("CommandPalette", () => {
   it("searches, moves with the arrows and runs the chosen item", async () => {
     const { openTasks, openChat } = setup();
     fireEvent.click(screen.getByRole("button", { name: "Open palette" }));
-    const input = screen.getByRole("combobox", { name: "Command palette" });
+    const input = screen.getByRole("combobox", { name: "Search or run a command" });
     await waitFor(() => expect(input).toHaveFocus());
     expect(screen.getByRole("group", { name: "Chats" })).toBeVisible();
     expect(screen.getByRole("group", { name: "Pages" })).toBeVisible();
@@ -44,7 +44,7 @@ describe("CommandPalette", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Open palette" }));
-    const again = screen.getByRole("combobox", { name: "Command palette" });
+    const again = screen.getByRole("combobox", { name: "Search or run a command" });
     expect(screen.getByRole("group", { name: "Recent" })).toHaveTextContent("Tasks");
     fireEvent.keyDown(again, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: /Release notes/ })).toHaveAttribute(
@@ -60,7 +60,7 @@ describe("CommandPalette", () => {
     const trigger = screen.getByRole("button", { name: "Open palette" });
     trigger.focus();
     fireEvent.click(trigger);
-    const input = screen.getByRole("combobox", { name: "Command palette" });
+    const input = screen.getByRole("combobox", { name: "Search or run a command" });
     await waitFor(() => expect(input).toHaveFocus());
     fireEvent.input(input, { target: { value: "zzz" } });
     expect(screen.getByRole("status")).toHaveTextContent("Nothing matches “zzz”");

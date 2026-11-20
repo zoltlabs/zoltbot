@@ -18,7 +18,7 @@ test("the command palette opens with Command-K, finds a chat and a page, and run
 
     await page.keyboard.press("ControlOrMeta+K");
     const palette = page.getByRole("dialog", { name: "Command palette" });
-    const search = palette.getByRole("combobox", { name: "Command palette" });
+    const search = palette.getByRole("combobox", { name: "Search or run a command" });
     await expect(search).toBeFocused();
     await expect(palette.getByRole("group", { name: "Pages" })).toBeVisible();
     for (const scheme of COLOR_SCHEMES) {
