@@ -30,7 +30,7 @@ describe("phone catalog", () => {
       const source = (en as Record<string, string>)[call.key];
       expect(source, `${call.file}: unknown key ${call.key}`).toBeDefined();
       if (!source || call.params === undefined) continue;
-      const given = [...call.params.matchAll(/([A-Za-z_$][\w$]*)\s*(?=[:,}])/g)]
+      const given = [...call.params.matchAll(/(?:^|[{,])\s*([A-Za-z_$][\w$]*)\s*(?=[:,}])/g)]
         .map((match) => match[1])
         .sort();
       expect(given, `${call.file}: ${call.key}`).toEqual(messageArguments(source));
@@ -38,8 +38,11 @@ describe("phone catalog", () => {
   });
 
   it("has no unused keys and falls back to English", () => {
-    const used = new Set(calls.map((call) => call.key));
-    expect(Object.keys(en).filter((key) => !used.has(key))).toEqual([]);
+    // A key also counts as used when code passes it around, such as a status label map.
+    const all = sourceFiles(SRC)
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
+    expect(Object.keys(en).filter((key) => !all.includes(`"${key}"`))).toEqual([]);
     setLocale("xx");
     expect(t("kit.cancel")).toBe("Cancel");
     setLocale("en");

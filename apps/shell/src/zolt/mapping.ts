@@ -5,6 +5,7 @@ import type {
   BotAvatarShape,
   BotSummary,
   ConversationMessage,
+  PlanStep,
   QueueDelivery,
   QueueDeliveryStatus,
   QueueSnapshot,
@@ -138,6 +139,29 @@ export function isQueued(item: Row): boolean {
   return (
     item.kind === "user" && ["queued", "sending", "uncertain"].includes(text(body(item).queueState))
   );
+}
+
+const PLAN_STATUSES: readonly string[] = ["pending", "in_progress", "completed"];
+
+/**
+ * The steps of the newest top-level plan in a chat. A subagent's plan (one with a parent item)
+ * belongs to that subagent, not the chat. Steps without text are dropped; an unknown status
+ * reads as pending.
+ */
+export function latestPlan(items: Row[]): PlanStep[] {
+  const row = items.findLast((item) => item.kind === "plan" && !text(body(item).parentItemId));
+  const entries = body(row).entries;
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const value = entry as Row;
+    const step = text(value.step).trim();
+    if (!step) return [];
+    const status = PLAN_STATUSES.includes(text(value.status))
+      ? (text(value.status) as PlanStep["status"])
+      : "pending";
+    return [{ step, status }];
+  });
 }
 
 export function toMessages(

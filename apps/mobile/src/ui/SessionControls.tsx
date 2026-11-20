@@ -8,9 +8,11 @@ import {
   type ModeState,
   modeError,
   modeState,
+  planOpen,
   runningBackground,
 } from "../data/session";
 import type { Row } from "../data/transport";
+import { type MessageKey, t } from "../i18n";
 import { useAction } from "../state/actions";
 import { useLink } from "../state/link";
 import { touch, useTheme } from "../theme";
@@ -246,6 +248,12 @@ export function BackgroundChip({ session }: { session: Row | undefined }) {
   );
 }
 
+const PLAN_STATUS: Record<string, MessageKey> = {
+  completed: "chat.plan.completed",
+  in_progress: "chat.plan.in_progress",
+  pending: "chat.plan.pending",
+};
+
 /** The latest to-do plan, pinned under the header: progress when folded, steps when open. */
 export function PlanChecklist({
   plan,
@@ -260,19 +268,23 @@ export function PlanChecklist({
     | undefined;
 }) {
   const { c } = useTheme();
-  const [open, setOpen] = useState(false);
+  const [choice, setChoice] = useState<boolean>();
   if (!plan) return null;
+  const open = planOpen(plan, choice);
   const progress = plan.total ? plan.done / plan.total : 0;
+  const summary = t("chat.plan.progress", { done: plan.done, total: plan.total });
   return (
     <View style={[styles.plan, { borderBottomColor: c.border, backgroundColor: c["bg-raised"] }]}>
       <Pressable
-        onPress={() => setOpen(!open)}
+        onPress={() => setChoice(!open)}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={`Plan, ${plan.done} of ${plan.total} done${plan.current ? `, now ${plan.current}` : ""}`}
+        accessibilityLabel={[t("chat.plan.title"), summary, plan.current]
+          .filter(Boolean)
+          .join(", ")}
         style={styles.planHead}
       >
-        <Txt v="meta" tone="secondary">{`Plan ${plan.done}/${plan.total}`}</Txt>
+        <Txt v="meta" tone="secondary">{`${t("chat.plan.title")} · ${summary}`}</Txt>
         <View style={[styles.track, { backgroundColor: c["bg-sunken"] }]}>
           <View
             style={[
@@ -296,7 +308,7 @@ export function PlanChecklist({
               key={index}
               style={styles.step}
               accessible
-              accessibilityLabel={`${entry.step}, ${entry.status.replace("_", " ")}`}
+              accessibilityLabel={`${entry.step}, ${t(PLAN_STATUS[entry.status] ?? "chat.plan.pending")}`}
             >
               <Txt
                 tone={

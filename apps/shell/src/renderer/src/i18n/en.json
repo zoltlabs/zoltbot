@@ -12,5 +12,10 @@
   "chat.message.removeReaction": "Remove reaction {emoji}",
   "chat.message.reply": "Reply",
   "chat.message.replyTo": "Reply to {author, select, you {User} other {Agent}} message",
+  "chat.plan.completed": "Done",
+  "chat.plan.in_progress": "In progress",
+  "chat.plan.pending": "Not started",
+  "chat.plan.progress": "{done} of {total} done",
+  "chat.plan.title": "Plan",
   "kit.notifications": "Notifications"
 }

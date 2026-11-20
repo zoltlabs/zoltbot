@@ -9,6 +9,7 @@ import {
   modelState,
   modeState,
   modeWidens,
+  planOpen,
   runningBackground,
   threadSession,
 } from "./session.js";
@@ -89,6 +90,26 @@ describe("timeline", () => {
       current: "Write the plan",
     });
     expect(latestPlan(snapshot, "thread-meal-search")).toBeUndefined();
+  });
+  it("skips a subagent's plan", () => {
+    const child = {
+      id: "child-plan",
+      threadId: "thread-unit-settings",
+      kind: "plan",
+      seq: 1_000_000,
+      body: { parentItemId: "tool-1", entries: [{ step: "Subagent step", status: "pending" }] },
+    };
+    const withChild = {
+      ...snapshot,
+      entities: { ...snapshot.entities, item: [...(snapshot.entities.item ?? []), child] },
+    };
+    expect(latestPlan(withChild, "thread-unit-settings")).toMatchObject({ total: 3 });
+  });
+  it("opens the plan while work is left and folds it when every step is done", () => {
+    expect(planOpen({ done: 1, total: 3 }, undefined)).toBe(true);
+    expect(planOpen({ done: 3, total: 3 }, undefined)).toBe(false);
+    expect(planOpen({ done: 3, total: 3 }, true)).toBe(true);
+    expect(planOpen({ done: 1, total: 3 }, false)).toBe(false);
   });
   it("groups subagent steps and shows interactions as one compact line", () => {
     const rows = transcript(snapshot, "thread-unit-settings");

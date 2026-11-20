@@ -39,6 +39,24 @@ export class CompareFakeSession implements AgentSession {
       turnId = `${this.nativeId}-${this.received.length}`;
     this.turn = turnId;
     await this.eventsQueue.push({ t: "turn.started", turnId });
+    // A message that asks for a checklist gets a plan: three steps, the last finishing with the turn.
+    const plan = input.some((part) => part.type === "text" && /\bchecklist\b/i.test(part.text));
+    const steps = ["Read the notes", "Draft the summary", "Check the links"];
+    const planned = (done: number) =>
+      this.eventsQueue.push({
+        t: "plan.updated",
+        turnId,
+        entries: steps.map((step, index) => ({
+          step,
+          status:
+            index < done
+              ? ("completed" as const)
+              : index === done
+                ? ("in_progress" as const)
+                : ("pending" as const),
+        })),
+      });
+    if (plan) await planned(2);
     this.timer = setTimeout(() => {
       this.firstTokens.push(performance.now() - start);
       void this.eventsQueue.push({
@@ -48,6 +66,7 @@ export class CompareFakeSession implements AgentSession {
         text: this.answer,
       });
       const finish = () => {
+        if (plan && !this.fail) void planned(steps.length);
         if (!this.fail)
           void this.eventsQueue.push({
             t: "message.done",

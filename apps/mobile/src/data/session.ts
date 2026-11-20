@@ -138,10 +138,18 @@ export interface PlanEntry {
   step: string;
   status: "pending" | "in_progress" | "completed";
 }
-/** The newest plan (to-do list) item of a thread, with progress. */
+/**
+ * The newest plan (to-do list) item of a thread, with progress. A subagent's plan (one with a
+ * parent item) belongs to that subagent, not the chat.
+ */
 export function latestPlan(snapshot: Snapshot, threadId: string) {
   const item = (snapshot.entities.item ?? [])
-    .filter((row) => row.threadId === threadId && row.kind === "plan")
+    .filter(
+      (row) =>
+        row.threadId === threadId &&
+        row.kind === "plan" &&
+        !text(((row.body ?? {}) as Row).parentItemId),
+    )
     .sort((a, b) => Number(b.seq) - Number(a.seq))[0];
   const body = (item?.body ?? {}) as Row;
   const entries: PlanEntry[] = (Array.isArray(body.entries) ? (body.entries as Row[]) : [])
@@ -155,4 +163,12 @@ export function latestPlan(snapshot: Snapshot, threadId: string) {
   const done = entries.filter((entry) => entry.status === "completed").length;
   const current = entries.find((entry) => entry.status === "in_progress");
   return { entries, done, total: entries.length, current: current?.step ?? "" };
+}
+
+/**
+ * Whether the plan shows its steps. It opens while work is left and folds to one line once every
+ * step is done. Opening or closing it by hand wins.
+ */
+export function planOpen(plan: { done: number; total: number }, choice: boolean | undefined) {
+  return choice ?? plan.done < plan.total;
 }

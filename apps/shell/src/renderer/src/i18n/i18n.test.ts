@@ -77,7 +77,7 @@ describe("catalog", () => {
       expect(source, `${call.file}: unknown key ${call.key}`).toBeDefined();
       if (!source || call.params === undefined) continue;
       // Keys of an object literal: `name: value` or shorthand `name`.
-      const given = [...call.params.matchAll(/([A-Za-z_$][\w$]*)\s*(?=[:,}])/g)]
+      const given = [...call.params.matchAll(/(?:^|[{,])\s*([A-Za-z_$][\w$]*)\s*(?=[:,}])/g)]
         .map((match) => match[1])
         .sort();
       expect(given, `${call.file}: ${call.key}`).toEqual(messageArguments(source));
@@ -102,7 +102,7 @@ describe("JSX text", () => {
   const PROP = /\b(?:aria-label|label|title|placeholder|alt)="([^"]*[A-Za-z]{2}[^"]*)"/g;
   const listed = new Set<string>(baseline);
   const files = Object.keys(SOURCES).filter(
-    (file) => file.endsWith(".tsx") && !file.endsWith("KitGallery.tsx"),
+    (file) => file.endsWith(".tsx") && !/(KitGallery|DesignFixtures)\.tsx$/.test(file),
   );
 
   function literals(file: string): string[] {

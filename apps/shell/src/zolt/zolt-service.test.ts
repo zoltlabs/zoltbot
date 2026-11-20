@@ -50,6 +50,38 @@ const lastConversation = (events: AgentEvent[], botId: string) =>
     .at(-1)?.snapshot;
 
 describe("ZoltService against a real daemon", () => {
+  it("carries the agent's plan and gives concurrent first reads the loaded history", async () => {
+    const { service, events, fixture } = await setup();
+    const bot = await service.createBot({ profileId: "profile" });
+    await until(() => service.listBots().find((row) => row.id === bot.id));
+    await service.readConversation(bot.id);
+    await service.sendMessage({ botId: bot.id, text: "Write a checklist" });
+    const done = await until(() => {
+      const plan = lastConversation(events, bot.id)?.plan;
+      return plan?.length && plan.every((step) => step.status === "completed") ? plan : undefined;
+    });
+    expect(done.map((step) => step.step)).toEqual([
+      "Read the notes",
+      "Draft the summary",
+      "Check the links",
+    ]);
+
+    // A second window's service starts with no history; both first reads must wait for it.
+    const client = new DaemonClient(async () => ({
+      url: fixture.daemon.url,
+      token: fixture.daemon.token,
+    }));
+    const fresh = new ZoltService(client, mkdtempSync(join(tmpdir(), "zoltbot-shell-")));
+    cleanups.push(() => fresh.stop());
+    await fresh.initialize();
+    const [first, second] = await Promise.all([
+      fresh.readConversation(bot.id),
+      fresh.readConversation(bot.id),
+    ]);
+    expect(first.plan).toHaveLength(3);
+    expect(second.plan).toHaveLength(3);
+  });
+
   it("lists daemon chats and reports a ready status", async () => {
     const { service } = await setup();
     expect(service.getStatus().phase).toBe("ready");

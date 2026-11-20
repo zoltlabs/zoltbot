@@ -36,6 +36,7 @@ import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
   type BotPreferences,
   body,
+  latestPlan,
   latestSession,
   runningTurn,
   text,
@@ -62,6 +63,7 @@ interface Conversation {
   texts: Map<string, string>;
   pending: ConversationMessage[];
   loaded: boolean;
+  loading?: Promise<void>;
 }
 
 /** Rows that change what a project's Organization panel shows. */
@@ -406,18 +408,20 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   async readConversation(botId: string): Promise<ConversationSnapshot> {
     const conversation = this.conversation(botId);
-    if (!conversation.loaded && this.client.status === "online") {
-      conversation.loaded = true;
-      try {
-        const history = (await this.client.call("thread.history", {
-          threadId: botId,
-          limit: 200,
-        })) as { items: Row[] };
-        for (const item of history.items) conversation.history.set(text(item.id), item);
-      } catch {
-        conversation.loaded = false;
-      }
-    }
+    // Callers that arrive while history loads wait for the same load.
+    if (!conversation.loaded && this.client.status === "online")
+      conversation.loading ??= this.client
+        .call("thread.history", { threadId: botId, limit: 200 })
+        .then((history) => {
+          for (const item of (history as { items: Row[] }).items)
+            conversation.history.set(text(item.id), item);
+          conversation.loaded = true;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          conversation.loading = undefined;
+        });
+    await conversation.loading;
     return this.conversationSnapshot(botId);
   }
 
@@ -586,7 +590,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private conversationSnapshot(botId: string): ConversationSnapshot {
     const conversation = this.conversation(botId);
     conversation.revision++;
-    const messages = toMessages(this.client.snapshot, botId, this.items(botId));
+    const items = this.items(botId);
+    const messages = toMessages(this.client.snapshot, botId, items);
     for (const message of messages) {
       const reaction = this.preferences.reactions[`${botId}:${message.id}`];
       if (reaction) message.reaction = reaction;
@@ -598,6 +603,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       activeTurnId: text(runningTurn(this.client.snapshot, botId)?.id) || null,
       revision: conversation.revision,
       messages: [...messages, ...conversation.pending],
+      plan: latestPlan(items),
     };
   }
 

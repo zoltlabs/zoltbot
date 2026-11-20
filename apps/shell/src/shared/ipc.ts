@@ -462,6 +462,14 @@ export interface ConversationSnapshot {
   activeTurnId: string | null;
   revision: number;
   messages: ConversationMessage[];
+  /** The steps of the agent's newest plan in this chat; empty when it keeps none. */
+  plan?: PlanStep[];
+}
+
+/** One step of an agent's plan. */
+export interface PlanStep {
+  step: string;
+  status: "pending" | "in_progress" | "completed";
 }
 
 export interface SendMessageInput {

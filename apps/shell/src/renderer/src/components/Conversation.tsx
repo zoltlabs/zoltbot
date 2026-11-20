@@ -31,6 +31,7 @@ import {
   SETTINGS_PANEL_STORAGE_KEY,
 } from "./conversation/constants";
 import { createMessageActionsState } from "./conversation/MessageActions";
+import { PlanChecklist } from "./conversation/PlanChecklist";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { AgentSetupCard, OnboardingStep, TranscriptEntry } from "./conversation/Transcript";
@@ -569,6 +570,7 @@ export function Conversation(props: ConversationProps) {
           else browser.showBrowserPanel();
         }}
       />
+      <PlanChecklist botId={props.bot?.id} />
 
       <div
         class="conversation-scroll"

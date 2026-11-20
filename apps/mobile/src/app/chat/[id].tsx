@@ -155,7 +155,7 @@ export default function Chat() {
           <Icon name="settings" color={c["text-secondary"]} size={22} />
         </Pressable>
       </View>
-      <PlanChecklist plan={latestPlan(snapshot, id)} />
+      <PlanChecklist key={id} plan={latestPlan(snapshot, id)} />
       <ChatWaiting threadId={id} />
 
       <ScrollView

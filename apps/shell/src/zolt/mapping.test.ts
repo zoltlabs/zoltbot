@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { Row, Snapshot } from "./daemon-client";
-import { toMessages } from "./mapping";
+import { latestPlan, toMessages } from "./mapping";
 
 const HASH = "a".repeat(64);
 const at = (minute: number) => `2026-11-19T10:${String(minute).padStart(2, "0")}:00.000Z`;
@@ -128,5 +128,36 @@ describe("toMessages artifacts", () => {
       status: "completed",
     });
     expect(carrier?.artifacts?.map((summary) => summary.id)).toEqual(["a1"]);
+  });
+});
+
+describe("latestPlan", () => {
+  const plan = (id: string, entries: unknown, parentItemId?: string) => ({
+    id,
+    kind: "plan",
+    body: { entries, ...(parentItemId ? { parentItemId } : {}) },
+  });
+
+  it("reads the newest top-level plan and skips a subagent's plan", () => {
+    const items = [
+      plan("old", [{ step: "Old step", status: "completed" }]),
+      plan("new", [
+        { step: "Read the notes", status: "completed" },
+        { step: "Draft the summary", status: "in_progress" },
+        { step: "  ", status: "pending" },
+        { step: "Check the links", status: "unknown" },
+      ]),
+      plan("child", [{ step: "Subagent step", status: "pending" }], "tool-1"),
+    ];
+    expect(latestPlan(items)).toEqual([
+      { step: "Read the notes", status: "completed" },
+      { step: "Draft the summary", status: "in_progress" },
+      { step: "Check the links", status: "pending" },
+    ]);
+  });
+
+  it("is empty without a plan or with malformed entries", () => {
+    expect(latestPlan([])).toEqual([]);
+    expect(latestPlan([plan("bad", "not a list")])).toEqual([]);
   });
 });

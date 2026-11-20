@@ -1,0 +1,145 @@
+/* S8: the agent's plan, pinned between the chat header and the transcript. */
+.plan-checklist {
+  flex: 0 0 auto;
+  width: calc(100% - 2 * 12px);
+  max-width: 656px;
+  margin: 0 auto 4px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.plan-checklist-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: inherit;
+  padding: 4px 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-checklist-toggle:hover {
+  background: var(--openbot-hover);
+}
+
+.plan-checklist-toggle:focus-visible {
+  outline: 2px solid var(--text-info);
+  outline-offset: -2px;
+}
+
+.plan-checklist-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+  transition: transform 120ms ease-out;
+}
+
+.plan-checklist-toggle[aria-expanded="true"] .plan-checklist-chevron {
+  transform: none;
+}
+
+.plan-checklist-chevron svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.plan-checklist-title {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.plan-checklist-progress {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-checklist-current {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-checklist-steps {
+  max-height: min(40vh, 280px);
+  margin: 0;
+  overflow-y: auto;
+  padding: 0 8px 8px calc(8px + 24px);
+  list-style: none;
+}
+
+.plan-checklist-steps[hidden] {
+  display: none;
+}
+
+.plan-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.plan-step-mark {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3px;
+  border: 1.5px solid var(--openbot-dim);
+  border-radius: 50%;
+}
+
+.plan-step[data-status="in_progress"] .plan-step-mark {
+  border-color: var(--text-info);
+  box-shadow: inset 0 0 0 2.5px var(--surface);
+  background: var(--text-info);
+}
+
+.plan-step[data-status="completed"] .plan-step-mark {
+  border-color: var(--text-success);
+  background: var(--text-success);
+  color: var(--openbot-main);
+}
+
+.plan-step-mark svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.plan-step[data-status="completed"] .plan-step-text {
+  color: var(--text-muted);
+}
+
+.plan-step[data-status="in_progress"] .plan-step-text {
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-checklist-chevron {
+    transition: none;
+  }
+}
