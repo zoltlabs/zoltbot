@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { ChannelMember } from "../../../shared/channels";
 import { insertMention, matchMembers, mentionAt } from "../channels";
+import { Suggestions } from "../kit";
 
 interface ChannelComposerProps {
   channelName: string;
@@ -92,31 +93,35 @@ export function ChannelComposer(props: ChannelComposerProps) {
         void send();
       }}
     >
-      <Show when={open()}>
-        <div id={listId} class="channel-mentions" role="listbox" aria-label="Members">
-          <For each={options()}>
-            {(member, index) => (
-              // The input keeps focus; arrows move the active option (aria-activedescendant).
-              <button
-                type="button"
-                tabIndex={-1}
-                id={`${listId}-${index()}`}
-                role="option"
-                class="channel-mention-option"
-                classList={{ "channel-mention-option-active": active() === index() }}
-                aria-selected={active() === index()}
-                onPointerDown={(event) => event.preventDefault()}
-                onMouseEnter={() => setActive(index())}
-                onClick={() => pick(member)}
-              >
-                <span>{member.name}</span>
-                <Show when={member.lead}>
-                  <span class="channel-lead-badge">Lead</span>
-                </Show>
-              </button>
-            )}
-          </For>
-        </div>
+      <Show when={open() && input}>
+        {(anchor) => (
+          <Suggestions anchor={anchor()} placement="top-start">
+            <div id={listId} class="channel-mentions" role="listbox" aria-label="Members">
+              <For each={options()}>
+                {(member, index) => (
+                  // The input keeps focus; arrows move the active option (aria-activedescendant).
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    id={`${listId}-${index()}`}
+                    role="option"
+                    class="channel-mention-option"
+                    classList={{ "channel-mention-option-active": active() === index() }}
+                    aria-selected={active() === index()}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActive(index())}
+                    onClick={() => pick(member)}
+                  >
+                    <span>{member.name}</span>
+                    <Show when={member.lead}>
+                      <span class="channel-lead-badge">Lead</span>
+                    </Show>
+                  </button>
+                )}
+              </For>
+            </div>
+          </Suggestions>
+        )}
       </Show>
       <textarea
         ref={input}

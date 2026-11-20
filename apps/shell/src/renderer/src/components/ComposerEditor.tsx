@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import type { BotProfile } from "../data";
+import { Suggestions } from "../kit";
 import { AgentAvatar } from "./AgentAvatar";
 
 interface ComposerEditorProps {
@@ -20,12 +20,6 @@ interface MentionContext {
   end: number;
 }
 
-interface PickerPosition {
-  bottom: number;
-  left: number;
-  width: number;
-}
-
 const MENTION_PATTERN = /@\[([^\]]+)]\(([^)]+)\)/g;
 
 export function expandComposerMentions(value: string): string {
@@ -35,11 +29,6 @@ export function expandComposerMentions(value: string): string {
 export function ComposerEditor(props: ComposerEditorProps) {
   const [mention, setMention] = createSignal<MentionContext | null>(null);
   const [activeOption, setActiveOption] = createSignal(0);
-  const [pickerPosition, setPickerPosition] = createSignal<PickerPosition>({
-    bottom: 0,
-    left: 0,
-    width: 0,
-  });
   const matchingBots = createMemo(() => {
     const query = mention()?.query.trim().toLocaleLowerCase() ?? "";
     return props.bots.filter(
@@ -88,12 +77,6 @@ export function ComposerEditor(props: ComposerEditorProps) {
       return;
     }
     const query = match[1] ?? "";
-    const bounds = editor.getBoundingClientRect();
-    setPickerPosition({
-      bottom: window.innerHeight - bounds.top + 10,
-      left: bounds.left,
-      width: Math.min(720, bounds.width + 36),
-    });
     setMention({ query, start: beforeCaret.length - query.length - 1, end: beforeCaret.length });
     setActiveOption(0);
   }
@@ -210,39 +193,31 @@ export function ComposerEditor(props: ComposerEditorProps) {
           window.setTimeout(() => setMention(null), 100);
         }}
       />
-      <Portal>
-        <Show when={mention() && matchingBots().length > 0}>
-          <div
-            class="mention-picker"
-            role="listbox"
-            aria-label="Tag an agent"
-            style={{
-              bottom: `${pickerPosition().bottom}px`,
-              left: `${pickerPosition().left}px`,
-              width: `${pickerPosition().width}px`,
-            }}
-          >
-            <For each={matchingBots()}>
-              {(bot, index) => (
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={activeOption() === index()}
-                  class="mention-picker-option"
-                  classList={{ "mention-picker-option-active": activeOption() === index() }}
-                  onPointerDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setActiveOption(index())}
-                  onClick={() => insertMention(bot)}
-                >
-                  <AgentAvatar bot={bot} />
-                  <strong>{bot.name}</strong>
-                  <span>Agent</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
-      </Portal>
+      <Show when={mention() && matchingBots().length > 0 && editor}>
+        {(anchor) => (
+          <Suggestions anchor={anchor()} placement="top-start" matchWidth>
+            <div class="mention-picker" role="listbox" aria-label="Tag an agent">
+              <For each={matchingBots()}>
+                {(bot, index) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={activeOption() === index()}
+                    class="mention-picker-option"
+                    classList={{ "mention-picker-option-active": activeOption() === index() }}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActiveOption(index())}
+                    onClick={() => insertMention(bot)}
+                  >
+                    <AgentAvatar bot={bot} />
+                    <strong>{bot.name}</strong>
+                  </button>
+                )}
+              </For>
+            </div>
+          </Suggestions>
+        )}
+      </Show>
     </div>
   );
 }

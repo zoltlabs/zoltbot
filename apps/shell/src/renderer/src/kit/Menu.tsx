@@ -215,3 +215,34 @@ export function Popover(props: PopoverProps) {
     </Portal>
   );
 }
+
+export interface SuggestionsProps {
+  /** The text field the list belongs to. It keeps focus while the list is open. */
+  anchor: HTMLElement;
+  placement?: Placement;
+  /** Makes the list at least as wide as the field. */
+  matchWidth?: boolean;
+  /** The list itself, with role="listbox"; the field points at it with aria-activedescendant. */
+  children: JSX.Element;
+}
+
+/**
+ * Suggestions that float next to a text field while you type, such as @-mentions or an agent
+ * search. Positioned like every kit overlay; the field handles the keys and closing.
+ */
+export function Suggestions(props: SuggestionsProps) {
+  let element: HTMLDivElement | undefined;
+  useFloatingPosition({
+    anchor: () => props.anchor,
+    floating: () => element,
+    placement: props.placement,
+    matchWidth: props.matchWidth,
+  });
+  return (
+    <Portal mount={floatingLayer(props.anchor)}>
+      <div ref={element} class="zb-kit-floating zb-kit-suggestions" data-kit-overlay="suggestions">
+        {props.children}
+      </div>
+    </Portal>
+  );
+}
