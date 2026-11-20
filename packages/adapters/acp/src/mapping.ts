@@ -187,6 +187,25 @@ export class AcpMapper {
     return events;
   }
 }
+/**
+ * Zoltbot's own host MCP server ("zoltbot") checks every call itself, so its tools never need a
+ * second prompt. Agents label MCP tools differently: Cursor uses `zoltbot-<tool>`, Claude-style
+ * agents `mcp__zoltbot__<tool>`, Gemini-style agents `<tool> (zoltbot MCP Server)`.
+ */
+export function isHostToolPermission(request: RequestPermissionRequest) {
+  const call = request.toolCall as { name?: unknown; title?: unknown };
+  return [call.name, call.title].some(
+    (label) =>
+      typeof label === "string" &&
+      (/^(zoltbot-|mcp__zoltbot__)[a-z][a-z0-9_]*(:|\s|$)/.test(label) ||
+        /^[a-z][a-z0-9_]* \(zoltbot MCP Server\)$/.test(label)),
+  );
+}
+export function hostToolAllowOption(request: RequestPermissionRequest) {
+  return isHostToolPermission(request)
+    ? request.options.find((option) => option.kind === "allow_once")
+    : undefined;
+}
 export function permissionInteraction(
   request: RequestPermissionRequest,
   ids: { id: string; agentId: string; threadId: string; turnId: string },

@@ -1,6 +1,11 @@
 import { AgentEventSchema, parse } from "@zoltbot/protocol";
 import { describe, expect, it } from "vitest";
-import { AcpMapper, permissionInteraction, permissionOutcome } from "./mapping.js";
+import {
+  AcpMapper,
+  hostToolAllowOption,
+  permissionInteraction,
+  permissionOutcome,
+} from "./mapping.js";
 
 describe("ACP wire mapping", () => {
   it("preserves authoritative final text and separates thought and tool identities", () => {
@@ -240,4 +245,30 @@ it("preserves explicit ACP message identities around tool calls", () => {
   expect(mapper.update(update)[0]).toMatchObject({
     itemId: first[0]?.t === "text.delta" ? first[0].itemId : "missing",
   });
+});
+
+it("allows Zoltbot's own host tools without asking", () => {
+  const options = [
+    { optionId: "once", name: "Allow once", kind: "allow_once" as const },
+    { optionId: "deny", name: "Deny", kind: "reject_once" as const },
+  ];
+  const request = (title: string) => ({
+    sessionId: "native",
+    toolCall: { toolCallId: "call", title },
+    options,
+  });
+  for (const title of [
+    "zoltbot-team_message: team_message",
+    "mcp__zoltbot__channel_post",
+    "team_message (zoltbot MCP Server)",
+  ])
+    expect(hostToolAllowOption(request(title))?.optionId).toBe("once");
+  for (const title of [
+    "Run shell command",
+    "github-create_issue: create_issue",
+    "zoltbot-team-evil: x",
+    "mcp__zoltbotx__team_message",
+    "team_message (github MCP Server)",
+  ])
+    expect(hostToolAllowOption(request(title))).toBeUndefined();
 });

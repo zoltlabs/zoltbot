@@ -29,7 +29,12 @@ import { elicitationForm, elicitationResponse } from "./elicitation.js";
 import { acpError } from "./errors.js";
 import type { AcpFlavor } from "./flavor.js";
 import { forkAcpSession } from "./fork.js";
-import { AcpMapper, permissionInteraction, permissionOutcome } from "./mapping.js";
+import {
+  AcpMapper,
+  hostToolAllowOption,
+  permissionInteraction,
+  permissionOutcome,
+} from "./mapping.js";
 import { AcpSettings } from "./settings.js";
 import type { AcpTransport } from "./transport.js";
 import { safeWire } from "./wire.js";
@@ -156,6 +161,8 @@ export class AcpSession implements AgentSession {
               : { outcome: "cancelled" as const },
           };
         }
+        const hostAllow = hostToolAllowOption(params);
+        if (hostAllow) return { outcome: { outcome: "selected" as const, optionId: hostAllow.optionId } };
         clearTimeout(this.stallTimer);
         const id = randomUUID();
         const answer = new Promise<InteractionAnswer | undefined>((resolve) =>
