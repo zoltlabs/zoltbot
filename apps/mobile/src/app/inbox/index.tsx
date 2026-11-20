@@ -15,7 +15,7 @@ import { useAction } from "../../state/actions";
 import { useSnapshot } from "../../state/link";
 import { useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
-import { Avatar, Chip, Group, showMenu, Txt } from "../../ui/kit";
+import { Avatar, Chip, Group, type MenuItem, showMenu, Txt } from "../../ui/kit";
 
 /** The Inbox: every conversation filed by what it needs from you, read like mail. */
 export default function Inbox() {
@@ -27,25 +27,18 @@ export default function Inbox() {
   const { items, counts } = useMemo(() => inbox(snapshot), [snapshot]);
   const rows = items.filter((row) => row.mailbox === box);
   // Long-press is the phone's version of the Mac's e, h and u keys.
-  const actions = (id: string, title: string, settled: boolean) =>
-    showMenu(
-      [
-        ...snoozeTimes().map((time) => ({
-          label: `Later: ${time.label}`,
-          onPress: () =>
-            void run(
-              "thread.snooze",
-              { id, until: time.at.toISOString() },
-              { key: `snooze:${id}` },
-            ),
-        })),
-        settled
-          ? { label: "Move to Inbox", onPress: () => void run("thread.unarchive", { id }) }
-          : { label: "Settle", onPress: () => void run("thread.settle", { id }) },
-        { label: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
-      ],
-      title || "Conversation",
-    );
+  /** A row's actions, for the long-press sheet and for VoiceOver's actions rotor. */
+  const rowActions = (id: string, settled: boolean): MenuItem[] => [
+    ...snoozeTimes().map((time) => ({
+      label: `Later: ${time.label}`,
+      onPress: () =>
+        void run("thread.snooze", { id, until: time.at.toISOString() }, { key: `snooze:${id}` }),
+    })),
+    settled
+      ? { label: "Move to Inbox", onPress: () => void run("thread.unarchive", { id }) }
+      : { label: "Settle", onPress: () => void run("thread.settle", { id }) },
+    { label: "Mark unread", onPress: () => void run("thread.markUnread", { id }) },
+  ];
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingTop: insets.top }]}>
       <BackBar label="Home" />
@@ -94,6 +87,7 @@ export default function Inbox() {
               ]
                 .filter(Boolean)
                 .join(" · ");
+              const items = rowActions(thread.id, row.mailbox === "settled");
               return (
                 <Pressable
                   key={thread.id}
@@ -105,11 +99,15 @@ export default function Inbox() {
                   ]
                     .filter(Boolean)
                     .join(", ")}
-                  accessibilityHint="Long press for Later, Settle and Mark unread"
-                  onPress={() => router.push(`/inbox/${thread.id}`)}
-                  onLongPress={() =>
-                    actions(thread.id, thread.title ?? "", row.mailbox === "settled")
+                  accessibilityActions={items.map((item) => ({
+                    name: item.label,
+                    label: item.label,
+                  }))}
+                  onAccessibilityAction={(event) =>
+                    items.find((item) => item.label === event.nativeEvent.actionName)?.onPress()
                   }
+                  onPress={() => router.push(`/inbox/${thread.id}`)}
+                  onLongPress={() => showMenu(items, thread.title || "Conversation")}
                   disabled={busy}
                   style={({ pressed }) => [
                     styles.row,

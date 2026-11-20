@@ -232,7 +232,7 @@ export default function Overview() {
           {working.map((row, index) => (
             <Row
               key={row.threadId}
-              title={row.title}
+              title={`${row.who} · ${row.title}`}
               detail={row.activity}
               mono={row.activity !== "Thinking" && row.activity !== "Writing"}
               left={<BotAvatar id={row.threadId} working />}
@@ -256,7 +256,7 @@ export default function Overview() {
             {done.map((row, index) => (
               <Row
                 key={row.threadId}
-                title={row.title}
+                title={`${row.who} · ${row.title}`}
                 detail={ago(row.at)}
                 left={<BotAvatar id={row.threadId} />}
                 right={row.failed ? <Chip label="Failed" tone="danger" /> : undefined}
