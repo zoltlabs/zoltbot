@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import {
+  ActionSheetIOS,
+  Alert,
+  Platform,
   Pressable,
   type StyleProp,
   StyleSheet,
@@ -183,6 +186,126 @@ export function Row({
       {content}
     </Pressable>
   );
+}
+
+export type MenuItem = {
+  label: string;
+  onPress: () => void;
+  /** Red, for an item that removes or ends something. */
+  destructive?: boolean;
+  disabled?: boolean;
+};
+
+/**
+ * Opens an action sheet of `items` with a separate Cancel row. iOS shows the native sheet;
+ * other platforms get an alert with the same buttons.
+ */
+export function showMenu(items: MenuItem[], title?: string) {
+  if (!items.length) return;
+  if (Platform.OS === "ios") {
+    const destructive = items.flatMap((item, index) => (item.destructive ? [index] : []));
+    const disabled = items.flatMap((item, index) => (item.disabled ? [index] : []));
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        ...(title ? { title } : {}),
+        options: [...items.map((item) => item.label), "Cancel"],
+        cancelButtonIndex: items.length,
+        ...(destructive.length ? { destructiveButtonIndex: destructive } : {}),
+        ...(disabled.length ? { disabledButtonIndices: disabled } : {}),
+      },
+      (index) => {
+        const item = items[index];
+        if (item && !item.disabled) item.onPress();
+      },
+    );
+    return;
+  }
+  Alert.alert(title ?? "", undefined, [
+    ...items
+      .filter((item) => !item.disabled)
+      .map((item) => ({
+        text: item.label,
+        style: item.destructive ? ("destructive" as const) : ("default" as const),
+        onPress: item.onPress,
+      })),
+    { text: "Cancel", style: "cancel" as const },
+  ]);
+}
+
+/**
+ * Wraps `children` so a long-press opens `items` in an action sheet. VoiceOver lists the same
+ * items as actions on the element, since long-press is hard to find there.
+ */
+export function Menu({
+  items,
+  title,
+  children,
+  onPress,
+  label,
+  style,
+}: {
+  items: MenuItem[];
+  /** The sheet's title, such as the name of the thing the actions apply to. */
+  title?: string;
+  children: ReactNode;
+  onPress?: () => void;
+  label?: string;
+  style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>);
+}) {
+  const enabled = items.filter((item) => !item.disabled);
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={() => showMenu(items, title)}
+      delayLongPress={350}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={label}
+      accessibilityActions={enabled.map((item) => ({ name: item.label, label: item.label }))}
+      onAccessibilityAction={(event) =>
+        enabled.find((item) => item.label === event.nativeEvent.actionName)?.onPress()
+      }
+      style={style}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+/**
+ * The ConfirmSheet: asks before a destructive action. `title` names the action and object
+ * ("Delete Ada?"), `body` is the one-sentence consequence, and `confirmLabel` is verb plus
+ * object ("Delete agent").
+ */
+export function showConfirmSheet({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+}: {
+  title: string;
+  body?: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+}) {
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title,
+        ...(body ? { message: body } : {}),
+        options: [confirmLabel, "Cancel"],
+        destructiveButtonIndex: 0,
+        cancelButtonIndex: 1,
+      },
+      (index) => {
+        if (index === 0) onConfirm();
+      },
+    );
+    return;
+  }
+  Alert.alert(title, body, [
+    { text: "Cancel", style: "cancel" },
+    { text: confirmLabel, style: "destructive", onPress: onConfirm },
+  ]);
 }
 
 export type ChipTone = "attention" | "accent" | "ok" | "neutral" | "danger";
