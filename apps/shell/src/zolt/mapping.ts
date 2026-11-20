@@ -12,7 +12,7 @@ import type {
 import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
 import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
 import type { Row, Snapshot } from "./daemon-client";
-import { noticeFor, withManagerCards } from "./manager-cards";
+import { isZoltbotNotice, noticeFor, withManagerCards } from "./manager-cards";
 import { modelSwitchMessage } from "./models-service";
 
 export const body = (row: Row | undefined): Row =>
@@ -76,6 +76,7 @@ export function previewText(items: Row[]): string {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i] as Row;
     const value = item.kind === "user" ? userText(item) : text(body(item).text);
+    if (isZoltbotNotice(item)) continue;
     if ((item.kind === "user" || item.kind === "message") && value.trim())
       return value.replace(/\s+/g, " ").trim().slice(0, 140);
   }

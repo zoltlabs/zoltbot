@@ -201,6 +201,38 @@ describe("noticeFor", () => {
     ).toMatchObject({ kind: "wait", meta: "fallback time passed" });
   });
 
+  it("shows Zoltbot's wake-ups and notices as notices, not the person's words", () => {
+    const input = (value: string) => ({ input: [{ type: "text", text: value }] });
+    const wake =
+      "[Zoltbot] Zolt, this is a wake-up, not a message from the user.\nNew for the user:\n- approval";
+    expect(
+      noticeFor(state, { id: "chief-wake:abc", kind: "user", threadId: "zolt", body: input(wake) }),
+    ).toEqual({
+      kind: "zoltbot",
+      text: "Woke up on its own",
+      detail: "New for the user:\n- approval",
+    });
+    expect(
+      noticeFor(state, {
+        id: "chief-wake:brief:2026-11-20",
+        kind: "user",
+        threadId: "zolt",
+        body: input("[Zoltbot] Morning.\nWrite the brief."),
+      }),
+    ).toMatchObject({ kind: "zoltbot", text: "Morning brief" });
+    expect(
+      noticeFor(state, {
+        id: "n1",
+        kind: "user",
+        threadId: "mira",
+        body: input("[Zoltbot] The checks finished."),
+      }),
+    ).toMatchObject({ kind: "zoltbot", text: "The checks finished." });
+    expect(
+      noticeFor(state, { id: "u1", kind: "user", threadId: "mira", body: input("Hello") }),
+    ).toBeUndefined();
+  });
+
   it("shows the owner's channel post as from You", () => {
     const owned = snapshot({
       ...entities(),

@@ -84,6 +84,8 @@ export function noticeFor(snapshot: Snapshot, item: Row): ConversationNotice | u
       text: "",
       meta: WAIT_WORDS[text(notice.state)] ?? "",
     };
+  const own = zoltbotNotice(item);
+  if (own) return own;
   const sourceId = text(notice.messageId) || text(value.sourceMessageId);
   const message = find(snapshot, "message", sourceId);
   if (kind !== "team" && !(value.origin === "agent" && message)) return undefined;
@@ -105,6 +107,40 @@ export function noticeFor(snapshot: Snapshot, item: Row): ConversationNotice | u
             ? "reply"
             : "no reply needed",
     ...(full ? { detail: full } : {}),
+  };
+}
+
+const ZOLTBOT_PREFIX = "[Zoltbot] ";
+const WAKE_PREFIX = "chief-wake:";
+
+/** The first text part of a person-side input. */
+function firstInputText(item: Row): string {
+  const input = body(item).input;
+  const first = Array.isArray(input) ? (input as Row[])[0] : undefined;
+  return first?.type === "text" ? text(first.text) : "";
+}
+
+/** Whether an input is Zoltbot's own notice to an agent, such as a wake-up, not the person's words. */
+export function isZoltbotNotice(item: Row): boolean {
+  return (
+    item.kind === "user" &&
+    body(item).origin !== "agent" &&
+    firstInputText(item).startsWith(ZOLTBOT_PREFIX)
+  );
+}
+
+function zoltbotNotice(item: Row): ConversationNotice | undefined {
+  if (!isZoltbotNotice(item)) return undefined;
+  const id = text(item.id);
+  const woke = id.startsWith(WAKE_PREFIX);
+  const brief = id.startsWith(`${WAKE_PREFIX}brief:`);
+  const lines = firstInputText(item).slice(ZOLTBOT_PREFIX.length).split("\n");
+  // A wake-up's first line only tells the agent it is one; the rest says why.
+  const detail = (woke ? lines.slice(1) : lines).join("\n").trim();
+  return {
+    kind: "zoltbot",
+    text: brief ? "Morning brief" : woke ? "Woke up on its own" : line(detail),
+    ...(detail ? { detail } : {}),
   };
 }
 
