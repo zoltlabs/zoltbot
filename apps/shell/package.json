@@ -37,6 +37,7 @@
     "test:feel": "electron-vite build && playwright test"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "@zoltbot/artifact-kit": "workspace:*",
     "@zoltbot/daemon": "workspace:*",
     "@zoltbot/protocol": "workspace:*",

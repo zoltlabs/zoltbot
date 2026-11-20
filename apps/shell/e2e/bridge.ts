@@ -61,12 +61,8 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
   };
 }
 
-/**
- * Loads the built renderer in a headless page and gives it the same `window.openbot` API the
- * preload script exposes, with each call routed to `handlers` and service events pushed back.
- */
-export async function openShell(page: Page, service: ZoltService): Promise<void> {
-  const handlers = shellHandlers(service);
+/** Serves the built renderer at SHELL_ORIGIN. */
+async function serveRenderer(page: Page): Promise<void> {
   await page.route(`${SHELL_ORIGIN}/**`, async (route) => {
     const path = new URL(route.request().url()).pathname;
     const file = normalize(join(RENDERER, path === "/" ? "index.html" : path));
@@ -81,6 +77,21 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       await route.fulfill({ status: 404 });
     }
   });
+}
+
+/** Opens the test-only kit gallery, which needs no daemon. */
+export async function openKitGallery(page: Page): Promise<void> {
+  await serveRenderer(page);
+  await page.goto(`${SHELL_ORIGIN}/index.html?kit-gallery`);
+}
+
+/**
+ * Loads the built renderer in a headless page and gives it the same `window.openbot` API the
+ * preload script exposes, with each call routed to `handlers` and service events pushed back.
+ */
+export async function openShell(page: Page, service: ZoltService): Promise<void> {
+  const handlers = shellHandlers(service);
+  await serveRenderer(page);
   await page.exposeFunction("__zoltInvoke", async (channel: string, input: unknown) => {
     const handler = handlers[channel];
     if (!handler) throw new Error(`No handler for ${channel}`);

@@ -18,4 +18,9 @@ if (!root) {
   throw new Error("Renderer root element was not found.");
 }
 
-render(() => <App />, root);
+// The kit gallery is a test page for the headless design checks; it loads only on request.
+if (new URLSearchParams(window.location.search).has("kit-gallery")) {
+  void import("./kit/KitGallery").then(({ KitGallery }) => render(() => <KitGallery />, root));
+} else {
+  render(() => <App />, root);
+}

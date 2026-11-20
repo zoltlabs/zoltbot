@@ -31,6 +31,26 @@ Paths below are relative to this repository.
 - Meet WCAG 2.2 AA for web interfaces: text contrast of at least 4.5:1 (3:1 for qualifying large text), and 3:1 for meaningful UI boundaries and states. Measure actual foreground/background pairs; token reuse alone does not prove contrast. Do not communicate meaning through color alone.
 - Respect reduced motion. Keep content usable at 200% text resize and web layouts usable at 320 CSS pixels wide. On mobile, preserve Dynamic Type support, screen-reader names and states, and the existing 44-point touch target convention.
 
+## Use the kit
+
+The desktop app builds menus, pickers, dialogs, toasts and settings rows from `apps/shell/src/renderer/src/kit/`. Don't build these by hand: hand-built overlays get clipped by containers that hide overflow, and hand-built rows invite captions.
+
+| Component | Use it for | Instead of |
+| --- | --- | --- |
+| `Menu` | Lists of actions, including right-click menus | Absolutely positioned `div`s with buttons |
+| `Popover` | A small non-modal panel attached to a control | Panels positioned inside a scrolling container |
+| `Select` | One choice from a short list | A native `<select>`, or a custom list inside the panel |
+| `Combobox` | One choice from a long list with search, such as models or agents | A hand-built search picker |
+| `Tooltip` | Naming an icon-only control | `title` attributes, or text that lives nowhere else |
+| `Dialog`, `ConfirmDialog` | Modal tasks and confirmations; the title names the action and object, buttons are verb plus object | Hand-built backdrops and focus handling |
+| `showToast` and `ToastRegion` | Short status after an action, with an optional Undo | Inline banners that stay after the action |
+| `SettingsRow`, `Field` | Settings and form rows: label, control, unit, error | Rows with description, hint or caption text |
+| `EmptyState` | A place with nothing in it yet: title and the action that fills it | Paragraphs explaining the empty place |
+| `Stack`, `Cluster` | Vertical and wrapping horizontal spacing on the 4 px scale | Hand-tuned margins |
+| `ModelLogo` | The model maker's logo next to a model name | Text-only model lists |
+
+Every overlay is fixed-position and stays fully on screen. Dialogs and toasts render in one top-level layer; menus, lists, popovers and tooltips render at the end of the landmark their trigger sits in, so screen readers find them in the same region. Z-order uses `--zb-z-*` from `kit.css`. `SettingsRow` and `Field` have no description or hint prop on purpose; `consequence` is only for destructive or cost-bearing choices.
+
 ## Design skills
 
 Before interface work, read this file and the relevant installed skills through the current agent's skill catalog. Read each selected skill's `SKILL.md` and applicable references before applying it. These are development aids, not application runtime dependencies; do not bake machine-specific skill paths into the repository.
