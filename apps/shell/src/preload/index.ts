@@ -218,6 +218,10 @@ const openbotApi: OpenBotDesktopApi = {
     mode: (botId) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositoryMode, botId),
     setMode: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactRepositorySetMode, input),
   },
+  queue: {
+    reorder: (input) => ipcRenderer.invoke(IPC_CHANNELS.queueReorder, input),
+    sendNow: (input) => ipcRenderer.invoke(IPC_CHANNELS.queueSendNow, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

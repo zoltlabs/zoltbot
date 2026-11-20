@@ -289,6 +289,10 @@ export function setUpAppTest() {
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
       },
+      queue: {
+        reorder: vi.fn().mockResolvedValue(undefined),
+        sendNow: vi.fn().mockResolvedValue(undefined),
+      },
       repository: {
         state: vi.fn().mockResolvedValue(null),
         add: vi.fn(),

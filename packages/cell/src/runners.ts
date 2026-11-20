@@ -149,7 +149,7 @@ export class CellRunners {
         : (
             this.store.database
               .prepare(
-                "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 8",
+                "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY COALESCE(json_extract(body,'$.queuePosition'), seq), seq LIMIT 8",
               )
               .all(thread.id) as { id: string }[]
           ).map((row) => parse(ItemSchema, this.store.record("item", row.id)));
@@ -234,7 +234,7 @@ export class CellRunners {
       if (!includeExisting && task.state !== "queued") {
         const inputs = this.store.database
           .prepare(
-            "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 8",
+            "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY COALESCE(json_extract(body,'$.queuePosition'), seq), seq LIMIT 8",
           )
           .all(String(task.threadId)) as { id: string }[];
         const offered = this.store.database

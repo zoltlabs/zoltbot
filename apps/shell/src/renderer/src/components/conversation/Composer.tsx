@@ -6,6 +6,7 @@ import { ComposerEditor } from "../ComposerEditor";
 import { type createDictation, DictationButton } from "../Dictation";
 import { fileBadge, formatFileSize } from "./Attachments";
 import { CloseIcon, FileIcon, PlusIcon, StopIcon } from "./icons";
+import { QueueList } from "./QueueList";
 
 export function Composer(props: {
   showAttachments: boolean;
@@ -97,11 +98,13 @@ export function Composer(props: {
           {props.error}
         </div>
       </Show>
-      <QueueBar
+      <QueueList
+        botId={props.bot?.id}
         queue={props.queue}
         visible={props.queueBarVisible}
         onResume={props.onResumeQueue}
         onCancel={props.onCancelQueuedMessage}
+        onEdit={(text) => props.onTextChange(props.text.trim() ? `${text}\n\n${props.text}` : text)}
       />
       <div class="composer">
         <button
@@ -181,41 +184,6 @@ export function Composer(props: {
           </button>
         </Show>
       </div>
-    </div>
-  );
-}
-
-export function QueueBar(props: {
-  queue: QueueSnapshot | undefined;
-  visible: boolean;
-  onResume: () => void;
-  onCancel: (deliveryId: string) => void;
-}) {
-  return (
-    <div
-      class="agent-queue-bar"
-      classList={{ "agent-queue-bar-visible": props.visible }}
-      aria-hidden={!props.visible}
-    >
-      <Show when={props.queue?.paused}>
-        <button type="button" onClick={props.onResume}>
-          Resume queue
-        </button>
-      </Show>
-      <For each={props.queue?.deliveries.filter((item) => item.status === "queued") ?? []}>
-        {(delivery) => (
-          <span>
-            Queued #{delivery.position}
-            <button
-              type="button"
-              aria-label={`Cancel queued message ${delivery.position}`}
-              onClick={() => props.onCancel(delivery.id)}
-            >
-              <CloseIcon />
-            </button>
-          </span>
-        )}
-      </For>
     </div>
   );
 }

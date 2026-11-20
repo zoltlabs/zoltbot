@@ -20,6 +20,7 @@ import { chatAccount } from "../../data/backup-models";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { pendingFor } from "../../data/interactions";
+import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import type { Row } from "../../data/transport";
@@ -48,7 +49,7 @@ import { InteractionCard } from "../../ui/interactions/InteractionCard";
 import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
-import { Message } from "../../ui/Transcript";
+import { Message, type QueueActions } from "../../ui/Transcript";
 import { WakeStatus } from "../../ui/WakeStatus";
 
 export default function Chat() {
@@ -74,7 +75,8 @@ export default function Chat() {
   const followLatest = useRef(true);
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
-  const rows = transcript(snapshot, id);
+  const queue = queuedIds(snapshot, id);
+  const rows = inQueueOrder(transcript(snapshot, id), queue);
   const turn = runningTurn(snapshot, id);
   const who = profileName(snapshot, thread?.agentId);
   const chief = chiefThreadId(snapshot.entities) === id;
@@ -130,6 +132,22 @@ export default function Chat() {
   const edit = async (row: TranscriptRow) => {
     const result = await run("turn.cancelQueued", { threadId: id, id: row.id });
     if (result) setDraft((current) => (current.trim() ? `${row.text}\n${current}` : row.text));
+  };
+  // C1: a queued message can also be sent now, moved or removed.
+  const queueActions = (row: TranscriptRow): QueueActions => {
+    const reorder = (to: number) => {
+      const order = moved(queue, row.id, to);
+      return order ? () => void run("turn.reorderQueued", { threadId: id, order }) : undefined;
+    };
+    const at = queue.indexOf(row.id);
+    const up = reorder(at - 1);
+    const down = reorder(at + 1);
+    return {
+      sendNow: () => void run("turn.sendQueuedNow", { threadId: id, id: row.id }),
+      remove: () => void run("turn.cancelQueued", { threadId: id, id: row.id }),
+      ...(up ? { moveUp: up } : {}),
+      ...(down ? { moveDown: down } : {}),
+    };
   };
 
   return (
@@ -241,7 +259,10 @@ export default function Chat() {
               threadId={id}
               key={row.id}
               row={row}
-              {...(online && !busy ? { onEdit: (queued: TranscriptRow) => void edit(queued) } : {})}
+              {...(online && !busy && editableQueued(snapshot, row.id)
+                ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
+                : {})}
+              {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
               {...(row.turnId && edits.get(row.turnId)?.length
                 ? {
                     edits: {

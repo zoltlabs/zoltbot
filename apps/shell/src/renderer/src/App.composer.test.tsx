@@ -495,32 +495,73 @@ describe("Zoltbot connected desktop shell", () => {
         ],
       },
     });
-    await fireEvent.click(screen.getByRole("button", { name: "Resume queue" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    const delivery = (id: string, text: string, position: number) => ({
+      id,
+      messageId: id,
+      recipientBotId: "chief",
+      sender: { kind: "user" as const },
+      text,
+      attachments: [],
+      replyToMessageId: null,
+      status: "queued" as const,
+      position,
+      turnId: null,
+      error: null,
+      createdAt: new Date().toISOString(),
+      editable: true,
+    });
     emitAgentEvent?.({
       type: "queue-changed",
       snapshot: {
         botId: "chief",
-        paused: true,
-        deliveries: [
-          {
-            id: "delivery-1",
-            messageId: "message-1",
-            recipientBotId: "chief",
-            sender: { kind: "user" },
-            text: "Later",
-            attachments: [],
-            replyToMessageId: null,
-            status: "queued",
-            position: 1,
-            turnId: null,
-            error: null,
-            createdAt: new Date().toISOString(),
-          },
-        ],
+        paused: false,
+        deliveries: [delivery("delivery-1", "Later", 1), delivery("delivery-2", "Then this", 2)],
       },
     });
-    await fireEvent.click(screen.getByRole("button", { name: "Cancel queued message 1" }));
-    expect(window.openbot.agent.cancelQueuedMessage).toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "2 queued" })).toBeTruthy();
+
+    // Alt+↓ on the handle moves the row at once and sends the new order.
+    await fireEvent.keyDown(screen.getByRole("button", { name: "Move Later" }), {
+      key: "ArrowDown",
+      altKey: true,
+    });
+    expect(window.openbot.queue.reorder).toHaveBeenCalledWith({
+      botId: "chief",
+      order: ["delivery-2", "delivery-1"],
+    });
+    const rows = () => screen.getAllByRole("listitem").map((row) => row.textContent?.trim() ?? "");
+    expect(rows().filter((row) => row === "Later" || row === "Then this")).toEqual([
+      "Then this",
+      "Later",
+    ]);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Actions for Later" }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: /Send now/ }));
+    expect(window.openbot.queue.sendNow).toHaveBeenCalledWith({
+      botId: "chief",
+      deliveryId: "delivery-1",
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Actions for Then this" }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: /Remove/ }));
+    expect(window.openbot.agent.cancelQueuedMessage).toHaveBeenCalledWith({
+      botId: "chief",
+      deliveryId: "delivery-2",
+    });
+
+    // Edit takes the message out of the queue and back into the composer.
+    await fireEvent.click(screen.getByRole("button", { name: "Actions for Later" }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: /Edit/ }));
+    await waitFor(() =>
+      expect(window.openbot.agent.cancelQueuedMessage).toHaveBeenCalledWith({
+        botId: "chief",
+        deliveryId: "delivery-1",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: /Message Chief/ }).textContent).toContain("Later"),
+    );
     expect(window.openbot.agent.setQueuePaused).toHaveBeenCalledWith({
       botId: "chief",
       paused: false,

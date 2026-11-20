@@ -309,6 +309,16 @@ const rawMethodCatalog = {
     object({ id: Id, disposition: values(["started", "queued", "handled"]) }),
   ),
   "turn.cancelQueued": entry(object({ threadId: Id, id: Id }), ok),
+  /** C1: `order` lists every queued item id of the thread; fails with queue_changed otherwise. */
+  "turn.reorderQueued": entry(
+    object({ threadId: Id, order: Type.Array(Id, { maxItems: 200 }) }),
+    ok,
+  ),
+  /** C1: steers the running turn when the agent supports it, else moves the item to the front. */
+  "turn.sendQueuedNow": entry(
+    object({ threadId: Id, id: Id }),
+    object({ ok: Type.Boolean(), delivery: values(["steer", "next"]) }),
+  ),
   "turn.interrupt": entry(object({ threadId: Id, turnId: Id }), ok),
   "turn.retry": entry(object({ threadId: Id }), ok),
   "session.compact": entry(object({ id: Id, instructions: OptionalText }), ok),

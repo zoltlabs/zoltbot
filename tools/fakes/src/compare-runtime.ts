@@ -10,6 +10,8 @@ export class CompareFakeSession implements AgentSession {
   readonly eventsQueue = new AsyncQueue<AgentEvent>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private turn = "";
+  /** True from turn.started until turn.done; a steered message joins the running turn. */
+  private running = false;
   /** Context tokens in use; a message about a long context fills it to 85%. Zero reports none. */
   private contextUsed = 0;
   readonly replies: unknown[] = [];
@@ -32,14 +34,16 @@ export class CompareFakeSession implements AgentSession {
   events() {
     return this.eventsQueue;
   }
-  async send(input: UserInput) {
+  async send(input: UserInput, mode: "queue" | "steer" = "queue") {
     this.received.push(structuredClone(input));
+    if (mode === "steer" && this.running) return { disposition: "handled" as const, id: this.turn };
     const delay = input.some((part) => part.type === "text" && part.text.includes("Take time"))
       ? 3000
       : this.delayMs;
     const start = performance.now(),
       turnId = `${this.nativeId}-${this.received.length}`;
     this.turn = turnId;
+    this.running = true;
     await this.eventsQueue.push({ t: "turn.started", turnId });
     // "long context" fills 85% of the window, "very long context" 95%.
     const said = (pattern: RegExp) =>
@@ -88,6 +92,7 @@ export class CompareFakeSession implements AgentSession {
           turnId,
           usage: { inputTokens: 10, outputTokens: 5, costUsd: 0.001 },
         });
+        this.running = false;
         void this.eventsQueue.push({
           t: "turn.done",
           turnId,
@@ -127,6 +132,7 @@ export class CompareFakeSession implements AgentSession {
   async interrupt() {
     this.interrupted++;
     clearTimeout(this.timer);
+    this.running = false;
     await this.eventsQueue.push({ t: "turn.done", turnId: this.turn, status: "interrupted" });
   }
   async respond(...args: unknown[]) {

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { queuedItems } from "@zoltbot/core";
 import { type Daemon, startDaemon } from "@zoltbot/daemon";
 import { type EntityKind, protocolVersion } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
@@ -258,6 +259,40 @@ it("cancels through a receipt fenced route without opening or touching a native 
     });
   } finally {
     await manager.close();
+    test.close();
+  }
+});
+
+it("reorders the queue and sends a message now through receipt fenced routes", async () => {
+  const test = await runtimeFixture();
+  try {
+    for (const id of ["first", "second", "third"]) test.queue(id, `message ${id}`);
+    const api = runtimeApi({ store: test.store, publish() {} });
+    const order = () => queuedItems(test.store.snapshot(), "thread").map((row) => row.id);
+    const reorder = { threadId: "thread", order: ["third", "first", "second"] };
+    expect(api("turn.reorderQueued", reorder, "reorder:once")).toEqual({ ok: true });
+    expect(api("turn.reorderQueued", reorder, "reorder:once")).toEqual({ ok: true });
+    expect(order()).toEqual(["third", "first", "second"]);
+    expect(() =>
+      api("turn.reorderQueued", { threadId: "thread", order: ["first"] }, "reorder:stale"),
+    ).toThrow("queue_changed");
+    expect(() =>
+      api(
+        "turn.reorderQueued",
+        { threadId: "thread", order: ["first", "second", "third"] },
+        "reorder:once",
+      ),
+    ).toThrow("command_receipt_conflict");
+    // No turn is running, so the message goes first rather than steering.
+    expect(api("turn.sendQueuedNow", { threadId: "thread", id: "second" }, "now:once")).toEqual({
+      ok: true,
+      delivery: "next",
+    });
+    expect(order()).toEqual(["second", "third", "first"]);
+    expect(() =>
+      api("turn.sendQueuedNow", { threadId: "thread", id: "second" }, "reorder:once"),
+    ).toThrow("command_receipt_conflict");
+  } finally {
     test.close();
   }
 });

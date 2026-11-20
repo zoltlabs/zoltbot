@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createClient } from "./client.js";
 import { FakeTransport } from "./fake.js";
 import { newProject } from "./projects.js";
+import { queuedIds } from "./queue-order.js";
 import { sampleSnapshot } from "./sample.js";
 import { deriveTaskTitle, place } from "./view.js";
 
@@ -100,6 +101,35 @@ describe("client over the fake transport", () => {
         .getState()
         .call("turn.cancelQueued", { threadId: "thread-meal-search", id: waiting.id }),
     ).rejects.toThrow("queued_input_not_found");
+    client.stop();
+  });
+
+  it("reorders queued input and sends one now", async () => {
+    const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+    await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+    const call = client.getState().call;
+    const ids: string[] = [];
+    for (const text of ["First", "Second", "Third"]) {
+      const sent = (await call("turn.send", {
+        threadId: "thread-meal-search",
+        input: [{ type: "text", text }],
+        mode: "queue",
+      })) as { id: string };
+      ids.push(sent.id);
+    }
+    const order = () => queuedIds(client.getState().snapshot, "thread-meal-search");
+    expect(order()).toEqual(ids);
+    const [first, second, third] = ids as [string, string, string];
+    await call("turn.reorderQueued", {
+      threadId: "thread-meal-search",
+      order: [third, first, second],
+    });
+    expect(order()).toEqual([third, first, second]);
+    await call("turn.sendQueuedNow", { threadId: "thread-meal-search", id: second });
+    expect(order()).toEqual([second, third, first]);
+    await expect(
+      call("turn.reorderQueued", { threadId: "thread-meal-search", order: [first] }),
+    ).rejects.toThrow("queue_changed");
     client.stop();
   });
 

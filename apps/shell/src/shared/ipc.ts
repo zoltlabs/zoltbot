@@ -9,6 +9,7 @@ export * from "./company";
 export * from "./dictation";
 export type * from "./manager-cards";
 export type * from "./memory";
+export type * from "./queue-order";
 export type * from "./spend";
 export type * from "./staff";
 export * from "./thread-actions";
@@ -38,6 +39,7 @@ import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
+import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
@@ -109,6 +111,7 @@ export const IPC_CHANNELS = {
   ...SPEND_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
+  ...QUEUE_ORDER_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -456,6 +459,8 @@ export interface QueueDelivery {
   turnId: string | null;
   error: string | null;
   createdAt: string;
+  /** True when Edit can put the whole message back in the composer (see editableQueued). */
+  editable?: boolean;
 }
 
 export interface QueueSnapshot {
@@ -726,4 +731,5 @@ export interface OpenBotDesktopApi {
   spend: SpendDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
+  queue: QueueOrderDesktopApi;
 }

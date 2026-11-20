@@ -18,6 +18,7 @@ import {
   parseUpdateBot,
   requireString,
 } from "./parsers";
+import { queueOrderHandlers } from "./queue-order-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
@@ -77,6 +78,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...memoryHandlers(service.client),
     ...spendHandlers(service.client),
     ...artifactRepositoryHandlers(service.client),
+    ...queueOrderHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

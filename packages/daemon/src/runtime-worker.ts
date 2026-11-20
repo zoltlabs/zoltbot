@@ -21,6 +21,7 @@ import {
   AgentEventSchema,
   parse,
   QueuedInputBodySchema,
+  queueOrderKey,
   type SessionEndReason,
 } from "@zoltbot/protocol";
 import type { ItemScope } from "@zoltbot/store";
@@ -446,7 +447,7 @@ export class RuntimeWorker {
       const busy = session.state === "running";
       const candidate = (state.item ?? [])
         .filter((row) => row.threadId === this.options.threadId && row.kind === "user")
-        .sort((a, b) => Number(a.seq) - Number(b.seq))
+        .sort((a, b) => queueOrderKey(a) - queueOrderKey(b) || Number(a.seq) - Number(b.seq))
         .find((row) => {
           const body = this.body(row.body);
           return (
@@ -601,9 +602,11 @@ export class RuntimeWorker {
       }
       const currentQueue = this.options.store.runtimeSnapshot(this.options.threadId);
       if (this.stopped || this.dispatchBlocked(currentQueue)) return;
+      const current = currentQueue.item?.find((row) => row.id === candidate.id);
+      // A reorder or Send now during the awaits above gives the first item a new key (C1).
       if (
-        this.body(currentQueue.item?.find((row) => row.id === candidate.id)?.body)?.queueState !==
-        "queued"
+        this.body(current?.body)?.queueState !== "queued" ||
+        queueOrderKey(current ?? {}) !== queueOrderKey(candidate)
       ) {
         this.dirty = true;
         continue;

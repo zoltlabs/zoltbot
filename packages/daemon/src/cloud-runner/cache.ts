@@ -260,7 +260,10 @@ export class CloudTaskCache {
             throw new Error("runner_cache_scope_conflict");
           continue;
         }
-        append("item", { ...item, seq: ++seq });
+        // The runner sends items in queue order (C1); new seqs keep that order, so the Mac's
+        // queue positions, numbered by the Mac's seqs, are dropped here.
+        const { queuePosition: _position, ...cached } = body;
+        append("item", { ...item, body: cached, seq: ++seq });
       }
       return { events, result: { ok: true } };
     });

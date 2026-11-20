@@ -11,20 +11,53 @@ import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import { pick } from "./SessionControls";
 
+/** C1: what the owner can do with a queued message. Move up / down only where there is room. */
+export interface QueueActions {
+  sendNow: () => void;
+  remove: () => void;
+  moveUp?: () => void;
+  moveDown?: () => void;
+}
+
+type Option = { label: string; run: () => void };
+
+function queuedOptions(edit: (() => void) | undefined, queue: QueueActions): Option[] {
+  return [
+    { label: "Send now", run: queue.sendNow },
+    ...(edit ? [{ label: "Edit", run: edit }] : []),
+    ...(queue.moveUp ? [{ label: "Move up", run: queue.moveUp }] : []),
+    ...(queue.moveDown ? [{ label: "Move down", run: queue.moveDown }] : []),
+    { label: "Remove", run: queue.remove },
+  ];
+}
+
+function showActions(title: string, options: Option[]) {
+  pick(
+    title,
+    undefined,
+    options.map((option) => option.label),
+    (index) => options[index]?.run(),
+  );
+}
+
 function MessageActions({
   row,
   edit,
   forward,
+  queue,
 }: {
   row: TranscriptRow;
   edit?: () => void;
   forward?: () => void;
+  queue?: QueueActions;
 }) {
   const [error, setError] = useState("");
   const options = [
-    ...(edit
-      ? [{ label: row.queued ? "Edit queued message" : "Edit and send again", run: edit }]
-      : []),
+    ...(queue
+      ? queuedOptions(edit, queue)
+      : edit
+        ? [{ label: row.queued ? "Edit" : "Edit and send again", run: edit }]
+        : []),
     ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
     {
       label: "Share message",
@@ -40,14 +73,7 @@ function MessageActions({
       <Button
         kind="plain"
         label="Message actions"
-        onPress={() =>
-          pick(
-            "Message actions",
-            undefined,
-            options.map((option) => option.label),
-            (index) => options[index]?.run(),
-          )
-        }
+        onPress={() => showActions("Message actions", options)}
       />
       {error ? (
         <Txt v="meta" tone="danger">
@@ -196,6 +222,7 @@ export function Message({
   onForward,
   threadId,
   edits,
+  queue,
 }: {
   row: TranscriptRow;
   compact?: boolean;
@@ -208,6 +235,8 @@ export function Message({
   edits?: { count: number; open: () => void };
   /** Sends a copy of an agent's message to another chat. */
   onForward?: (row: TranscriptRow) => void;
+  /** For a queued message: send it now, move it or remove it. */
+  queue?: QueueActions;
 }) {
   const { c } = useTheme();
   // Manager rows first: their notices are system rows too, like the switch note below.
@@ -326,9 +355,29 @@ export function Message({
     return (
       <View style={styles.mine}>
         <Pressable
-          disabled={!(row.turnId && onEditSent)}
-          onLongPress={() => onEditSent?.(row)}
+          disabled={!(row.turnId && onEditSent) && !queue}
+          onLongPress={() =>
+            queue
+              ? showActions(
+                  "Message actions",
+                  queuedOptions(onEdit ? () => onEdit(row) : undefined, queue),
+                )
+              : onEditSent?.(row)
+          }
           accessibilityLabel={`You: ${row.text}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
+          {...(queue
+            ? {
+                accessibilityHint: "Touch and hold for more actions",
+                accessibilityActions: queuedOptions(
+                  onEdit ? () => onEdit(row) : undefined,
+                  queue,
+                ).map((option) => ({ name: option.label, label: option.label })),
+                onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) =>
+                  queuedOptions(onEdit ? () => onEdit(row) : undefined, queue)
+                    .find((option) => option.label === event.nativeEvent.actionName)
+                    ?.run(),
+              }
+            : {})}
           {...(row.turnId && onEditSent
             ? {
                 accessibilityHint: "Touch and hold to edit and send again",
@@ -356,6 +405,7 @@ export function Message({
         ) : null}
         <MessageActions
           row={row}
+          {...(queue ? { queue } : {})}
           {...(row.queued && onEdit
             ? { edit: () => onEdit(row) }
             : row.turnId && onEditSent

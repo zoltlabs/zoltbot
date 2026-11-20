@@ -1,3 +1,4 @@
+import { queueOrderKey } from "@zoltbot/protocol";
 import type { BranchOrigin } from "../shared/branches";
 import type {
   AgentPromptQuestion,
@@ -173,6 +174,33 @@ export function isQueued(item: Row): boolean {
   );
 }
 
+/**
+ * Whether Edit can put the whole queued message back in the composer: the owner's own words,
+ * only text, with nothing the composer can't hold (an artifact target or output mode).
+ */
+export function editableQueued(value: Row): boolean {
+  const input = Array.isArray(value.input) ? (value.input as Row[]) : [];
+  return (
+    !value.origin &&
+    !value.artifactTarget &&
+    !value.outputMode &&
+    input.every((part) => part.type === "text")
+  );
+}
+
+/** Queued user items in send order: those already on their way, then the owner's order (C1). */
+export function queueOrdered(items: Row[]): Row[] {
+  const inFlight = (item: Row) => (text(body(item).queueState) === "queued" ? 1 : 0);
+  return items
+    .filter(isQueued)
+    .sort(
+      (a, b) =>
+        inFlight(a) - inFlight(b) ||
+        queueOrderKey(a) - queueOrderKey(b) ||
+        Number(a.seq) - Number(b.seq),
+    );
+}
+
 const PLAN_STATUSES: readonly string[] = ["pending", "in_progress", "completed"];
 
 /**
@@ -221,9 +249,7 @@ export function toMessages(
       .map((turn) => [text(turn.id), turn]),
   );
   const messages: ConversationMessage[] = [];
-  const queuedPositions = new Map(
-    items.filter(isQueued).map((item, index) => [item.id, index + 1]),
-  );
+  const queuedPositions = new Map(queueOrdered(items).map((item, index) => [item.id, index + 1]));
   for (const item of items) {
     const value = body(item);
     if (item.kind === "user") {
@@ -368,7 +394,7 @@ function attachArtifacts(messages: ConversationMessage[], byTurn: Map<string, Ar
 }
 
 export function toQueue(threadId: string, items: Row[]): QueueSnapshot {
-  const deliveries: QueueDelivery[] = items.filter(isQueued).map((item, index) => ({
+  const deliveries: QueueDelivery[] = queueOrdered(items).map((item, index) => ({
     id: text(item.id),
     messageId: text(item.id),
     recipientBotId: threadId,
@@ -381,6 +407,7 @@ export function toQueue(threadId: string, items: Row[]): QueueSnapshot {
     turnId: null,
     error: null,
     createdAt: text(item.createdAt),
+    editable: editableQueued(body(item)),
   }));
   return { botId: threadId, paused: false, deliveries };
 }

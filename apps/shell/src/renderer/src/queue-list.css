@@ -1,0 +1,129 @@
+/* C1: queued messages above the composer. */
+/* In the page flow, not over the transcript: the scroll area shrinks to make room for it. */
+.agent-queue-bar.queue-list-host {
+  position: static;
+  display: none;
+  margin: 0 0 6px;
+  padding: 0;
+  overflow: visible;
+  transform: none;
+}
+
+.agent-queue-bar.queue-list-host.agent-queue-bar-visible {
+  display: block;
+  transform: none;
+}
+
+.queue-list {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-popover, var(--surface));
+  box-shadow: var(--shadow-popover, 0 6px 18px rgb(0 0 0 / 0.08));
+}
+
+.queue-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 6px 4px;
+}
+
+.queue-list-header h2 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.queue-list-resume {
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.queue-list ol {
+  display: grid;
+  max-height: min(190px, 30vh);
+  overflow-y: auto;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue-list li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 28px;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+.queue-list li:hover,
+.queue-list li:focus-within {
+  background: var(--surface-inset, var(--shade));
+}
+
+.queue-list li.queue-row-dragging {
+  opacity: 0.5;
+}
+
+.queue-grip,
+.queue-row-menu {
+  display: grid;
+  width: 24px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.queue-grip {
+  cursor: grab;
+}
+
+.queue-grip:active {
+  cursor: grabbing;
+}
+
+.queue-row-menu {
+  width: 28px;
+}
+
+.queue-grip:hover,
+.queue-row-menu:hover,
+.queue-row-menu[aria-expanded="true"] {
+  color: var(--text-primary);
+}
+
+.queue-grip:focus-visible,
+.queue-row-menu:focus-visible,
+.queue-list-resume:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.queue-row-text {
+  overflow: hidden;
+  padding: 0 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-list-error {
+  margin: 4px 6px 0;
+  color: var(--text-danger);
+  font-size: 12px;
+}

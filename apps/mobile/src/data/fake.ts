@@ -4,6 +4,7 @@ import {
   type MethodName,
   macOnlyMethods,
   methodCatalog,
+  queueOrderKey,
   unservedMethods,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
@@ -355,6 +356,34 @@ export class FakeTransport implements Transport {
           updatedAt: now,
         });
         return { ok: true };
+      }
+      case "turn.reorderQueued":
+      case "turn.sendQueuedNow": {
+        // As zoltd (core queue-order): the queue must match what the phone saw.
+        const queued = this.rows("item")
+          .filter(
+            (row) =>
+              row.threadId === p.threadId &&
+              row.kind === "user" &&
+              (row.body as Row).queueState === "queued",
+          )
+          .sort((a, b) => queueOrderKey(a) - queueOrderKey(b));
+        const ids = queued.map((row) => String(row.id));
+        const order =
+          method === "turn.sendQueuedNow"
+            ? [String(p.id), ...ids.filter((id) => id !== p.id)]
+            : (p.order as string[]);
+        if (order.length !== ids.length || !ids.every((id) => order.includes(id)))
+          throw new Error("queue_changed");
+        const keys = queued.map(queueOrderKey);
+        for (const [index, id] of order.entries()) {
+          const item = this.find("item", id);
+          this.put("item", {
+            ...item,
+            body: { ...(item.body as Row), queuePosition: keys[index] },
+          });
+        }
+        return method === "turn.sendQueuedNow" ? { ok: true, delivery: "next" } : { ok: true };
       }
       case "turn.interrupt": {
         this.put("turn", { ...this.find("turn", p.turnId), status: "interrupted", endedAt: now });

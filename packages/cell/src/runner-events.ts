@@ -55,7 +55,7 @@ function itemsForEvent(
   if (event.t === "turn.started") {
     const queued = store.database
       .prepare(
-        "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY seq LIMIT 1",
+        "SELECT id FROM items WHERE thread_id=? AND kind='user' AND json_extract(body,'$.queueState')='queued' ORDER BY COALESCE(json_extract(body,'$.queuePosition'), seq), seq LIMIT 1",
       )
       .get(threadId) as { id: string } | undefined;
     add(queued?.id);

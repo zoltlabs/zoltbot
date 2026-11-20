@@ -21,6 +21,7 @@ export * from "./native-adoption.js";
 export * from "./native-compaction.js";
 export * from "./native-sessions.js";
 export * from "./projectors.js";
+export * from "./queue-order.js";
 export * from "./routine-time.js";
 export * from "./routines.js";
 export * from "./rule-answers.js";

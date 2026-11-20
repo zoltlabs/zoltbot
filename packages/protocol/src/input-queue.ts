@@ -34,6 +34,8 @@ export const QueuedInputBodySchema = object({
   attemptedAt: Type.Optional(At),
   browserGuidance: Type.Optional(object({ bindingId: Id, digest: Id })),
   deliveryMode: Type.Optional(values(["queue", "steer"])),
+  /** Set when the owner reorders the queue; queued items without one sort by `seq`. */
+  queuePosition: Type.Optional(Type.Number()),
   errorCode: Type.Optional(
     values([
       "auth_required",
@@ -47,3 +49,9 @@ export const QueuedInputBodySchema = object({
   ),
 });
 export type QueuedInputBody = Static<typeof QueuedInputBodySchema>;
+
+/** Where a user item stands in its thread's queue: the owner's order first, then arrival. */
+export function queueOrderKey(item: { seq?: unknown; body?: unknown }): number {
+  const position = (item.body as { queuePosition?: unknown } | undefined)?.queuePosition;
+  return typeof position === "number" && Number.isFinite(position) ? position : Number(item.seq);
+}

@@ -3,7 +3,9 @@ import {
   cancelQueuedInput,
   type DomainState,
   queueHumanInput,
+  reorderQueuedInput,
   requestSessionConnect,
+  sendQueuedInputNow,
 } from "@zoltbot/core";
 import {
   ArtifactTargetSchema,
@@ -62,6 +64,41 @@ export function runtimeApi(options: {
         throw new Error("command_receipt_conflict");
       if (produced) options.publish(options.store.eventsSince(before));
       return { ok: true };
+    }
+    if (method === "turn.reorderQueued" || method === "turn.sendQueuedNow") {
+      if (!commandId) throw new Error("command_id_required");
+      const threadId = String(params.threadId),
+        before = options.store.lastSeq();
+      const context = {
+        commandId,
+        at: new Date().toISOString(),
+        actor: { kind: "human" as const, id: "local-owner" },
+      };
+      let produced = false;
+      const receipt = options.store.dispatch(commandId, (state) => {
+        produced = true;
+        if (method === "turn.sendQueuedNow")
+          return sendQueuedInputNow(state, threadId, String(params.id), context);
+        if (!Array.isArray(params.order)) throw new Error("queue_changed");
+        return reorderQueuedInput(state, threadId, params.order.map(String), context);
+      });
+      const kind = method === "turn.sendQueuedNow" ? "queue_send_now" : "queue_order";
+      const same =
+        method === "turn.sendQueuedNow"
+          ? receipt.result.id === params.id
+          : JSON.stringify(receipt.result.order) === JSON.stringify(params.order);
+      if (receipt.result.kind !== kind || receipt.result.threadId !== threadId || !same)
+        throw new Error("command_receipt_conflict");
+      if (produced) options.publish(options.store.eventsSince(before));
+      // Send now may let the worker steer or start the message at once; a reorder never does.
+      if (produced && method === "turn.sendQueuedNow")
+        void options.manager
+          ?.ensure(threadId)
+          .then((worker) => worker.wake())
+          .catch(() => options.onError?.("runtime_open_failed"));
+      return method === "turn.sendQueuedNow"
+        ? { ok: true, delivery: receipt.result.delivery }
+        : { ok: true };
     }
     if (method === "model.catalog") return modelCatalog(options.store.snapshot());
     const manager = options.manager;
