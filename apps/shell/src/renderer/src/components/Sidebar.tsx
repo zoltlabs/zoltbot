@@ -28,6 +28,7 @@ import {
   MapIcon,
   MessageIcon,
   ModelsIcon,
+  MoreIcon,
   PermissionsIcon,
   PlusIcon,
   SearchIcon,
@@ -72,6 +73,7 @@ interface SidebarProps {
   onCreateProject: () => void;
   onEditBot: (botId: string) => void;
   onDeleteBot: (botId: string) => Promise<void>;
+  onRenameBot: (botId: string, name: string) => Promise<void>;
   onRefreshUsage: () => Promise<AccountUsage>;
   onUpdateAction: () => Promise<void>;
   onOpenExternal: (destination: ExternalDestination) => Promise<void>;
@@ -92,6 +94,7 @@ export function Sidebar(props: SidebarProps) {
   const [deleteTargetId, setDeleteTargetId] = createSignal<string | null>(null);
   const [deleting, setDeleting] = createSignal(false);
   const [deleteError, setDeleteError] = createSignal<string | null>(null);
+  const [renamingId, setRenamingId] = createSignal<string | null>(null);
   const [fadeAtTop, setFadeAtTop] = createSignal(false);
   const [fadeAtBottom, setFadeAtBottom] = createSignal(false);
   const [accountMenuOpen, setAccountMenuOpen] = createSignal(false);
@@ -252,9 +255,34 @@ export function Sidebar(props: SidebarProps) {
     setContextMenu({
       botId,
       x: Math.max(8, Math.min(x, window.innerWidth - 190)),
-      y: Math.max(8, Math.min(y, window.innerHeight - 116)),
+      y: Math.max(8, Math.min(y, window.innerHeight - 156)),
     });
     requestAnimationFrame(() => firstMenuItem?.focus());
+  }
+
+  function toggleRowMenu(botId: string, button: HTMLElement) {
+    if (contextMenu()?.botId === botId) {
+      setContextMenu(null);
+      return;
+    }
+    const bounds = button.getBoundingClientRect();
+    openContextMenu(botId, bounds.right - 178, bounds.bottom + 4);
+  }
+
+  function startRename(botId: string) {
+    setRenamingId(botId);
+  }
+
+  async function finishRename(bot: BotProfile, value: string) {
+    if (renamingId() !== bot.id) return;
+    setRenamingId(null);
+    const name = value.trim();
+    if (!name || name === bot.name) return;
+    try {
+      await props.onRenameBot(bot.id, name);
+    } catch {
+      // The conversation shows the error.
+    }
   }
 
   async function confirmDelete() {
@@ -438,52 +466,112 @@ export function Sidebar(props: SidebarProps) {
           <For each={entries()}>
             {(entry, index) => {
               const botRow = (bot: BotProfile) => (
-                <button
-                  type="button"
-                  class="bot-row"
-                  classList={{
-                    "bot-row-active": props.activeBotId === bot.id,
-                    "bot-row-menu-open": contextMenu()?.botId === bot.id,
-                    "bot-row-nested": (bot.depth ?? 0) > 0,
-                  }}
-                  style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
-                  aria-pressed={props.activeBotId === bot.id}
-                  onClick={() => props.onSelectBot(bot.id)}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    openContextMenu(bot.id, event.clientX, event.clientY);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
-                      return;
+                <div class="bot-row-item">
+                  <Show
+                    when={renamingId() !== bot.id}
+                    fallback={
+                      <form
+                        class="bot-row bot-row-renaming"
+                        classList={{ "bot-row-nested": (bot.depth ?? 0) > 0 }}
+                        style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const input = event.currentTarget.elements.namedItem("name");
+                          if (input instanceof HTMLInputElement)
+                            void finishRename(bot, input.value);
+                        }}
+                      >
+                        <span class="bot-row-avatar">
+                          <AgentAvatar bot={bot} />
+                        </span>
+                        <input
+                          ref={(element) =>
+                            requestAnimationFrame(() => {
+                              element.focus();
+                              element.select();
+                            })
+                          }
+                          name="name"
+                          class="bot-row-rename-input"
+                          aria-label={`Rename ${bot.name}`}
+                          value={bot.name}
+                          maxLength={80}
+                          autocomplete="off"
+                          spellcheck={false}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Escape") return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setRenamingId(null);
+                          }}
+                          onBlur={(event) => void finishRename(bot, event.currentTarget.value)}
+                        />
+                      </form>
                     }
-                    event.preventDefault();
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    openContextMenu(bot.id, bounds.left + 28, bounds.top + 32);
-                  }}
-                >
-                  <span class="bot-row-avatar">
-                    <AgentAvatar bot={bot} />
-                    <Show when={props.agentStates[bot.id]}>
-                      {(state) => <SidebarAgentIndicator state={state()} />}
-                    </Show>
-                  </span>
-                  <span class="bot-row-copy">
-                    <span class="bot-row-heading">
-                      <span class="bot-row-title">
-                        <strong>{bot.name}</strong>
-                        <Show when={bot.roleLabel}>
-                          <em class="bot-row-role">{bot.roleLabel}</em>
+                  >
+                    <button
+                      type="button"
+                      class="bot-row"
+                      classList={{
+                        "bot-row-active": props.activeBotId === bot.id,
+                        "bot-row-menu-open": contextMenu()?.botId === bot.id,
+                        "bot-row-nested": (bot.depth ?? 0) > 0,
+                      }}
+                      style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
+                      aria-pressed={props.activeBotId === bot.id}
+                      onClick={() => props.onSelectBot(bot.id)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        openContextMenu(bot.id, event.clientX, event.clientY);
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key !== "ContextMenu" &&
+                          !(event.shiftKey && event.key === "F10")
+                        ) {
+                          return;
+                        }
+                        event.preventDefault();
+                        const bounds = event.currentTarget.getBoundingClientRect();
+                        openContextMenu(bot.id, bounds.left + 28, bounds.top + 32);
+                      }}
+                    >
+                      <span class="bot-row-avatar">
+                        <AgentAvatar bot={bot} />
+                        <Show when={props.agentStates[bot.id]}>
+                          {(state) => <SidebarAgentIndicator state={state()} />}
                         </Show>
                       </span>
-                      <span>{bot.time}</span>
-                    </span>
-                    <span class="bot-row-preview">{bot.preview}</span>
-                  </span>
-                  <Show when={props.agentStates[bot.id]}>
-                    {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
+                      <span class="bot-row-copy">
+                        <span class="bot-row-heading">
+                          <span class="bot-row-title">
+                            <strong>{bot.name}</strong>
+                            <Show when={bot.roleLabel}>
+                              <em class="bot-row-role">{bot.roleLabel}</em>
+                            </Show>
+                          </span>
+                          <span class="bot-row-time">{bot.time}</span>
+                        </span>
+                        <span class="bot-row-preview">{bot.preview}</span>
+                      </span>
+                      <Show when={props.agentStates[bot.id]}>
+                        {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
+                      </Show>
+                    </button>
+                    <button
+                      type="button"
+                      class="bot-row-more"
+                      aria-label={`Actions for ${bot.name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={contextMenu()?.botId === bot.id}
+                      title="More"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => toggleRowMenu(bot.id, event.currentTarget)}
+                    >
+                      <MoreIcon />
+                    </button>
                   </Show>
-                </button>
+                </div>
               );
               return (
                 <>
@@ -700,6 +788,7 @@ export function Sidebar(props: SidebarProps) {
             mount={sidebarElement}
             firstItemRef={(element) => (firstMenuItem = element)}
             onClose={() => setContextMenu(null)}
+            onRename={startRename}
             onEdit={props.onEditBot}
             onDelete={setDeleteTargetId}
           />

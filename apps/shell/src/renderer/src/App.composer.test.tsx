@@ -457,7 +457,7 @@ describe("Zoltbot connected desktop shell", () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
     emitAttachmentImport?.({ type: "started", requestId: "paste-switch" });
-    await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
     emitAttachmentImport?.({
       type: "completed",
       requestId: "paste-switch",
@@ -465,7 +465,7 @@ describe("Zoltbot connected desktop shell", () => {
     });
 
     expect(screen.queryByText("for-chief.png")).not.toBeInTheDocument();
-    await fireEvent.click(screen.getByRole("button", { name: /Chief/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Chief/ }));
     expect(await screen.findByText("for-chief.png")).toBeInTheDocument();
   });
 

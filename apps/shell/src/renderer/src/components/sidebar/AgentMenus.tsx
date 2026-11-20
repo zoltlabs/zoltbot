@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { BotProfile } from "../../data";
 import { AgentAvatar } from "../AgentAvatar";
-import { DeleteIcon, EditIcon } from "../SidebarIcons";
+import { DeleteIcon, EditIcon, RenameIcon } from "../SidebarIcons";
 
 export interface BotContextMenu {
   botId: string;
@@ -15,6 +15,7 @@ export function AgentContextMenu(props: {
   mount: HTMLElement | undefined;
   firstItemRef: (element: HTMLButtonElement) => void;
   onClose: () => void;
+  onRename: (botId: string) => void;
   onEdit: (botId: string) => void;
   onDelete: (botId: string) => void;
 }) {
@@ -30,6 +31,18 @@ export function AgentContextMenu(props: {
       >
         <button
           ref={props.firstItemRef}
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            const botId = props.menu.botId;
+            props.onClose();
+            props.onRename(botId);
+          }}
+        >
+          <RenameIcon />
+          <span>Rename</span>
+        </button>
+        <button
           type="button"
           role="menuitem"
           onClick={() => {

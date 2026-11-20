@@ -724,6 +724,72 @@ textarea {
   margin-top: 1px;
 }
 
+.bot-row-item {
+  position: relative;
+}
+
+.bot-row-item + .bot-row-item {
+  margin-top: 1px;
+}
+
+.bot-row-more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 24px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgb(var(--ink) / calc(0.62 * var(--ink-text-boost)));
+  opacity: 0;
+  transition:
+    opacity 100ms ease,
+    background 100ms ease;
+}
+
+.bot-row-more:hover,
+.bot-row-more[aria-expanded="true"] {
+  background: rgb(var(--ink) / 0.08);
+  color: rgb(var(--ink) / calc(0.9 * var(--ink-text-boost)));
+}
+
+.bot-row-item:hover .bot-row-more,
+.bot-row-more:focus-visible,
+.bot-row-more[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.bot-row-item:hover .bot-row-time,
+.bot-row-item:has(.bot-row-more:focus-visible) .bot-row-time,
+.bot-row-item:has(.bot-row-more[aria-expanded="true"]) .bot-row-time {
+  visibility: hidden;
+}
+
+.bot-row-renaming {
+  background: rgb(var(--ink) / 0.085);
+}
+
+.bot-row-rename-input {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  border: 0.5px solid rgb(var(--ink) / 0.22);
+  border-radius: 6px;
+  background: rgb(var(--ink) / 0.04);
+  padding: 0 8px;
+  color: rgb(var(--ink) / calc(0.9 * var(--ink-text-boost)));
+  font-size: 14px;
+  font-weight: 500;
+  outline: 0;
+}
+
+.bot-row-rename-input:focus {
+  border-color: rgb(var(--ink) / 0.4);
+}
+
 .bot-row:hover {
   background: rgb(var(--ink) / 0.05);
 }

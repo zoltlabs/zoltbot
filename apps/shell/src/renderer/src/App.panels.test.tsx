@@ -209,18 +209,18 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
     expect(screen.getByRole("complementary", { name: "Agent settings" })).toBeInTheDocument();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
     expect(screen.queryByRole("complementary", { name: "Agent settings" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open computer" })).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "Open computer" }));
     expect(screen.getByRole("complementary", { name: "Browser" })).toBeInTheDocument();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Chief/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Chief/ }));
     expect(screen.queryByRole("complementary", { name: "Agent settings" })).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Browser" })).not.toBeInTheDocument();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
     expect(screen.getByRole("complementary", { name: "Browser" })).toBeInTheDocument();
   });
 });

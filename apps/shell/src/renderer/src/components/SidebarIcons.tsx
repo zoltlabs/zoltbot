@@ -163,3 +163,26 @@ export function ModelsIcon() {
     </svg>
   );
 }
+
+export function MoreIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-current">
+      <circle cx="5" cy="10" r="1.4" />
+      <circle cx="10" cy="10" r="1.4" />
+      <circle cx="15" cy="10" r="1.4" />
+    </svg>
+  );
+}
+
+export function RenameIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      class="bot-context-icon size-4 fill-none stroke-current"
+    >
+      <path d="M4 10h7M4 6h9M4 14h4" stroke-width="1.4" stroke-linecap="round" />
+      <path d="M15 5v10M13.5 5h3M13.5 15h3" stroke-width="1.4" stroke-linecap="round" />
+    </svg>
+  );
+}

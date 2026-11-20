@@ -118,7 +118,7 @@ describe("Zoltbot connected desktop shell", () => {
     await screen.findByRole("button", { name: "Onboarding model: Luna" });
     const search = screen.getByRole("searchbox", { name: "Search chats" });
     await fireEvent.input(search, { target: { value: "Sales" } });
-    await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
     expect(screen.getByRole("heading", { name: "Sales Outbound" })).toBeInTheDocument();
   });
 
@@ -413,7 +413,7 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.click(within(picker).getByRole("tab", { name: /^Claude:/ }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
 
-    await fireEvent.click(screen.getByRole("button", { name: /Sales Outbound/ }));
+    await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
     settings = screen.getByRole("complementary", { name: "Agent settings" });
     expect(within(settings).getByRole("button", { name: "Agent model: Luna" })).toBeEnabled();

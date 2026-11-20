@@ -206,7 +206,7 @@ describe("Zoltbot connected desktop shell", () => {
   it("opens bot actions on right click and edits the selected agent", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
-    await fireEvent.contextMenu(screen.getByRole("button", { name: /Sales Outbound/ }), {
+    await fireEvent.contextMenu(screen.getByRole("button", { name: /^Sales Outbound/ }), {
       clientX: 120,
       clientY: 90,
     });
@@ -215,10 +215,28 @@ describe("Zoltbot connected desktop shell", () => {
     expect(screen.getByRole("complementary", { name: "Agent settings" })).toBeInTheDocument();
   });
 
+  it("renames a bot from its row's actions button", async () => {
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    const more = screen.getByRole("button", { name: "Actions for Sales Outbound" });
+    await fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    await fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    const input = screen.getByRole("textbox", { name: "Rename Sales Outbound" });
+    await fireEvent.input(input, { target: { value: "Outbound" } });
+    await fireEvent.submit(input);
+    await waitFor(() =>
+      expect(window.openbot.agent.updateBot).toHaveBeenCalledWith({
+        botId: "sales-outbound",
+        name: "Outbound",
+      }),
+    );
+  });
+
   it("confirms and persistently deletes a bot from its context menu", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
-    const sales = screen.getByRole("button", { name: /Sales Outbound/ });
+    const sales = screen.getByRole("button", { name: /^Sales Outbound/ });
     await fireEvent.contextMenu(sales, { clientX: 120, clientY: 90 });
     await fireEvent.click(screen.getByRole("menuitem", { name: "Delete agent" }));
     expect(screen.getByRole("alertdialog", { name: "Delete Sales Outbound?" })).toBeInTheDocument();

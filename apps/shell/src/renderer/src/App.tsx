@@ -668,6 +668,7 @@ export function App() {
               onCreateProject={() => void createProject()}
               onEditBot={editBot}
               onDeleteBot={deleteBot}
+              onRenameBot={(botId, name) => updateBot(botId, { name })}
               onRefreshUsage={refreshAccountUsage}
               onUpdateAction={runUpdateAction}
               onOpenExternal={(destination) => window.openbot.openExternal(destination)}
