@@ -10,6 +10,7 @@ import type {
 } from "../../../../shared/ipc";
 import type { BotProfile } from "../../data";
 import { AVATAR_COLORS, AVATAR_SHAPES } from "../../data";
+import { Select } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { PanelResizer } from "../PanelResizer";
 import { ProviderModelPicker } from "../ProviderModelPicker";
@@ -67,7 +68,6 @@ export function AgentSettings(props: {
   modelDisabled: boolean;
   working: boolean;
   onModelChange: (model: AgentModelId) => void;
-  selectedModel: AgentModelOption | undefined;
   reasoning: AgentReasoningEffort;
   reasoningOptions: AgentReasoningEffort[];
   onReasoningChange: (effort: AgentReasoningEffort) => void;
@@ -198,7 +198,6 @@ export function AgentSettings(props: {
         <section class="agent-settings-model" aria-labelledby="agent-model-heading">
           <div class="agent-settings-section-heading">
             <strong id="agent-model-heading">Runtime</strong>
-            <span>Choose how this agent runs</span>
           </div>
           <div class="agent-settings-model-controls">
             <div class="agent-settings-model-option">
@@ -216,25 +215,19 @@ export function AgentSettings(props: {
                 }
                 onChange={props.onModelChange}
               />
-              <Show when={props.selectedModel} keyed>
-                {(model) => <p class="agent-settings-model-description">{model.description}</p>}
-              </Show>
             </div>
-            <label class="agent-settings-model-row agent-settings-thinking-row">
-              <span>Reasoning</span>
-              <select
+            <div class="agent-settings-model-row agent-settings-thinking-row">
+              <span aria-hidden="true">Reasoning</span>
+              <Select
+                label="Agent reasoning level"
                 value={props.reasoning}
-                aria-label="Agent reasoning level"
-                onChange={(event) => {
-                  const reasoningEffort = event.currentTarget.value as AgentReasoningEffort;
-                  props.onReasoningChange(reasoningEffort);
-                }}
-              >
-                <For each={props.reasoningOptions}>
-                  {(effort) => <option value={effort}>{reasoningLabel(effort)}</option>}
-                </For>
-              </select>
-            </label>
+                options={props.reasoningOptions.map((effort) => ({
+                  value: effort,
+                  label: reasoningLabel(effort),
+                }))}
+                onChange={props.onReasoningChange}
+              />
+            </div>
           </div>
         </section>
         <Show when={props.saveError}>
@@ -245,16 +238,15 @@ export function AgentSettings(props: {
           )}
         </Show>
         <div class="agent-settings-notifications">
-          <div>
-            <strong>Notifications</strong>
-            <span>Get notified when this agent finishes or needs input</span>
-          </div>
+          <strong id="agent-notifications-label">
+            Notify when {form.name().trim() || "this agent"} replies
+          </strong>
           <button
             type="button"
             role="switch"
             class="settings-switch"
             classList={{ "settings-switch-on": form.notifications() }}
-            aria-label="Notifications"
+            aria-labelledby="agent-notifications-label"
             aria-checked={form.notifications()}
             onClick={() => {
               const next = !form.notifications();

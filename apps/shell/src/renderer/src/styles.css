@@ -2072,8 +2072,7 @@ textarea {
   padding: 0 2px 9px;
 }
 
-.agent-settings-section-heading strong,
-.agent-settings-section-heading span {
+.agent-settings-section-heading strong {
   display: block;
 }
 
@@ -2083,14 +2082,6 @@ textarea {
   font-weight: 600;
   line-height: 20px;
   text-wrap: balance;
-}
-
-.agent-settings-section-heading span {
-  margin-top: 1px;
-  color: rgb(var(--ink) / calc(0.54 * var(--ink-text-boost)));
-  font-size: 12px;
-  line-height: 17px;
-  text-wrap: pretty;
 }
 
 .agent-settings-model-controls {
@@ -2143,49 +2134,17 @@ textarea {
   line-height: 17px;
 }
 
-.agent-settings-model-row select {
-  width: 100%;
-  height: 32px;
-  appearance: none;
-  cursor: pointer;
-  border: 0;
-  border-radius: 8px;
-  outline: 0;
-  background-color: transparent;
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgb(var(--ink) / 0.54) 50%),
-    linear-gradient(135deg, rgb(var(--ink) / 0.54) 50%, transparent 50%);
-  background-position:
-    calc(100% - 10px) 14px,
-    calc(100% - 6px) 14px;
-  background-repeat: no-repeat;
-  background-size:
-    4px 4px,
-    4px 4px;
-  padding: 0 20px 0 8px;
-  color: rgb(var(--ink) / calc(0.92 * var(--ink-text-boost)));
-  font: inherit;
-  font-size: 13px;
-  line-height: 18px;
-  text-align: right;
-  text-align-last: right;
-}
-
-.agent-settings-model-row select option {
-  background: var(--surface-popover);
-  color: var(--openbot-white);
-  text-align: left;
-}
-
-.agent-settings-model-description {
-  margin: -3px 12px 10px;
-  color: rgb(var(--ink) / calc(0.42 * var(--ink-text-boost)));
-  font-size: 11px;
-  line-height: 16px;
-}
-
 .agent-settings-thinking-row {
   border-top: 0;
+}
+
+.agent-settings-model-row .zb-kit-trigger {
+  width: 100%;
+  min-height: 32px;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  padding: 0 4px;
 }
 
 .agent-settings-model .agent-settings-model-controls {
@@ -2218,26 +2177,6 @@ textarea {
   padding: 0;
 }
 
-.agent-settings-model .agent-settings-model-row select {
-  height: 32px;
-  border-radius: 8px;
-  background-color: transparent;
-  background-position:
-    calc(100% - 10px) 14px,
-    calc(100% - 6px) 14px;
-  padding: 0 20px 0 8px;
-  box-shadow: none;
-  text-align: right;
-  text-align-last: right;
-}
-
-.agent-settings-model .agent-settings-model-description {
-  margin: 0;
-  background: rgb(var(--ink) / 0.035);
-  padding: 0 8px 8px;
-  text-wrap: pretty;
-}
-
 .agent-settings-model .agent-settings-thinking-row {
   border-top: 0;
 }
@@ -2261,12 +2200,7 @@ textarea {
   padding: 13px 12px;
 }
 
-.agent-settings-notifications > div {
-  min-width: 0;
-}
-
-.agent-settings-notifications strong,
-.agent-settings-notifications span {
+.agent-settings-notifications strong {
   display: block;
 }
 
@@ -2275,14 +2209,6 @@ textarea {
   font-size: 13px;
   font-weight: 500;
   line-height: 18px;
-}
-
-.agent-settings-notifications div > span {
-  max-width: 194px;
-  margin-top: 2px;
-  color: rgb(var(--ink) / calc(0.6 * var(--ink-text-boost)));
-  font-size: 11px;
-  line-height: 15px;
 }
 
 .settings-switch {
@@ -4160,11 +4086,6 @@ textarea {
   line-height: 18px;
 }
 
-
-
-
-
-
 .composer-attachment {
   display: flex;
   max-width: 360px;
@@ -4534,7 +4455,6 @@ textarea {
   backdrop-filter: blur(12px);
   pointer-events: none;
 }
-
 
 .composer-error {
   max-width: 560px;

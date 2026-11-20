@@ -781,7 +781,6 @@ export function Conversation(props: ConversationProps) {
           modelDisabled={modelDisabled()}
           working={working()}
           onModelChange={(model) => void selectAndConfirmModel(model)}
-          selectedModel={selectedModel()}
           reasoning={settingsReasoning()}
           reasoningOptions={reasoningOptions()}
           onReasoningChange={(reasoningEffort) => {

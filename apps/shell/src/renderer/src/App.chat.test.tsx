@@ -369,9 +369,10 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
 
     const settings = screen.getByRole("complementary", { name: "Agent settings" });
-    const thinking = within(settings).getByRole("combobox", { name: "Agent reasoning level" });
     expect(within(settings).getByRole("button", { name: "Agent model: Luna" })).toBeEnabled();
-    expect(thinking).toHaveValue("medium");
+    expect(
+      within(settings).getByRole("button", { name: "Agent reasoning level: Medium" }),
+    ).toBeInTheDocument();
 
     await fireEvent.click(within(settings).getByRole("button", { name: "Agent model: Luna" }));
     let picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
@@ -394,7 +395,10 @@ describe("Zoltbot connected desktop shell", () => {
     picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
     await fireEvent.click(within(picker).getByRole("tab", { name: /^Codex:/ }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Sol" }));
-    await fireEvent.change(thinking, { target: { value: "xhigh" } });
+    await fireEvent.click(
+      within(settings).getByRole("button", { name: /^Agent reasoning level:/ }),
+    );
+    await fireEvent.click(screen.getByRole("option", { name: "Extra high" }));
     await waitFor(() =>
       expect(window.openbot.agent.updateBot).toHaveBeenLastCalledWith({
         botId: "chief",
