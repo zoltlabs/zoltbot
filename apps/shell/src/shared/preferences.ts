@@ -11,6 +11,13 @@ export type ThemePreference = "system" | "light" | "dark";
 export type TextSizePreference = "default" | "large" | "larger";
 /** C14: which key sends a message; the other adds a new line. */
 export type SendKeyPreference = "enter" | "mod-enter";
+/** R4: when the Mac stays awake. "never" lets it sleep as usual. */
+export type KeepAwakePreference = "never" | "working" | "working-or-due";
+export const KEEP_AWAKE_PREFERENCES: readonly KeepAwakePreference[] = [
+  "never",
+  "working",
+  "working-or-due",
+];
 
 export interface Preferences {
   theme: ThemePreference;
@@ -22,6 +29,7 @@ export interface Preferences {
   /** C5: the owner has seen that hiding a message doesn't make the agent forget it. */
   hideConfirmed: boolean;
   sendKey: SendKeyPreference;
+  keepAwake: KeepAwakePreference;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -32,6 +40,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   showInDock: true,
   hideConfirmed: false,
   sendKey: "enter",
+  keepAwake: "never",
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -50,6 +59,8 @@ const VALIDATORS: Validators = {
   showInDock: (value): value is boolean => typeof value === "boolean",
   hideConfirmed: (value): value is boolean => typeof value === "boolean",
   sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
+  keepAwake: (value): value is KeepAwakePreference =>
+    KEEP_AWAKE_PREFERENCES.includes(value as KeepAwakePreference),
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

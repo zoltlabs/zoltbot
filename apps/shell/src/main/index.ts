@@ -16,6 +16,7 @@ import {
   protocol,
   session,
   shell,
+  powerSaveBlocker,
   systemPreferences,
   type WebContents,
 } from "electron";
@@ -58,6 +59,7 @@ import { desktopAccountClient } from "./desktop/native-account-client";
 import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
+import { keepAwakeController } from "./keep-awake";
 import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
@@ -98,6 +100,14 @@ const daemonHost = new DaemonHost(paths, {
 });
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+// R4: keeps the Mac awake while agents work or a routine is due, as the owner chose.
+const keepAwake = keepAwakeController({
+  blocker: powerSaveBlocker,
+  mode: async () =>
+    (await readPreferences(join(app.getPath("userData"), PREFERENCES_FILE))).keepAwake,
+  rows: (kind) => client.rows(kind),
+  online: () => client.status === "online",
+});
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";
@@ -347,6 +357,7 @@ function registerIpcHandlers(setupFile: string): void {
     (saved) => {
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
+      void keepAwake.refresh();
     },
   );
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
@@ -662,6 +673,13 @@ if (!hasSingleInstanceLock) {
       mainWindow.on("focus", requests.tick);
       mainWindow.on("blur", requests.tick);
       app.on("before-quit", requests.close);
+      // Only turns, tasks, routines and the connection change whether work is running.
+      client.onChange((change) => {
+        if (change.kind !== "rows" || ["turn", "task", "routine"].includes(change.aggregateType))
+          keepAwake.update();
+      });
+      void keepAwake.refresh();
+      app.on("before-quit", keepAwake.close);
       registerIpcHandlers(join(app.getPath("userData"), SETUP_FILE));
       configureApplicationMenu();
       await loadRenderer(mainWindow);

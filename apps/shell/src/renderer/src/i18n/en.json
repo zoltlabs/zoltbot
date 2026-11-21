@@ -525,5 +525,11 @@
   "routines.schedule.failed": "Couldn't save the schedule. Try again.",
   "routines.schedule.save": "Save schedule",
   "routines.schedule.saved": "{name} rescheduled.",
-  "routines.schedule.minutesInvalid": "Enter a number of minutes from 1 to 999,999."
+  "routines.schedule.minutesInvalid": "Enter a number of minutes from 1 to 999,999.",
+  "routines.keepAwake.label": "Keep Mac awake",
+  "routines.keepAwake.never": "Never",
+  "routines.keepAwake.working": "While agents work",
+  "routines.keepAwake.workingOrDue": "Also before routines",
+  "routines.keepAwake.failed": "Couldn't save Keep Mac awake.",
+  "routines.keepAwake.retry": "Try again"
 }

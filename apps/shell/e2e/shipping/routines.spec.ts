@@ -3,7 +3,7 @@ import { parseEvent } from "@zoltbot/protocol";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, shellSession } from "../harness";
 
-/** R1 + R3: the Routines page runs a routine now, pauses it, makes it one-time and shows it on the calendar. */
+/** R1, R3, R4: the Routines page runs a routine now, pauses it, makes it one-time and shows it on the calendar. */
 test("routines run now, pause, reschedule once and show on the calendar", async ({ page }) => {
   const fixture = await compareFixture();
   const at = new Date().toISOString();
@@ -73,6 +73,16 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     await expect(row).toContainText("Daily at 9:00 AM · First");
     await expect(row).toContainText(/Next /);
     expect(await axeViolations(page)).toEqual([]);
+
+    // R4: the Mac stays awake shortly before a routine is due, once the owner says so.
+    const keepAwake = main.getByRole("button", { name: /^Keep Mac awake/ });
+    await expect(keepAwake).toContainText("Never");
+    await keepAwake.click();
+    await page.getByRole("option", { name: "Also before routines" }).click();
+    await expect(keepAwake).toContainText("Also before routines");
+    await expect
+      .poll(() => page.evaluate(() => window.openbot.preferences?.get().then((p) => p.keepAwake)))
+      .toBe("working-or-due");
 
     const actions = row.getByRole("button", { name: "Actions for Morning check" });
     await actions.click();
