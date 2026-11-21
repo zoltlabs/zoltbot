@@ -13,6 +13,7 @@ import {
   clockText,
   isConflict,
   notifyLabel,
+  onceLabel,
   outcomeLabel,
   readClockText,
   readSchedule,
@@ -185,7 +186,16 @@ export default function RoutineScreen() {
   const scheduleChanged =
     !!cron && (cron !== routine.schedule.cron || shown.timezone !== routine.schedule.timezone);
   const changes: Changes = {
-    ...(scheduleChanged && cron ? { schedule: { cron, timezone: shown.timezone.trim() } } : {}),
+    ...(scheduleChanged && cron
+      ? {
+          schedule: {
+            cron,
+            timezone: shown.timezone.trim(),
+            // R1: a one-time routine keeps its time.
+            ...(cron === "@once" && routine.schedule.at ? { at: routine.schedule.at } : {}),
+          },
+        }
+      : {}),
     ...(shown.notify !== routine.notify ? { notify: shown.notify } : {}),
   };
   const dirty = Object.keys(changes).length > 0;
@@ -273,7 +283,9 @@ export default function RoutineScreen() {
         {routine.event ? null : (
           <>
             <Section title="Schedule" />
-            {schedule.kind === "other" ? (
+            {routine.schedule.cron === "@once" ? (
+              <Txt>{onceLabel(routine.schedule)}</Txt>
+            ) : schedule.kind === "other" ? (
               <Txt v="meta" style={{ fontFamily: mono }}>
                 {schedule.cron}
               </Txt>

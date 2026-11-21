@@ -1,8 +1,10 @@
+import type { Routine } from "@zoltbot/protocol";
 import { describe, expect, it } from "vitest";
 import {
   isConflict,
   readClockText,
   readSchedule,
+  routineStatus,
   scheduleLabel,
   writeError,
   writeSchedule,
@@ -47,4 +49,15 @@ describe("write errors", () => {
     expect(writeError(new Error("Your Mac is offline."))).toBe("Not sent. Your Mac is offline.");
     expect(writeError(new Error("boom"))).toBe("Not saved. Try again.");
   });
+});
+
+it("R1: labels a one-time routine and a finished one", () => {
+  const routine = {
+    paused: false,
+    nextRunAt: "2026-11-06T14:00:00.000Z",
+    schedule: { cron: "@once", timezone: "UTC", at: "2026-11-06T14:00:00.000Z" },
+  } as Routine;
+  expect(scheduleLabel("@once")).toBe("Once");
+  expect(routineStatus(routine)).toMatch(/^Once, .*Nov/);
+  expect(routineStatus({ ...routine, doneAt: "2026-11-06T14:00:10.000Z" })).toBe("Done");
 });

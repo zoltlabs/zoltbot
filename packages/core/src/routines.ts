@@ -6,6 +6,7 @@ import {
   type Profile,
   parse,
   parseEvent,
+  ROUTINE_ONCE,
   type Routine,
   type RoutineOccurrence,
   RoutineOccurrenceSchema,
@@ -217,6 +218,8 @@ export function fireRoutine(
   const next = {
     ...routine,
     nextRunAt: nextRoutineRun(routine.schedule, scheduledAt),
+    // R1: a one-time routine is done once it has run or been missed.
+    ...(routine.schedule.cron === ROUTINE_ONCE ? { doneAt: context.at } : {}),
     updatedAt: context.at,
   };
   events.push(

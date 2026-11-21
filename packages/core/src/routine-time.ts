@@ -1,4 +1,4 @@
-import type { Routine } from "@zoltbot/protocol";
+import { ROUTINE_NEVER, ROUTINE_ONCE, type Routine } from "@zoltbot/protocol";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -14,6 +14,14 @@ function expression(schedule: Schedule) {
     minute: "2-digit",
     hourCycle: "h23",
   });
+  if (schedule.cron === ROUTINE_ONCE) {
+    const at = Date.parse(schedule.at ?? "");
+    if (!Number.isFinite(at))
+      throw new Error("invalid_routine_schedule: A one-time run needs a time");
+    return { formatter, at };
+  }
+  if (schedule.at !== undefined)
+    throw new Error("invalid_routine_schedule: Only @once takes a time");
   const interval = /^@every ([1-9]\d{0,5})m$/.exec(schedule.cron);
   if (interval) return { formatter, interval: Number(interval[1]) * MINUTE };
   const cron = /^(\d{1,2}) (\d{1,2}) \* \* (\*|[0-6](?:,[0-6])*)$/.exec(schedule.cron);
@@ -35,6 +43,9 @@ export function nextRoutineRun(schedule: Schedule, after: string): string {
   const parsed = expression(schedule),
     now = Date.parse(after);
   if (!Number.isFinite(now)) throw new Error("invalid_routine_time");
+  // R1: a one-time run, then nothing.
+  if (parsed.at !== undefined)
+    return parsed.at > now ? new Date(parsed.at).toISOString() : ROUTINE_NEVER;
   if (parsed.interval)
     return new Date((Math.floor(now / parsed.interval) + 1) * parsed.interval).toISOString();
   const today = local(parsed.formatter, now).date;

@@ -190,7 +190,10 @@ export function routineScheduler(options: {
       );
       // On boot/wake there is one catch-up allowance for the daemon, across all routines.
       const latestMissed = routines
-        .filter((routine) => !routine.event && !routine.paused && routine.nextRunAt <= now)
+        .filter(
+          (routine) =>
+            !routine.event && !routine.paused && !routine.doneAt && routine.nextRunAt <= now,
+        )
         .map((routine) => {
           let latest = routine.nextRunAt,
             next = nextRoutineRun(routine.schedule, latest);
@@ -208,7 +211,7 @@ export function routineScheduler(options: {
           (a, b) => b.latest.localeCompare(a.latest) || a.routine.id.localeCompare(b.routine.id),
         )[0]?.routine.id;
       for (const routine of routines) {
-        if (routine.event || routine.paused || routine.nextRunAt > now) continue;
+        if (routine.event || routine.paused || routine.doneAt || routine.nextRunAt > now) continue;
         const due: string[] = [];
         let cursor = routine.nextRunAt;
         while (cursor <= now) {
@@ -227,7 +230,7 @@ export function routineScheduler(options: {
               RoutineSchema,
               state.routine?.find((row) => row.id === routine.id),
             );
-            if (current.paused) return { events: [], result: current };
+            if (current.paused || current.doneAt) return { events: [], result: current };
             return fireRoutine(state, current, scheduledAt, catchUp ? "fire" : "missed", context);
           });
         }
@@ -282,8 +285,10 @@ export function routineScheduler(options: {
           if (old.event) throw new Error("use_event_routine_commands");
           if (old.updatedAt !== params.expectedUpdatedAt) throw new Error("stale_revision");
           const schedule = params.schedule as Routine["schedule"] | undefined;
+          // R1: a new schedule gives a finished one-time routine another run.
+          const { doneAt: _done, ...kept } = old;
           const next = parse(RoutineSchema, {
-            ...old,
+            ...(schedule ? kept : old),
             ...(schedule ? { schedule } : {}),
             ...(params.template ? { template: parse(RoutineTemplateSchema, params.template) } : {}),
             ...(params.notify ? { notify: params.notify } : {}),
