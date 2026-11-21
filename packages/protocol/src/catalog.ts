@@ -343,6 +343,15 @@ const rawMethodCatalog = {
     }),
     object({ mime: Text, data: Text }),
   ),
+  /** O2: records a finished call in its chat. Fails with call_time_invalid or thread_not_found. */
+  "voice.call.log": entry(
+    object({
+      threadId: Id,
+      startedAt: Type.String({ maxLength: 40 }),
+      endedAt: Type.String({ maxLength: 40 }),
+    }),
+    object({}),
+  ),
   /** C4: pins are newest first. Pinning fails with pin_limit past 50 pins in one chat. */
   "message.pin": entry(
     object({ threadId: Id, itemId: Id }),

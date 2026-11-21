@@ -34,6 +34,8 @@ export interface Preferences {
   /** O1: an ElevenLabs voice id; empty for the key's first voice. */
   elevenVoice: string;
   speechRate: number;
+  /** O2: the owner has seen that this Mac's speech recognition sends audio to Apple. */
+  callNoticeSeen: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -48,6 +50,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   speechEngine: "system",
   speechVoice: "",
   elevenVoice: "",
+  callNoticeSeen: false,
   speechRate: 1,
 });
 
@@ -68,6 +71,7 @@ const VALIDATORS: Validators = {
   hideConfirmed: (value): value is boolean => typeof value === "boolean",
   sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
   readAloud: (value): value is boolean => typeof value === "boolean",
+  callNoticeSeen: (value): value is boolean => typeof value === "boolean",
   speechEngine: (value): value is SpeechEnginePreference =>
     value === "system" || value === "elevenlabs",
   speechVoice: (value): value is string => typeof value === "string" && value.length <= 500,

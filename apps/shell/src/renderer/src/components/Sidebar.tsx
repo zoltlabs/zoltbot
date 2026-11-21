@@ -23,6 +23,7 @@ import { t } from "../i18n";
 import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { requestCall } from "./conversation/call";
 import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
 import { openVoiceSettings, VoiceSettingsHost } from "./conversation/VoiceSettings";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
@@ -786,6 +787,10 @@ export function Sidebar(props: SidebarProps) {
             onRename={startRename}
             onEdit={props.onEditBot}
             onDelete={setDeleteTargetId}
+            onCall={(id) => {
+              props.onSelectBot(id);
+              requestCall(id);
+            }}
           />
         )}
       </Show>

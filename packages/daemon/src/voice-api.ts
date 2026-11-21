@@ -1,10 +1,12 @@
 // O1 and O5: ElevenLabs on the owner's own key, as the optional engine for reading replies aloud.
 // The key lives in the keychain (I7); the settings row holds only its reference. Both the Mac and
-// the phone ask the daemon for audio, so the key never leaves this Mac's daemon.
+// the phone ask the daemon for audio, so the key never leaves this Mac's daemon. O2 logs calls.
 import {
+  chatCallsKey,
   type DomainEvent,
   SPEECH_REQUEST_CHARS,
   VOICE_ELEVENLABS_SETTING,
+  withCall,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { PrivateVault } from "./private-context.js";
@@ -42,21 +44,28 @@ function storedReference(store: Store): string | undefined {
   return typeof value?.reference === "string" ? value.reference : undefined;
 }
 
-function writeSetting(host: VoiceHost, commandId: string, value: { reference?: string }) {
+type Snapshot = ReturnType<Store["snapshot"]>;
+
+function writeSetting(
+  host: VoiceHost,
+  commandId: string,
+  key: string,
+  value: (snapshot: Snapshot) => unknown,
+) {
   const before = host.store.lastSeq();
   host.store.dispatch(
     commandId,
-    () => {
+    (snapshot) => {
       const at = new Date().toISOString();
       return {
         events: [
           {
             eventId: `${commandId}:0`,
             aggregateType: "settings",
-            aggregateId: VOICE_ELEVENLABS_SETTING,
+            aggregateId: key,
             type: "settings.created",
             occurredAt: at,
-            payload: { key: VOICE_ELEVENLABS_SETTING, value },
+            payload: { key, value: value(snapshot) },
           },
         ],
         result: undefined,
@@ -151,7 +160,7 @@ export function voiceApi(host: VoiceHost) {
         if (host.store.receipt(commandId)) return { voices };
         const old = storedReference(host.store);
         const { reference } = await host.vault.put({ key: value });
-        writeSetting(host, commandId, { reference });
+        writeSetting(host, commandId, VOICE_ELEVENLABS_SETTING, () => ({ reference }));
         if (old && old !== reference) await host.vault.remove?.(old).catch(() => undefined);
         return { voices };
       }
@@ -159,7 +168,7 @@ export function voiceApi(host: VoiceHost) {
         if (!commandId) throw new Error("command_id_required");
         if (host.store.receipt(commandId)) return {};
         const old = storedReference(host.store);
-        writeSetting(host, commandId, {});
+        writeSetting(host, commandId, VOICE_ELEVENLABS_SETTING, () => ({}));
         if (old) await host.vault?.remove?.(old).catch(() => undefined);
         return {};
       }
@@ -181,6 +190,29 @@ export function voiceApi(host: VoiceHost) {
         );
         const audio = await capped(response, MAX_AUDIO);
         return { mime: "audio/mpeg", data: audio.toString("base64") };
+      }
+      case "voice.call.log": {
+        // O2: a finished call, shown in its chat as "Call · 2:15".
+        if (!commandId) throw new Error("command_id_required");
+        const threadId = String(params.threadId ?? "");
+        const startedAt = String(params.startedAt ?? "");
+        const endedAt = String(params.endedAt ?? "");
+        const start = Date.parse(startedAt);
+        const end = Date.parse(endedAt);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end < start)
+          throw new Error("call_time_invalid");
+        if (host.store.receipt(commandId)) return {};
+        writeSetting(host, commandId, chatCallsKey(threadId), (snapshot) => {
+          if (!snapshot.thread?.some((row) => row.id === threadId))
+            throw new Error("thread_not_found");
+          const key = chatCallsKey(threadId);
+          return withCall(snapshot.settings?.find((row) => row.key === key)?.value, {
+            id: commandId,
+            startedAt: new Date(start).toISOString(),
+            endedAt: new Date(end).toISOString(),
+          });
+        });
+        return {};
       }
       default:
         return undefined;

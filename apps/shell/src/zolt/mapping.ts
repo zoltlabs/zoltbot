@@ -3,6 +3,7 @@ import {
   continuesTurns,
   DEFAULT_TALKING_STYLE_KEY,
   effectiveTalkingStyle,
+  isCallGuidance,
   mutedKey,
   queueOrderKey,
   splitQuote,
@@ -89,10 +90,13 @@ export function threadItems(snapshot: Snapshot, threadId: string): Row[] {
 export function userText(item: Row): string {
   const input = body(item).input;
   if (!Array.isArray(input)) return "";
-  return (input as Row[])
-    .filter((part) => part.type === "text")
-    .map((part) => text(part.text))
-    .join("\n");
+  return (
+    (input as Row[])
+      // O2: a call's guidance goes to the agent but isn't the owner's words.
+      .filter((part) => part.type === "text" && !isCallGuidance(part.text))
+      .map((part) => text(part.text))
+      .join("\n")
+  );
 }
 
 /** A sent reply's own words, without the quote it starts with (C6). */

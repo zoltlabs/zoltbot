@@ -1,3 +1,4 @@
+import { isCallGuidance } from "@zoltbot/protocol";
 import { useRef, useState } from "react";
 import { body, type ChatConnection, type Row, text } from "./types.js";
 
@@ -6,6 +7,8 @@ function preview(item: Row) {
   if (!Array.isArray(input)) return "Message";
   return (
     (input as Row[])
+      // O2: a call's guidance isn't the owner's words.
+      .filter((part) => !(part.type === "text" && isCallGuidance(part.text)))
       .map((part) =>
         part.type === "text"
           ? text(part.text)

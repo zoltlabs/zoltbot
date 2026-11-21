@@ -589,6 +589,8 @@ export interface SendMessageInput {
   text: string;
   attachmentDraftIds?: string[];
   replyToMessageId?: string | null;
+  /** O2: said on a call. Steers a running reply; the first carries the call's guidance. */
+  call?: { first: boolean };
 }
 
 export interface SetMessageReactionInput {

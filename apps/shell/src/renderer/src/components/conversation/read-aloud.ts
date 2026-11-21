@@ -12,6 +12,9 @@ export type VoicePreferences = Pick<
 >;
 
 const [reading, setReading] = createRoot(() => createSignal<string | undefined>(undefined));
+// O2: the chat on a call, whose replies are always read.
+const [callChat, setCallChat] = createRoot(() => createSignal<string | undefined>(undefined));
+export { setCallChat };
 const [prefs, setPrefs] = createRoot(() =>
   createSignal<VoicePreferences>({ ...DEFAULT_PREFERENCES }),
 );
@@ -155,7 +158,7 @@ const queue = new SpeechQueue(
   },
 );
 
-const pieces = (message: BotMessage) =>
+export const pieces = (message: BotMessage) =>
   speechPieces(speechText(message.body ?? "", navigator.language));
 
 /** Whether a message has words to read: a finished agent reply, not a note or a side question. */
@@ -185,10 +188,10 @@ export function stopReading(): void {
 }
 
 /** O1 "Read new replies aloud": a reply that finishes while the setting is on waits its turn. */
-export function readNewReply(message: BotMessage): void {
+export function readNewReply(message: BotMessage, onCall = false): void {
   if (!readable(message)) return;
   void follow().then(() => {
-    if (prefs().readAloud) queue.enqueue(message.id, pieces(message));
+    if (onCall || prefs().readAloud) queue.enqueue(message.id, pieces(message));
   });
 }
 
@@ -216,7 +219,8 @@ export function followNewReplies(messages: () => BotMessage[], chat: () => strin
       if (!readable(message) || done.has(message.id)) continue;
       done.add(message.id);
       const made = message.createdAt ? Date.parse(message.createdAt) : Number.NaN;
-      if (streamed.has(message.turnId ?? message.id) || made > openedAt) readNewReply(message);
+      if (streamed.has(message.turnId ?? message.id) || made > openedAt)
+        readNewReply(message, id !== undefined && callChat() === id);
     }
   });
 }

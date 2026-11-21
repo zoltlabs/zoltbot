@@ -61,5 +61,17 @@ export function voiceHandlers(client: Client): Record<string, (input: unknown) =
       if (!isObject(value) || typeof value.data !== "string") throw voiceError("");
       return new Uint8Array(Buffer.from(value.data, "base64"));
     },
+    [C.voiceCallLog]: async (input) => {
+      if (!isObject(input)) throw new Error("Invalid call.");
+      await client.call(
+        "voice.call.log",
+        {
+          threadId: requireString(input.botId, "botId"),
+          startedAt: requireString(input.startedAt, "startedAt"),
+          endedAt: requireString(input.endedAt, "endedAt"),
+        },
+        randomUUID(),
+      );
+    },
   };
 }

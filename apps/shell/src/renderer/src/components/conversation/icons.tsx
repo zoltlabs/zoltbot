@@ -216,3 +216,11 @@ export function SpeakerIcon() {
     </svg>
   );
 }
+
+export function PhoneIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M6.2 3.5 8 7.2 6.7 8.6a9 9 0 0 0 4.7 4.7l1.4-1.3 3.7 1.8-.6 2.6a1.5 1.5 0 0 1-1.6 1.1A13 13 0 0 1 2.5 5.7a1.5 1.5 0 0 1 1.1-1.6z" />
+    </svg>
+  );
+}

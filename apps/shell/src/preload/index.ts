@@ -271,6 +271,7 @@ const openbotApi: OpenBotDesktopApi = {
     clearKey: () => invokeShown(IPC_CHANNELS.voiceClearKey),
     voices: () => invokeShown(IPC_CHANNELS.voiceVoices),
     speak: (input) => invokeShown(IPC_CHANNELS.voiceSpeak, input),
+    logCall: (input) => ipcRenderer.invoke(IPC_CHANNELS.voiceCallLog, input),
   },
   hidden: {
     set: (input) => ipcRenderer.invoke(IPC_CHANNELS.hiddenSet, input),

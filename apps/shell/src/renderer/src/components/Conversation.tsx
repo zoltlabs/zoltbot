@@ -23,8 +23,10 @@ import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
 import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
+import { CallHost } from "./conversation/CallBar";
 import { Composer } from "./conversation/Composer";
 import { ConversationHeader } from "./conversation/ConversationHeader";
+import { followCalls } from "./conversation/call";
 import {
   ARTIFACT_PANEL_STORAGE_KEY,
   BROWSER_PANEL_STORAGE_KEY,
@@ -334,6 +336,10 @@ export function Conversation(props: ConversationProps) {
   });
 
   followNewReplies(
+    () => props.messages,
+    () => props.bot?.id,
+  );
+  followCalls(
     () => props.messages,
     () => props.bot?.id,
   );
@@ -729,6 +735,7 @@ export function Conversation(props: ConversationProps) {
         scroller={() => scrollElement}
       />
 
+      <CallHost bot={props.bot} />
       <Composer
         showAttachments={showAttachments()}
         attachmentBusy={attachmentBusy()}

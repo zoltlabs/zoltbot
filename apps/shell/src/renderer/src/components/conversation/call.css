@@ -1,0 +1,58 @@
+/* O2: the call bar above the composer. */
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Lines up with the composer below it. */
+  margin: 0 12px 6px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border);
+  /* The composer's shape. */
+  border-radius: 22px;
+  background: var(--surface-popover, var(--surface));
+}
+
+.call-bar-avatar.bot-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  /* The artwork reaches past its box. */
+  margin-right: 4px;
+}
+
+.call-bar-who {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.25;
+}
+
+.call-bar-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-bar-status:empty {
+  display: none;
+}
+
+.call-bar-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.call-bar-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* Mute and Unmute differ in width; the time beside them stays put. */
+.call-bar .zb-kit-button:not(.danger) {
+  min-width: 84px;
+}

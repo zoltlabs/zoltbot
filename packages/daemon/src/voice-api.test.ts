@@ -1,6 +1,7 @@
-import { VOICE_ELEVENLABS_SETTING } from "@zoltbot/protocol";
+import { chatCallsKey, VOICE_ELEVENLABS_SETTING } from "@zoltbot/protocol";
 import { expect, it, vi } from "vitest";
 import { forkFixture } from "../../../tools/fakes/src/fork-fixture.js";
+import { settingsApi } from "./settings-api.js";
 import { voiceApi } from "./voice-api.js";
 
 const KEY = "sk_test_voice_key_123";
@@ -127,5 +128,35 @@ it("speaks a piece as MP3, and refuses private text, unknown voices and oversize
     );
   } finally {
     big.close();
+  }
+});
+
+it("logs a finished call in its chat, once, and keeps voice rows out of settings.set", async () => {
+  const f = await fixture();
+  try {
+    const call = {
+      threadId: "thread",
+      startedAt: "2026-11-21T10:00:00Z",
+      endedAt: "2026-11-21T10:02:15Z",
+    };
+    await f.api("voice.call.log", call, "call-1");
+    await f.api("voice.call.log", call, "call-1");
+    const row = f.store
+      .snapshot(["settings"])
+      .settings?.find((r) => r.key === chatCallsKey("thread"));
+    expect(row?.value).toEqual([
+      { id: "call-1", startedAt: "2026-11-21T10:00:00.000Z", endedAt: "2026-11-21T10:02:15.000Z" },
+    ]);
+    await expect(
+      f.api("voice.call.log", { ...call, threadId: "missing" }, "call-2"),
+    ).rejects.toThrow("thread_not_found");
+    await expect(
+      f.api("voice.call.log", { ...call, endedAt: "2026-11-21T09:00:00Z" }, "call-3"),
+    ).rejects.toThrow("call_time_invalid");
+    const settings = settingsApi({ store: f.store, publish() {} } as never);
+    for (const key of [chatCallsKey("thread"), VOICE_ELEVENLABS_SETTING])
+      await expect(settings("settings.set", { key, value: {} }, `s-${key}`)).rejects.toThrow();
+  } finally {
+    f.close();
   }
 });

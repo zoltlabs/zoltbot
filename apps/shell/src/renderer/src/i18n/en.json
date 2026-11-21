@@ -350,5 +350,15 @@
   "voice.saveKey": "Save",
   "voice.removeKey": "Remove key",
   "voice.sent": "Messages are sent to ElevenLabs.",
-  "voice.done": "Done"
+  "voice.done": "Done",
+  "call.start": "Start call",
+  "call.label": "Call",
+  "call.listening": "Listening",
+  "call.speaking": "Speaking",
+  "call.mute": "Mute",
+  "call.unmute": "Unmute",
+  "call.end": "End",
+  "call.apple": "Speech recognition on this Mac sends what you say to Apple.",
+  "call.failed": "Couldn’t start the call. Try again.",
+  "call.sendFailed": "Couldn’t send what you said."
 }

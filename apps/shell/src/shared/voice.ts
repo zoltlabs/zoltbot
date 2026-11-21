@@ -7,6 +7,7 @@ export const VOICE_CHANNELS = {
   voiceClearKey: "voice:clear-key",
   voiceVoices: "voice:voices",
   voiceSpeak: "voice:speak",
+  voiceCallLog: "voice:call-log",
 } as const;
 
 export interface VoiceOption {
@@ -23,4 +24,6 @@ export interface VoiceDesktopApi {
   voices: () => Promise<VoiceOption[]>;
   /** One piece of text as MP3 bytes. Throws a message to show. */
   speak: (input: { text: string; voiceId: string }) => Promise<Uint8Array>;
+  /** O2: records a finished call in its chat. Times are ISO strings. */
+  logCall: (input: { botId: string; startedAt: string; endedAt: string }) => Promise<void>;
 }
