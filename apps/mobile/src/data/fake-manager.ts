@@ -495,6 +495,17 @@ export function answerManager(method: string, p: Row, store: ManagerRows): unkno
         ? { held: true }
         : { root: String(artifact.repositoryRoot ?? ""), partial: false };
     }
+    case "limits.get": {
+      // A9: a sample cap and an estimate from recent runs.
+      const stored = value(store, `limits.${String(p.scopeType)}.${String(p.scopeId)}`);
+      return { estimateUsdPerRun: 0.4, ...(stored ?? {}) };
+    }
+    case "limits.set":
+      store.put("settings", {
+        key: `limits.${String(p.scopeType)}.${String(p.scopeId)}`,
+        value: p.limits,
+      });
+      return { ok: true };
     case "usage.query":
       return usageRecords(store, typeof p.from === "string" ? p.from : "");
     case "modelAccount.list":

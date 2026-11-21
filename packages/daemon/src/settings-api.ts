@@ -17,6 +17,8 @@ import { relayUrlPattern } from "./relay-link.js";
 function reserved(key: string) {
   return (
     key.startsWith("view.") ||
+    // A9: caps change only through limits.set, which asks for confirmation and audits.
+    key.startsWith("limits.") ||
     key.startsWith("fork.") ||
     (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||

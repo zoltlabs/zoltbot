@@ -9,10 +9,14 @@ import {
   type Outcome,
   ROUTINE_FOLDER_WAIT_MS,
   ROUTINE_PERMISSION_TIMEOUT_MS,
+  readLimits,
+  routineCapAnswer,
+  routineCapCheck,
   routineEvent,
   routineFromTask,
   routineGrace,
   routineOutcome,
+  taskSpendUsd,
 } from "@zoltbot/core";
 import {
   type PermissionProfile,
@@ -46,7 +50,29 @@ export function routineScheduler(options: {
       );
       let next: RoutineOccurrence = { ...occurrence, updatedAt: now };
       let stop = false;
-      if (
+      // A9: a run that reaches its routine's cap asks the owner; Stop ends it.
+      const caps = store.snapshot(["settings", "usage", "interaction", "routineOccurrence"]);
+      const capAnswer = routineCapAnswer(caps, occurrence.id);
+      const cap = readLimits(caps, "routine", occurrence.routineId).usdPerRun;
+      const spent = taskSpendUsd(caps, occurrence.taskId);
+      if (task.state === "running" && cap !== undefined && !capAnswer && spent >= cap)
+        try {
+          run(`routine:cap:${occurrence.id}:${spent.toFixed(4)}`, (state, context) => {
+            const outcome = routineCapCheck(state, occurrence, context);
+            return outcome ?? { events: [], result: { ok: true } };
+          });
+        } catch {
+          // The run goes on; the next tick tries again.
+        }
+      if (capAnswer === "stop" && ["queued", "running", "blocked"].includes(String(task.state))) {
+        next = {
+          ...next,
+          status: "expired",
+          outcome: "needs_you",
+          reason: "Stopped at its cost cap",
+        };
+        stop = true;
+      } else if (
         occurrence.sourceEvent &&
         ["running", "blocked"].includes(String(task.state)) &&
         Date.parse(now) - Date.parse(occurrence.createdAt) >= 15 * 60_000
@@ -116,6 +142,12 @@ export function routineScheduler(options: {
           if (!["queued", "started"].includes(current.status))
             return { events: [], result: current };
           const events = [routineEvent("routineOccurrence", next, context)];
+          // A9: a finished run's cap card has nothing left to decide.
+          const threadOf = state.task?.find((row) => row.id === occurrence.taskId)?.threadId;
+          if (!stop && next.status === "completed" && threadOf && capAnswer === "pending")
+            events.push(
+              ...expireInteractions(state, [String(threadOf)], "timeout", context).events,
+            );
           if (stop) {
             const threadId = state.task?.find((row) => row.id === occurrence.taskId)?.threadId;
             if (threadId)

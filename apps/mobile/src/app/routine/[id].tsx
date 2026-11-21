@@ -7,7 +7,7 @@ import {
 } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   clockText,
@@ -23,6 +23,13 @@ import {
   writeError,
   writeSchedule,
 } from "../../data/manage";
+import {
+  CAP_CHOICES,
+  capWidens,
+  costPerRunText,
+  dollars,
+  readRoutineCost,
+} from "../../data/routine-cost";
 import { text } from "../../data/view";
 import { useAction } from "../../state/actions";
 import { useClient, useLink, useSnapshot } from "../../state/link";
@@ -30,6 +37,7 @@ import { mono, touch, type as typography, useTheme } from "../../theme";
 import { Conflict } from "../../ui/Conflict";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
 import { Button, Group, Row, Section, Segmented, Txt } from "../../ui/kit";
+import { pick } from "../../ui/SessionControls";
 import { Toggle } from "../../ui/Toggle";
 
 type Days = "daily" | "weekdays" | "custom";
@@ -95,6 +103,7 @@ export default function RoutineScreen() {
   const [conflict, setConflict] = useState<Changes>();
   const [error, setError] = useState("");
   const [history, setHistory] = useState<RoutineOccurrence[]>();
+  const [cost, setCost] = useState<{ cap?: number; estimate?: number }>({});
 
   // Fetched again whenever the routine changes.
   const updatedAt = routine?.updatedAt;
@@ -114,10 +123,50 @@ export default function RoutineScreen() {
           );
       })
       .catch(() => undefined);
+    // A9: the cap and the cost per run from recent runs.
+    client
+      .call("limits.get", { scopeType: "routine", scopeId: id })
+      .then((value) => {
+        if (live) setCost(readRoutineCost(value));
+      })
+      .catch(() => undefined);
     return () => {
       live = false;
     };
   }, [id, online, updatedAt]);
+  const saveCap = async (cap: number | undefined) => {
+    const done = await run(
+      "limits.set",
+      {
+        scopeType: "routine",
+        scopeId: id,
+        limits: cap === undefined ? {} : { usdPerRun: cap },
+        confirmed: true,
+      },
+      { key: `routine-cap:${id}:${cap ?? "none"}` },
+    );
+    if (done) setCost((current) => ({ estimate: current.estimate, cap }));
+  };
+  const chooseCap = () => {
+    const options: (number | undefined)[] = [...CAP_CHOICES, undefined];
+    pick(
+      "Cap per run",
+      "A run that reaches its cap asks you whether to go on.",
+      options.map((cap) => (cap === undefined ? "No cap" : dollars(cap))),
+      (index) => {
+        const next = options[index];
+        if (!capWidens(cost.cap, next)) return void saveCap(next);
+        Alert.alert(
+          next === undefined ? "Remove the cap?" : `Raise the cap to ${dollars(next)}?`,
+          "Runs of this routine can spend more before they ask you.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: next === undefined ? "Remove" : "Raise", onPress: () => void saveCap(next) },
+          ],
+        );
+      },
+    );
+  };
 
   if (!routine)
     return (
@@ -304,6 +353,25 @@ export default function RoutineScreen() {
             { value: "actionable_only", label: notifyLabel("actionable_only") },
           ]}
         />
+
+        <Section title="Cost" />
+        <Group>
+          {cost.estimate !== undefined ? (
+            <Row title="Cost per run" detail={costPerRunText(cost.estimate) ?? ""} />
+          ) : null}
+          <Row
+            title="Cap per run"
+            right={
+              <Button
+                label={cost.cap === undefined ? "None" : dollars(cost.cap)}
+                kind="plain"
+                disabled={!online || busy}
+                onPress={chooseCap}
+              />
+            }
+            last
+          />
+        </Group>
 
         <Section title="Runs" />
         {runs.length ? (
