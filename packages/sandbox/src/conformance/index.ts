@@ -1,3 +1,4 @@
+import { connect } from "node:net";
 import type { ExecutionTarget, SandboxRef, SandboxSpec } from "../interface.js";
 import { SandboxError } from "../interface.js";
 import { collect } from "../stream.js";
@@ -15,6 +16,7 @@ export const scenarios = [
   "files",
   "files_exec",
   "ports",
+  "private_port",
   "sleep_wake",
   "snapshot",
   "sizing",
@@ -26,6 +28,8 @@ export interface ConformanceOptions {
   spec?: SandboxSpec;
   /** Command that serves `zolt-port-ok` over HTTP on the port. Defaults to Node. */
   server?: (port: number) => string[];
+  /** B8: command that greets with an RFB banner over raw TCP on the port, like a VNC server. */
+  vnc?: (port: number) => string[];
   /** Multiplies waits for slow remote targets. */
   slow?: number;
 }
@@ -58,6 +62,42 @@ const pythonServer = [
   "    s.send_response(200); s.end_headers(); s.wfile.write(b'zolt-port-ok')",
   "h.HTTPServer(('0.0.0.0', int(sys.argv[1])), H).serve_forever()",
 ].join("\n");
+const nodeVnc =
+  "require('node:net').createServer((c)=>c.end('RFB 003.008\\n')).listen(Number(process.argv[1]),'0.0.0.0')";
+const pythonVnc = [
+  "import sys, socketserver as s",
+  "class H(s.BaseRequestHandler):",
+  "  def handle(self): self.request.sendall(b'RFB 003.008\\n')",
+  "s.TCPServer(('0.0.0.0', int(sys.argv[1])), H).serve_forever()",
+].join("\n");
+const defaultVnc = (port: number) => [
+  "sh",
+  "-c",
+  'if command -v node >/dev/null 2>&1; then exec node -e "$0" "$1"; else exec python3 -c "$2" "$1"; fi',
+  nodeVnc,
+  String(port),
+  pythonVnc,
+];
+/** Reads what a raw TCP server says first. */
+function greeting(host: string, port: number, timeoutMs: number) {
+  return new Promise<string>((resolve) => {
+    let said = "";
+    const socket = connect({ host, port });
+    const done = () => {
+      socket.destroy();
+      resolve(said);
+    };
+    socket.setTimeout(timeoutMs, done);
+    socket.on("data", (chunk) => {
+      said += chunk.toString("latin1");
+      if (said.includes("\n")) done();
+    });
+    socket.on("error", done);
+    socket.on("close", done);
+  });
+}
+const loopback = (host: string) => ["127.0.0.1", "localhost", "[::1]", "::1"].includes(host);
+
 // Templates differ in which runtime they ship, so the server uses Node and falls back to Python.
 const defaultServer = (port: number) => [
   "sh",
@@ -234,6 +274,32 @@ export async function runConformance(
         await server.kill();
         if (caps.ports === "declared")
           await rejects(() => target.ports.expose(ref, port + 1), "unsupported", "undeclared port");
+        break;
+      }
+      case "private_port": {
+        // B8: a desktop's VNC reaches the daemon over raw TCP and no one else.
+        if (!caps.privatePorts) break;
+        const ref = await create();
+        const server = await target.exec(ref, (options.vnc ?? defaultVnc)(port));
+        try {
+          // The address handed out is loopback. Whether other hosts or sandboxes can reach the
+          // port is the target's own isolation, which this check doesn't probe.
+          const url = new URL(await target.ports.expose(ref, port));
+          check(loopback(url.hostname), "a private port is handed out on loopback");
+          let said = "";
+          const deadline = Date.now() + 15_000 * slow;
+          while (Date.now() < deadline && !said.startsWith("RFB ")) {
+            said = await greeting(
+              url.hostname.replace(/^\[|\]$/g, ""),
+              Number(url.port),
+              2_000 * slow,
+            );
+            if (!said.startsWith("RFB ")) await pause(200);
+          }
+          check(said.startsWith("RFB 003.008"), "raw TCP on the exposed port reaches the sandbox");
+        } finally {
+          await server.kill();
+        }
         break;
       }
       case "sleep_wake": {

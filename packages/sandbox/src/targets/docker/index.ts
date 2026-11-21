@@ -30,6 +30,8 @@ export interface DockerTargetOptions {
   binary?: string;
   /** Value of the label put on every container and snapshot, used by `removeAll`. */
   label?: string;
+  /** The network sandboxes join; it's created with container-to-container traffic off. */
+  network?: string;
 }
 
 interface Run {
@@ -45,6 +47,7 @@ const capabilities: SandboxCapabilities = {
   ssh: false,
   gpu: false,
   sleepKeepsProcesses: true,
+  privatePorts: true,
   ports: "declared",
   sizing: "per_sandbox",
 };
@@ -58,6 +61,29 @@ export function createDockerTarget(options: DockerTargetOptions = {}): Execution
   const image = options.image ?? DEFAULT_IMAGE;
   const label = options.label ?? "dev";
   const declared = new Map<string, Set<number>>();
+  // B8: sandboxes share a bridge with container-to-container traffic off, so one sandbox can't
+  // reach another's ports (a desktop's VNC among them). The internet stays reachable.
+  const network = options.network ?? "zoltbot-sandboxes";
+  let networkReady: Promise<void> | undefined;
+  function isolated() {
+    networkReady ??= (async () => {
+      if ((await docker(["network", "inspect", network])).code === 0) return;
+      const made = await docker([
+        "network",
+        "create",
+        "--driver",
+        "bridge",
+        "--opt",
+        "com.docker.network.bridge.enable_icc=false",
+        network,
+      ]);
+      if (made.code !== 0 && !/already exists/i.test(made.stderr)) throw failure(made.stderr);
+    })().catch((error) => {
+      networkReady = undefined;
+      throw error;
+    });
+    return networkReady;
+  }
 
   function docker(args: string[], input?: Uint8Array | string, env?: Record<string, string>) {
     return new Promise<Run>((resolve, reject) => {
@@ -186,6 +212,7 @@ export function createDockerTarget(options: DockerTargetOptions = {}): Execution
         throw new SandboxError("invalid", "Reserved sandbox label");
       const container = `zoltbot-sandbox-${randomUUID()}`;
       const ports = spec.ports ?? [];
+      await isolated();
       const args = [
         "run",
         "--detach",
@@ -198,6 +225,8 @@ export function createDockerTarget(options: DockerTargetOptions = {}): Execution
           "--label",
           `${key}=${value}`,
         ]),
+        "--network",
+        network,
         "--workdir",
         WORKDIR,
         "--env",

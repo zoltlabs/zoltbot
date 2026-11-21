@@ -15,6 +15,7 @@ import { DETECT_SCRIPT, NUDGES, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
 import type { PurchaseDetails } from "./purchase.js";
 import type { BrowserBinding } from "./runtime.js";
+import { SITE_NOTES_TIP } from "./site-notes.js";
 import {
   type BrowserInput,
   controlFile,
@@ -62,6 +63,9 @@ interface Running {
   /** B5: the site whose cookie banner was answered last, for the panel. */
   cookies?: { site: string } | undefined;
   consentWindow: { since: number; count: number };
+  /** B7: hosts looked up and sites whose notes the agent has this run, and whether it heard the tip. */
+  noted: Set<string>;
+  tipped?: boolean;
   /** B6: the held pay click waiting for the owner. */
   purchase?: ((approve: boolean) => Promise<boolean>) | undefined;
 }
@@ -88,6 +92,10 @@ export class BrowserHost {
 
   /** B6: a pay click was held; the listener raises a card and calls control(). */
   onPurchase: ((threadId: string, details: PurchaseDetails, url: string) => void) | undefined;
+  /** B7: the team's notes about the site a page is on, if any. */
+  siteNotes:
+    | ((threadId: string, url: string) => { site: string; text: string } | undefined)
+    | undefined;
   /** B6: sites where the owner lets the agent pay without asking. */
   purchaseSites: () => readonly string[] = () => [];
 
@@ -185,6 +193,7 @@ export class BrowserHost {
       generation: 0,
       nudged: new Set(),
       consentWindow: { since: 0, count: 0 },
+      noted: new Set(),
     };
     banners.run = run;
     this.running.set(binding.id, run);
@@ -308,6 +317,34 @@ export class BrowserHost {
     }
   }
 
+  /** B7: on a site with notes, the agent gets them with its next command, once a run. */
+  private landed(run: Running, page: EnginePage) {
+    if (page !== run.page) return;
+    const url = page.url();
+    if (!/^https?:/i.test(url) || owning(run.control) || run.noted.size >= 50) return;
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      return;
+    }
+    // Each host is looked up once a run; the lookup is skipped for hosts already seen.
+    if (run.noted.has(host)) return;
+    run.noted.add(host);
+    let found: { site: string; text: string } | undefined;
+    try {
+      found = this.siteNotes?.(run.threadId, url);
+    } catch {
+      return;
+    }
+    if (!found || run.noted.has(`site:${found.site}`)) return;
+    run.noted.add(`site:${found.site}`);
+    // One note, so control notes (declines, takeovers) aren't pushed out of the launcher's last 3.
+    const tip = run.tipped ? "" : `\n${SITE_NOTES_TIP}`;
+    run.tipped = true;
+    this.note(run, `${found.text}${tip}`);
+  }
+
   private note(run: Running, text: string) {
     mkdirSync(run.binding.home, { recursive: true, mode: 0o700 });
     appendFileSync(notesFile(run.binding), `${JSON.stringify({ text })}\n`, { mode: 0o600 });
@@ -317,7 +354,10 @@ export class BrowserHost {
   private follow(run: Running, page: EnginePage) {
     run.page = page;
     run.pointer = undefined;
-    page.onLoad(() => void this.detect(run, page));
+    page.onLoad(() => {
+      void this.detect(run, page);
+      this.landed(run, page);
+    });
     page.onClose(() => {
       if (run.page !== page) return;
       const next = run.browser

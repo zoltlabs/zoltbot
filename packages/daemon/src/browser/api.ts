@@ -9,6 +9,7 @@ import { browserHostFor, onBrowserHost } from "./host.js";
 import { profileApi } from "./profiles.js";
 import { PURCHASE_ALLOW_SETTING } from "./purchase.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
+import { siteNotes } from "./site-notes.js";
 import { takeoverApi } from "./takeover.js";
 
 const viewers = new WeakMap<object, string>();
@@ -45,6 +46,7 @@ export function browserApi(
       onBrowserHost(directory, (host) => {
         host.cookieSites = cookies.sites;
         host.purchaseSites = payments.sites;
+        host.siteNotes = (threadId, url) => siteNotes(store, threadId, url);
         setup(host);
       }),
     ...(options.publish ? { publish: options.publish } : {}),
