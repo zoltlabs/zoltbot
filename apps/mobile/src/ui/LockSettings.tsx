@@ -1,22 +1,29 @@
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { lockAfterLabels, lockAfterOptions } from "../data/app-lock";
 import { useAppLock } from "../state/app-lock";
 import { Group, Row, showMenu } from "./kit";
 import { Toggle } from "./Toggle";
+
+// Android phones unlock with a fingerprint, a face or the screen lock, so they get the general name.
+const android = Platform.OS === "android";
 
 /** Settings: Lock with Face ID, and how long the app may sit in the background first. */
 export function LockSettings() {
   const { prefs, setPrefs } = useAppLock();
   const turn = async (enabled: boolean) => {
     const result = await setPrefs({ enabled });
-    if (result === "failed") Alert.alert("The lock wasn't changed", "Try again.");
-    if (result === "unavailable")
-      Alert.alert("Set a passcode first", "Turn on a screen lock in your phone's settings.");
+    if (result === "unavailable" && enabled)
+      Alert.alert(
+        android ? "Set a screen lock first" : "Set a passcode first",
+        "Turn on a screen lock in your phone's settings.",
+      );
+    else if (result === "failed" || result === "unavailable")
+      Alert.alert("The lock wasn't changed", "Try again.");
   };
   return (
     <Group>
       <Toggle
-        label="Lock with Face ID"
+        label={android ? "Lock with screen lock" : "Lock with Face ID"}
         value={prefs.enabled}
         onChange={(value) => void turn(value)}
         last={!prefs.enabled}

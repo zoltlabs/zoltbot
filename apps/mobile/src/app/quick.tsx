@@ -36,7 +36,7 @@ import { useClient, useLink, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
 import { Icon, StopGlyph } from "../ui/icons";
-import { Button, Chip, Group, Row, showConfirmSheet, showMenu, Txt } from "../ui/kit";
+import { Button, Chip, Group, Row, showConfirmSheet, showMenu, showPrompt, Txt } from "../ui/kit";
 import { Markdown } from "../ui/Markdown";
 import { QuickHandoff } from "../ui/QuickHandoff";
 
@@ -239,11 +239,14 @@ export default function Quick() {
         {
           label: "Rename",
           onPress: () =>
-            Alert.prompt("Rename chat", undefined, (title) => {
-              if (title?.trim())
-                void call("quickChat.rename", { id: row.id, title: title.trim() }).catch((error) =>
+            showPrompt({
+              title: "Rename chat",
+              defaultValue: row.title,
+              confirmLabel: "Rename",
+              onSubmit: (title) =>
+                void call("quickChat.rename", { id: row.id, title }).catch((error) =>
                   setNotice(errorText(error)),
-                );
+                ),
             }),
         },
         {

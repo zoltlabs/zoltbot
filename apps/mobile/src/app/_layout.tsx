@@ -14,6 +14,7 @@ import { useTheme } from "../theme";
 import { BotAvatarPalette } from "../ui/BotAvatar";
 import { LockScreen } from "../ui/LockScreen";
 import { MenuSheet } from "../ui/MenuSheet";
+import { PromptSheet } from "../ui/PromptSheet";
 import { SharingLifecycle } from "../ui/SharingLifecycle";
 
 export default function RootLayout() {
@@ -55,6 +56,7 @@ export default function RootLayout() {
         <SharingLifecycle />
         <LockScreen />
         <MenuSheet />
+        <PromptSheet />
         <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           screenOptions={{
@@ -75,6 +77,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="new" options={{ presentation: "modal" }} />
+          {/* iOS 26 goes back on a swipe from anywhere, which would take the swipe that replies to a
+              message. In a chat, only a swipe from the left edge goes back. */}
+          <Stack.Screen
+            name="chat/[id]"
+            options={{ gestureResponseDistance: { start: 0, end: 30 } }}
+          />
           <Stack.Screen
             name="chat/voice"
             options={{ presentation: "fullScreenModal", gestureEnabled: false }}

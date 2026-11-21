@@ -8,8 +8,9 @@ export type { Tokens };
 export type Scheme = "light" | "dark";
 
 /**
- * Geist, as on the desktop. The expo-font plugin embeds the static weights at build time; iOS
- * groups them under one family and picks the face from fontWeight.
+ * Geist, as on the desktop. The expo-font plugin embeds the static weights at build time. iOS
+ * groups them under one family by itself; on Android app.json declares the family, weight by weight.
+ * Both then pick the face from fontWeight.
  */
 export const sans = "Geist";
 export const mono = "Geist Mono";

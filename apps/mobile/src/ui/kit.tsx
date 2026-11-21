@@ -23,6 +23,7 @@ import {
   useType,
 } from "../theme";
 import { openMenuSheet } from "./menu-sheet-store";
+import { type OpenPrompt, openPromptSheet } from "./prompt-sheet-store";
 
 type Variant = keyof typeof typeScale;
 type Tone =
@@ -269,6 +270,31 @@ export function showMenu(items: MenuItem[], title?: string) {
       })),
     { text: t("kit.cancel"), style: "cancel" as const },
   ]);
+}
+
+/**
+ * Asks for a line of text. iOS shows the native prompt; Android has none, so it opens a sheet.
+ * `onSubmit` gets the trimmed text, and only when there is some unless the prompt is `optional`.
+ */
+export function showPrompt(prompt: OpenPrompt) {
+  const submit = (value?: string) => {
+    const text = value?.trim() ?? "";
+    if (text || prompt.optional) prompt.onSubmit(text);
+  };
+  if (Platform.OS === "ios") {
+    Alert.prompt(
+      prompt.title,
+      prompt.message,
+      [
+        { text: t("kit.cancel"), style: "cancel" },
+        { text: prompt.confirmLabel, onPress: submit },
+      ],
+      "plain-text",
+      prompt.defaultValue,
+    );
+    return;
+  }
+  openPromptSheet({ ...prompt, onSubmit: submit });
 }
 
 /**

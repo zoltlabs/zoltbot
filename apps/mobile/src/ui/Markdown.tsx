@@ -40,8 +40,9 @@ function Spans({ parts }: { parts: Inline[] }) {
   );
 }
 
-/** Assistant replies and request context as native text, with accessible links. */
-export function Markdown({ value }: { value: string }) {
+/** Assistant replies and request context as native text, with accessible links. `selectable` is
+ * off in a chat, where touch and hold opens the message menu instead. */
+export function Markdown({ value, selectable = true }: { value: string; selectable?: boolean }) {
   const { c } = useTheme();
   const size = useTextScale();
   const blocks = parseMarkdown(value);
@@ -52,7 +53,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "heading")
           return (
             <Txt
-              selectable
+              selectable={selectable}
               key={key}
               v={block.level <= 2 ? "cardTitle" : "section"}
               accessibilityRole="header"
@@ -68,7 +69,7 @@ export function Markdown({ value }: { value: string }) {
                 {block.checked === undefined ? block.marker : block.checked ? "☑" : "☐"}
               </Txt>
               <Txt
-                selectable
+                selectable={selectable}
                 style={[styles.flex, block.checked && { color: c["text-muted"] }]}
                 tone="text"
               >
@@ -79,7 +80,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "quote")
           return (
             <View key={key} style={[styles.quote, { borderLeftColor: c["border-strong"] }]}>
-              <Txt selectable tone="secondary">
+              <Txt selectable={selectable} tone="secondary">
                 <Spans parts={block.text} />
               </Txt>
             </View>
@@ -88,7 +89,7 @@ export function Markdown({ value }: { value: string }) {
           return (
             <Text
               key={key}
-              selectable
+              selectable={selectable}
               style={[
                 scaleText(styles.code, size),
                 { fontFamily: mono, color: c.text, backgroundColor: c["bg-sunken"] },
@@ -100,7 +101,7 @@ export function Markdown({ value }: { value: string }) {
         if (block.type === "rule")
           return <View key={key} style={[styles.rule, { backgroundColor: c.border }]} />;
         return (
-          <Txt selectable key={key} style={scaleText(styles.paragraph, size)}>
+          <Txt selectable={selectable} key={key} style={scaleText(styles.paragraph, size)}>
             <Spans parts={block.text} />
           </Txt>
         );

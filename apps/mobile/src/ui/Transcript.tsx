@@ -23,9 +23,15 @@ import { SwipeReply } from "./SwipeReply";
 export type { QueueActions } from "./MessageMenu";
 
 /** The visible way into the message menu, for anyone who doesn't touch and hold. */
-function MessageActions({ menu }: { menu: MessageMenu }) {
+function MessageActions({
+  menu,
+  align = "flex-start",
+}: {
+  menu: MessageMenu;
+  align?: "flex-start" | "flex-end";
+}) {
   return (
-    <View style={{ alignSelf: "flex-start" }}>
+    <View style={{ alignSelf: align }}>
       <Button kind="plain" label="Message actions" onPress={menu.open} />
     </View>
   );
@@ -347,7 +353,7 @@ export function Message({
   const prose =
     row.kind === "message" && !compact ? (
       <View style={{ gap: 4 }}>
-        <Markdown value={row.text} />
+        <Markdown value={row.text} selectable={false} />
         {row.streaming ? <Txt tone="secondary">▍</Txt> : null}
       </View>
     ) : (
@@ -481,7 +487,7 @@ function UserMessage({
           style={styles.edit}
         />
       ) : null}
-      <MessageActions menu={menu} />
+      <MessageActions menu={menu} align="flex-end" />
       {row.delivery ? (
         <View style={styles.delivery}>
           <Txt v="meta" tone="muted">

@@ -59,3 +59,26 @@ export function nextLock(
 
 /** After a successful Face ID or passcode check. */
 export const unlocked = (): LockState => ({ locked: false, covered: false });
+
+export type CheckOutcome = "ok" | "cancelled" | "unavailable" | "failed";
+
+/**
+ * What a Face ID or passcode check came to. Only the person (or the system) backing out counts
+ * as cancelled; a phone with no passcode, or a check that failed, needs saying so.
+ */
+export function checkOutcome(result: { success: boolean; error?: string }): CheckOutcome {
+  if (result.success) return "ok";
+  switch (result.error) {
+    case "user_cancel":
+    case "app_cancel":
+    case "system_cancel":
+    case "user_fallback":
+      return "cancelled";
+    case "not_enrolled":
+    case "not_available":
+    case "passcode_not_set":
+      return "unavailable";
+    default:
+      return "failed";
+  }
+}

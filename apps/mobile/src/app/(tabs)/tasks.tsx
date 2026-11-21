@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { drawerProjects } from "../../data/drawer";
 import {
   type FilterOption,
@@ -23,7 +23,7 @@ import { BotAvatar } from "../../ui/BotAvatar";
 import { RoundButton, TabScreen } from "../../ui/chrome";
 import { MenuButton } from "../../ui/Drawer";
 import { Icon } from "../../ui/icons";
-import { Button, Chip, Group, Section, Txt } from "../../ui/kit";
+import { Button, Chip, Group, Section, showPrompt, Txt } from "../../ui/kit";
 import { pick } from "../../ui/SessionControls";
 
 const openThread = (task: TaskView) => {
@@ -90,13 +90,13 @@ function TaskRow({ task, last, online }: { task: TaskView; last: boolean; online
       confirmed: true,
     });
   const sendBack = () =>
-    Alert.prompt("Send back", "What should change?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Send back",
-        onPress: (value?: string) => void review("changes", value?.trim() || undefined),
-      },
-    ]);
+    showPrompt({
+      title: "Send back",
+      message: "What should change?",
+      confirmLabel: "Send back",
+      optional: true,
+      onSubmit: (value) => void review("changes", value || undefined),
+    });
   const meta = needsYou ? taskMeta(task, Date.now(), false) : taskMeta(task);
   const age = taskAge(task.updatedAt);
   return (
