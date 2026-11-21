@@ -347,6 +347,7 @@ export async function openShell(
         takeover: call(channels.agentBrowserTakeover),
         input: call(channels.agentBrowserInput),
         cookies: call(channels.agentBrowserCookies),
+        teach: call(channels.agentBrowserTeach),
         onFrame: (listener: (frame: unknown) => void) => {
           frameListeners.add(listener);
           return () => frameListeners.delete(listener);

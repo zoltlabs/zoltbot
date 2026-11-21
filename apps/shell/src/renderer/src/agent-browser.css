@@ -155,6 +155,36 @@
   content: "";
 }
 
+.agent-browser-teachbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 14px;
+  border-bottom: 1px solid var(--openbot-line);
+}
+
+.agent-browser-teachbar .agent-browser-recording {
+  margin-inline-end: auto;
+}
+
+.agent-browser-recording::before {
+  background: var(--danger);
+  animation: agent-browser-recording 1.6s ease-in-out infinite;
+}
+
+@keyframes agent-browser-recording {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-browser-recording::before {
+    animation: none;
+  }
+}
+
 .agent-browser-control-button {
   min-height: 26px;
   padding: 0 10px;
@@ -171,6 +201,10 @@
 .agent-browser-stage-control .agent-browser-screen canvas {
   border-color: var(--zb-kit-focus);
   cursor: default;
+}
+
+.agent-browser-stage-teach .agent-browser-screen canvas {
+  border-color: var(--danger);
 }
 
 .agent-browser-stage-control .agent-browser-screen canvas:focus-visible {

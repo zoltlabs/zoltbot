@@ -1,7 +1,7 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
+import { bundleApi, bundleSkills } from "./bundle.js";
 import { companyApi } from "./company-api.js";
 import { startCompanySupervisor } from "./company-supervisor.js";
-import { bundleApi, bundleSkills } from "./bundle.js";
 import { finishFreshStart, prepareFreshStart } from "./start-fresh.js";
 
 export type {
@@ -515,6 +515,12 @@ async function startOwnedDaemon(
     },
     checkPublic: (value) => privacy.prepareData(value),
     publish,
+    ...(runtime
+      ? {
+          send: (threadId, input, id) =>
+            runtime("turn.send", { threadId, input, mode: "queue" }, id),
+        }
+      : {}),
   });
   const artifactSync = artifactRepositorySync(store, {
     publish,

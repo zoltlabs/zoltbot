@@ -25,6 +25,7 @@ import {
   owning,
   parseHelp,
 } from "./takeover-files.js";
+import { Recording, TEACH_INPUT_WINDOW_MS } from "./teach.js";
 
 /** One frame for the panel. Transient: never stored in the event log. */
 export interface BrowserFrame {
@@ -66,6 +67,10 @@ interface Running {
   /** B7: hosts looked up and sites whose notes the agent has this run, and whether it heard the tip. */
   noted: Set<string>;
   tipped?: boolean;
+  /** M7: what the owner is teaching, while they teach. */
+  teach?: Recording | undefined;
+  /** M7: when the owner last sent a mouse or key, so page scripts can't pass off steps. */
+  ownerInput?: number;
   /** B6: the held pay click waiting for the owner. */
   purchase?: ((approve: boolean) => Promise<boolean>) | undefined;
 }
@@ -172,6 +177,11 @@ export class BrowserHost {
           return consentChoice(url, this.cookieSites());
         },
         purchase: (url, details, answer) => this.held(banners.run, url, details, answer),
+        teach: (step) => {
+          const run = banners.run;
+          if (run?.teach && this.now() - (run.ownerInput ?? -Infinity) <= TEACH_INPUT_WINDOW_MS)
+            run.teach.record(step);
+        },
       });
     } catch (error) {
       if (scratch) rmSync(scratch, { recursive: true, force: true });
@@ -321,6 +331,7 @@ export class BrowserHost {
   private landed(run: Running, page: EnginePage) {
     if (page !== run.page) return;
     const url = page.url();
+    run.teach?.navigate(url);
     if (!/^https?:/i.test(url) || owning(run.control) || run.noted.size >= 50) return;
     let host = "";
     try {
@@ -402,6 +413,7 @@ export class BrowserHost {
     frame: { data: Buffer; width: number; height: number },
   ) {
     if (page !== run.page) return;
+    run.teach?.frame(frame.data);
     const now = this.now();
     if (now - run.lastFrame < 1000 / MAX_FPS) return;
     const viewers = this.watched(run.threadId);
@@ -450,7 +462,34 @@ export class BrowserHost {
               accept: consentChoice(run.page.url(), this.cookieSites()) === "accept",
             }
           : null,
+      teach: run?.teach ? { steps: run.teach.steps.length } : null,
     };
+  }
+
+  /** M7: starts recording what the owner does, from the page shown now. */
+  teachStart(threadId: string) {
+    const run = this.forThread(threadId);
+    if (!run?.page) throw Error("browser_not_running");
+    if (!run.teach) {
+      run.teach = new Recording(path.join(run.binding.artifactRoot, "teach"));
+      run.teach.navigate(run.page.url());
+    }
+    return run.teach.steps.length;
+  }
+
+  /** M7: writes the recording out for the agent (once) and returns it; it stays until cleared. */
+  teachFinish(threadId: string) {
+    const recording = this.forThread(threadId)?.teach;
+    if (!recording?.steps.length) return undefined;
+    return { file: recording.finish(), steps: recording.steps.length };
+  }
+
+  /** M7: ends teaching; `discard` deletes what was recorded. */
+  teachClear(threadId: string, discard: boolean) {
+    const run = this.forThread(threadId);
+    if (!run?.teach) return;
+    if (discard) run.teach.discard();
+    run.teach = undefined;
   }
 
   /**
@@ -467,6 +506,9 @@ export class BrowserHost {
       writeFileSync(file, JSON.stringify({ since: this.now() }), { mode: 0o600 });
     } else if (run.control) {
       run.control = undefined;
+      // Control ended some other way (the phone, Needs you): nothing unsent is kept.
+      if (run.teach && !run.teach.finished) run.teach.discard();
+      run.teach = undefined;
       // The note goes first, so the next command the launcher runs already sees it.
       this.note(
         run,
@@ -486,6 +528,7 @@ export class BrowserHost {
   async input(threadId: string, event: BrowserInput) {
     const run = this.forThread(threadId);
     if (!owning(run?.control) || !run?.page) throw Error("browser_not_in_control");
+    run.ownerInput = this.now();
     // Engine errors can quote the key; they never leave here.
     try {
       if (event.kind === "mouse") {
@@ -514,6 +557,7 @@ export class BrowserHost {
     this.running.delete(bindingId);
     rmSync(endpointFile(run.binding), { force: true });
     rmSync(controlFile(run.binding), { force: true });
+    if (run.teach && !run.teach.finished) run.teach.discard();
     if (run.control) this.onControlLost?.(run.control);
     const stop = run.stop;
     run.stop = undefined;

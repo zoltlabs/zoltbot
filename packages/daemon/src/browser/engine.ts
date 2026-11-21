@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { CONSENT_SCRIPT, type ConsentChoice } from "./consent.js";
 import { PURCHASE_SCRIPT, type PurchaseDetails, parsePurchase } from "./purchase.js";
 import { cliPath } from "./runtime.js";
+import { TEACH_SCRIPT } from "./teach.js";
 
 export interface EngineFrame {
   data: Buffer;
@@ -64,6 +65,8 @@ export interface BrowserEngine {
       details: PurchaseDetails,
       answer: (approve: boolean) => Promise<boolean>,
     ) => void;
+    /** M7: a click or typed value on a page, kept only while the owner teaches. */
+    teach?: (step: unknown) => void;
   }): Promise<EngineBrowser>;
 }
 
@@ -244,6 +247,13 @@ export function playwrightEngine(
           },
         );
         await context.addInitScript(PURCHASE_SCRIPT);
+      }
+      const { teach } = options;
+      if (teach) {
+        await context.exposeBinding("__zoltbotTeach", (_source: unknown, step: unknown) => {
+          teach(step);
+        });
+        await context.addInitScript(TEACH_SCRIPT);
       }
       const { endpoint } = await context.browser().bind(options.title);
       forgetListing(options.title);

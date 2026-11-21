@@ -128,13 +128,25 @@ export function takeoverApi(options: {
   };
 
   /** The takeover card; the control file stays (or starts) so the agent keeps waiting. */
-  const takeCard = (host: BrowserHost, threadId: string) => {
+  const takeCard = (host: BrowserHost, threadId: string, teaching = false) => {
     const id = `${TAKEOVER_PREFIX}${threadId}:${randomUUID()}`;
-    raise(threadId, id, {
-      title: "You’re in control of the browser",
-      prompt: `${nameOf(threadId).name} waits until you hand it back.`,
-      options: [{ id: HAND_BACK, label: "Hand back" }],
-    });
+    const { name } = nameOf(threadId);
+    // M7: while teaching, the card's button cancels the recording and hands the browser back.
+    raise(
+      threadId,
+      id,
+      teaching
+        ? {
+            title: `Teaching ${name}`,
+            prompt: `Do the task in the browser, then choose Done above it. ${name} drafts a skill from it for you to review.`,
+            options: [{ id: HAND_BACK, label: "Cancel" }],
+          }
+        : {
+            title: "You’re in control of the browser",
+            prompt: `${name} waits until you hand it back.`,
+            options: [{ id: HAND_BACK, label: "Hand back" }],
+          },
+    );
     return host.control(threadId, id);
   };
 
@@ -199,14 +211,14 @@ export function takeoverApi(options: {
 
   return {
     /** Gives the owner the browser. The agent's next browser command waits. */
-    take(threadId: string) {
+    take(threadId: string, teaching = false) {
       const host = bind();
       if (!host?.forThread(threadId)) throw Error("browser_not_running");
       const current = host.controller(threadId);
       // Taking over from the panel answers an open request for help.
       if (current?.includes(`:${HELP_MARK}`)) {
         closeCard(current, "accept", TAKE_OVER);
-        return { control: true, url: takeCard(host, threadId) || null };
+        return { control: true, url: takeCard(host, threadId, teaching) || null };
       }
       // Taking over drops a held purchase: nothing is clicked, and the agent hears why.
       if (current?.includes(`:${BUY_MARK}`)) {
@@ -219,10 +231,10 @@ export function takeoverApi(options: {
             : "The owner took over the browser.",
         );
         closeCard(current, "cancel");
-        return { control: true, url: takeCard(host, threadId) || null };
+        return { control: true, url: takeCard(host, threadId, teaching) || null };
       }
       if (current) return { control: true, url: host.forThread(threadId)?.page?.url() ?? null };
-      return { control: true, url: takeCard(host, threadId) || null };
+      return { control: true, url: takeCard(host, threadId, teaching) || null };
     },
 
     /** Returns the browser to the agent and closes the card. */

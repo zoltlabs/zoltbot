@@ -31,6 +31,8 @@ export interface AgentBrowserViewState {
   control: boolean;
   /** B5: whether the browser accepts or rejects cookie banners on the site shown, once one was answered there. */
   cookies?: { site: string; accept: boolean } | null;
+  /** M7: the owner is teaching a task; how many steps are recorded so far. */
+  teach?: { steps: number } | null;
 }
 
 export const AGENT_BROWSER_CHANNELS = {
@@ -41,6 +43,7 @@ export const AGENT_BROWSER_CHANNELS = {
   agentBrowserTakeover: "agent-browser:takeover",
   agentBrowserInput: "agent-browser:input",
   agentBrowserCookies: "agent-browser:cookies",
+  agentBrowserTeach: "agent-browser:teach",
 } as const;
 
 /** How often an open panel renews its view; the daemon drops a viewer after 20 seconds. */
@@ -62,6 +65,11 @@ export interface AgentBrowserDesktopApi {
   input: (input: { threadId: string; event: AgentBrowserInput }) => Promise<void>;
   /** B5: accepts or rejects cookie banners on one site from now on. */
   cookies: (input: { site: string; accept: boolean }) => Promise<void>;
+  /** M7: starts teaching a task, or ends it; Done sends the recording to the agent. */
+  teach: (input: {
+    threadId: string;
+    action: "start" | "done" | "cancel";
+  }) => Promise<{ steps: number; sent?: boolean }>;
   /** Frames for the chats this window views. */
   onFrame: (listener: (frame: AgentBrowserFrame) => void) => () => void;
 }

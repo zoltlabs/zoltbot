@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DomainState } from "@zoltbot/core";
 import { handle } from "@zoltbot/core";
-import type { DomainEvent } from "@zoltbot/protocol";
+import type { DomainEvent, UserInput } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { cookieSettings, siteSettings } from "./consent.js";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
@@ -11,6 +11,7 @@ import { PURCHASE_ALLOW_SETTING } from "./purchase.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
 import { siteNotes } from "./site-notes.js";
 import { takeoverApi } from "./takeover.js";
+import { teachMessage } from "./teach.js";
 
 const viewers = new WeakMap<object, string>();
 const viewerKey = (client: object) => {
@@ -28,6 +29,8 @@ export function browserApi(
     onReady?: () => void;
     checkPublic?: (value: unknown) => Promise<(state: DomainState) => void>;
     publish?: (events: DomainEvent[]) => void;
+    /** M7: sends the owner's turn to a chat, the way the composer does. */
+    send?: (threadId: string, input: UserInput, commandId: string) => unknown;
   } = {},
 ) {
   const pending = new Set<string>();
@@ -110,6 +113,36 @@ export function browserApi(
         ? takeover.take(String(p.threadId))
         : takeover.handBack(String(p.threadId));
     if (method === "browser.input") return takeover.input(String(p.threadId), p.event);
+    // M7: teaching is a takeover that records; Done hands the recording to the agent.
+    if (method === "browser.teach") {
+      const threadId = String(p.threadId);
+      const host = browserHostFor(directory);
+      if (!host) throw Error("browser_not_running");
+      if (p.action === "start") {
+        if (!options.send) throw Error("browser_teach_unavailable");
+        const steps = host.teachStart(threadId);
+        try {
+          return { ...takeover.take(threadId, true), steps };
+        } catch (error) {
+          host.teachClear(threadId, true);
+          throw error;
+        }
+      }
+      // Done sends first; if that fails, the owner keeps control and can choose Done again.
+      const recording = p.action === "done" ? host.teachFinish(threadId) : undefined;
+      if (recording && options.send)
+        await options.send(
+          threadId,
+          [
+            { type: "text", text: teachMessage(recording.steps) },
+            { type: "file", path: recording.file },
+          ],
+          `browser-teach:${randomUUID()}`,
+        );
+      host.teachClear(threadId, !recording);
+      takeover.handBack(threadId);
+      return recording ? { sent: true, steps: recording.steps } : { sent: false, steps: 0 };
+    }
     // B5: accept or reject cookie banners on one site.
     if (method === "browser.cookies") return cookies.set(p.site, p.accept === true);
     // B6: only the owner lets the agent pay on a site without asking.
