@@ -1,0 +1,29 @@
+{
+  "id": "vibe",
+  "displayName": "Mistral Vibe",
+  "adapter": "acp",
+  "flavor": "vibe",
+  "binaryNames": ["vibe-acp"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": [],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "MISTRAL_API_KEY",
+    "loginCommand": []
+  },
+  "install": {
+    "docsUrl": "https://github.com/mistralai/mistral-vibe"
+  },
+  "testedVersions": "unverified",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": false
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}
