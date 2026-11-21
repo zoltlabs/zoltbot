@@ -425,6 +425,7 @@ export default function Chat() {
                   ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
                   : {})}
                 {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
+                canBranch={online && !turn && !request && !compareReadOnly}
                 {...(row.turnId && edits.get(row.turnId)?.length
                   ? {
                       edits: {
