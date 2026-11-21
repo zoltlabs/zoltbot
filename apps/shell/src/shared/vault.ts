@@ -12,9 +12,11 @@ export const VAULT_CHANNELS = {
   vaultProviderItems: "vault:provider-items",
   vaultProviderUnlock: "vault:provider-unlock",
   vaultProviderForget: "vault:provider-forget",
+  vaultSaveSecret: "vault:save-secret",
 } as const;
 
-export type VaultItemKind = "login" | "totp";
+/** V4: "secret" is a key or password the owner pasted into a chat. */
+export type VaultItemKind = "login" | "totp" | "secret";
 
 /** V3: password managers a login can come from. */
 export type VaultProviderId = "1password" | "bitwarden" | "proton";
@@ -90,11 +92,14 @@ export interface VaultDesktopApi {
   agents: () => Promise<VaultAgent[]>;
   /** V3: password managers on this Mac and whether each can be read now. */
   providers: () => Promise<VaultProvider[]>;
-  providerItems: (input: { provider: VaultProviderId; search?: string }) => Promise<
-    VaultProviderItem[]
-  >;
+  providerItems: (input: {
+    provider: VaultProviderId;
+    search?: string;
+  }) => Promise<VaultProviderItem[]>;
   /** Keeps a session key from the manager's own unlock command; returns the new state. */
   providerUnlock: (input: { provider: VaultProviderId; session: string }) => Promise<VaultProvider>;
+  /** V4: keeps a secret pasted into a chat; `reference` goes in the message in its place. */
+  saveSecret: (input: { label: string; value: string }) => Promise<{ reference: string }>;
   /** Drops the kept session key; returns the new state. */
   providerForget: (provider: VaultProviderId) => Promise<VaultProvider>;
 }

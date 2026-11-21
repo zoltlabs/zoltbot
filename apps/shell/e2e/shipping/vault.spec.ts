@@ -277,3 +277,60 @@ test("adds logins from password managers without copying their passwords", async
     await fixture.close();
   }
 });
+
+/** V4: a key pasted into a chat is saved to the vault, and the message carries a reference. */
+test("a pasted key goes to the vault and the message gets a reference", async ({ page }) => {
+  const keychain = memoryKeychain();
+  const fixture = await compareFixture({ secrets: keychain.secrets });
+  const shell = await shellSession(fixture.daemon);
+  const KEY = "sk-synthetic-e2e-key-000000000000000";
+  try {
+    await shell.service.createBot({ profileId: "profile", title: "Release notes" });
+    await shell.open(page);
+    const sidebar = page.getByRole("complementary", { name: "Bot navigation" });
+    await sidebar.getByRole("button", { name: /^Release notes/ }).click();
+    const composer = page.getByRole("textbox", { name: "Message Release notes" });
+    await composer.click();
+    await composer.pressSequentially(`Use this key: ${KEY}`);
+    await composer.press("Enter");
+    const bar = page.getByRole("form", { name: "This looks like a secret." });
+    await expect(bar).toBeVisible();
+    await expect(bar.getByLabel("Save as")).toHaveValue("API key");
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      await page.screenshot({ path: test.info().outputPath(`secret-bar-${scheme}.png`) });
+    }
+    // Escape closes the bar and keeps the draft; sending again asks again.
+    await page.keyboard.press("Escape");
+    await expect(bar).toHaveCount(0);
+    await expect(composer).toBeFocused();
+    await composer.press("Enter");
+    await expect(bar).toBeVisible();
+    await bar.getByLabel("Save as").fill("Example API key");
+    await bar.getByRole("button", { name: "Save to vault" }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(composer).toHaveText("Use this key: [vault: Example API key]");
+    await expect(composer).toBeFocused();
+
+    // Send anyway sends a message as written.
+    await composer.fill("password: Synthetic-pass-0001!");
+    await composer.press("Enter");
+    await expect(bar).toBeVisible();
+    await bar.getByRole("button", { name: "Send anyway" }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(
+      page.locator("article.message-entry", { hasText: "Synthetic-pass-0001" }),
+    ).toBeVisible();
+
+    await sidebar.getByRole("button", { name: "Vault" }).click();
+    const vault = page.getByRole("main", { name: "Vault" });
+    await expect(vault.getByText("Example API key")).toBeVisible();
+    await expect(vault.getByText("Secret · All agents")).toBeVisible();
+    expect(shell.errors).toEqual([]);
+    expect(written(fixture.daemon.dataDir)).not.toContain(KEY);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});

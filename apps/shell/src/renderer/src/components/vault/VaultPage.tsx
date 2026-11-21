@@ -1,6 +1,6 @@
 // V1: the Vault page. Saved logins and two-step codes, which agents may use each one, and Add,
 // Edit and Remove. Values never reach this page except through Show behind Touch ID.
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import type {
   VaultItem,
   VaultItemKind,
@@ -24,18 +24,20 @@ const MANAGER_NAMES: Record<VaultProviderId, string> = {
 function KindIcon(props: { kind: VaultItemKind }) {
   return (
     <svg class="vault-kind" viewBox="0 0 20 20" aria-hidden="true">
-      <Show
-        when={props.kind === "login"}
-        fallback={
-          <>
-            <circle cx="10" cy="10" r="6.5" />
-            <path d="M10 6.5V10l2.5 1.5" />
-          </>
-        }
-      >
-        <circle cx="7" cy="10" r="3.5" />
-        <path d="M10.5 10H17M14.5 10v2.5" />
-      </Show>
+      <Switch>
+        <Match when={props.kind === "login"}>
+          <circle cx="7" cy="10" r="3.5" />
+          <path d="M10.5 10H17M14.5 10v2.5" />
+        </Match>
+        <Match when={props.kind === "secret"}>
+          <rect x="4" y="9" width="12" height="8" rx="1.5" />
+          <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+        </Match>
+        <Match when={props.kind === "totp"}>
+          <circle cx="10" cy="10" r="6.5" />
+          <path d="M10 6.5V10l2.5 1.5" />
+        </Match>
+      </Switch>
     </svg>
   );
 }
@@ -102,7 +104,9 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
         ? [item.username, item.source ? managerName(item.source.provider) : undefined]
             .filter(Boolean)
             .join(" · ")
-        : t("vault.kind.code");
+        : item.kind === "secret"
+          ? t("vault.kind.secret")
+          : t("vault.kind.code");
     return { first, who };
   };
 
@@ -279,13 +283,18 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
               label={t("vault.actionsFor", { label: item.label })}
               onClose={() => setMenu(null)}
               groups={[
-                [
-                  {
-                    id: "edit",
-                    label: t("vault.edit"),
-                    run: () => openDialog({ kind: item.kind, item }),
-                  },
-                ],
+                // A secret from a chat has no site to edit; it can only be removed.
+                ...(item.kind === "secret"
+                  ? []
+                  : [
+                      [
+                        {
+                          id: "edit",
+                          label: t("vault.edit"),
+                          run: () => openDialog({ kind: item.kind, item }),
+                        },
+                      ],
+                    ]),
                 [
                   {
                     id: "remove",

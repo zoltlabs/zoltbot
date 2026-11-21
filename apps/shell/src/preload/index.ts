@@ -265,6 +265,7 @@ const openbotApi: OpenBotDesktopApi = {
     providerItems: (input) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderItems, input),
     providerUnlock: (input) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderUnlock, input),
     providerForget: (provider) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderForget, provider),
+    saveSecret: (input) => ipcRenderer.invoke(IPC_CHANNELS.vaultSaveSecret, input),
   },
   coAuthor: {
     get: (botId) => ipcRenderer.invoke(IPC_CHANNELS.coAuthorGet, botId),

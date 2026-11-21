@@ -9,8 +9,8 @@ import {
   type VaultProvider,
   type VaultProviderId,
   type VaultProviderItem,
-  type VaultSource,
   type VaultSaveInput,
+  type VaultSource,
   type VaultUpdateInput,
 } from "../shared/vault";
 import type { DaemonClient } from "./daemon-client";
@@ -40,7 +40,8 @@ function failure(error: unknown, fallback: string): Error {
 export function parseVaultItem(value: unknown): VaultItem | null {
   if (!isObject(value)) return null;
   const { id, kind, label, sites, username, agents, createdAt, lastUsedAt, source } = value;
-  if (typeof id !== "string" || (kind !== "login" && kind !== "totp")) return null;
+  if (typeof id !== "string" || (kind !== "login" && kind !== "totp" && kind !== "secret"))
+    return null;
   if (typeof label !== "string" || !Array.isArray(sites) || typeof createdAt !== "string")
     return null;
   const agentList =
@@ -261,6 +262,20 @@ export function vaultHandlers(client: Client): Record<string, (input: unknown) =
         return provider;
       } catch (error) {
         throw failure(error, "Couldn't unlock it. Try again.");
+      }
+    },
+    [C.vaultSaveSecret]: async (input) => {
+      if (!isObject(input)) throw new Error("Invalid secret.");
+      const label = requireString(input.label, "label").trim().slice(0, 80);
+      const value = requireString(input.value, "value");
+      if (!label) throw new Error("Name it first.");
+      try {
+        const result = await client.call("vault.saveSecret", { label, value }, randomUUID());
+        if (!isObject(result) || typeof result.reference !== "string")
+          throw new Error("Invalid vault entry.");
+        return { reference: result.reference };
+      } catch (error) {
+        throw failure(error, "Couldn't save it. Try again.");
       }
     },
     [C.vaultProviderForget]: async (input) => {

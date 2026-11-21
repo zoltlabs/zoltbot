@@ -126,3 +126,45 @@ it("says the vault isn't set up on a daemon without a keychain", async () => {
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+it("keeps a pasted secret and gives the chat a reference in its place (V4)", async () => {
+  mkdirSync(".cache/tests", { recursive: true });
+  const dataDir = mkdtempSync(path.resolve(".cache/tests/vault-"));
+  const keychain = memoryKeychain();
+  const daemon = await startDaemon({ dataDir, secrets: keychain.secrets });
+  const client = new DaemonClient(async () => ({ url: daemon.url, token: daemon.token }));
+  const SECRET = "sk-synthetic-secret-value-0000000000";
+  try {
+    await client.start();
+    const saved = (await client.call(
+      "vault.saveSecret",
+      { label: "Example [API] key", value: SECRET },
+      "vault-save-secret",
+    )) as { entry: Record<string, unknown>; reference: string };
+    expect(saved.reference).toBe("[vault: Example  API  key]");
+    expect(saved.entry).toMatchObject({ kind: "secret", sites: [], agents: "all" });
+    expect(JSON.stringify(saved)).not.toContain(SECRET);
+    await expect(
+      client.call(
+        "vault.save",
+        { kind: "secret", sites: ["github.com"], agents: "all", value: SECRET },
+        "vault-save-secret-2",
+      ),
+    ).rejects.toThrow("invalid_kind");
+    // A second secret with the same name gets its own reference.
+    const again = (await client.call(
+      "vault.saveSecret",
+      { label: "Example [API] key", value: `${SECRET}-2` },
+      "vault-save-secret-3",
+    )) as { reference: string };
+    expect(again.reference).toBe("[vault: Example  API  key 2]");
+    const listed = (await client.call("vault.list", {})) as { entries: unknown[] };
+    expect(listed.entries).toHaveLength(2);
+    expect(writtenFiles(dataDir)).not.toContain(SECRET);
+    expect([...keychain.items.values()].join("")).toContain(SECRET);
+  } finally {
+    client.stop();
+    await daemon.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});

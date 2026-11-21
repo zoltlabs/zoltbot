@@ -28,7 +28,8 @@ function providers(
     providers: vaultProviders({
       ...fake.host,
       cwd: "/",
-      session: async () => (session ? { value: session, binary: "/fake/bin/bw:original" } : undefined),
+      session: async () =>
+        session ? { value: session, binary: "/fake/bin/bw:original" } : undefined,
     }),
   };
 }

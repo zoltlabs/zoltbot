@@ -9,6 +9,7 @@ import {
   type VaultEntry,
   type VaultKind,
   vaultHost,
+  vaultReference,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { Redactor } from "../logging.js";
@@ -29,7 +30,9 @@ export type VaultValue =
       digits: number;
       period: number;
       algorithm: "SHA1" | "SHA256" | "SHA512";
-    };
+    }
+  /** V4: a key or password the owner pasted into a chat. */
+  | { kind: "secret"; value: string };
 
 export interface VaultHost {
   dataDir: string;
@@ -43,6 +46,8 @@ export interface VaultHost {
 }
 
 const OWNER = { kind: "human" as const, id: "local-owner" };
+/** V4: secrets saved from chats, out of the vault's MAX_VAULT_ENTRIES. */
+const MAX_SECRETS = 100;
 
 function sites(input: readonly string[]): string[] {
   const hosts = input.map((site) => vaultHost(site));
@@ -56,6 +61,7 @@ function agents(input: VaultAgents): VaultAgents {
 
 function valueFor(kind: VaultKind, value: string): VaultValue {
   if (kind === "login") return { kind, password: value };
+  if (kind === "secret") return { kind, value };
   const setup = parseTotpSetup(value);
   if (!setup) throw new Error("invalid_setup_key");
   return { kind, ...setup };
@@ -63,13 +69,18 @@ function valueFor(kind: VaultKind, value: string): VaultValue {
 
 /** The text the owner sees for a value: the password, or the setup key. */
 function shown(value: VaultValue): string {
-  return value.kind === "login" ? value.password : value.secret;
+  return value.kind === "login"
+    ? value.password
+    : value.kind === "secret"
+      ? value.value
+      : value.secret;
 }
 
 export function readVaultValue(raw: unknown): VaultValue {
   const value = raw as Partial<VaultValue> | null;
   if (value?.kind === "login" && typeof value.password === "string") return value as VaultValue;
   if (value?.kind === "totp" && typeof value.secret === "string") return value as VaultValue;
+  if (value?.kind === "secret" && typeof value.value === "string") return value as VaultValue;
   throw new Error("vault_value_invalid");
 }
 
@@ -84,7 +95,7 @@ export function vaultApi(host: VaultHost) {
   /** Values the daemon handled are masked in every log and refused by every store write. */
   const guard = (value: VaultValue) => {
     // A short value would block every message that happens to contain it.
-    for (const text of [shown(value), value.kind === "login" ? "" : value.secret])
+    for (const text of [shown(value)])
       if (text.length >= 8) {
         host.privacy.remember(text);
         host.redactor.register(text);
@@ -129,8 +140,56 @@ export function vaultApi(host: VaultHost) {
       switch (method) {
         case "vault.list":
           return { entries: records.list().map(publicEntry), available: !!host.secrets };
+        case "vault.saveSecret": {
+          // Control and direction characters could disguise the name in the Mac's prompts.
+          const label =
+            typeof params.label === "string"
+              ? params.label
+                  .replace(/[\p{Cc}\p{Cf}]/gu, "")
+                  .trim()
+                  .slice(0, 80)
+              : "";
+          if (!label) throw new Error("label_required");
+          if (typeof params.value !== "string" || !params.value.trim())
+            throw new Error("value_required");
+          const value = valueFor("secret", params.value);
+          // The phone may call this, so secrets get their own, smaller share of the vault.
+          if (records.list().filter((record) => record.kind === "secret").length >= MAX_SECRETS)
+            throw new Error("vault_full");
+          const { reference } = await keychain().put(value);
+          // Two secrets with one name would give the agent two identical references.
+          const taken = new Set(
+            records
+              .list()
+              .filter((record) => record.kind === "secret")
+              .map((record) => record.label),
+          );
+          let unique = label;
+          for (let n = 2; taken.has(unique); n++) unique = `${label.slice(0, 74)} ${n}`;
+          const record: VaultRecord = {
+            id: randomUUID(),
+            kind: "secret",
+            label: unique,
+            sites: [],
+            agents: agents((params.agents as VaultAgents | undefined) ?? "all"),
+            createdAt: new Date().toISOString(),
+            reference,
+          };
+          try {
+            await records.change((list) => ({ records: [...list, record], result: undefined }));
+          } catch (error) {
+            await secrets?.remove?.(reference).catch(() => {});
+            throw error;
+          }
+          // Only a kept secret is masked and refused in messages from now on.
+          guard(value);
+          audit("vault.save", record.id);
+          return { entry: publicEntry(record), reference: vaultReference(unique) };
+        }
         case "vault.save": {
           const kind = params.kind as VaultKind;
+          // A secret has no site; it comes in through vault.saveSecret.
+          if (kind === "secret") throw new Error("invalid_kind");
           const hosts = sites(params.sites as string[]);
           // V3: a login from a password manager keeps only which item it is.
           const source = params.source !== undefined ? validSource(params.source) : undefined;
@@ -238,7 +297,12 @@ export function vaultApi(host: VaultHost) {
           revealing = true;
           try {
             // The Mac's prompt names the entry it is for.
-            const what = record.kind === "login" ? "password" : "setup key";
+            const what =
+              record.kind === "login"
+                ? "password"
+                : record.kind === "totp"
+                  ? "setup key"
+                  : "secret";
             const reason = `show the saved ${what} for ${record.label.slice(0, 80)}`;
             value = readVaultValue(await secrets.reveal(reference, reason));
           } catch {

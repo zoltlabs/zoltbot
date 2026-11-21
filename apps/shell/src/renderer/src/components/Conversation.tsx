@@ -49,6 +49,7 @@ import { createDictation } from "./Dictation";
 import { ManagerEntry } from "./ManagerEntry";
 import { ModelNotice, SwitchDialog } from "./ModelSwitch";
 import { savePanelWidth } from "./PanelResizer";
+import { createSecretCheck, SecretBar } from "./vault/SecretBar";
 
 interface ConversationProps {
   agentStatus: AgentStatus;
@@ -151,6 +152,7 @@ export function Conversation(props: ConversationProps) {
   const onboardingModelRequired = createMemo(
     () => agentReady() && onboardingActive() && !onboardingModelConfirmed(),
   );
+  const secretCheck = createSecretCheck();
   const currentDraft = createMemo(() => {
     const id = props.bot?.id;
     return id ? (drafts()[id] ?? EMPTY_DRAFT) : EMPTY_DRAFT;
@@ -480,6 +482,7 @@ export function Conversation(props: ConversationProps) {
   async function submitMessage(override?: string) {
     const botId = props.bot?.id;
     const draft = currentDraft();
+    if (!override && secretCheck.hold(draft.text)) return;
     const text = override ?? expandComposerMentions(draft.text);
     const attachments = override ? [] : draft.attachments;
     if (
@@ -755,6 +758,32 @@ export function Conversation(props: ConversationProps) {
         dictation={dictation}
         activeTurnId={props.activeTurnId}
         onStop={props.onStop}
+        notice={
+          <Show when={secretCheck.held()?.text === currentDraft().text && secretCheck.held()}>
+            {(held) => (
+              <SecretBar
+                text={held().text}
+                match={held().match}
+                onReplace={(text) => {
+                  // A save that ends after the owner moved on leaves the draft alone.
+                  if (currentDraft().text !== held().text) return;
+                  secretCheck.clear();
+                  updateCurrentDraft({ text });
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+                onSendAnyway={() => {
+                  secretCheck.allow();
+                  void submitMessage();
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+                onCancel={() => {
+                  secretCheck.clear();
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+              />
+            )}
+          </Show>
+        }
       />
 
       <Show when={mediaPreview()}>

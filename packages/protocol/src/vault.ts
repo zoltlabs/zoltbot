@@ -4,7 +4,8 @@ import { At, Id, object, values } from "./common.js";
 // V1: the vault. Records hold no values: a password, setup key or secret lives in the Mac's
 // keychain, and the agent picks an entry while the daemon types the value (I7).
 
-export const VAULT_KINDS = ["login", "totp"] as const;
+/** V4: "secret" is a key or password the owner pasted into a chat; it has no site. */
+export const VAULT_KINDS = ["login", "totp", "secret"] as const;
 export const VaultKindSchema = values(VAULT_KINDS);
 export type VaultKind = Static<typeof VaultKindSchema>;
 export const MAX_VAULT_ENTRIES = 500;
@@ -61,8 +62,8 @@ export const VaultEntrySchema = object({
   id: Id,
   kind: VaultKindSchema,
   label: Label,
-  /** Hosts the entry may be filled on: each host itself, or its www. form. */
-  sites: Type.Array(Host, { minItems: 1, maxItems: MAX_VAULT_SITES }),
+  /** Hosts the entry may be filled on: each host itself, or its www. form. None for a secret. */
+  sites: Type.Array(Host, { maxItems: MAX_VAULT_SITES }),
   username: Type.Optional(Type.String({ maxLength: 500 })),
   agents: VaultAgentsSchema,
   /** Reserved for "Always allow": agents that may use the entry without asking. Not set yet. */
@@ -101,6 +102,18 @@ export const vaultMethods = {
       source: Type.Optional(VaultSourceSchema),
     }),
     result: object({ entry: VaultEntrySchema }),
+  },
+  /**
+   * V4: keeps a secret the owner pasted into a chat. The phone may call it; the message then
+   * carries `reference` in place of the secret.
+   */
+  "vault.saveSecret": {
+    params: object({
+      label: Type.String({ minLength: 1, maxLength: 80 }),
+      value: Value,
+      agents: Type.Optional(VaultAgentsSchema),
+    }),
+    result: object({ entry: VaultEntrySchema, reference: Type.String({ maxLength: 100 }) }),
   },
   /** Omitted fields stay; a value replaces the stored one. */
   "vault.update": {
