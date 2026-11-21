@@ -85,3 +85,15 @@
   cursor: pointer;
   color: var(--zb-text-secondary);
 }
+.webhook-address {
+  margin-block: 16px;
+}
+.webhook-address h3 {
+  margin-block: 0 8px;
+}
+.webhook-address-url {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  text-overflow: ellipsis;
+}

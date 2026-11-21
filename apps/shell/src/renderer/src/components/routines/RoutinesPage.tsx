@@ -4,7 +4,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { RoutineItem, RoutineRun } from "../../../../shared/routines";
 import { t } from "../../i18n";
-import { type Anchor, Menu, type MenuItem } from "../../kit";
+import { type Anchor, Menu, type MenuItem, showToast } from "../../kit";
 import { SidebarToggleIcon } from "../SidebarIcons";
 import { AddToCalendar } from "./AddToCalendar";
 import { KeepAwakeSelect } from "./KeepAwakeSelect";
@@ -18,6 +18,7 @@ import {
 } from "./routine-format";
 import { ScheduleDialog } from "./ScheduleDialog";
 import { ScheduleView } from "./ScheduleView";
+import { RotateDialog, webAddress, webAddressMenu } from "./WebAddress";
 import "./routines.css";
 
 type View = "list" | "schedule";
@@ -35,6 +36,7 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
   const [now, setNow] = createSignal(new Date());
   const [menu, setMenu] = createSignal<{ item: RoutineItem; anchor: Anchor } | null>(null);
   const [editing, setEditing] = createSignal<RoutineItem | null>(null);
+  const [rotating, setRotating] = createSignal<RoutineItem | null>(null);
   const [runs, setRuns] = createSignal<{ id: string; items: RoutineRun[] } | null>(null);
   const [status, setStatus] = createSignal("");
   let heading: HTMLHeadingElement | undefined;
@@ -116,6 +118,16 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
             },
           ]),
     ],
+    ...webAddressMenu(
+      item,
+      // A toast, so sighted people see it too; it is announced, so the status line stays quiet.
+      (action) =>
+        void act(async () => {
+          showToast({ message: await webAddress(item, action) });
+          return "";
+        }),
+      () => setRotating(item),
+    ),
     [
       {
         id: "runs",
@@ -269,6 +281,19 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
             label={t("routines.actions", { name: open().item.name })}
             groups={menuGroups(open().item)}
             onClose={() => setMenu(null)}
+          />
+        )}
+      </Show>
+      <Show when={rotating()}>
+        {(item) => (
+          <RotateDialog
+            item={item()}
+            onClose={() => setRotating(null)}
+            onRotated={(message) => {
+              setRotating(null);
+              showToast({ message });
+              void load();
+            }}
           />
         )}
       </Show>

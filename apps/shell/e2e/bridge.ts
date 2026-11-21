@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 import { runAttachmentAction } from "../src/main/attachment-actions";
 import { calendarHandlers } from "../src/main/desktop/calendar-handlers";
+import { webAddressHandlers } from "../src/main/desktop/web-address-handlers";
 import { preferenceHandlers } from "../src/main/desktop/preferences-handlers";
 import { IPC_CHANNELS } from "../src/shared/ipc";
 import { normalizePreferences, parsePreferencesPatch } from "../src/shared/preferences";
@@ -50,6 +52,14 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
       client: service.client,
       folder: mkdtempSync(join(tmpdir(), "zolt-e2e-calendar-")),
       open: async () => "",
+    }),
+    // The copied address is kept here, where the spec can read it, instead of the real clipboard.
+    ...webAddressHandlers({
+      client: service.client,
+      copy: (text) => {
+        (globalThis as { copiedWebAddress?: string }).copiedWebAddress = text;
+      },
+      commandId: () => randomUUID(),
     }),
     [IPC_CHANNELS.accountGetStatus]: () => account,
     [IPC_CHANNELS.accountSignIn]: () => account,
@@ -386,6 +396,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         setSchedule: call(channels.routinesSetSchedule),
         runNow: call(channels.routinesRunNow),
         addToCalendar: call(channels.routinesAddToCalendar),
+        webAddress: call(channels.routinesWebAddress),
       },
       templates: {
         list: call(channels.agentTemplatesList),

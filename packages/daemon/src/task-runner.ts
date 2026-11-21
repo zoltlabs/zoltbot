@@ -152,7 +152,15 @@ export function taskRunner(options: TaskRunnerOptions) {
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (id, work) => run(id, system, work),
   });
-  const addresses = webhookAddressApi({ store, hookCloud: options.hookCloud });
+  const addresses = webhookAddressApi({
+    store,
+    hookCloud: options.hookCloud,
+    rebind: async (id, revision, commandId) => {
+      const params = { id, revision };
+      const check = store.receipt(commandId) ? undefined : await options.checkPublic(params);
+      return events.api("routine.checkSource", params, commandId, check);
+    },
+  });
   const routines = routineScheduler({
     store,
     now: () => options.now?.() ?? new Date().toISOString(),
@@ -411,7 +419,7 @@ export function taskRunner(options: TaskRunnerOptions) {
       params: Record<string, unknown>,
       commandId?: string,
     ): Promise<unknown> {
-      if (addresses.handles(method)) return addresses.api(method, params);
+      if (addresses.handles(method)) return addresses.api(method, params, commandId);
       if (method.startsWith("routine.")) {
         const check =
           commandId &&

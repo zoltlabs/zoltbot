@@ -281,6 +281,7 @@ const openbotApi: OpenBotDesktopApi = {
     setSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetSchedule, input),
     runNow: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesRunNow, id),
     addToCalendar: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesAddToCalendar, input),
+    webAddress: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesWebAddress, input),
   },
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),

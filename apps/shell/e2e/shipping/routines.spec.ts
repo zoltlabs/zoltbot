@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { parseEvent } from "@zoltbot/protocol";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
+import { fakeHookCloud } from "../../../../tools/fakes/src/fake-hook-cloud";
 import { axeViolations, shellSession } from "../harness";
 
-/** R1, R2, R3, R4, R6: the Routines page runs a routine now, pauses it, makes it one-time, adds it to Calendar and shows it on the calendar. */
+/** R1, R2, R3, R4, R6: the Routines page runs a routine now, pauses it, makes it one-time, copies, tests and rotates a web address, adds it to Calendar and shows it on the calendar. */
 test("routines run now, pause, reschedule once and show on the calendar", async ({ page }) => {
-  const fixture = await compareFixture();
+  const relay = fakeHookCloud();
+  const fixture = await compareFixture({ hookCloud: relay.cloud });
   const at = new Date().toISOString();
   const later = new Date(Date.now() + 2 * 86_400_000);
   const project = {
@@ -47,6 +49,11 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     id: "routine-hook",
     name: "Deploy notes",
     paused: true,
+    // Event routines run read-only, with no connections.
+    template: {
+      ...routine.template,
+      inputs: { knowledge: "inherit", skills: "inherit", connections: [] },
+    },
     event: {
       source: { kind: "webhook.received", resource: "webhook/deploys" },
       revision: 1,
@@ -141,6 +148,45 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     await expect(row).toContainText("Once · First");
     const saved = fixture.daemon.store.record("routine", routine.id);
     expect(saved?.schedule).toMatchObject({ cron: "@once", at: `${day}T09:00:00.000Z` });
+
+    // R2: the web address is copied straight to the clipboard, tested and rotated.
+    const copied = () => (globalThis as { copiedWebAddress?: string }).copiedWebAddress;
+    const hookActions = main.getByRole("button", { name: "Actions for Deploy notes" });
+    await hookActions.click();
+    await page.getByRole("menuitem", { name: "Copy web address" }).click();
+    const toast = (text: string) => page.getByRole("status").filter({ hasText: text });
+    await expect(toast("Web address for Deploy notes copied.")).toBeVisible();
+    const first = copied();
+    expect(first).toMatch(/^https:\/\/cloud\.example\.test\/h\//);
+    // The page never holds the address.
+    expect(await page.content()).not.toContain(first);
+    expect(fixture.daemon.store.record("routine", hook.id)?.event).toMatchObject({
+      sourceMode: "cloud_pull",
+    });
+    await hookActions.click();
+    await page.getByRole("menuitem", { name: "Send test request" }).click();
+    await expect(toast("Test request sent to Deploy notes.")).toBeVisible();
+    const bound = await relay.cloud.hook("webhook/deploys");
+    expect(await relay.cloud.requests(bound?.hookId ?? "", "2000-01-01T00:00:00.000Z")).toHaveLength(
+      1,
+    );
+    await hookActions.click();
+    await page.getByRole("menuitem", { name: "Rotate web address…" }).click();
+    const rotate = page.getByRole("alertdialog", {
+      name: "Rotate the web address for Deploy notes?",
+    });
+    await expect(rotate).toContainText("The old address stops working");
+    expect(await axeViolations(page)).toEqual([]);
+    await rotate.getByRole("button", { name: "Rotate" }).click();
+    await expect(rotate).toBeHidden();
+    await expect(
+      toast("New web address for Deploy notes copied. Resume Deploy notes to use it."),
+    ).toBeVisible();
+    await expect(hookActions).toBeFocused();
+    await expect(main.getByRole("listitem").filter({ hasText: "Deploy notes" })).toContainText(
+      "Paused",
+    );
+    expect(copied()).not.toBe(first);
 
     // R6: the coming runs go to Calendar, here without their names.
     await main.getByRole("button", { name: "Add to Calendar" }).click();

@@ -107,23 +107,51 @@ it("R2 gives the owner a routine's address, rotates it and sends a test", async 
     { ...f.input, source: { kind: "webhook.received", resource: "webhook/builds" } },
     "address-prepare",
   )) as Routine;
-  const addresses = webhookAddressApi({ store: f.store, hookCloud: relay.cloud });
+  let clock = 0;
+  const addresses = webhookAddressApi({
+    store: f.store,
+    hookCloud: relay.cloud,
+    rebind: (id, revision, commandId) =>
+      service.api("routine.checkSource", { id, revision }, commandId),
+    now: () => clock,
+  });
+  let command = 0;
+  const call = (method: string, params: Record<string, unknown>) =>
+    addresses.api(method, params, `address-${command++}`);
   try {
-    const first = await addresses.api("routine.webhookAddress", { id: routine.id });
+    const first = await call("routine.webhookAddress", { id: routine.id });
     expect(first).toMatchObject({ state: "ready", url: expect.stringContaining("/h/") });
-    expect(await addresses.api("routine.webhookAddress", { id: routine.id })).toEqual(first);
-    const rotated = await addresses.api("routine.webhookAddress", { id: routine.id, rotate: true });
+    // The first address binds the routine in the same command.
+    const bound = (f.store.record("routine", routine.id)?.event as Routine["event"])?.repositoryId;
+    expect(bound).toBe((await relay.cloud.hook("webhook/builds"))?.hookId);
+    expect(await call("routine.webhookAddress", { id: routine.id })).toEqual(first);
+    // A retried rotate returns the same address instead of making another.
+    const rotate = () =>
+      addresses.api("routine.webhookAddress", { id: routine.id, rotate: true }, "rotate-once");
+    const rotated = await rotate();
+    expect(await rotate()).toEqual(rotated);
     expect(rotated).not.toEqual(first);
-    expect(await addresses.api("routine.webhookTest", { id: routine.id })).toEqual({ ok: true });
+    const rebound = f.store.record("routine", routine.id) as Routine;
+    expect(rebound.paused).toBe(true);
+    expect(rebound.event?.repositoryId).toBe((await relay.cloud.hook("webhook/builds"))?.hookId);
+    expect(await call("routine.webhookTest", { id: routine.id })).toEqual({ ok: true });
+    await expect(call("routine.webhookTest", { id: routine.id })).rejects.toThrow(
+      "webhook_test_rate_limited",
+    );
+    clock += 10_000;
     const hook = await relay.cloud.hook("webhook/builds");
     expect(await relay.cloud.requests(hook?.hookId ?? "", "2000-01-01T00:00:00.000Z")).toHaveLength(
       1,
     );
     // Without a signed-in account there is no address to give.
-    const signedOut = webhookAddressApi({ store: f.store, hookCloud: undefined });
-    await expect(signedOut.api("routine.webhookAddress", { id: routine.id })).rejects.toThrow(
-      "webhook_sign_in_required",
-    );
+    const signedOut = webhookAddressApi({
+      store: f.store,
+      hookCloud: undefined,
+      rebind: async () => undefined,
+    });
+    await expect(
+      signedOut.api("routine.webhookAddress", { id: routine.id }, "signed-out"),
+    ).rejects.toThrow("webhook_sign_in_required");
   } finally {
     await f.close();
   }

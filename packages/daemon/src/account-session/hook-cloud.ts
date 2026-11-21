@@ -150,7 +150,8 @@ export function accountHookCloud(options: {
   async function address(resource: string, choice: { rotate?: boolean } = {}) {
     const current = await list();
     const hook = current.hooks.find((entry) => entry.resource === resource);
-    const live = current.hooks.map((entry) => entry.id);
+    // A rotated-out address is forgotten along with hooks that no longer exist.
+    const live = current.hooks.map((entry) => entry.id).filter((id) => id !== hook?.id);
     if (hook && !choice.rotate) {
       const url = await store.get(current.account.id, hook.id);
       if (!url || !ours(url)) return { state: "elsewhere" as const };
@@ -175,8 +176,13 @@ export function accountHookCloud(options: {
     },
     address,
     async test(resource) {
-      const found = await address(resource);
-      if (found.state !== "ready") throw new Error("webhook_address_elsewhere");
+      // Only an address that already exists: a test never makes one.
+      const current = await list();
+      const hook = current.hooks.find((entry) => entry.resource === resource);
+      if (!hook) throw new Error("webhook_address_missing");
+      const url = await store.get(current.account.id, hook.id);
+      if (!url || !ours(url)) throw new Error("webhook_address_elsewhere");
+      const found = { url };
       const response = await send(found.url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

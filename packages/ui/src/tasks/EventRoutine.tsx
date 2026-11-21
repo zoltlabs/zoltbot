@@ -3,6 +3,7 @@ import { useId, useRef, useState } from "react";
 import type { ChatConnection } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
 import { useShell } from "../state.js";
+import { WebhookAddress } from "./WebhookAddress.js";
 import "./event-routines.css";
 function routineError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -171,9 +172,7 @@ export function EventRoutineForm({
               Sentry · New error issue (setup unavailable)
             </option>
             <option value="github.review_requested">GitHub · Review requested</option>
-            <option value="webhook.received">
-              Web address · When it's called (not available yet)
-            </option>
+            <option value="webhook.received">Web address · When it's called</option>
           </select>
           <label htmlFor={`${id}-resource`}>
             {kind.startsWith("sentry")
@@ -386,7 +385,13 @@ export function EventRoutineCard({
         1 active run · {config.dailyLimit} runs per UTC day · Recent-run polling; offline
         completeness unknown
       </p>
-      {config.accountId ? (
+      {config.source.kind === "webhook.received" ? (
+        <WebhookAddress
+          connection={connection}
+          routine={routine}
+          onChanged={() => void action("routine.checkSource")}
+        />
+      ) : config.accountId ? (
         <p>
           Verified GitHub account {config.accountLabel ?? config.accountId} (ID {config.accountId})
           · Repository ID {config.repositoryId}
@@ -439,14 +444,14 @@ export function EventRoutineCard({
         ) : (
           <Button
             variant="primary"
-            aria-describedby={
-              config.source.kind === "webhook.received" ? `${routine.id}-unavailable` : undefined
-            }
             disabled={
               pending ||
               connection.status !== "online" ||
               (routine.paused &&
-                (!config.source.kind.startsWith("github.") ||
+                (!(
+                  config.source.kind.startsWith("github.") ||
+                  config.source.kind === "webhook.received"
+                ) ||
                   !config.accountId ||
                   config.previewRevision !== config.revision))
             }
@@ -481,12 +486,9 @@ export function EventRoutineCard({
           </Button>
         ) : null}
       </div>
-      {config.source.kind === "webhook.received" ? (
-        <p id={`${routine.id}-unavailable`}>
-          Web addresses aren't available yet. You can save this routine now and turn it on when they
-          are.
-        </p>
-      ) : !config.source.kind.startsWith("github.") ? (
+      {config.source.kind === "webhook.received" ? null : !config.source.kind.startsWith(
+          "github.",
+        ) ? (
         <p>
           Event delivery setup is not available yet. This draft stays paused; signing into agent
           tools does not authorize events.

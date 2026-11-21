@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
@@ -50,6 +51,7 @@ import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
 import { calendarHandlers } from "./desktop/calendar-handlers";
+import { webAddressHandlers } from "./desktop/web-address-handlers";
 import { cliHandlers } from "./desktop/cli-handlers";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
@@ -373,6 +375,10 @@ function registerIpcHandlers(setupFile: string): void {
       folder: join(paths.dataDir, "shell"),
       open: (path) => shell.openPath(path),
     }),
+  ))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    webAddressHandlers({ client, copy: (text) => clipboard.writeText(text), commandId: randomUUID }),
   ))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))

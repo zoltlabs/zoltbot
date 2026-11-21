@@ -8,6 +8,7 @@ export const ROUTINE_CHANNELS = {
   routinesSetSchedule: "routines:set-schedule",
   routinesRunNow: "routines:run-now",
   routinesAddToCalendar: "routines:add-to-calendar",
+  routinesWebAddress: "routines:web-address",
 } as const;
 
 export interface RoutineSchedule {
@@ -55,4 +56,9 @@ export interface RoutinesDesktopApi {
   runNow: (id: string) => Promise<void>;
   /** R6: opens the coming runs in the Calendar app; only the desktop app has it. */
   addToCalendar?: (input: { names: boolean }) => Promise<{ runs: number }>;
+  /** R2: copies, tests or rotates a routine's web address; only the desktop app has it. */
+  webAddress?: (input: {
+    id: string;
+    action: "copy" | "test" | "rotate";
+  }) => Promise<{ state: "copied" | "sent" | "rotated" | "elsewhere" }>;
 }
