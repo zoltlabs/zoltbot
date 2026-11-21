@@ -1,0 +1,142 @@
+/* The Data page (M8). Colors are theme tokens. */
+
+.data-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.data-note {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.data-layout {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  gap: 16px;
+}
+
+.data-tables {
+  flex: none;
+  width: 200px;
+  overflow-y: auto;
+}
+
+.data-tables ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.data-table-button {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.data-table-button:hover {
+  background: var(--surface-pill);
+}
+
+.data-table-button[aria-current="true"] {
+  background: var(--surface-option-selected);
+  box-shadow: 0 0 0 1px var(--openbot-line);
+}
+
+.data-table-button:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.data-table-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.data-table-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.data-grid-wrap {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-grid-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+}
+
+.data-grid-scroll:focus-visible {
+  outline: 2px solid var(--text-accent);
+}
+
+.data-grid {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-grid th,
+.data-grid td {
+  max-width: 320px;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.data-grid thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-popover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.data-grid td {
+  color: var(--text-primary);
+}
+
+.data-grid .data-number {
+  text-align: right;
+}
+
+.data-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.data-pager > span {
+  margin-right: auto;
+}

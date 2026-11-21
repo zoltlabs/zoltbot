@@ -351,6 +351,12 @@ export function setUpAppTest() {
         list: vi.fn().mockResolvedValue({ rows: [], budgets: [], projects: [] }),
         setBudget: vi.fn().mockResolvedValue(undefined),
       },
+      data: {
+        projects: vi.fn().mockResolvedValue([]),
+        tables: vi.fn().mockResolvedValue({ tables: [], bytes: 0, limitBytes: 0 }),
+        rows: vi.fn().mockResolvedValue({ columns: [], rows: [], total: 0 }),
+        csv: vi.fn().mockResolvedValue({ name: "table.csv", csv: "", truncated: false }),
+      },
       browser: {
         open: vi.fn().mockResolvedValue(undefined),
         activate: vi.fn().mockResolvedValue(undefined),

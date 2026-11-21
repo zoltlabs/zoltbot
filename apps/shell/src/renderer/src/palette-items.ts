@@ -20,6 +20,7 @@ export interface PaletteSources {
   openModels: () => void;
   openMemory: () => void;
   openUsage: () => void;
+  openData: () => void;
   newChat: () => void;
 }
 
@@ -63,6 +64,7 @@ export function paletteItems(sources: PaletteSources): PaletteItem[] {
     models: sources.openModels,
     memory: sources.openMemory,
     usage: sources.openUsage,
+    data: sources.openData,
   } as const;
   for (const [id, open] of Object.entries(pageActions))
     items.push({

@@ -87,6 +87,8 @@ interface SidebarProps {
   onOpenMemory?: () => void;
   usageOpen?: boolean;
   onOpenUsage?: () => void;
+  dataOpen?: boolean;
+  onOpenData?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -505,6 +507,8 @@ export function Sidebar(props: SidebarProps) {
         onOpenMemory={props.onOpenMemory}
         usageOpen={props.usageOpen}
         onOpenUsage={props.onOpenUsage}
+        dataOpen={props.dataOpen}
+        onOpenData={props.onOpenData}
       />
 
       <div class="sidebar-search-wrap">
