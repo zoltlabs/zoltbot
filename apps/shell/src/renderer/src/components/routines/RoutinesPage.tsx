@@ -1,5 +1,6 @@
 // R3: every routine in one place. The List tab runs, pauses and reschedules them and shows their
-// recent runs; the Schedule tab shows the next 60 days on a calendar.
+// recent runs; the Schedule tab shows the next 60 days on a calendar. R7: the Workflows tab shows
+// each workflow as a graph.
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { RoutineItem, RoutineRun } from "../../../../shared/routines";
@@ -19,9 +20,10 @@ import {
 import { ScheduleDialog } from "./ScheduleDialog";
 import { ScheduleView } from "./ScheduleView";
 import { RotateDialog, webAddress, webAddressMenu } from "./WebAddress";
+import { WorkflowsView } from "./WorkflowsView";
 import "./routines.css";
 
-type View = "list" | "schedule";
+type View = "list" | "schedule" | "workflows";
 /** What the status line reads out once an action finishes. */
 type Status = Promise<string>;
 
@@ -177,6 +179,14 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
             >
               {t("routines.view.schedule")}
             </button>
+            <button
+              type="button"
+              class="memory-view"
+              aria-pressed={view() === "workflows"}
+              onClick={() => setView("workflows")}
+            >
+              {t("routines.view.workflows")}
+            </button>
           </fieldset>
           <div class="routines-tools">
             <KeepAwakeSelect />
@@ -194,7 +204,10 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
             </p>
           )}
         </Show>
-        <Show when={loaded()}>
+        <Show when={view() === "workflows"}>
+          <WorkflowsView onStatus={setStatus} />
+        </Show>
+        <Show when={loaded() && view() !== "workflows"}>
           <Show when={items.length} fallback={<p class="tasks-empty">{t("routines.empty")}</p>}>
             <Show when={view() === "list"} fallback={<ScheduleView items={items} now={now()} />}>
               <ul class="routines-list">

@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 import { runAttachmentAction } from "../src/main/attachment-actions";
 import { calendarHandlers } from "../src/main/desktop/calendar-handlers";
-import { webAddressHandlers } from "../src/main/desktop/web-address-handlers";
 import { preferenceHandlers } from "../src/main/desktop/preferences-handlers";
+import { webAddressHandlers } from "../src/main/desktop/web-address-handlers";
 import { IPC_CHANNELS } from "../src/shared/ipc";
 import { normalizePreferences, parsePreferencesPatch } from "../src/shared/preferences";
 import { agentHandlers, type Handler } from "../src/zolt/agent-handlers";
@@ -397,6 +397,12 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         runNow: call(channels.routinesRunNow),
         addToCalendar: call(channels.routinesAddToCalendar),
         webAddress: call(channels.routinesWebAddress),
+      },
+      workflows: {
+        list: call(channels.workflowsList),
+        run: call(channels.workflowsRun),
+        setPaused: call(channels.workflowsSetPaused),
+        decide: call(channels.workflowsDecide),
       },
       templates: {
         list: call(channels.agentTemplatesList),

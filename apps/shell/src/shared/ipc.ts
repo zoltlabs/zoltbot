@@ -1,21 +1,21 @@
 import type { FilePreviewKind } from "@zoltbot/protocol";
-import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { CliDesktopApi } from "./cli";
+import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
 export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
 export type * from "./aside";
-export type * from "./co-author";
 export type * from "./branches";
 export * from "./browser";
+export type * from "./co-author";
 export * from "./company";
 export * from "./dictation";
 export type * from "./hidden";
+export type * from "./links";
 export type * from "./manager-cards";
 export type * from "./memory";
-export type * from "./links";
 export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
@@ -24,6 +24,7 @@ export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
 
+import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
   ARTIFACT_REPOSITORY_CHANNELS,
   type ArtifactRepositoryDesktopApi,
@@ -37,6 +38,7 @@ import type {
   BranchRequest,
   BranchResult,
 } from "./branches";
+import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
@@ -45,24 +47,23 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
+import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
-import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
-import { ROUTINE_CHANNELS, type RoutinesDesktopApi } from "./routines";
-import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
-import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
+import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
-import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
+import { ROUTINE_CHANNELS, type RoutinesDesktopApi } from "./routines";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
 import type { ViewsDesktopApi } from "./views";
+import { WORKFLOW_CHANNELS, type WorkflowsDesktopApi } from "./workflows";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -139,6 +140,7 @@ export const IPC_CHANNELS = {
   ...CO_AUTHOR_CHANNELS,
   ...BRIDGE_CHANNELS,
   ...ROUTINE_CHANNELS,
+  ...WORKFLOW_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -804,4 +806,5 @@ export interface OpenBotDesktopApi {
   coAuthor: CoAuthorDesktopApi;
   bridges: BridgesDesktopApi;
   routines: RoutinesDesktopApi;
+  workflows: WorkflowsDesktopApi;
 }
