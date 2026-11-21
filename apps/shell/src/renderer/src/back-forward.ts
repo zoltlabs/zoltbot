@@ -120,14 +120,14 @@ export function createBackForward(options: BackForwardOptions) {
     id: "app.back",
     keys: "Mod+[",
     when: "global",
-    label: t("nav.back"),
+    label: () => t("nav.back"),
     run: () => (back() ? undefined : false),
   });
   useShortcut({
     id: "app.forward",
     keys: "Mod+]",
     when: "global",
-    label: t("nav.forward"),
+    label: () => t("nav.forward"),
     run: () => (forward() ? undefined : false),
   });
 

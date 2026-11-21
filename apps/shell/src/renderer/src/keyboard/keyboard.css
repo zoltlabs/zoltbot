@@ -1,0 +1,40 @@
+.keyboard-list {
+  max-height: 420px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.keyboard-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.keyboard-label {
+  min-width: 0;
+}
+
+.keyboard-keys kbd {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.keyboard-recording {
+  color: var(--text-accent);
+}
+
+.keyboard-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.keyboard-conflict {
+  grid-column: 1 / -1;
+  margin: 0;
+}

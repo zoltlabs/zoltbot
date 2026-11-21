@@ -1,24 +1,18 @@
 import path from "node:path";
 import { startDaemon } from "./api.js";
-import { keychainProcess } from "./keychain-process.js";
 import { productionRuntime } from "./production-runtime.js";
 import { quickToolRuntime } from "./quick-chat/tool-runtime.js";
 import { relayUrlPattern } from "./relay-link.js";
+import { secretBackend } from "./secret-backend.js";
 import { KeychainSecrets } from "./secrets.js";
 import { deferredSetup } from "./setup-api.js";
 
 const dataDir = path.resolve(process.env.ZOLTBOT_DATA_DIR ?? ".cache/dev-daemon");
-const keychainHelper = () =>
-  process.env.ZOLTBOT_KEYCHAIN_HELPER ??
-  path.resolve(process.env.ZOLTBOT_REPO_ROOT ?? process.cwd(), ".cache/native/zoltbot-keychain");
-const secrets =
-  process.platform === "darwin"
-    ? new KeychainSecrets(
-        keychainProcess({ command: keychainHelper(), cwd: dataDir }),
-        // V1: reveal waits for the owner at the Touch ID or password prompt.
-        keychainProcess({ command: keychainHelper(), cwd: dataDir, timeoutMs: 120_000 }),
-      )
-    : undefined;
+const backend = { platform: process.platform, env: process.env, dataDir, cwd: process.cwd() };
+const transport = secretBackend(backend);
+// V1: on the Mac keychain, reveal waits for the owner at Touch ID, so it gets a longer timeout.
+const presence = secretBackend({ ...backend, timeoutMs: 120_000 });
+const secrets = transport ? new KeychainSecrets(transport, presence) : undefined;
 
 // The build's relay for phones; a relay address set in Settings takes precedence.
 const relayUrl = process.env.ZOLTBOT_RELAY_URL;

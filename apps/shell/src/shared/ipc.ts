@@ -197,6 +197,8 @@ export interface UpdateStatus {
   progress: number | null;
   checkedAt: string | null;
   message: string | null;
+  /** D3: the release's notes as plain text, for "What's new". */
+  releaseNotes?: string | null;
 }
 
 export interface ExportResult {
@@ -790,6 +792,12 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** D7: move to another computer. Optional so test pages without it still load. */
+  bundle?: import("./bundle").BundleDesktopApi;
+  /** D6: Start fresh. Optional so test pages without it still load. */
+  fresh?: import("./start-fresh").StartFreshDesktopApi;
+  /** D4: the agent dock. Optional so test pages without it still load. */
+  dock?: import("./dock").DockDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
   views: ViewsDesktopApi;

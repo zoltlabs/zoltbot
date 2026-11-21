@@ -45,6 +45,11 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "detect.startLogin",
   "native.openCommand",
   "diagnostics.export",
+  // D7: read and write files on the Mac by path.
+  "export.bundle",
+  "import.bundle",
+  // D6: deletes this Mac's data.
+  "maintenance.startFresh",
   // M4: these read files on the Mac by path.
   "memory.import.preview",
   "memory.import.start",

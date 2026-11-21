@@ -1,6 +1,8 @@
 /*
- * Color tokens for the shell. The dark set is OpenBot's look; the light set applies when the
- * system prefers light. Stylesheets use these tokens instead of literal colors.
+ * Color tokens for the shell. The dark set is OpenBot's look; the light set applies under
+ * data-theme="light", which appearance.ts sets from prefers-color-scheme. The owner's Theme
+ * choice reaches prefers-color-scheme through nativeTheme. Stylesheets use these tokens instead
+ * of literal colors.
  *
  * `--ink` is the foreground as an RGB triple: most text, borders and hover fills are
  * `rgb(var(--ink) / alpha)`. Text multiplies its alpha by `--ink-text-boost`, because dark text
@@ -120,86 +122,84 @@
   --button-voice-hover-text: #0d0d0d;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
+:root[data-theme="light"] {
+  color-scheme: light;
 
-    --ink: 0 0 0;
-    --ink-text-boost: 1.2;
-    --shade-strength: 0.35;
+  --ink: 0 0 0;
+  --ink-text-boost: 1.2;
+  --shade-strength: 0.35;
 
-    --openbot-black: #ececea;
-    --openbot-sidebar: #f5f5f4;
-    --openbot-main: #ffffff;
-    --openbot-main-deep: #ffffff;
-    --surface: #ffffff;
-    --surface-app-overlay: rgba(245, 245, 244, 0.98);
-    --surface-field: #f5f5f4;
-    --surface-inset: #f7f7f6;
-    --surface-sunken: #f7f7f6;
-    --surface-code: #f7f7f6;
-    --surface-picker: #ffffff;
-    --surface-dialog: #ffffff;
-    --surface-menu-translucent: rgba(255, 255, 255, 0.98);
-    --surface-popover: #ffffff;
-    --surface-trigger: rgba(255, 255, 255, 0.88);
-    --surface-trigger-open: #f0f0ef;
-    --surface-composer: #ffffff;
-    --surface-option-selected: #ebebea;
-    --surface-option-unavailable: rgba(235, 235, 234, 0.72);
-    --surface-option-active: #efefee;
-    --surface-badge: #efefee;
-    --surface-pill: #f0f0ef;
-    --surface-pill-hover: #e7e7e6;
-    --sidebar-row-active-solid: #e3e3e2;
-    --panel-edge: #e2e2e0;
+  --openbot-black: #ececea;
+  --openbot-sidebar: #f5f5f4;
+  --openbot-main: #ffffff;
+  --openbot-main-deep: #ffffff;
+  --surface: #ffffff;
+  --surface-app-overlay: rgba(245, 245, 244, 0.98);
+  --surface-field: #f5f5f4;
+  --surface-inset: #f7f7f6;
+  --surface-sunken: #f7f7f6;
+  --surface-code: #f7f7f6;
+  --surface-picker: #ffffff;
+  --surface-dialog: #ffffff;
+  --surface-menu-translucent: rgba(255, 255, 255, 0.98);
+  --surface-popover: #ffffff;
+  --surface-trigger: rgba(255, 255, 255, 0.88);
+  --surface-trigger-open: #f0f0ef;
+  --surface-composer: #ffffff;
+  --surface-option-selected: #ebebea;
+  --surface-option-unavailable: rgba(235, 235, 234, 0.72);
+  --surface-option-active: #efefee;
+  --surface-badge: #efefee;
+  --surface-pill: #f0f0ef;
+  --surface-pill-hover: #e7e7e6;
+  --sidebar-row-active-solid: #e3e3e2;
+  --panel-edge: #e2e2e0;
 
-    --openbot-white: rgb(26, 26, 26);
-    --openbot-muted: rgb(var(--ink) / 0.64);
-    --text-heading: #1a1a19;
-    --text-menu: #3a3a38;
-    --text-profile: #4a4a47;
-    --text-profile-dim: #5c5c59;
-    --text-code: #262624;
-    --text-placeholder: #6e6e6b;
-    --text-row-meta: rgb(var(--ink) / 0.6);
-    --text-group-heading: rgb(var(--ink) / 0.6);
-    --text-time-marker: rgb(var(--ink) / 0.56);
-    --text-link-hover: #000;
-    --text-danger: #b3352c;
-    --text-danger-soft: #a8352c;
-    --icon-danger: #c0392f;
-    --text-success: #2c7444;
-    --text-accent: #1d7566;
-    --text-info: #1f5fc4;
-    --text-info-strong: #1a4a9e;
-    --text-file-badge: #9a3f14;
-    --text-warning: #855500;
+  --openbot-white: rgb(26, 26, 26);
+  --openbot-muted: rgb(var(--ink) / 0.64);
+  --text-heading: #1a1a19;
+  --text-menu: #3a3a38;
+  --text-profile: #4a4a47;
+  --text-profile-dim: #5c5c59;
+  --text-code: #262624;
+  --text-placeholder: #6e6e6b;
+  --text-row-meta: rgb(var(--ink) / 0.6);
+  --text-group-heading: rgb(var(--ink) / 0.6);
+  --text-time-marker: rgb(var(--ink) / 0.56);
+  --text-link-hover: #000;
+  --text-danger: #b3352c;
+  --text-danger-soft: #a8352c;
+  --icon-danger: #c0392f;
+  --text-success: #2c7444;
+  --text-accent: #1d7566;
+  --text-info: #1f5fc4;
+  --text-info-strong: #1a4a9e;
+  --text-file-badge: #9a3f14;
+  --text-warning: #855500;
 
-    --chart-1: #2a78d6;
-    --chart-2: #eb6834;
-    --chart-3: #1baf7a;
-    --chart-4: #eda100;
-    --chart-5: #e87ba4;
-    --chart-other: #a3a3a0;
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-other: #a3a3a0;
 
-    --danger: #b8463d;
-    --avatar-neutral: #2a2a28;
-    --mention-avatar-face: #f5f5f4;
-    --status-working-bg: #e2e2e1;
-    --status-unread-bg: #1f1f1e;
-    --status-unread-text: #f5f5f4;
+  --danger: #b8463d;
+  --avatar-neutral: #2a2a28;
+  --mention-avatar-face: #f5f5f4;
+  --status-working-bg: #e2e2e1;
+  --status-unread-bg: #1f1f1e;
+  --status-unread-text: #f5f5f4;
 
-    --control-accent: #1a1a1a;
-    --switch-track: #c9c9c7;
-    --switch-track-on: #2f2f2e;
-    --switch-thumb: #ffffff;
-    --button-primary-bg: #1f1f1e;
-    --button-primary-text: #f5f5f4;
-    --button-primary-hover: #000;
-    --button-voice-bg: #1f1f1e;
-    --button-voice-text: #f5f5f4;
-    --button-voice-hover: #000;
-    --button-voice-hover-text: #fff;
-  }
+  --control-accent: #1a1a1a;
+  --switch-track: #c9c9c7;
+  --switch-track-on: #2f2f2e;
+  --switch-thumb: #ffffff;
+  --button-primary-bg: #1f1f1e;
+  --button-primary-text: #f5f5f4;
+  --button-primary-hover: #000;
+  --button-voice-bg: #1f1f1e;
+  --button-voice-text: #f5f5f4;
+  --button-voice-hover: #000;
+  --button-voice-hover-text: #fff;
 }

@@ -55,8 +55,10 @@ import type { BotProfile } from "./data";
 import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
 import { paletteItems } from "./palette-items";
+import { followSounds, playSound } from "./sounds/sounds";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
+import { UpdatePill } from "./updates/UpdatePill";
 
 export function App() {
   const [botList, setBotList] = createSignal<BotProfile[]>([]);
@@ -220,6 +222,18 @@ export function App() {
 
   onMount(() => {
     const unsubscribe = window.openbot.agent.onEvent(handleAgentEvent);
+    onCleanup(
+      followSounds({
+        // Covered by a page or channel, the open chat isn't being watched.
+        openBotId: () =>
+          mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || usageOpen() || channelOpen()
+            ? ""
+            : activeBotId(),
+        muted: (id) => botList().some((bot) => bot.id === id && bot.muted === true),
+      }),
+    );
+    // D4: the agent dock opens a chat here.
+    onCleanup(window.openbot.dock?.onShowChat(selectBot) ?? (() => undefined));
     const unsubscribeUpdate = window.openbot.update.onEvent(setUpdateStatus);
     onCleanup(() => {
       unsubscribe();
@@ -529,6 +543,7 @@ export function App() {
         ...(replyToMessageId ? { replyToMessageId } : {}),
       });
       setUiErrors((current) => ({ ...current, [botId]: [] }));
+      playSound("messageSent");
       return true;
     } catch (error) {
       appendUiError(botId, error, "Send failed");
@@ -754,6 +769,7 @@ export function App() {
             onBack={history.back}
             onForward={history.forward}
           />
+          <UpdatePill status={updateStatus()} onRestart={() => void runUpdateAction()} />
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}

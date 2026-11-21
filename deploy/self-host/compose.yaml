@@ -1,0 +1,39 @@
+# D10: Zoltbot's daemon, and optionally your own relay, with Docker Compose. See docs/self-host.md.
+#
+#   openssl rand -hex 32 > secret.key && chmod 600 secret.key && sudo chown 1000:1000 secret.key
+#   ZOLTBOT_RELAY_URL=wss://relay.example.com docker compose up -d
+#   docker compose exec zoltd node scripts/zoltbot-pair.mjs
+#
+# To run the relay here too: docker compose --profile relay up -d, and put it behind a proxy that
+# serves it over TLS at the wss:// address above.
+services:
+  zoltd:
+    build:
+      context: ../..
+      dockerfile: deploy/self-host/Dockerfile
+    restart: unless-stopped
+    environment:
+      ZOLTBOT_RELAY_URL: ${ZOLTBOT_RELAY_URL:?set ZOLTBOT_RELAY_URL to your relay's wss:// address}
+    volumes:
+      - zoltbot:/data
+    secrets:
+      - zoltbot_secret_key
+
+  relay:
+    profiles: ["relay"]
+    build:
+      context: ../../services/relay
+    restart: unless-stopped
+    environment:
+      # Forgets which phones are allowed when it restarts; they pair again. See the relay's README.
+      RELAY_REGISTRY: memory
+      PORT: "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  zoltbot:
+
+secrets:
+  zoltbot_secret_key:
+    file: ./secret.key

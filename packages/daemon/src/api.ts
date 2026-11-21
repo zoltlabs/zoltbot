@@ -1,6 +1,8 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { companyApi } from "./company-api.js";
 import { startCompanySupervisor } from "./company-supervisor.js";
+import { bundleApi, bundleSkills } from "./bundle.js";
+import { finishFreshStart, prepareFreshStart } from "./start-fresh.js";
 
 export type {
   Daemon,
@@ -10,7 +12,7 @@ export type {
   SetupContext,
 } from "./api-types.js";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, rmSync } from "node:fs";
 import path from "node:path";
 import { type Command, handle } from "@zoltbot/core/commands";
@@ -105,6 +107,8 @@ async function startOwnedDaemon(
   const token = randomBytes(32).toString("hex");
   const redactor = options.redactor ?? new Redactor();
   redactor.register(token);
+  // D6: a Start fresh asked for last time empties the data folder before anything opens.
+  await finishFreshStart(options.dataDir);
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
@@ -586,6 +590,35 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => bridges.close());
+  // D7: move to another computer.
+  const bundles = bundleApi({
+    snapshot: () => store.snapshot() as Record<string, unknown[] | undefined>,
+    skills: bundleSkills(store.database),
+    connections: async () => {
+      const list = (await connections.api("connection.list", {}, undefined)) as {
+        items?: { name?: string; id?: string }[];
+      };
+      return (list?.items ?? []).map((item) => String(item.name ?? item.id ?? "")).filter(Boolean);
+    },
+    write: (commandId, events, inside) => {
+      const before = store.lastSeq();
+      store.dispatch(commandId, () => {
+        inside();
+        // Clients reload the skills list when this changes, as after skills.add.
+        const eventId = randomUUID();
+        const revision = {
+          eventId,
+          aggregateType: "settings",
+          aggregateId: "skills.libraryRevision",
+          type: "settings.updated",
+          occurredAt: new Date().toISOString(),
+          payload: { key: "skills.libraryRevision", value: eventId },
+        };
+        return { events: [...events, revision] as DomainEvent[], result: { ok: true } };
+      });
+      publish(store.eventsSince(before));
+    },
+  });
   const call = async (
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
@@ -618,7 +651,9 @@ async function startOwnedDaemon(
       );
     switch (request.method) {
       case "hello":
-        return { protocolVersion, version: "0.1.0" };
+        // D3: the app that started this daemon names its version, so a newer app can tell the
+        // daemon is older and replace it.
+        return { protocolVersion, version: process.env.ZOLTBOT_APP_VERSION || null };
       case "snapshot.get": {
         const entities = store.snapshot();
         const partial = new Map(manager?.streamItems().map((item) => [item.id, item]) ?? []);
@@ -655,6 +690,22 @@ async function startOwnedDaemon(
           String(params.query),
           typeof params.limit === "number" ? params.limit : 20,
         );
+      case "maintenance.startFresh":
+        return prepareFreshStart({
+          dataDir: options.dataDir,
+          snapshot: () => store.snapshot(),
+          // Turns stop when the app restarts the daemon next.
+          interruptAll: async () => undefined,
+          removeSecret: async (reference: string) => {
+            await options.secrets?.remove?.(reference);
+          },
+          repositoryRoots: () =>
+            (store.snapshot(["project"]).project ?? []).flatMap((project) =>
+              (project.roots as { path: string; repoRoot?: string | null }[]).map(
+                (root) => root.repoRoot || root.path,
+              ),
+            ),
+        });
       case "diagnostics.export":
         return {
           versions: { daemon: "0.1.0", node: process.version },
@@ -663,6 +714,7 @@ async function startOwnedDaemon(
         };
       default: {
         const result =
+          (await bundles(request.method, params)) ??
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
           (await channelApi(runtimeContext, ownedTasks)(request.method, params, commandId)) ??

@@ -18,9 +18,15 @@ import type {
 } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { ThreadAction } from "../../../shared/thread-actions";
+import { createAppearanceEntry } from "../appearance/AppearanceEntry";
 import type { BotProfile } from "../data";
 import { t } from "../i18n";
 import { Menu, type MenuItem } from "../kit";
+import { createDockEntry } from "../dock/DockEntry";
+import { createStartFreshEntry } from "../fresh/StartFreshEntry";
+import { createMoveEntry } from "../bundle/MoveEntry";
+import { createKeyboardEntry } from "../keyboard/KeyboardEntry";
+import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
 import { requestCall } from "./conversation/call";
@@ -360,6 +366,12 @@ export function Sidebar(props: SidebarProps) {
   }
 
   const bridges = createBridgesEntry();
+  const appearanceEntry = createAppearanceEntry();
+  const soundsEntry = createSoundsEntry();
+  const dockEntry = createDockEntry();
+  const freshEntry = createStartFreshEntry();
+  const moveEntry = createMoveEntry();
+  const keyboardEntry = createKeyboardEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -457,6 +469,11 @@ export function Sidebar(props: SidebarProps) {
           run: props.onOpenPermissions,
         },
         bridges.item(),
+        appearanceEntry.item(),
+        soundsEntry.item(),
+        dockEntry.item(),
+        keyboardEntry.item(),
+        moveEntry.item(),
       ],
       [
         {
@@ -474,6 +491,7 @@ export function Sidebar(props: SidebarProps) {
           run: () => openExternal("message"),
         },
       ],
+      [freshEntry.item()],
     ];
   }
 
@@ -791,6 +809,12 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       <bridges.Dialog />
+      <appearanceEntry.Dialog />
+      <soundsEntry.Dialog />
+      <dockEntry.Dialog />
+      <freshEntry.Dialog />
+      <moveEntry.Dialog />
+      <keyboardEntry.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu

@@ -1,0 +1,10 @@
+.sounds-volume {
+  width: 160px;
+  accent-color: var(--control-accent);
+}
+
+.sounds-volume:disabled,
+.settings-switch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
