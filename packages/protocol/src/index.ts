@@ -49,6 +49,8 @@ export * from "./talking-style.js";
 export * from "./team-waits.js";
 export * from "./terminal.js";
 export * from "./validation.js";
+export * from "./secret-detect.js";
+export * from "./vault.js";
 export * from "./views.js";
 export * from "./vocabulary.js";
 export * from "./wakes.js";

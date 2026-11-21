@@ -22,6 +22,7 @@ import type { BotProfile } from "../data";
 import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
 import {
@@ -37,6 +38,7 @@ import {
   UpdateIcon,
   UsageIcon,
 } from "./SidebarIcons";
+import { chooseSendKey, sendKey } from "./send-key";
 import {
   SidebarAgentIndicator,
   type SidebarAgentState,
@@ -52,8 +54,6 @@ import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
-import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
-import { chooseSendKey, sendKey } from "./send-key";
 
 export type { SidebarAgentState };
 export { SidebarToggleIcon };
@@ -87,6 +87,9 @@ interface SidebarProps {
   onOpenMemory?: () => void;
   usageOpen?: boolean;
   onOpenUsage?: () => void;
+  /** V1: the Vault page. */
+  vaultOpen?: boolean;
+  onOpenVault?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -505,6 +508,8 @@ export function Sidebar(props: SidebarProps) {
         onOpenMemory={props.onOpenMemory}
         usageOpen={props.usageOpen}
         onOpenUsage={props.onOpenUsage}
+        vaultOpen={props.vaultOpen}
+        onOpenVault={props.onOpenVault}
       />
 
       <div class="sidebar-search-wrap">

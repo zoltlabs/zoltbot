@@ -8,18 +8,15 @@ import { KeychainSecrets } from "./secrets.js";
 import { deferredSetup } from "./setup-api.js";
 
 const dataDir = path.resolve(process.env.ZOLTBOT_DATA_DIR ?? ".cache/dev-daemon");
+const keychainHelper = () =>
+  process.env.ZOLTBOT_KEYCHAIN_HELPER ??
+  path.resolve(process.env.ZOLTBOT_REPO_ROOT ?? process.cwd(), ".cache/native/zoltbot-keychain");
 const secrets =
   process.platform === "darwin"
     ? new KeychainSecrets(
-        keychainProcess({
-          command:
-            process.env.ZOLTBOT_KEYCHAIN_HELPER ??
-            path.resolve(
-              process.env.ZOLTBOT_REPO_ROOT ?? process.cwd(),
-              ".cache/native/zoltbot-keychain",
-            ),
-          cwd: dataDir,
-        }),
+        keychainProcess({ command: keychainHelper(), cwd: dataDir }),
+        // V1: reveal waits for the owner at the Touch ID or password prompt.
+        keychainProcess({ command: keychainHelper(), cwd: dataDir, timeoutMs: 120_000 }),
       )
     : undefined;
 

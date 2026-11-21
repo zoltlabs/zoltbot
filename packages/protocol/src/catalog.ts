@@ -11,6 +11,7 @@ import {
 } from "./artifacts.js";
 import { backupModelMethods } from "./backup-models.js";
 import { bridgeMethods } from "./bridges.js";
+import { vaultMethods } from "./vault.js";
 import { BrowserSelectionSchema, browserMethods } from "./browser.js";
 import {
   ChannelPostSchema,
@@ -211,6 +212,7 @@ const rawMethodCatalog = {
   ...knowledgeWriteMethods,
   ...quickChatMethods,
   ...backupModelMethods,
+  ...vaultMethods,
   ...staffMethods,
   ...agentTemplateMethods,
   ...bridgeMethods,

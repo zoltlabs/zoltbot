@@ -83,6 +83,7 @@ import { staffApi } from "./staff-tools.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
+import { vaultApi } from "./vault/api.js";
 import { createViewRegistry, type ViewRegistry } from "./views/registry.js";
 import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
@@ -395,6 +396,16 @@ async function startOwnedDaemon(
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
+  const vault = vaultApi({
+    dataDir: options.dataDir,
+    store,
+    privacy,
+    redactor,
+    publish,
+    ...(options.secrets ? { secrets: options.secrets } : {}),
+    ...(options.vaultProviders ? { providers: options.vaultProviders } : {}),
+  });
+  runtimeContext.vault = vault.runtime;
   const attachmentPreview = attachmentPreviewApi({ store });
   const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
@@ -644,6 +655,7 @@ async function startOwnedDaemon(
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
+          (await vault.api(request.method, params)) ??
           (await attachmentPreview(request.method, params)) ??
           (await linkPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??

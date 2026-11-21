@@ -30,6 +30,7 @@ import { queueOrderHandlers } from "./queue-order-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
+import { vaultHandlers } from "./vault-service";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -91,6 +92,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...pinHandlers(service.client),
     ...outboxHandlers(service.outbox),
     ...linkHandlers(service.client),
+    ...vaultHandlers(service.client),
     ...hiddenHandlers(service.client),
     ...agentTemplateHandlers(service),
     ...coAuthorHandlers(service.client),

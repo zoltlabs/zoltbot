@@ -1,4 +1,11 @@
-import { type ArtifactTarget, isStopPhrase, quoteText, withQuote } from "@zoltbot/protocol";
+import {
+  type ArtifactTarget,
+  findSecret,
+  isStopPhrase,
+  quoteText,
+  type SecretMatch,
+  withQuote,
+} from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
@@ -60,6 +67,7 @@ import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
 import { ReplyBar } from "../../ui/ReplyBar";
 import { useRowPositions } from "../../ui/row-positions";
+import { SecretBar } from "../../ui/SecretBar";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
 import { Message, type QueueActions } from "../../ui/Transcript";
@@ -147,10 +155,32 @@ export default function Chat() {
   useEffect(() => {
     if (!turn) setDelivery("steer");
   }, [turn]);
+  // V4: a message that looks like a secret waits until the owner saves it or sends it anyway.
+  const [secret, setSecret] = useState<{ text: string; match: SecretMatch }>();
+  const sendAnyway = useRef<string | null>(null);
+  const saveSecret = async (label: string) => {
+    if (!secret) return;
+    const { text: held, match } = secret;
+    const result = (await run("vault.saveSecret", {
+      label,
+      value: held.slice(match.start, match.end),
+    })) as { reference?: unknown } | undefined;
+    if (typeof result?.reference !== "string") return;
+    setSecret(undefined);
+    const replaced = held.slice(0, match.start) + result.reference + held.slice(match.end);
+    // A save that ends after the owner edited the draft leaves it alone.
+    setDraft((current) => (current === held ? replaced : current));
+  };
   const send = async () => {
     const message = draft.trim();
     const words = replyTo ? withQuote(quoteText(replyTo.text), message) : message;
     if (!message && !attachments.length) return;
+    const match = sendAnyway.current === draft ? undefined : findSecret(draft);
+    sendAnyway.current = null;
+    if (match) {
+      setSecret({ text: draft, match });
+      return;
+    }
     // A bare "stop" while the agent works stops the turn instead of queueing a message.
     if (turn && !attachments.length && !replyTo && isStopPhrase(message)) {
       const stopped = await run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
@@ -447,6 +477,19 @@ export default function Chat() {
         ]}
         accessibilityLabel={`Message ${title}`}
       >
+        {secret && secret.text === draft ? (
+          <SecretBar
+            match={secret.match}
+            busy={busy}
+            online={online}
+            onSave={(label) => void saveSecret(label)}
+            onSendAnyway={() => {
+              sendAnyway.current = secret.text;
+              setSecret(undefined);
+              void send();
+            }}
+          />
+        ) : null}
         {replyTo ? (
           <ReplyBar row={replyTo} name={who} onCancel={() => setReplyTo(undefined)} />
         ) : null}
