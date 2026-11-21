@@ -3,6 +3,43 @@ import { type ArtifactManifest, ArtifactManifestSchema, parse } from "@zoltbot/p
 import { artifactMarkdownHtml } from "./artifact-markdown";
 import { validBundlePath as validPath } from "./bundle-path";
 
+/** The largest agent file the window opens or downloads (C18). */
+export const ARTIFACT_FILE_BYTES = 100 * 1024 * 1024;
+/** Files a page can run or render as a document stay at the old limit. */
+const ACTIVE_FILE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Kinds that only play or download: they stream, and a bad hash cuts them off at the end.
+ * Everything else, such as HTML, SVG, scripts and Markdown, is verified whole first.
+ */
+export function streamable(mime: string): boolean {
+  return (
+    /^(image\/(png|jpeg|gif|webp|avif)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+)$/.test(mime) ||
+    mime === "application/octet-stream" ||
+    mime === "application/zip"
+  );
+}
+
+/**
+ * Passes bytes through while hashing them. Too many bytes, or a wrong hash or length at the end,
+ * errors the stream, so a changed file never arrives whole.
+ */
+export function verified(hash: string, size: number): TransformStream<Uint8Array, Uint8Array> {
+  const hashing = createHash("sha256");
+  let count = 0;
+  return new TransformStream({
+    transform(chunk, controller) {
+      count += chunk.byteLength;
+      if (count > size) throw Error("artifact_blob_corrupt");
+      hashing.update(chunk);
+      controller.enqueue(chunk);
+    },
+    flush() {
+      if (count !== size || hashing.digest("hex") !== hash) throw Error("artifact_blob_corrupt");
+    },
+  });
+}
+
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 export const artifactScheme = "zoltbot-artifact:";
 export function artifactCsp(origin: string, manifestHash: string, scripts: boolean) {
@@ -36,6 +73,8 @@ export function artifactProtocol(options: {
   origin: string;
   kitAsset?(name: string): { bytes: Uint8Array; mime: string } | undefined;
   asset(kind: "manifest" | "blob", hash: string, mime?: string): Promise<Uint8Array>;
+  /** C18: a file as a stream, so large ones never sit in memory. Falls back to `asset`. */
+  blob?(hash: string, mime: string): Promise<ReadableStream<Uint8Array>>;
 }) {
   const manifests = new Map<string, ArtifactManifest>();
   return {
@@ -102,10 +141,26 @@ export function artifactProtocol(options: {
         }
         const file = manifest?.files.find((f) => f.path === relative);
         if (!file) return new Response(null, { status: 404, headers: headers() });
+        const passive = streamable(file.mime);
+        // Anything a page could run is checked whole before it's served, so it stays at 25 MB.
+        if (file.bytes > (passive ? ARTIFACT_FILE_BYTES : ACTIVE_FILE_BYTES))
+          throw Error("artifact_blob_corrupt");
+        if (options.blob && passive) {
+          const body = (await options.blob(file.hash, file.mime)).pipeThrough(
+            verified(file.hash, file.bytes),
+          );
+          return new Response(body, {
+            headers: {
+              ...headers(file.mime === "text/html"),
+              "Content-Type": file.mime,
+              "Content-Length": String(file.bytes),
+            },
+          });
+        }
         let bytes = await options.asset("blob", file.hash, file.mime);
         if (
           bytes.length !== file.bytes ||
-          bytes.length > 25 * 1024 * 1024 ||
+          bytes.length > (passive ? ARTIFACT_FILE_BYTES : ACTIVE_FILE_BYTES) ||
           hash(bytes) !== file.hash
         )
           throw Error("artifact_blob_corrupt");

@@ -11,6 +11,9 @@ import {
 } from "../shared/ipc";
 import { PREFERENCE_CHANNELS, type Preferences } from "../shared/preferences";
 
+/** ATTACHMENT_MAX_BYTES, kept here so the preload stays free of the protocol package. */
+const PASTE_MAX_BYTES = 100 * 1024 * 1024;
+
 const attachmentImportListeners = new Set<(event: AttachmentImportEvent) => void>();
 
 function emitAttachmentImport(event: AttachmentImportEvent): void {
@@ -27,6 +30,11 @@ async function importFiles(files: File[]): Promise<void> {
       const path = webUtils.getPathForFile(file);
       if (path) input.paths.push(path);
       else {
+        // Checked here too, so a huge pasted file is never read into memory (C18).
+        if (file.size > PASTE_MAX_BYTES)
+          throw new Error(
+            `${file.name || "The pasted file"} is over 100 MB, so it wasn't attached.`,
+          );
         input.data.push({
           name: file.name || `pasted-${Date.now()}.png`,
           mimeType: file.type,
@@ -40,7 +48,10 @@ async function importFiles(files: File[]): Promise<void> {
     emitAttachmentImport({
       type: "error",
       requestId,
-      message: error instanceof Error ? error.message : String(error),
+      message: (error instanceof Error ? error.message : String(error)).replace(
+        /^Error invoking remote method '[^']+': (Error: )?/,
+        "",
+      ),
     });
   }
 }

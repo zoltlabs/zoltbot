@@ -10,6 +10,7 @@ import {
   ipcMain,
   Menu,
   Notification,
+  nativeImage,
   nativeTheme,
   type OpenDialogOptions,
   protocol,
@@ -29,6 +30,7 @@ import {
 import { PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
 import { DaemonClient } from "../zolt/daemon-client";
+import { checkAttachmentSize } from "../zolt/draft-store";
 import {
   isObject,
   parseImportAttachments,
@@ -40,9 +42,11 @@ import { viewHandlers, viewMessages } from "../zolt/view-handlers";
 import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
+import { runAttachmentAction } from "./attachment-actions";
+import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
-import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
+import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
@@ -69,7 +73,7 @@ protocol.registerSchemesAsPrivileged([
   { scheme: "openbot-app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
   {
     scheme: "openbot-attachment",
-    privileges: { standard: true, secure: true, supportFetchAPI: true },
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
   {
     scheme: "zoltbot-artifact",
@@ -113,9 +117,31 @@ const artifacts = artifactProtocol({
       },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok || Number(response.headers.get("content-length")) > 25 * 1024 * 1024)
+    if (!response.ok || Number(response.headers.get("content-length")) > ARTIFACT_FILE_BYTES)
       throw new Error("artifact_unavailable");
     return new Uint8Array(await response.arrayBuffer());
+  },
+  // C18: files stream from the daemon to the window, checked on the way.
+  async blob(hash, mime) {
+    const info = await daemonHost.connection();
+    const url = new URL(info.url.replace(/^ws:/, "http:"));
+    if (url.hostname !== "127.0.0.1") throw new Error("invalid_daemon_address");
+    url.pathname = `/artifact-blob/${hash}`;
+    url.search = "";
+    // The timeout covers only the wait for headers; a paused video may read slowly after that.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10_000);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${info.token}`, "X-Zoltbot-Artifact-Mime": mime },
+      signal: abort.signal,
+    }).finally(() => clearTimeout(timer));
+    if (
+      !response.ok ||
+      !response.body ||
+      Number(response.headers.get("content-length")) > ARTIFACT_FILE_BYTES
+    )
+      throw new Error("artifact_unavailable");
+    return response.body;
   },
 });
 const viewServer = desktopViewProtocol(rendererOrigin, paths.root, daemonHost.connection);
@@ -232,6 +258,7 @@ function configureContentSecurityPolicy(): void {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: openbot-attachment: https:",
+    "media-src openbot-attachment:",
     "font-src 'self' data:",
     `connect-src 'self'${developmentSources}`,
     "object-src 'none'",
@@ -242,6 +269,16 @@ function configureContentSecurityPolicy(): void {
     // Artifact responses carry their own sandboxed policy.
     if (details.url.startsWith(artifactScheme)) {
       callback({});
+      return;
+    }
+    // An attachment's own policy is stricter than the shell's (C16); a PDF has none and gets the shell's.
+    if (
+      details.url.startsWith(`${ATTACHMENT_SCHEME}:`) &&
+      Object.keys(details.responseHeaders ?? {}).some(
+        (name) => name.toLowerCase() === "content-security-policy",
+      )
+    ) {
+      callback({ responseHeaders: details.responseHeaders });
       return;
     }
     // A view's own response carries its stricter policy; the shell's must not replace it.
@@ -350,16 +387,22 @@ function registerIpcHandlers(setupFile: string): void {
       ? await dialog.showOpenDialog(mainWindow, options)
       : await dialog.showOpenDialog(options);
     if (result.canceled) return [];
-    return Promise.all(
-      result.filePaths.map(async (path) => service.addDraft(path, (await stat(path)).size)),
+    return service.addDrafts(
+      await Promise.all(
+        result.filePaths.map(async (path) => ({ path, size: (await stat(path)).size })),
+      ),
     );
   });
   handleTrusted(IPC_CHANNELS.agentImportAttachments, async (input: unknown) => {
     const parsed = parseImportAttachments(input);
+    const batch = parsed.data.length + parsed.paths.length;
+    for (const item of parsed.data) checkAttachmentSize(item.name, item.bytes.byteLength, batch);
     return [
-      ...(await Promise.all(
-        parsed.paths.map(async (path) => service.addDraft(path, (await stat(path)).size)),
-      )),
+      ...service.addDrafts(
+        await Promise.all(
+          parsed.paths.map(async (path) => ({ path, size: (await stat(path)).size })),
+        ),
+      ),
       ...(await Promise.all(
         parsed.data.map((item) => service.addDraftBytes(item.name, item.bytes)),
       )),
@@ -367,14 +410,23 @@ function registerIpcHandlers(setupFile: string): void {
   });
   handleTrusted(IPC_CHANNELS.agentOpenAttachment, async (input: unknown) => {
     const parsed = parseOpenAttachment(input);
-    const path = service.draftPath(parsed.attachmentId);
-    if (!path) throw new Error("Attachment was not found.");
-    if (parsed.action === "reveal") {
-      shell.showItemInFolder(path);
-      return;
-    }
-    const error = await shell.openPath(path);
-    if (error) throw new Error(error);
+    await runAttachmentAction(
+      {
+        window: () => mainWindow,
+        showItemInFolder: (path) => shell.showItemInFolder(path),
+        openPath: (path) => shell.openPath(path),
+        showSaveDialog: (window, options) =>
+          window ? dialog.showSaveDialog(window, options) : dialog.showSaveDialog(options),
+        writeImage: (bytes) => {
+          const image = nativeImage.createFromBuffer(bytes);
+          if (image.isEmpty()) return false;
+          clipboard.writeImage(image);
+          return true;
+        },
+      },
+      parsed,
+      service.attachmentSource(parsed.attachmentId),
+    );
   });
 
   handleTrusted(IPC_CHANNELS.dictationStatus, (params: unknown) =>
@@ -514,22 +566,9 @@ function forwardAgentEvent(event: AgentEvent): void {
 }
 
 function configureAttachmentProtocol(): void {
-  session.defaultSession.protocol.handle("openbot-attachment", async (request) => {
-    try {
-      const id = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
-      const path = id ? service.draftPath(id) : undefined;
-      if (!path) return new Response("Not found", { status: 404 });
-      return new Response(await readFile(path), {
-        headers: {
-          "Content-Type": contentType(path),
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Content-Disposition": "inline",
-        },
-      });
-    } catch {
-      return new Response("Not found", { status: 404 });
-    }
+  session.defaultSession.protocol.handle(ATTACHMENT_SCHEME, (request) => {
+    const id = attachmentId(request.url);
+    return attachmentResponse(request, id ? service.attachmentSource(id) : undefined);
   });
 }
 

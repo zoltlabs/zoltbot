@@ -14,6 +14,7 @@ import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import type { MarkActions } from "./message-marks";
 import { ProgressRow } from "./ProgressRow";
+import { SentFiles } from "./SentFiles";
 import { pick } from "./SessionControls";
 import { SwipeReply } from "./SwipeReply";
 
@@ -451,6 +452,9 @@ export function Message({
             {words ? <Txt selectable>{words}</Txt> : null}
           </Pressable>
         </SwipeReply>
+        {row.files?.length ? (
+          <SentFiles files={row.files} threadId={threadId} itemId={row.id} />
+        ) : null}
         <Reactions row={row} align="flex-end" />
         {edits?.count ? (
           <Button

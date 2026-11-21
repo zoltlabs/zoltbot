@@ -24,7 +24,6 @@
   "components/cloud/CloudSettings.tsx",
   "components/cloud/CloudTask.tsx",
   "components/conversation/AgentSettings.tsx",
-  "components/conversation/Attachments.tsx",
   "components/conversation/BrowserPanel.tsx",
   "components/conversation/Composer.tsx",
   "components/conversation/ConversationHeader.tsx",

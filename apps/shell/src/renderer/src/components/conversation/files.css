@@ -1,0 +1,116 @@
+/* C16: file previews inside the kit dialog. */
+.file-preview-image,
+.file-preview-video {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 220px);
+  margin: 0 auto;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.file-preview-video {
+  width: 100%;
+  background: #000;
+}
+
+.file-preview-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 220px);
+  max-height: 760px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+  background: white;
+}
+
+.file-preview-markdown {
+  background: var(--surface-sunken);
+}
+
+.file-preview-text {
+  max-height: calc(100vh - 240px);
+  overflow: auto;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--surface-code);
+  padding: 16px;
+  color: var(--text-primary);
+  font:
+    12px / 1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.file-preview-table {
+  max-height: calc(100vh - 240px);
+  overflow: auto;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+
+.file-preview-table table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-preview-table th,
+.file-preview-table td {
+  max-width: 320px;
+  padding: 6px 12px;
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.file-preview-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-dialog));
+  color: var(--text-heading);
+  font-weight: 600;
+  box-shadow: inset 0 -1px 0 var(--openbot-line);
+}
+
+.file-preview-table td {
+  border-top: 1px solid var(--openbot-line);
+  color: var(--text-primary);
+}
+
+.file-preview-text:focus-visible,
+.file-preview-table:focus-visible {
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: 2px;
+}
+
+.file-preview-note {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* A card sits on its own surface, so its text follows that surface, not the bubble around it. */
+.message-attachment {
+  color: var(--text-primary);
+}
+
+/* An SVG is often tiny; it gets a frame like other previews and scales up to fill it. */
+.file-preview-svg {
+  width: 100%;
+  height: min(60vh, 480px);
+  border: 1px solid var(--openbot-line);
+  background: var(--surface-sunken);
+  padding: 24px;
+}
+
+.file-preview-table .numeric {
+  text-align: right;
+}

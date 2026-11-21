@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { pipeline } from "node:stream";
 import type { Store } from "@zoltbot/store";
-import { blobBytes } from "./intake.js";
+import { blobStream } from "./blob-stream.js";
 import { artifactDirectory, contentHash, versionDetail } from "./model.js";
 /** Called only after the daemon's existing bearer, origin and method checks. */
 export async function serveArtifactAsset(
@@ -32,16 +33,29 @@ export async function serveArtifactAsset(
       | { mime: string; bytes: number }
       | undefined;
     if (!row) throw Error("artifact_blob_not_found");
-    bytes = await blobBytes(artifactDirectory(store), hash);
-    if (bytes.length !== row.bytes) throw Error("artifact_blob_corrupt");
-    mime = row.mime;
+    // C18: streamed, so files up to 100 MB never sit in memory.
+    const blob = await blobStream(artifactDirectory(store), hash);
+    if (blob.size !== row.bytes) {
+      blob.stream.destroy();
+      throw Error("artifact_blob_corrupt");
+    }
+    response.writeHead(200, assetHeaders(row.mime, blob.size));
+    // A hash mismatch at the end, or a reader that leaves, ends both sides and closes the file.
+    pipeline(blob.stream, response, (error) => {
+      if (error) response.destroy();
+    });
+    return;
   }
-  response.writeHead(200, {
+  response.writeHead(200, assetHeaders(mime, bytes.length));
+  response.end(bytes);
+}
+
+function assetHeaders(mime: string, length: number) {
+  return {
     "Content-Type": mime,
-    "Content-Length": bytes.length,
+    "Content-Length": length,
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; sandbox",
-  });
-  response.end(bytes);
+  };
 }

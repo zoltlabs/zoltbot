@@ -119,8 +119,10 @@ export function Conversation(props: ConversationProps) {
   const [showAttachments, setShowAttachments] = createSignal(false);
   const [attachmentBusy, setAttachmentBusy] = createSignal(false);
   const [composerError, setComposerError] = createSignal<string | null>(null);
-  const { mediaPreview, setMediaPreview, previewAttachment, attachmentAction } =
-    createMediaPreview(setComposerError);
+  const { mediaPreview, setMediaPreview, previewAttachment, attachmentAction } = createMediaPreview(
+    setComposerError,
+    () => props.messages,
+  );
   const [settingsSaveError, setSettingsSaveError] = createSignal<string | null>(null);
   const [submitting, setSubmitting] = createSignal(false);
   const [dropActive, setDropActive] = createSignal(false);
@@ -466,7 +468,8 @@ export function Conversation(props: ConversationProps) {
     try {
       addAttachments(await window.openbot.agent.chooseAttachments());
     } catch (error) {
-      setComposerError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setComposerError(message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
     } finally {
       setAttachmentBusy(false);
     }

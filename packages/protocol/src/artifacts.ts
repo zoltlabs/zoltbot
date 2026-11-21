@@ -39,7 +39,8 @@ export const ArtifactKeySchema = Type.String({
 export const ArtifactFileSchema = object({
   path: Type.String({ maxLength: 512 }),
   hash: Type.String({ pattern: "^[a-f0-9]{64}$" }),
-  bytes: Type.Integer({ minimum: 0, maximum: 26214400 }),
+  // C18: one file may be 100 MB, the size of a whole version.
+  bytes: Type.Integer({ minimum: 0, maximum: 104857600 }),
   mime: Type.String({ maxLength: 80, pattern: "^[a-z0-9.+-]+/[a-z0-9.+-]+$" }),
 });
 export const ArtifactScreenSchema = object({

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { MUTED_PREFIX } from "@zoltbot/protocol";
+import { fileMimeType, MUTED_PREFIX } from "@zoltbot/protocol";
 import type {
   AccountUsage,
   AgentEvent,
@@ -57,6 +57,7 @@ import { modelsService, switchDialogFor } from "./models-service";
 import { pinnedMessages } from "./pins";
 import { withProgress } from "./progress";
 import { setReaction, withReactions } from "./reactions";
+import { type AttachmentSource, sentAttachmentSource } from "./sent-attachments";
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
@@ -565,12 +566,21 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     return this.drafts.add(path, size);
   }
 
+  /** Picked files at once, so one over 100 MB attaches none of them (C18). */
+  addDrafts(files: { path: string; size: number }[]): DraftAttachment[] {
+    return this.drafts.addAll(files);
+  }
+
   addDraftBytes(name: string, bytes: Uint8Array): Promise<DraftAttachment> {
     return this.drafts.addBytes(this.file("attachments"), name, bytes);
   }
 
-  draftPath(id: string): string | undefined {
-    return this.drafts.path(id);
+  /** A draft's file, or a file or picture the owner sent (C16). */
+  attachmentSource(id: string): AttachmentSource | undefined {
+    const path = this.drafts.path(id);
+    if (path) return { path, mimeType: fileMimeType(path) };
+    const history = [...this.conversations.values()].flatMap((c) => [...c.history.values()]);
+    return sentAttachmentSource([...this.client.rows("item"), ...history], id);
   }
 
   discardDraftAttachment(id: string): Promise<void> {

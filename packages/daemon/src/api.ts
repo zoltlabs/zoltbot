@@ -36,6 +36,7 @@ import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
 import { asideApi } from "./aside-api.js";
+import { attachmentPreviewApi } from "./attachment-preview-api.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
 import { channelApi } from "./channel-service.js";
@@ -392,6 +393,7 @@ async function startOwnedDaemon(
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
+  const attachmentPreview = attachmentPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
   const reactions = messageReactionsApi({ store, privacy, redactor, publish });
   const compare = compareApi({
@@ -626,6 +628,7 @@ async function startOwnedDaemon(
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
+          (await attachmentPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??
           (await reactions(request.method, params, commandId)) ??
           (await chats.api(request.method, params, commandId)) ??

@@ -1,3 +1,4 @@
+import { type FilePreviewKind, filePreviewKind } from "@zoltbot/protocol";
 import { body, text } from "@zoltbot/ui/chat/types";
 import { chiefWakePrefix } from "@zoltbot/ui/chief/data";
 import { type ArtifactCard, artifactOccurrences, artifactReference } from "./artifacts.js";
@@ -18,6 +19,12 @@ import type { Row, Snapshot } from "./transport.js";
 // Thread items as transcript rows. Interactive tools and interaction items read as one compact
 // line, subagent items nest under the tool that started them, and plan items are left to the
 // pinned checklist. Only normalized fields are read (I4).
+
+export interface SentFile {
+  part: number;
+  name: string;
+  kind: FilePreviewKind;
+}
 
 export interface TranscriptRow {
   id: string;
@@ -41,6 +48,8 @@ export interface TranscriptRow {
   pending?: boolean;
   /** For your messages: how they reached the agent ("Queued", "Steered"), when worth saying. */
   delivery?: string;
+  /** C16: files and pictures you sent with the message. */
+  files?: SentFile[];
   /** For your messages: still waiting in the queue, so it can be taken back and edited. */
   queued?: boolean;
   /** For your sent messages: the turn they started, so a new chat can start from before it. */
@@ -147,14 +156,39 @@ function diffCounts(value: Row) {
 function userText(value: Row) {
   const parts = Array.isArray(value.input) ? (value.input as Row[]) : [];
   return parts
-    .map((part) =>
-      part.type === "image"
-        ? "Photo"
-        : part.type === "file"
-          ? text(part.path).split("/").pop()
-          : text(part.text),
-    )
+    .filter((part) => part.type === "text")
+    .map((part) => text(part.text))
     .join("\n");
+}
+
+/** C16: the files and pictures in one of the owner's messages, by part. */
+function sentFiles(value: Row): SentFile[] {
+  if (value.origin === "agent" || !Array.isArray(value.input)) return [];
+  const files: SentFile[] = [];
+  (value.input as Row[]).forEach((part, index) => {
+    if (part.type === "image")
+      files.push({ part: index, name: text(part.path).split("/").pop() || "Photo", kind: "image" });
+    else if (part.type === "file") {
+      const name = text(part.path).split("/").pop() ?? "";
+      files.push({ part: index, name, kind: filePreviewKind(name) });
+    }
+  });
+  return files;
+}
+
+/** C17: every picture the owner sent in a chat, oldest first, for the phone's gallery. */
+export function chatPictures(
+  snapshot: Snapshot,
+  threadId: string,
+): { itemId: string; part: number; name: string }[] {
+  return (snapshot.entities.item ?? [])
+    .filter((item) => item.threadId === threadId && item.kind === "user")
+    .sort((a, b) => Number(a.seq) - Number(b.seq))
+    .flatMap((item) =>
+      sentFiles(body(item))
+        .filter((file) => file.kind === "image")
+        .map((file) => ({ itemId: text(item.id), part: file.part, name: file.name })),
+    );
 }
 
 export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[] {
@@ -218,10 +252,12 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
       }
       const reference = artifactReference(snapshot, value.artifactTarget);
       const delivery = value.origin === "agent" ? undefined : deliveryLabel(value);
+      const files = sentFiles(value);
       row = {
         ...base,
         kind: "user",
         text: said,
+        ...(files.length ? { files } : {}),
         ...(reference ? { artifactReference: reference } : {}),
         ...(delivery ? { delivery } : {}),
         ...(value.queueState === "queued" ? { queued: true } : {}),

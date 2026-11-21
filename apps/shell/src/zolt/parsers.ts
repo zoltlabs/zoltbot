@@ -162,12 +162,13 @@ export function parseImportAttachments(value: unknown): ImportAttachmentsInput {
 }
 
 export function parseOpenAttachment(value: unknown): OpenAttachmentInput {
-  if (!isObject(value) || (value.action !== "open" && value.action !== "reveal")) {
+  const actions: unknown[] = ["open", "reveal", "save", "copy"];
+  if (!isObject(value) || !actions.includes(value.action)) {
     throw new Error("Invalid attachment action.");
   }
   return {
     attachmentId: requireString(value.attachmentId, "attachmentId"),
-    action: value.action,
+    action: value.action as OpenAttachmentInput["action"],
   };
 }
 
