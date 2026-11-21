@@ -1,0 +1,55 @@
+/* C10: progress notes sit with the agent's messages, smaller and quieter than a reply. */
+.progress-note {
+  --note-accent: rgb(var(--ink) / 0.6);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(560px, 82%);
+  margin: 2px 0;
+  border: 0.5px solid color-mix(in srgb, var(--note-accent) 24%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--note-accent) 8%, transparent);
+  padding: 4px 10px;
+  color: rgb(var(--ink) / calc(0.74 * var(--ink-text-boost)));
+  font-size: 12.5px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.progress-note-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--note-accent);
+  transform: translateY(-1px);
+}
+
+.progress-note-teal {
+  --note-accent: var(--openbot-teal);
+}
+.progress-note-orange {
+  --note-accent: var(--openbot-orange);
+}
+.progress-note-purple {
+  --note-accent: var(--openbot-purple);
+}
+.progress-note-blue {
+  --note-accent: var(--openbot-blue);
+}
+.progress-note-violet {
+  --note-accent: var(--openbot-violet);
+}
+.progress-note-coral {
+  --note-accent: var(--openbot-coral);
+}
+
+/* On a light page the dark theme's tint all but disappears; give it more colour. */
+@media (prefers-color-scheme: light) {
+  .progress-note {
+    border: 1px solid color-mix(in srgb, var(--note-accent) 45%, transparent);
+    background: color-mix(in srgb, var(--note-accent) 14%, transparent);
+  }
+}

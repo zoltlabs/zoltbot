@@ -248,6 +248,7 @@
   "chat.message.unpinned": "Unpinned",
   "chat.message.hide": "Hide",
   "chat.askAbout": "Ask about this",
+  "chat.progress.label": "Progress note:",
   "chat.reaction.agent": "{name} reacted",
   "chat.reaction.agentLabel": "{name} reacted {emoji}",
   "chat.reply.quoted": "Quoted:",

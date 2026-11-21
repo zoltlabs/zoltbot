@@ -13,6 +13,7 @@ import { Button, Txt } from "./kit";
 import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import type { MarkActions } from "./message-marks";
+import { ProgressRow } from "./ProgressRow";
 import { pick } from "./SessionControls";
 import { SwipeReply } from "./SwipeReply";
 
@@ -280,6 +281,7 @@ export function Message({
 }) {
   const { c } = useTheme();
   if (row.aside) return <AsideRow row={row} />;
+  if (row.progress) return <ProgressRow row={row} />;
   if (row.hidden) return <HiddenRow {...(marks ? { onShow: () => marks.hide(row, false) } : {})} />;
   // Manager rows first: their notices are system rows too, like the switch note below.
   if (row.manager) return <ManagerCardView card={row.manager} />;

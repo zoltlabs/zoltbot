@@ -19,6 +19,8 @@ import "./day-rail.css";
 /** Rows the transcript draws with a `data-message-id`, which the rail can scroll to. */
 function anchored(message: BotMessage): boolean {
   if (message.card || message.notice || message.kind === "notice" || message.aside) return false;
+  // C10: progress notes have no message id to scroll to.
+  if (message.progress) return false;
   // A hidden row of any kind keeps its id; otherwise exchanges and thinking have none.
   return message.hidden === true || (!message.exchange && message.kind !== "thinking");
 }

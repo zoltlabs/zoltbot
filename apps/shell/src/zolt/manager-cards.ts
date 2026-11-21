@@ -1,4 +1,5 @@
 import {
+  chatProgressThread,
   chatStatusThread,
   messageHiddenThread,
   messagePinsThread,
@@ -393,7 +394,8 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
       ? (messagePinsThread(row.key) ??
         messageHiddenThread(row.key) ??
         messageReactionsThread(row.key) ??
-        chatStatusThread(row.key))
+        chatStatusThread(row.key) ??
+        chatProgressThread(row.key))
       : undefined;
   if (marked) return [marked];
   return [];

@@ -7,6 +7,13 @@ import { avatarColors, useTheme } from "../theme";
 
 const BotHues = createContext<ReadonlyMap<string, number>>(new Map());
 
+/** The colour a chat's avatar wears, for marks that belong to that agent. */
+export function useBotColor(id: string, zolt = false): string {
+  const { c } = useTheme();
+  const hues = useContext(BotHues);
+  return avatarColors(c, zolt ? 4 : (hues.get(id) ?? avatarHue(id))).body;
+}
+
 export function BotAvatarPalette({ children }: { children: ReactNode }) {
   const threads = useClient((state) => state.snapshot.entities.thread);
   const hues = useMemo(

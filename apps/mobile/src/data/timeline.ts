@@ -63,6 +63,8 @@ export interface TranscriptRow {
   hidden?: boolean;
   /** C8: reactions from the owner and the chat's agent. */
   reactions?: { owner?: string; agent?: string };
+  /** C10: a progress note the chat's agent posted during a long task. */
+  progress?: { threadId: string; zolt?: boolean };
 }
 
 /** What happened to a message you sent, read from the item, never from the send result. */

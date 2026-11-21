@@ -54,6 +54,7 @@ import {
 import { messageParts } from "./message-parts";
 import { modelsService, switchDialogFor } from "./models-service";
 import { pinnedMessages } from "./pins";
+import { withProgress } from "./progress";
 import { setReaction, withReactions } from "./reactions";
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
@@ -606,7 +607,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const messages = withHidden(
       snapshot,
       botId,
-      withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
+      withProgress(
+        snapshot,
+        botId,
+        withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
+      ),
     );
     withReactions(snapshot, botId, messages, this.preferences.reactions);
     for (const message of messages) conversation.texts.set(message.id, message.text);

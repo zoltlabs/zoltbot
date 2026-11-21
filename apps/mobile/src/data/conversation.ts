@@ -31,8 +31,10 @@ export function conversation(
   });
   for (const original of rows) {
     const row = project(original);
-    const turn = turns.get(row.id);
-    const assistant = ["message", "thought", "tool", "interaction"].includes(row.kind);
+    // C10: a progress note belongs to the turn that posted it.
+    const turn = turns.get(row.id) ?? (row.progress ? row.turnId : undefined);
+    const assistant =
+      ["message", "thought", "tool", "interaction"].includes(row.kind) || !!row.progress;
     const previous = entries.at(-1);
     if (assistant && typeof turn === "string" && turn) {
       if (previous?.kind === "assistant" && previous.id === turn) previous.rows.push(row);
@@ -84,6 +86,7 @@ function activitySource(row: TranscriptRow): Row {
 }
 
 export function routineRow(row: TranscriptRow): boolean {
+  if (row.progress) return false;
   // A failed subagent remains discoverable even when its parent tool succeeded.
   if (row.children?.some((child) => !routineRow(child) && child.kind === "tool")) return false;
   return routineActivity(activitySource(row));

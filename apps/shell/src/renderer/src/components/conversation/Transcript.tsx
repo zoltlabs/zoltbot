@@ -21,6 +21,7 @@ import { ONBOARDING_CHOICES } from "./constants";
 import { HiddenMessage } from "./HiddenMessage";
 import { LinkIcon } from "./icons";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
+import { ProgressNote } from "./ProgressNote";
 import { ThinkingDisclosure } from "./WorkingLine";
 
 export function ExchangeAgentAvatar(props: { bot: BotProfile | undefined }) {
@@ -358,6 +359,7 @@ export function TranscriptEntry(props: {
   // A message stays an aside or not for its whole life, so this choice needn't be reactive.
   if (props.message.aside)
     return <AsideEntry message={props.message} onOpenChat={props.onSelectAgent} />;
+  if (props.message.progress) return <ProgressNote message={props.message} agent={props.agent} />;
   return (
     <Show
       when={!props.message.hidden}

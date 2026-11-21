@@ -502,6 +502,8 @@ export interface ConversationMessage {
   aside?: AsideLink;
   /** C5: hidden from the chat; the agent still remembers it. */
   hidden?: boolean;
+  /** C10: a progress note the agent posted during a long task. */
+  progress?: boolean;
 }
 
 export const MESSAGE_REACTIONS = ["👍", "👎", "❤️", "😂", "🎉", "😮"] as const;

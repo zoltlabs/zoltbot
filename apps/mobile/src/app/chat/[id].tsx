@@ -24,6 +24,7 @@ import { editsOf, forkInfo } from "../../data/forks";
 import { withHidden } from "../../data/hidden";
 import { pendingFor } from "../../data/interactions";
 import { pinnedRows } from "../../data/pins";
+import { withProgress } from "../../data/progress";
 import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
 import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
@@ -92,7 +93,11 @@ export default function Chat() {
     withHidden(
       snapshot,
       id,
-      withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+      withProgress(
+        snapshot,
+        id,
+        withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+      ),
     ),
   );
   const positions = useRowPositions();

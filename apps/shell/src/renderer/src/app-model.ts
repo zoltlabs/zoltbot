@@ -121,6 +121,7 @@ export function toBotMessage(message: ConversationMessage): BotMessage {
     ...(message.card ? { card: message.card } : {}),
     ...(message.aside ? { aside: { threadId: message.aside.threadId } } : {}),
     hidden: message.hidden === true,
+    progress: message.progress === true,
     status: message.exchange
       ? undefined
       : message.delivery?.status === "queued"
@@ -196,6 +197,7 @@ export function botMessagesEqual(left: BotMessage, right: BotMessage): boolean {
     JSON.stringify(left.attachments) === JSON.stringify(right.attachments) &&
     JSON.stringify(left.exchange) === JSON.stringify(right.exchange) &&
     JSON.stringify(left.items) === JSON.stringify(right.items) &&
+    left.progress === right.progress &&
     JSON.stringify([left.notice, left.card, left.aside, left.hidden]) ===
       JSON.stringify([right.notice, right.card, right.aside, right.hidden])
   );
