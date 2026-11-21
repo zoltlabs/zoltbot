@@ -39,6 +39,7 @@ import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
 import { PlanChecklist } from "./conversation/PlanChecklist";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
+import { followNewReplies } from "./conversation/read-aloud";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
 import { watchWorkingLine, workingLine } from "./conversation/status-store";
@@ -332,6 +333,10 @@ export function Conversation(props: ConversationProps) {
     });
   });
 
+  followNewReplies(
+    () => props.messages,
+    () => props.bot?.id,
+  );
   createEffect(() => {
     const request = props.onboardingRequest;
     if (

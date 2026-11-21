@@ -164,6 +164,7 @@ const page = object({
 });
 const ok = object({ ok: Type.Boolean() });
 const entry = <P extends TSchema, R extends TSchema>(params: P, result: R) => ({ params, result });
+const VoiceList = Type.Array(object({ id: Type.String(), name: Type.String() }), { maxItems: 200 });
 const list = (schema: TSchema) =>
   entry(page, object({ items: Type.Array(schema), cursor: OptionalText }));
 const crud = <T extends TSchema>(schema: T) => ({
@@ -318,6 +319,30 @@ const rawMethodCatalog = {
   ),
   /** C2: turns an aside into a normal chat, listed like any other. */
   "thread.continueAside": entry(object({ id: Id }), ThreadSchema),
+  /** O1: whether an ElevenLabs key is set up. */
+  "voice.status": entry(object({}), object({ elevenlabs: Type.Boolean() })),
+  /**
+   * O1: checks the owner's ElevenLabs key by listing its voices, then keeps it in the keychain.
+   * Fails with voice_key_rejected, voice_limit, voice_unreachable or keychain_unavailable.
+   */
+  "voice.key.set": entry(
+    object({ key: Type.String({ minLength: 1, maxLength: 200 }) }),
+    object({ voices: VoiceList }),
+  ),
+  "voice.key.clear": entry(object({}), object({})),
+  /** O1: the key's voices. Fails with voice_not_set_up or the voice.key.set errors. */
+  "voice.voices": entry(object({}), object({ voices: VoiceList })),
+  /**
+   * O1 and O5: one piece of a reply as MP3, base64. Text holding a private value isn't sent
+   * (private_value). Also fails with voice_not_set_up, voice_not_found and the key errors.
+   */
+  "voice.speak": entry(
+    object({
+      text: Type.String({ minLength: 1, maxLength: 400 }),
+      voiceId: Type.String({ minLength: 1, maxLength: 64 }),
+    }),
+    object({ mime: Text, data: Text }),
+  ),
   /** C4: pins are newest first. Pinning fails with pin_limit past 50 pins in one chat. */
   "message.pin": entry(
     object({ threadId: Id, itemId: Id }),

@@ -6,15 +6,15 @@ export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
 export type * from "./aside";
-export type * from "./co-author";
 export type * from "./branches";
 export * from "./browser";
+export type * from "./co-author";
 export * from "./company";
 export * from "./dictation";
 export type * from "./hidden";
+export type * from "./links";
 export type * from "./manager-cards";
 export type * from "./memory";
-export type * from "./links";
 export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
@@ -22,7 +22,9 @@ export type * from "./spend";
 export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
+export type * from "./voice";
 
+import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
   ARTIFACT_REPOSITORY_CHANNELS,
   type ArtifactRepositoryDesktopApi,
@@ -44,14 +46,13 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
+import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
-import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
-import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
+import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
-import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
@@ -60,6 +61,7 @@ import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
 import type { ViewsDesktopApi } from "./views";
+import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -131,6 +133,7 @@ export const IPC_CHANNELS = {
   ...PIN_CHANNELS,
   ...OUTBOX_CHANNELS,
   ...LINK_CHANNELS,
+  ...VOICE_CHANNELS,
   ...HIDDEN_CHANNELS,
   ...AGENT_TEMPLATE_CHANNELS,
   ...CO_AUTHOR_CHANNELS,
@@ -792,6 +795,7 @@ export interface OpenBotDesktopApi {
   pins: PinsDesktopApi;
   outbox: OutboxDesktopApi;
   links: LinksDesktopApi;
+  voice: VoiceDesktopApi;
   hidden: HiddenDesktopApi;
   templates: AgentTemplatesDesktopApi;
   coAuthor: CoAuthorDesktopApi;

@@ -56,7 +56,7 @@ describe("Message menu", () => {
     const menu = screen.getByRole("menu", { name: "Message actions" });
     expect(more).toHaveAttribute("aria-expanded", "true");
     const items = screen.getAllByRole("menuitem").map((item) => item.dataset.label);
-    expect(items).toEqual(["Reply", "Copy"]);
+    expect(items).toEqual(["Reply", "Copy", "Read aloud"]);
     expect(document.activeElement).toHaveAttribute("data-label", "Reply");
 
     fireEvent.keyDown(menu, { key: "ArrowDown" });
@@ -147,7 +147,7 @@ describe("Message menu", () => {
     ];
     const groups = messageMenuGroups(message, actions, entries);
     expect(groups.map((group) => group.map((item) => item.id))).toEqual([
-      ["reply", "copy"],
+      ["reply", "copy", "read-aloud"],
       ["pin"],
       ["hide"],
     ]);
@@ -166,8 +166,15 @@ describe("Message menu", () => {
       messageMenuGroups(entry, actions)
         .flat()
         .map((item) => item.id);
-    expect(ids(message)).toEqual(["reply", "copy"]);
-    expect(ids({ ...message, turnId: "t1" })).toEqual(["reply", "copy", "pin", "branch", "hide"]);
+    expect(ids(message)).toEqual(["reply", "copy", "read-aloud"]);
+    expect(ids({ ...message, turnId: "t1" })).toEqual([
+      "reply",
+      "copy",
+      "read-aloud",
+      "pin",
+      "branch",
+      "hide",
+    ]);
     expect(ids({ ...message, turnId: "t1", streaming: true })).toEqual(["reply", "copy"]);
     const own = { ...message, author: "you" as const, turnId: "t1" };
     expect(ids(own)).toEqual(["reply", "copy", "pin", "branch", "edit", "hide"]);

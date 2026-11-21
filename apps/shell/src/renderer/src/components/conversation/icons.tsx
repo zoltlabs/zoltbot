@@ -206,3 +206,13 @@ export function HideIcon() {
     </svg>
   );
 }
+
+/** O1: Read aloud. */
+export function SpeakerIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M4 8h2.5L10 5v10l-3.5-3H4z" />
+      <path d="M13 7.5a3.5 3.5 0 0 1 0 5M15 5.5a6.5 6.5 0 0 1 0 9" />
+    </svg>
+  );
+}

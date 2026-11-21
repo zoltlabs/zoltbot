@@ -56,6 +56,20 @@ async function importFiles(files: File[]): Promise<void> {
   }
 }
 
+/** Invokes main and rethrows its message without Electron's "Error invoking remote method" prefix. */
+async function invokeShown(channel: string, ...args: unknown[]) {
+  try {
+    return await ipcRenderer.invoke(channel, ...args);
+  } catch (error) {
+    throw new Error(
+      (error instanceof Error ? error.message : String(error)).replace(
+        /^Error invoking remote method '[^']+': (Error: )?/,
+        "",
+      ),
+    );
+  }
+}
+
 window.addEventListener("dragover", (event) => {
   if ([...(event.dataTransfer?.items ?? [])].some((item) => item.kind === "file")) {
     event.preventDefault();
@@ -250,6 +264,13 @@ const openbotApi: OpenBotDesktopApi = {
     preview: (input) => ipcRenderer.invoke(IPC_CHANNELS.linksPreview, input),
     enabled: () => ipcRenderer.invoke(IPC_CHANNELS.linksEnabled),
     setEnabled: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.linksSetEnabled, enabled),
+  },
+  voice: {
+    status: () => ipcRenderer.invoke(IPC_CHANNELS.voiceStatus),
+    setKey: (key) => invokeShown(IPC_CHANNELS.voiceSetKey, key),
+    clearKey: () => invokeShown(IPC_CHANNELS.voiceClearKey),
+    voices: () => invokeShown(IPC_CHANNELS.voiceVoices),
+    speak: (input) => invokeShown(IPC_CHANNELS.voiceSpeak, input),
   },
   hidden: {
     set: (input) => ipcRenderer.invoke(IPC_CHANNELS.hiddenSet, input),

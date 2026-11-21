@@ -2,13 +2,15 @@ import { IPC_CHANNELS } from "../shared/ipc";
 import { agentTemplateHandlers } from "./agent-templates-service";
 import { artifactRepositoryHandlers } from "./artifact-repository-service";
 import { asideHandlers } from "./aside-service";
-import { coAuthorHandlers } from "./co-author-service";
 import { branchHandlers } from "./branch-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
+import { coAuthorHandlers } from "./co-author-service";
 import { hiddenHandlers } from "./hidden-service";
+import { linkHandlers } from "./links-service";
 import { parseTaskAction } from "./manager-cards";
 import { memoryHandlers } from "./memory-service";
 import { modelHandlers } from "./model-handlers";
+import { outboxHandlers } from "./outbox-service";
 import {
   parseCancelQueuedMessage,
   parseCreateBot,
@@ -22,13 +24,12 @@ import {
   parseUpdateBot,
   requireString,
 } from "./parsers";
-import { linkHandlers } from "./links-service";
-import { outboxHandlers } from "./outbox-service";
 import { pinHandlers } from "./pins-service";
 import { queueOrderHandlers } from "./queue-order-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
+import { voiceHandlers } from "./voice-service";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -90,6 +91,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...pinHandlers(service.client),
     ...outboxHandlers(service.outbox),
     ...linkHandlers(service.client),
+    ...voiceHandlers(service.client),
     ...hiddenHandlers(service.client),
     ...agentTemplateHandlers(service),
     ...coAuthorHandlers(service.client),

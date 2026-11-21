@@ -83,6 +83,7 @@ import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
 import { createViewRegistry, type ViewRegistry } from "./views/registry.js";
+import { voiceApi } from "./voice-api.js";
 import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
 import { worktreeService } from "./worktree-service.js";
@@ -394,6 +395,13 @@ async function startOwnedDaemon(
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
+  const voice = voiceApi({
+    store,
+    publish,
+    ...(options.secrets ? { vault: options.secrets } : {}),
+    register: (value) => redactor.register(value),
+    containsSecret: (text) => privacy.containsSecret(text),
+  });
   const attachmentPreview = attachmentPreviewApi({ store });
   const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
@@ -630,6 +638,7 @@ async function startOwnedDaemon(
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
+          (await voice(request.method, params, commandId)) ??
           (await attachmentPreview(request.method, params)) ??
           (await linkPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??
