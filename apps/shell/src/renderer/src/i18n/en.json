@@ -488,5 +488,17 @@
   "sounds.done": "Done",
   "update.downloading": "Downloading {percent}%",
   "update.restart": "Restart to update",
-  "update.whatsNew": "What’s new"
+  "update.whatsNew": "What’s new",
+  "dock.label": "Agent dock",
+  "dock.agentWorking": "{name}, working",
+  "dock.agentWaiting": "{name}, needs you",
+  "dock.needsYou": "{count, plural, one {# needs you} other {# need you}}",
+  "dock.message": "Message {name}",
+  "dock.settings": "Agent dock",
+  "dock.show": "Show agent dock",
+  "dock.position": "Position",
+  "dock.right": "Right edge",
+  "dock.left": "Left edge",
+  "dock.top": "Top center",
+  "dock.closeChat": "Close chat"
 }

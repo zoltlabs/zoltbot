@@ -781,6 +781,8 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** D4: the agent dock. Optional so test pages without it still load. */
+  dock?: import("./dock").DockDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
   views: ViewsDesktopApi;

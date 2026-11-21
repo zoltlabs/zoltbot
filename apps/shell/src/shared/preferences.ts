@@ -1,6 +1,8 @@
 // Desktop-only preferences. Preferences that agents or the phone need live in
 // the daemon's settings instead.
 
+import { DOCK_POSITIONS, type DockPosition } from "./dock";
+
 export const PREFERENCE_CHANNELS = {
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",
@@ -42,6 +44,9 @@ export interface Preferences {
   /** C5: the owner has seen that hiding a message doesn't make the agent forget it. */
   hideConfirmed: boolean;
   sendKey: SendKeyPreference;
+  /** D4: the agent dock, a small always-on-top bar of working agents. */
+  agentDock: boolean;
+  agentDockPosition: DockPosition;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -58,6 +63,8 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   showInDock: true,
   hideConfirmed: false,
   sendKey: "enter",
+  agentDock: false,
+  agentDockPosition: "right",
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -91,6 +98,9 @@ const VALIDATORS: Validators = {
   showInDock: (value): value is boolean => typeof value === "boolean",
   hideConfirmed: (value): value is boolean => typeof value === "boolean",
   sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
+  agentDock: (value): value is boolean => typeof value === "boolean",
+  agentDockPosition: (value): value is DockPosition =>
+    DOCK_POSITIONS.includes(value as DockPosition),
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

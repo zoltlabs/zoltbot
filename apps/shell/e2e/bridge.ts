@@ -128,7 +128,11 @@ export async function openKitGallery(page: Page): Promise<void> {
  * Loads the built renderer in a headless page and gives it the same `window.openbot` API the
  * preload script exposes, with each call routed to `handlers` and service events pushed back.
  */
-export async function openShell(page: Page, service: ZoltService): Promise<void> {
+export async function openShell(
+  page: Page,
+  service: ZoltService,
+  path = "index.html",
+): Promise<void> {
   const handlers = shellHandlers(service);
   await serveRenderer(page);
   await page.exposeFunction("__zoltInvoke", async (channel: string, input: unknown) => {
@@ -395,7 +399,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       },
     };
   }, IPC_CHANNELS);
-  await page.goto(`${SHELL_ORIGIN}/index.html`);
+  await page.goto(`${SHELL_ORIGIN}/${path}`);
 }
 
 interface ZoltWindow {

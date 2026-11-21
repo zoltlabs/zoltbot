@@ -1,3 +1,4 @@
+import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
   type AgentEvent,
@@ -272,6 +273,21 @@ const openbotApi: OpenBotDesktopApi = {
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesCreate, input),
+  },
+  dock: {
+    getState: () => ipcRenderer.invoke(DOCK_CHANNELS.getState),
+    onState: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: DockState) => listener(state);
+      ipcRenderer.on(DOCK_CHANNELS.state, handler);
+      return () => ipcRenderer.removeListener(DOCK_CHANNELS.state, handler);
+    },
+    expand: (botId) => ipcRenderer.invoke(DOCK_CHANNELS.expand, botId),
+    openChat: (botId) => ipcRenderer.invoke(DOCK_CHANNELS.openChat, botId),
+    onShowChat: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, botId: string) => listener(botId);
+      ipcRenderer.on(DOCK_CHANNELS.showChat, handler);
+      return () => ipcRenderer.removeListener(DOCK_CHANNELS.showChat, handler);
+    },
   },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),

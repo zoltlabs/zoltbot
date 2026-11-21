@@ -24,7 +24,7 @@ function SoundsIcon() {
   );
 }
 
-function Switch(props: { id: string; on: boolean; disabled?: boolean; flip: () => void }) {
+export function Switch(props: { id: string; on: boolean; disabled?: boolean; flip: () => void }) {
   return (
     <button
       id={props.id}

@@ -21,6 +21,7 @@ import type { ThreadAction } from "../../../shared/thread-actions";
 import { createAppearanceEntry } from "../appearance/AppearanceEntry";
 import type { BotProfile } from "../data";
 import { Menu, type MenuItem } from "../kit";
+import { createDockEntry } from "../dock/DockEntry";
 import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
@@ -356,6 +357,7 @@ export function Sidebar(props: SidebarProps) {
   const bridges = createBridgesEntry();
   const appearanceEntry = createAppearanceEntry();
   const soundsEntry = createSoundsEntry();
+  const dockEntry = createDockEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -454,6 +456,7 @@ export function Sidebar(props: SidebarProps) {
         bridges.item(),
         appearanceEntry.item(),
         soundsEntry.item(),
+        dockEntry.item(),
       ],
       [
         {
@@ -786,6 +789,7 @@ export function Sidebar(props: SidebarProps) {
       <bridges.Dialog />
       <appearanceEntry.Dialog />
       <soundsEntry.Dialog />
+      <dockEntry.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu

@@ -226,6 +226,8 @@ export function App() {
         muted: (id) => botList().some((bot) => bot.id === id && bot.muted === true),
       }),
     );
+    // D4: the agent dock opens a chat here.
+    onCleanup(window.openbot.dock?.onShowChat(selectBot) ?? (() => undefined));
     const unsubscribeUpdate = window.openbot.update.onEvent(setUpdateStatus);
     onCleanup(() => {
       unsubscribe();

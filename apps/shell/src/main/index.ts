@@ -46,6 +46,8 @@ import { notificationForAgentEvent } from "./agent-notifications";
 import { runAttachmentAction } from "./attachment-actions";
 import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { DOCK_CHANNELS } from "../shared/dock";
+import { dockHandlers, electronDock } from "./dock-window";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
@@ -106,6 +108,12 @@ const daemonHost = new DaemonHost(
 );
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+// D4: the agent dock.
+const dock = electronDock({
+  preload: join(__dirname, "../preload/index.cjs"),
+  bots: () => service.listBots(),
+  tasks: () => service.listTasks(),
+});
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";
@@ -366,12 +374,15 @@ function registerIpcHandlers(setupFile: string): void {
       update: (patch) => updatePreferences(preferencesFile, patch),
     },
     (saved) => {
+      dock.apply(saved);
       appearance.apply(saved, BrowserWindow.getAllWindows());
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
     },
   );
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(dockHandlers(dock, showChat)))
+    handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))
@@ -528,6 +539,8 @@ function createWindow(): BrowserWindow {
     }
   });
   window.on("closed", () => {
+    // Elsewhere the app quits with its last window; a hidden dock mustn't keep it open.
+    if (process.platform !== "darwin") dock.close();
     stopFollowingTheme();
     if (mainWindow === window) mainWindow = null;
   });
@@ -537,6 +550,23 @@ function createWindow(): BrowserWindow {
     if (!isTrustedRendererUrl(targetUrl)) event.preventDefault();
   });
   return window;
+}
+
+/** D4: brings the main window forward on one chat. */
+function showChat(botId: string): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    const window = createWindow();
+    mainWindow = window;
+    window.webContents.once("did-finish-load", () =>
+      window.webContents.send(DOCK_CHANNELS.showChat, botId),
+    );
+    void loadRenderer(window);
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.webContents.send(DOCK_CHANNELS.showChat, botId);
 }
 
 function loadRenderer(window: BrowserWindow): Promise<void> {
@@ -573,6 +603,8 @@ function configureApplicationMenu(): void {
 }
 
 function forwardAgentEvent(event: AgentEvent): void {
+  dock.handle(event);
+  dock.current?.webContents.send(IPC_CHANNELS.agentEvent, event);
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send(IPC_CHANNELS.agentEvent, event);
   if (mainWindow.isFocused() || !Notification.isSupported()) return;
@@ -670,11 +702,10 @@ if (!hasSingleInstanceLock) {
       );
       configureViewProtocol();
       viewHost.start();
-      appearance.apply(
-        await readPreferences(join(app.getPath("userData"), PREFERENCES_FILE)).catch(() =>
-          normalizePreferences({}),
-        ),
-      );
+      const startPreferences = await readPreferences(
+        join(app.getPath("userData"), PREFERENCES_FILE),
+      ).catch(() => normalizePreferences({}));
+      appearance.apply(startPreferences);
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {
@@ -695,6 +726,7 @@ if (!hasSingleInstanceLock) {
       await loadRenderer(mainWindow);
       await daemonHost.start();
       await service.initialize();
+      dock.apply(startPreferences);
       app.on("activate", () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.show();
@@ -722,6 +754,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   shutdownStarted = true;
   dictation.cancel();
+  dock.close();
   viewHost.stop();
   account.close();
   void service

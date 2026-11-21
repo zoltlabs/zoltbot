@@ -28,10 +28,13 @@ export async function shellSession(daemon: DaemonAddress) {
     service,
     rpc,
     errors,
-    /** Opens the built renderer in `page` and records uncaught page errors in `errors`. */
-    async open(page: Page) {
+    /**
+     * Opens the built renderer in `page` and records uncaught page errors in `errors`. `path`
+     * picks another page of it, such as the agent dock's.
+     */
+    async open(page: Page, path?: string) {
       page.on("pageerror", (error) => errors.push(error.message));
-      await openShell(page, service);
+      await openShell(page, service, path);
     },
     async close() {
       rpc.stop();
