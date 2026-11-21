@@ -55,16 +55,32 @@ export class Outbox {
   private entries: OutboxEntry[] = [];
   private writing: Promise<void> = Promise.resolve();
   private flushing: Promise<void> | undefined;
+  /** One send at a time, so the same commandId never goes out twice at once. */
+  private sending: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: OutboxOptions) {}
 
   async load(): Promise<void> {
+    let text: string;
     try {
-      const raw = JSON.parse(await readFile(this.options.path, "utf8")) as unknown;
-      this.entries = Array.isArray(raw) ? raw.filter(valid).slice(0, MAX_ENTRIES) : [];
+      text = await readFile(this.options.path, "utf8");
     } catch {
       this.entries = [];
+      return;
     }
+    try {
+      const raw = JSON.parse(text) as unknown;
+      this.entries = Array.isArray(raw) ? raw.filter(valid).slice(0, MAX_ENTRIES) : [];
+    } catch {
+      // Kept aside rather than overwritten, so the messages in it can still be recovered.
+      await rename(this.options.path, `${this.options.path}.damaged`).catch(() => undefined);
+      this.entries = [];
+    }
+  }
+
+  /** Whether a chat has messages waiting, so a new one queues behind them. */
+  has(botId: string): boolean {
+    return this.entries.some((entry) => entry.botId === botId);
   }
 
   list(botId: string): OutboxEntry[] {
@@ -99,8 +115,10 @@ export class Outbox {
     if (this.entries.some((row) => row.id === entry.id)) return;
     if (this.entries.length >= MAX_ENTRIES)
       throw new Error("200 messages are waiting to send. Delete some first.");
-    this.entries.push(entry);
-    await this.save();
+    // Saved first: a message that couldn't be written isn't kept, so a retry can't send it twice.
+    const next = [...this.entries, entry];
+    await this.save(next);
+    this.entries = next;
     this.options.changed(entry.botId);
   }
 
@@ -108,7 +126,7 @@ export class Outbox {
     const entry = this.entries.find((row) => row.id === id);
     if (!entry) return;
     this.entries = this.entries.filter((row) => row.id !== id);
-    await this.save();
+    await this.save(this.entries);
     this.options.changed(entry.botId);
   }
 
@@ -128,18 +146,28 @@ export class Outbox {
     await this.flushing;
     const entry = this.entries.find((row) => row.id === id);
     if (!entry) return;
-    await this.options.send(entry);
-    await this.remove(id);
+    await this.sendOne(entry);
+  }
+
+  private sendOne(entry: OutboxEntry): Promise<void> {
+    const run = this.sending.then(async () => {
+      if (!this.entries.includes(entry)) return;
+      await this.options.send(entry);
+      await this.remove(entry.id);
+    });
+    this.sending = run.catch(() => undefined);
+    return run;
   }
 
   private async sendAll(): Promise<void> {
     const blocked = new Set<string>();
-    for (const entry of [...this.entries]) {
-      // Messages in one chat keep their order: after one fails, the rest of that chat waits.
-      if (blocked.has(entry.botId) || !this.entries.includes(entry)) continue;
+    // Messages in one chat keep their order: after one fails, the rest of that chat waits.
+    // Messages added while this runs are sent too.
+    for (;;) {
+      const entry = this.entries.find((row) => !blocked.has(row.botId));
+      if (!entry) return;
       try {
-        await this.options.send(entry);
-        await this.remove(entry.id);
+        await this.sendOne(entry);
       } catch (error) {
         if (unreachable(error)) return;
         blocked.add(entry.botId);
@@ -147,8 +175,8 @@ export class Outbox {
     }
   }
 
-  private save(): Promise<void> {
-    const snapshot = JSON.stringify(this.entries);
+  private save(entries: OutboxEntry[]): Promise<void> {
+    const snapshot = JSON.stringify(entries);
     const path = this.options.path;
     this.writing = this.writing
       .catch(() => undefined)

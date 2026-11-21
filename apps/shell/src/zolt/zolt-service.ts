@@ -503,6 +503,9 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     });
     this.emitConversation(input.botId);
     try {
+      // C12: behind waiting messages, or before the daemon is fully connected, a message waits.
+      if (this.client.status !== "online" || this.outbox.has(input.botId))
+        throw new Error("Daemon unavailable");
       const result = (await this.client.call(
         "turn.send",
         { threadId: input.botId, input: parts, mode: "queue", outputMode: "auto" },
@@ -523,8 +526,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     } catch (error) {
       if (!unreachable(error)) throw error;
       // C12: the daemon is unreachable; the message waits and sends with this commandId later.
-      for (const id of input.attachmentDraftIds ?? []) this.drafts.delete(id);
-      return this.outbox.keep(commandId, input, parts, words, attachments);
+      // Its drafts stay, so the waiting message keeps its previews.
+      conversation.pending = conversation.pending.filter((message) => message.id !== pendingId);
+      const receipt = await this.outbox.keep(commandId, input, parts, words, attachments);
+      if (this.client.status === "online") void this.outbox.flush();
+      return receipt;
     } finally {
       conversation.pending = conversation.pending.filter((message) => message.id !== pendingId);
       this.dirty.add(input.botId);

@@ -408,6 +408,8 @@ export function TranscriptEntry(props: {
                 class="message-entry"
                 data-message-id={props.message.id}
                 onContextMenu={(event) => {
+                  // A waiting message isn't in the chat yet: Send now and Delete are its actions.
+                  if (props.message.waiting) return;
                   if (props.message.streaming) return;
                   event.preventDefault();
                   const more =

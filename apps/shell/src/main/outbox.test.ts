@@ -87,3 +87,38 @@ it("ignores a damaged file", async () => {
   const { box } = await outbox(async () => undefined);
   expect(box.list("chat").map((row) => row.id)).toEqual(["ok"]);
 });
+
+it("doesn't keep a message it couldn't save", async () => {
+  dir = await mkdtemp(join(tmpdir(), "outbox-"));
+  const box = new Outbox({
+    path: join(dir, "missing", "\0bad", "outbox.json"),
+    send: async () => undefined,
+    changed: () => undefined,
+  });
+  await box.load();
+  await expect(box.add(entry("one"))).rejects.toThrow();
+  expect(box.list("chat")).toEqual([]);
+  expect(box.has("chat")).toBe(false);
+});
+
+it("sets a damaged file aside instead of overwriting it", async () => {
+  dir = await mkdtemp(join(tmpdir(), "outbox-"));
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(join(dir, "outbox.json"), "{not json");
+  const { box } = await outbox(async () => undefined);
+  await box.add(entry("one"));
+  expect(await readFile(join(dir, "outbox.json.damaged"), "utf8")).toBe("{not json");
+});
+
+it("also sends messages added while it is sending, once each", async () => {
+  const sent: string[] = [];
+  let box: Outbox | undefined;
+  const made = await outbox(async (row) => {
+    sent.push(row.id);
+    if (row.id === "one") await box?.add(entry("late"));
+  });
+  box = made.box;
+  await box.add(entry("one"));
+  await Promise.all([box.flush(), box.sendNow("one")]);
+  expect(sent).toEqual(["one", "late"]);
+});
