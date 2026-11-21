@@ -1,12 +1,15 @@
 // R7: one workflow as a graph. Steps are buttons, so Tab walks them in graph order and arrow
 // keys follow the edges; the side panel shows the chosen step and answers approval waits.
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import type {
+  WorkflowAgent,
+  WorkflowEdit,
   WorkflowItem,
   WorkflowRunItem,
   WorkflowStepState,
 } from "../../../../shared/workflows";
 import { t } from "../../i18n";
+import { WorkflowStepForm } from "./WorkflowStepForm";
 import {
   kindText,
   reasonText,
@@ -16,6 +19,8 @@ import {
   triggerText,
 } from "./workflow-format";
 import { edgePath, layoutWorkflow, neighbour, STEP_HEIGHT, STEP_WIDTH } from "./workflow-layout";
+
+type Mode = "view" | "edit" | "add" | "remove";
 
 const PANEL_ID = "workflow-step-panel";
 /** A step's state, and for a condition that ran, which branch it took. */
@@ -35,6 +40,9 @@ export function WorkflowCanvas(props: {
   timezone: string;
   busy: boolean;
   onDecide(run: WorkflowRunItem, stepId: string, decision: "continue" | "stop"): Promise<void>;
+  agents: WorkflowAgent[];
+  /** Publishes the change; resolves to an error to show, or the step it touched. */
+  onEdit(edit: WorkflowEdit): Promise<{ error?: string; stepId?: string }>;
 }) {
   const layout = createMemo(() => layoutWorkflow(props.item.steps, props.item.edges));
   const [runId, setRunId] = createSignal<string>();
@@ -48,6 +56,29 @@ export function WorkflowCanvas(props: {
   const shown = () => selected() ?? run()?.steps.find((step) => step.state === "needs_you")?.id;
   const chosen = () => props.item.steps.find((step) => step.id === shown());
   const total = () => props.item.steps.length;
+  const [mode, setMode] = createSignal<Mode>("view");
+  // A different step starts in view mode.
+  createEffect(on(shown, () => setMode("view"), { defer: true }));
+
+  /** Focus a step once the reloaded canvas has drawn it. */
+  const focusStep = (id: string | undefined) =>
+    requestAnimationFrame(() =>
+      (id ? buttons.get(id) : buttons.get(props.item.steps[0]?.id ?? ""))?.focus(),
+    );
+  async function change(edit: WorkflowEdit): Promise<string | undefined> {
+    const outcome = await props.onEdit(edit);
+    if (outcome.error) return outcome.error;
+    setMode("view");
+    setSelected(outcome.stepId);
+    focusStep(outcome.stepId);
+    return undefined;
+  }
+  const [removeError, setRemoveError] = createSignal<string>();
+  // Pin the step first, so a poll that moves "needs you" elsewhere can't close the form.
+  function enter(next: Mode) {
+    setSelected(shown());
+    setMode(next);
+  }
 
   let heading: HTMLHeadingElement | undefined;
   // The decision buttons go away once answered, so focus returns to the step's own button.
@@ -232,6 +263,79 @@ export function WorkflowCanvas(props: {
                 </dl>
                 <Show when={step().brief}>
                   {(brief) => <p class="workflow-brief">{brief()}</p>}
+                </Show>
+                <Show when={mode() === "view"}>
+                  <div class="workflow-decide">
+                    <button type="button" class="zb-kit-button" onClick={() => enter("edit")}>
+                      {t("workflows.form.edit")}
+                    </button>
+                    <button type="button" class="zb-kit-button" onClick={() => enter("add")}>
+                      {t("workflows.form.add")}
+                    </button>
+                    <Show when={step().kind !== "trigger"}>
+                      <button
+                        type="button"
+                        class="zb-kit-button"
+                        onClick={() => {
+                          setRemoveError(undefined);
+                          enter("remove");
+                        }}
+                      >
+                        {t("workflows.form.remove")}
+                      </button>
+                    </Show>
+                  </div>
+                </Show>
+                <Show when={mode() === "edit" || mode() === "add"}>
+                  <WorkflowStepForm
+                    mode={mode() === "edit" ? "edit" : "add"}
+                    step={step()}
+                    steps={props.item.steps}
+                    edges={props.item.edges}
+                    agents={props.agents}
+                    busy={props.busy}
+                    onSave={change}
+                    onCancel={() => {
+                      setMode("view");
+                      heading?.focus();
+                    }}
+                  />
+                </Show>
+                <Show when={mode() === "remove"}>
+                  <div class="workflow-decide" role="group" aria-labelledby="workflow-remove-ask">
+                    <p id="workflow-remove-ask" class="workflow-ask">
+                      {t("workflows.form.removeAsk", { name: step().name })}
+                    </p>
+                    <Show when={removeError()}>
+                      {(message) => (
+                        <p class="zb-kit-error workflow-ask" role="alert">
+                          {message()}
+                        </p>
+                      )}
+                    </Show>
+                    <button
+                      type="button"
+                      class="zb-kit-button danger"
+                      aria-disabled={props.busy}
+                      onClick={async () => {
+                        if (props.busy) return;
+                        setRemoveError(await change({ op: "remove", stepId: step().id }));
+                      }}
+                    >
+                      {t("workflows.form.removeConfirm")}
+                    </button>
+                    <button
+                      type="button"
+                      class="zb-kit-button"
+                      ref={(element) => requestAnimationFrame(() => element.focus())}
+                      onClick={() => {
+                        setMode("view");
+                        heading?.focus();
+                      }}
+                    >
+                      {t("routines.cancel")}
+                    </button>
+                  </div>
                 </Show>
                 <Show when={approval() && run()}>
                   {(current) => (

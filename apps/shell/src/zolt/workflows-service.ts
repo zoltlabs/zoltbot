@@ -3,13 +3,16 @@
 import { randomUUID } from "node:crypto";
 import {
   WORKFLOW_CHANNELS as C,
+  type WorkflowAgent,
   type WorkflowEdge,
+  type WorkflowEdit,
   type WorkflowItem,
   type WorkflowRunItem,
   type WorkflowStep,
 } from "../shared/workflows";
 import type { DaemonClient } from "./daemon-client";
 import { isObject, requireString } from "./parsers";
+import { applyWorkflowEdit } from "./workflow-edit";
 
 /** Workflow, run and step ids are short; anything longer never reaches the daemon. */
 function requireId(value: unknown, field: string): string {
@@ -25,6 +28,24 @@ const MESSAGES: Record<string, string> = {
   workflow_already_running: "It's already running.",
   workflow_step_not_waiting: "That step isn't waiting any more.",
   workflow_scope_required: "Its project was archived or deleted.",
+  workflow_changed: "It changed since you opened it. Look again, then retry.",
+  branch_missing: "Each branch of a condition needs a step after it.",
+  unreachable_step: "That would leave a step that nothing leads to.",
+  condition_source_not_upstream: "A condition can only check a step that comes before it.",
+  workflow_condition_branches: "Remove the steps on its No branch first.",
+  workflow_condition_next: "Add a condition before another step, so both branches lead somewhere.",
+  workflow_edit_invalid: "That change isn't possible here.",
+  workflow_step_name: "Give the step a name of up to 120 characters.",
+  workflow_step_brief: "Say what the step should do, in up to 4,000 characters.",
+  workflow_wait_minutes: "Wait between 1 minute and 30 days.",
+  workflow_condition_test: "Choose a step to check and enter up to 200 characters to look for.",
+  workflow_trigger_required: "A workflow needs its start step.",
+  workflow_step_missing: "That step is gone. Look again, then retry.",
+  workflow_graph_invalid: "That would leave steps out of order or unreachable.",
+  workflow_review_required: "A later step would act on this output without a review.",
+  workflow_step_budget_required: "That step needs a budget.",
+  workflow_connection_carry: "A connection step can't take another step's output.",
+  profile_unavailable: "That agent isn't available.",
   scope_unavailable: "Its project was archived or deleted.",
 };
 
@@ -61,6 +82,7 @@ function step(node: Row, agents: Map<string, string>): WorkflowStep | null {
       ...placed,
       kind,
       agent: agentOf(node.profileId),
+      agentId: String(node.profileId ?? ""),
       brief: String(node.brief ?? ""),
       ...(kind === "media" ? { output: node.output === "video" ? "video" : "image" } : {}),
     };
@@ -220,6 +242,34 @@ export function workflowHandlers(client: Client): Record<string, (input: unknown
         );
       } catch (error) {
         throw failure(error, "Couldn't change it. Try again.");
+      }
+    },
+    [C.workflowsAgents]: async (): Promise<WorkflowAgent[]> =>
+      client
+        .rows("agent")
+        .filter((row) => typeof row.id === "string" && row.archived !== true)
+        .map((row) => ({ id: String(row.id), name: String(row.name ?? row.id) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [C.workflowsEdit]: async (input): Promise<{ stepId?: string }> => {
+      if (!isObject(input) || !isObject(input.edit) || typeof input.version !== "number")
+        throw new Error("Invalid request.");
+      const id = requireId(input.id, "id");
+      try {
+        const list = (await client.call("workflow.list", {})) as { items?: unknown[] };
+        const current = (list.items ?? []).find(
+          (row): row is Row => isObject(row) && row.workflowId === id,
+        );
+        if (!current) throw new Error("workflow_step_missing");
+        if (current.version !== input.version) throw new Error("workflow_changed");
+        const { value, stepId } = applyWorkflowEdit(current, input.edit as WorkflowEdit);
+        await client.call(
+          "workflow.publish",
+          { value, confirmed: true, baseVersion: input.version },
+          randomUUID(),
+        );
+        return stepId ? { stepId } : {};
+      } catch (error) {
+        throw failure(error, "Couldn't save it. Try again.");
       }
     },
     [C.workflowsDecide]: async (input) => {

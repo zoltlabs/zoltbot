@@ -288,6 +288,8 @@ const openbotApi: OpenBotDesktopApi = {
     run: (id) => ipcRenderer.invoke(IPC_CHANNELS.workflowsRun, id),
     setPaused: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsSetPaused, input),
     decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsDecide, input),
+    agents: () => ipcRenderer.invoke(IPC_CHANNELS.workflowsAgents),
+    edit: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsEdit, input),
   },
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),

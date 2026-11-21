@@ -203,6 +203,8 @@ export function workflowsApi(options: {
       const versions = (current.workflow ?? [])
         .filter((row) => row.workflowId === value.workflowId)
         .map((row) => Number(row.version));
+      if (typeof params.baseVersion === "number" && Math.max(0, ...versions) !== params.baseVersion)
+        throw new Error("workflow_changed");
       const next = { ...value, version: Math.max(0, ...versions) + 1 };
       const context = { commandId, at: now(), actor: owner };
       const outcome = handle(

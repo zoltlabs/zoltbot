@@ -96,6 +96,17 @@ describe("R7 workflows API", () => {
     expect(await api("workflow.list", {})).toMatchObject({
       items: [{ workflowId: "news", version: 2, name: "Morning news, short" }],
     });
+    // An edit that started from version 1 doesn't overwrite version 2.
+    await expect(
+      api("workflow.publish", { value: workflow(graph), confirmed: true, baseVersion: 1 }, "p3"),
+    ).rejects.toThrow("workflow_changed");
+    expect(
+      await api(
+        "workflow.publish",
+        { value: workflow(graph), confirmed: true, baseVersion: 2 },
+        "p4",
+      ),
+    ).toMatchObject({ version: 3 });
   });
 
   it("refuses an unconfirmed publish, a broken graph and an unknown agent", async () => {

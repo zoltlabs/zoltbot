@@ -2,7 +2,12 @@
 // with Run now, Pause and the newest runs.
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import type { WorkflowItem, WorkflowRunItem } from "../../../../shared/workflows";
+import type {
+  WorkflowAgent,
+  WorkflowEdit,
+  WorkflowItem,
+  WorkflowRunItem,
+} from "../../../../shared/workflows";
 import { t } from "../../i18n";
 import { errorText } from "./routine-format";
 import { WorkflowCanvas } from "./WorkflowCanvas";
@@ -19,6 +24,7 @@ export function WorkflowsView(props: { onStatus(message: string): void }) {
   const [error, setError] = createSignal<string | null>(null);
   const [open, setOpen] = createSignal<string>();
   const [busy, setBusy] = createSignal(false);
+  const [agents, setAgents] = createSignal<WorkflowAgent[]>([]);
   let back: HTMLButtonElement | undefined;
   const rows = new Map<string, HTMLButtonElement>();
 
@@ -34,6 +40,10 @@ export function WorkflowsView(props: { onStatus(message: string): void }) {
   }
   onMount(() => {
     void load();
+    window.openbot.workflows
+      .agents()
+      .then(setAgents)
+      .catch(() => undefined);
     const timer = setInterval(() => void load(), 10_000);
     onCleanup(() => clearInterval(timer));
   });
@@ -49,6 +59,29 @@ export function WorkflowsView(props: { onStatus(message: string): void }) {
       props.onStatus(message);
     } catch (problem) {
       setError(errorText(problem) || t("routines.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** Publishes one change; the form shows any error itself. */
+  async function edit(item: WorkflowItem, change: WorkflowEdit) {
+    if (busy()) return {};
+    setBusy(true);
+    setError(null);
+    props.onStatus("");
+    try {
+      const outcome = await window.openbot.workflows.edit({
+        id: item.id,
+        version: item.version,
+        edit: change,
+      });
+      await load();
+      props.onStatus(t("workflows.form.saved", { name: item.name }));
+      return outcome;
+    } catch (problem) {
+      // A newer version may have landed; the next try starts from it.
+      await load();
+      return { error: errorText(problem) || t("routines.failed") };
     } finally {
       setBusy(false);
     }
@@ -150,6 +183,8 @@ export function WorkflowsView(props: { onStatus(message: string): void }) {
               </div>
               <WorkflowCanvas
                 item={item()}
+                agents={agents()}
+                onEdit={(change) => edit(item(), change)}
                 timezone={timezone()}
                 busy={busy()}
                 onDecide={(run: WorkflowRunItem, stepId, decision) =>

@@ -403,6 +403,8 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         run: call(channels.workflowsRun),
         setPaused: call(channels.workflowsSetPaused),
         decide: call(channels.workflowsDecide),
+        agents: call(channels.workflowsAgents),
+        edit: call(channels.workflowsEdit),
       },
       templates: {
         list: call(channels.agentTemplatesList),

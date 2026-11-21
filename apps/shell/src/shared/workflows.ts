@@ -6,6 +6,8 @@ export const WORKFLOW_CHANNELS = {
   workflowsRun: "workflows:run",
   workflowsSetPaused: "workflows:set-paused",
   workflowsDecide: "workflows:decide",
+  workflowsEdit: "workflows:edit",
+  workflowsAgents: "workflows:agents",
 } as const;
 
 export type WorkflowStepKind = "trigger" | "agent" | "condition" | "wait" | "connection" | "media";
@@ -17,6 +19,8 @@ export interface WorkflowStep {
   name: string;
   /** The agent's name, for agent, media and connection steps. */
   agent?: string;
+  /** The agent's id, for agent and media steps. */
+  agentId?: string;
   /** What an agent or media step is asked to do. */
   brief?: string;
   /** A condition: which step it tests, and how. */
@@ -65,10 +69,45 @@ export interface WorkflowItem {
   runs: WorkflowRunItem[];
 }
 
+/** What the step form edits. Which fields apply depends on the step's kind. */
+export interface WorkflowStepFields {
+  name: string;
+  agentId?: string;
+  brief?: string;
+  wait?: { minutes: number } | { approval: true };
+  test?: { from: string; kind: "contains" | "equals" | "outcome"; value: string };
+}
+
+/** One change to a workflow; each publishes a new version. */
+export type WorkflowEdit =
+  | { op: "update"; stepId: string; fields: WorkflowStepFields }
+  | {
+      op: "add";
+      after: string;
+      /** After a condition: which branch the new step goes on. */
+      port?: "true" | "false";
+      kind: "agent" | "wait" | "condition";
+      fields: WorkflowStepFields;
+    }
+  | { op: "remove"; stepId: string };
+
+export interface WorkflowAgent {
+  id: string;
+  name: string;
+}
+
 export interface WorkflowsDesktopApi {
   list: () => Promise<WorkflowItem[]>;
   run: (id: string) => Promise<void>;
   setPaused: (input: { id: string; paused: boolean }) => Promise<void>;
+  /** Agents a step can use. */
+  agents: () => Promise<WorkflowAgent[]>;
+  /** Publishes the change as a new version; returns the step it touched. */
+  edit: (input: {
+    id: string;
+    version: number;
+    edit: WorkflowEdit;
+  }) => Promise<{ stepId?: string }>;
   decide: (input: {
     runId: string;
     stepId: string;

@@ -126,6 +126,44 @@ test("workflows run from the canvas and wait for approval", async ({ page }) => 
     ).toBeVisible();
     await expect(canvas.getByRole("button", { name: /Check with me, Done$/ })).toBeVisible();
 
+    // Editing: add a step after the last one, rename it, then remove it. Each save is a new version.
+    await canvas.getByRole("button", { name: /Write the digest/ }).click();
+    const writePanel = main.getByRole("region", { name: "Step Write the digest" });
+    await writePanel.getByRole("button", { name: "Add step after" }).click();
+    const addForm = main.getByRole("form", { name: "Add a step after Write the digest" });
+    await expect(addForm.getByRole("button", { name: /^Step type/ })).toBeFocused();
+    await addForm.getByRole("button", { name: /^Step type/ }).click();
+    await page.getByRole("option", { name: "Wait" }).click();
+    await addForm.getByRole("textbox", { name: "Name" }).fill("Final check");
+    expect(await axeViolations(page)).toEqual([]);
+    await addForm.getByRole("button", { name: "Save" }).click();
+    const added = canvas.getByRole("button", { name: /^Step 4 of 4: Wait, Final check/ });
+    await expect(added).toBeFocused();
+
+    const addedPanel = main.getByRole("region", { name: "Step Final check" });
+    await addedPanel.getByRole("button", { name: "Edit step" }).click();
+    const editForm = main.getByRole("form", { name: "Edit Final check" });
+    await editForm.getByRole("textbox", { name: "Name" }).fill("");
+    await editForm.getByRole("button", { name: "Save" }).click();
+    const nameField = editForm.getByRole("textbox", { name: "Name" });
+    await expect(nameField).toBeFocused();
+    await expect(nameField).toHaveAccessibleDescription("Give the step a name.");
+    await editForm.getByRole("textbox", { name: "Name" }).fill("Last look");
+    await editForm.getByRole("button", { name: "Save" }).click();
+    await expect(
+      canvas.getByRole("button", { name: /^Step 4 of 4: Wait, Last look/ }),
+    ).toBeFocused();
+
+    await main
+      .getByRole("region", { name: "Step Last look" })
+      .getByRole("button", { name: "Remove step" })
+      .click();
+    await main.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(
+      canvas.getByRole("button", { name: /^Step 3 of 3: Agent, Write the digest/ }),
+    ).toBeVisible();
+    await expect(canvas.getByRole("button", { name: /Last look/ })).toHaveCount(0);
+
     // Pause, then back to the list, where focus returns to the workflow's row.
     await main.getByRole("button", { name: "Pause" }).click();
     await expect(main.getByRole("button", { name: "Resume" })).toBeVisible();

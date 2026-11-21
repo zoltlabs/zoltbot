@@ -663,7 +663,12 @@ const rawMethodCatalog = {
   "workflow.list": list(PipelineVersionSchema),
   "workflow.draftFromTask": entry(object({ taskId: Id }), PipelineVersionSchema),
   "workflow.publish": entry(
-    object({ value: PipelineVersionSchema, confirmed: Type.Boolean() }),
+    object({
+      value: PipelineVersionSchema,
+      confirmed: Type.Boolean(),
+      /** The version the edit started from; publishing refuses if a newer one landed since. */
+      baseVersion: Type.Optional(Type.Integer({ minimum: 1 })),
+    }),
     PipelineVersionSchema,
   ),
   "workflow.run": entry(
