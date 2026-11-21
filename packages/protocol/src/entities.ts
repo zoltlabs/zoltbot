@@ -145,6 +145,10 @@ export const SessionSchema = object({
   effort: OptionalText,
   /** A5: the faster service tier the session runs on, one of capabilities.serviceTiers. */
   serviceTier: OptionalText,
+  /** A10: a model change made while a turn ran; it applies when the turn ends. */
+  pendingModel: Type.Optional(
+    object({ model: Text, effort: OptionalText, commandId: OptionalText }),
+  ),
   capabilities: Json,
   providerVersion: OptionalText,
   /** Current native permission mode as last reported by the adapter. */

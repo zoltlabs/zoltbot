@@ -173,7 +173,42 @@ export function settleSessionModel(
       kind: "session",
       id: sessionId,
       // No effort means the model's default, as at launch; undefined drops the stored one.
-      changes: { model: change.model, effort: change.effort },
+      // A10: an applied change ends any held one.
+      changes: { model: change.model, effort: change.effort, pendingModel: undefined },
+    },
+    context,
+  );
+}
+
+/**
+ * A10: holds a model change until the running turn ends, or drops it when the change is back to
+ * what the session already runs (Undo).
+ */
+export function queueSessionModel(
+  state: DomainState,
+  sessionId: string,
+  change: { model: string; effort?: string; commandId?: string } | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "system") throw new Error("system_model_writer_required");
+  const session = state.session?.find((row) => row.id === sessionId);
+  if (!session) return { events: [], result: { ok: true } };
+  // What the session runs: its own model, else its agent's, as at launch.
+  const thread = state.thread?.find((row) => row.id === session.threadId);
+  const agent = state.agent?.find((row) => row.id === thread?.agentId);
+  const model = session.model ?? agent?.model;
+  const effort = session.effort ?? agent?.effort;
+  const same =
+    change !== null &&
+    change.model === model &&
+    (change.effort === undefined || change.effort === effort);
+  return handle(
+    state,
+    {
+      type: "update",
+      kind: "session",
+      id: sessionId,
+      changes: { pendingModel: change && !same ? change : undefined },
     },
     context,
   );

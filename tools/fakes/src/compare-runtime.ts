@@ -144,7 +144,11 @@ export class CompareFakeSession implements AgentSession {
     this.finish?.();
     this.finish = undefined;
   }
-  async setModel() {}
+  /** A10: model changes the provider received, in order. */
+  readonly modelCalls: [string, string | undefined][] = [];
+  async setModel(model: string, effort?: string) {
+    this.modelCalls.push([model, effort]);
+  }
   async setServiceTier(tier: string | null) {
     this.tiers.push(tier);
   }

@@ -1,6 +1,7 @@
 import { handle } from "@zoltbot/core";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { at, runtimeFixture } from "../../../tools/fakes/src/runtime-fixture.js";
+import { dispatchControlPending } from "./runtime-dispatch.js";
 import { sessionCommands } from "./session-commands.js";
 import type { SessionManager } from "./session-manager.js";
 
@@ -108,8 +109,10 @@ it("changes model and effort only to what the session offers, once per command i
     ),
   );
   const calls: [string, string | undefined][] = [];
+  let refuse = false;
   const native = {
     async setModel(model: string, effort?: string) {
+      if (refuse) throw new Error("refused");
       calls.push([model, effort]);
     },
   };
@@ -183,6 +186,83 @@ it("changes model and effort only to what the session offers, once per command i
     await expect(
       api("session.setModel", { id: "session", model: "opus", cacheWarningAccepted: false }, "f"),
     ).rejects.toThrow("cache_warning_required");
+
+    // A10: during a turn the change waits; choosing the current model again drops it (Undo).
+    const before = calls.length;
+    await api(
+      "session.setModel",
+      { id: "session", model: "opus", cacheWarningAccepted: true },
+      "g",
+    );
+    expect(calls.length).toBe(before);
+    expect(session()).toMatchObject({ model: "sonnet", pendingModel: { model: "opus" } });
+    await api(
+      "session.setModel",
+      { id: "session", model: "sonnet", cacheWarningAccepted: true },
+      "h",
+    );
+    expect(session()?.pendingModel).toBeUndefined();
+    await api(
+      "session.setModel",
+      { id: "session", model: "opus", effort: "high", cacheWarningAccepted: true },
+      "i",
+    );
+    expect(session()?.pendingModel).toMatchObject({ model: "opus", effort: "high" });
+    // The turn ends: the held change reaches the provider and becomes the session's model.
+    store.dispatch("turn-end", (state) =>
+      handle(
+        state,
+        { type: "transition", kind: "turn", id: "t1", to: "completed" },
+        system("turn-end"),
+      ),
+    );
+    await vi.waitFor(() => expect(calls.at(-1)).toEqual(["opus", "high"]), { timeout: 3000 });
+    await vi.waitFor(() => expect(session()).toMatchObject({ model: "opus", effort: "high" }));
+    expect(session()?.pendingModel).toBeUndefined();
+    expect(calls.length).toBe(before + 1);
+
+    // A held change the provider refuses is dropped, so it never shows as held forever.
+    store.dispatch("turn-2", (state) =>
+      handle(
+        state,
+        {
+          type: "create",
+          kind: "turn",
+          value: {
+            id: "t2",
+            threadId: "thread",
+            sessionId: "session",
+            status: "running",
+            origin: "human",
+            startedAt: at,
+          },
+        },
+        system("turn-2"),
+      ),
+    );
+    await api(
+      "session.setModel",
+      { id: "session", model: "sonnet", cacheWarningAccepted: true },
+      "j",
+    );
+    expect(session()?.pendingModel).toMatchObject({ model: "sonnet" });
+    // Queued messages wait for it once the turn ends.
+    const ended = (state: ReturnType<typeof store.snapshot>) => ({
+      ...state,
+      turn: (state.turn ?? []).map((turn) => ({ ...turn, status: "completed" })),
+    });
+    expect(dispatchControlPending(ended(store.snapshot()), "thread", "session")).toBe(true);
+    refuse = true;
+    store.dispatch("turn-2-end", (state) =>
+      handle(
+        state,
+        { type: "transition", kind: "turn", id: "t2", to: "completed" },
+        system("turn-2-end"),
+      ),
+    );
+    await vi.waitFor(() => expect(session()?.pendingModel).toBeUndefined());
+    expect(session()?.model).toBe("opus");
+    expect(dispatchControlPending(store.snapshot(), "thread", "session")).toBe(false);
   } finally {
     test.close();
   }

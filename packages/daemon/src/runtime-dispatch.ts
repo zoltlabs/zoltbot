@@ -10,6 +10,12 @@ export function dispatchControlPending(
   threadId: string,
   sessionId: string,
 ): boolean {
+  // A10: a model change held for the end of a turn goes in before the next queued message.
+  if (
+    state.session?.some((row) => row.id === sessionId && row.pendingModel) &&
+    !state.turn?.some((turn) => turn.sessionId === sessionId && turn.status === "running")
+  )
+    return true;
   return (state.item ?? []).some((row) => {
     if (row.kind !== "note") return false;
     const body = row.body as Record<string, unknown> | undefined;

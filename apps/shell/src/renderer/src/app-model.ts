@@ -71,6 +71,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
     fastMode: stored.fastMode ?? null,
+    pendingModel: stored.pendingModel ?? null,
     threadId: stored.threadId,
     accent:
       stored.name.toLowerCase() === "new agent"

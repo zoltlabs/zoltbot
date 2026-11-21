@@ -3,6 +3,7 @@ import {
   checkFilesRewind,
   type DomainState,
   type Outcome,
+  queueSessionModel,
   requestBackgroundStop,
   requestFilesRewind,
   requestServiceTier,
@@ -154,6 +155,22 @@ export function sessionCommands(options: {
       expected,
       (state, context) => requestSessionModel(state, sessionId, change, context),
       async () => {
+        // A10: during a turn the change waits for the turn to end.
+        if (turnRunning(sessionId)) {
+          commit(
+            `${commandId}:pending`,
+            (state, context) =>
+              queueSessionModel(
+                state,
+                sessionId,
+                { model: change.model, ...effort, commandId },
+                context,
+              ),
+            system,
+          );
+          applyAfterTurn(sessionId);
+          return;
+        }
         await live.native.setModel(change.model, change.effort);
         commit(
           `${commandId}:model`,
@@ -166,6 +183,88 @@ export function sessionCommands(options: {
     );
     return { ok: true as const };
   }
+  const turnRunning = (sessionId: string) =>
+    (store.snapshot(["turn"]).turn ?? []).some(
+      (row) => row.sessionId === sessionId && row.status === "running",
+    );
+  const waiting = new Set<string>();
+  type Held = { model: string; effort?: string; commandId?: string };
+  const heldOf = (sessionId: string) => {
+    const session = store.snapshot(["session"]).session?.find((row) => row.id === sessionId);
+    return { session, held: session?.pendingModel as Held | undefined };
+  };
+  /**
+   * A10: applies a held model change once the session's turn ends. Queued messages wait for it
+   * (`dispatchControlPending`), so the next turn runs on the new model. A closed session or a
+   * provider refusal drops the change, so it never shows as held forever.
+   */
+  function applyAfterTurn(sessionId: string) {
+    if (waiting.has(sessionId)) return;
+    waiting.add(sessionId);
+    const drop = (held: Held, why: string) =>
+      commit(
+        `${held.commandId ?? `held:${sessionId}`}:${why}`,
+        (state, context) => queueSessionModel(state, sessionId, null, context),
+        system,
+      );
+    const wake = () => {
+      try {
+        void manager.live(sessionId).worker.wake?.();
+      } catch {
+        // No live worker: nothing is waiting to send.
+      }
+    };
+    const check = () =>
+      step().catch(() => {
+        // The store closed (shutdown): the next start picks the change up again.
+        waiting.delete(sessionId);
+      });
+    const step = async () => {
+      const { session, held } = heldOf(sessionId);
+      if (!held) {
+        waiting.delete(sessionId);
+        return;
+      }
+      if (!session || ["closed", "failed"].includes(String(session.state))) {
+        waiting.delete(sessionId);
+        drop(held, "dropped");
+        return;
+      }
+      if (turnRunning(sessionId)) {
+        setTimeout(() => void check(), 250).unref?.();
+        return;
+      }
+      try {
+        await manager.live(sessionId).native.setModel(held.model, held.effort);
+        const now = heldOf(sessionId).held;
+        // A later choice or Undo replaced it while the call ran: go round again.
+        if (now && now.commandId !== held.commandId) {
+          setTimeout(() => void check(), 0).unref?.();
+          return;
+        }
+        if (now)
+          commit(
+            `${held.commandId ?? `held:${sessionId}`}:after-turn`,
+            (state, context) =>
+              settleSessionModel(
+                state,
+                sessionId,
+                { model: held.model, ...(held.effort ? { effort: held.effort } : {}) },
+                context,
+              ),
+            system,
+          );
+      } catch {
+        drop(held, "refused");
+      }
+      waiting.delete(sessionId);
+      wake();
+    };
+    setTimeout(() => void check(), 0).unref?.();
+  }
+  // A held change outlives a daemon restart: pick it up again.
+  for (const row of store.snapshot(["session"]).session ?? [])
+    if (row.pendingModel) applyAfterTurn(String(row.id));
   /** A5: Fast mode. Recorded and audited first, as a faster tier costs more. */
   async function setServiceTier(sessionId: string, tier: string | null, commandId: string) {
     const expected = { kind: "set_service_tier", sessionId, tier };

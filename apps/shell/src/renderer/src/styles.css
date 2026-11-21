@@ -2154,6 +2154,40 @@ textarea {
   gap: 6px;
 }
 
+/* A10: a model change held until the reply ends. */
+.pending-model {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pending-model-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-model-undo {
+  flex: none;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pending-model-undo:hover {
+  background: rgb(var(--ink) / 0.06);
+}
+
 .computer-button-agent-active {
   border-color: rgba(117, 167, 255, 0.42);
   background: rgba(117, 167, 255, 0.11);

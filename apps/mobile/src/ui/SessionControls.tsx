@@ -168,12 +168,12 @@ export function ModelChip({
     }
   };
   const confirm = (model: string, effort: string | undefined) => {
-    if (model === state.current && effort === state.effort) return;
+    if (model === state.current && effort === state.effort && !state.pending) return;
     if (!state.started) return void apply(model, effort);
     const name = state.models.find((row) => row.id === model)?.name ?? model;
     Alert.alert(
       `Switch to ${name}${effort ? ` · ${effortLabel(effort)}` : ""}?`,
-      `The agent rereads this chat without its cache, so the next reply is slower and costs more.${state.running ? " The reply in progress keeps its model; the change starts with your next message." : ""}`,
+      `The agent rereads this chat without its cache, so the next reply is slower and costs more.${state.running ? " The switch happens when this reply ends." : ""}`,
       [
         { text: "Cancel", style: "cancel" },
         { text: "Switch", onPress: () => void apply(model, effort) },
@@ -195,29 +195,35 @@ export function ModelChip({
   };
   const disabled = !online || busy;
   const label = `${state.label}${state.effort ? ` · ${effortLabel(state.effort)}` : ""}`;
+  // A10: a change held until the reply ends shows as "Sonnet → Opus"; the sheet can undo it.
+  const shown = state.pending ? `${label} → ${state.pending.name}` : label;
+  // "Keep" returns to the running model, so it needs one to return to.
+  const undo = state.pending && state.current ? [`Keep ${state.label}`] : [];
   return (
     <Pressable
       onPress={() =>
         pick(
           "Model",
-          undefined,
+          state.pending ? `Switches to ${state.pending.name} after this reply.` : undefined,
           [
             ...models.map((row) => {
               const name = starred.includes(row.id) ? `★ ${row.name}` : row.name;
               return row.id === state.current ? `✓ ${name}` : name;
             }),
             ...(current ? [isStarred ? `Unstar ${current.name}` : `Star ${current.name}`] : []),
+            ...undo,
           ],
           (index) => {
             const model = models[index];
             if (model) chooseEffort(model.id);
-            else if (index === models.length) toggleStar();
+            else if (index === models.length && current) toggleStar();
+            else if (undo.length) void apply(state.current, state.effort);
           },
         )
       }
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`Model: ${label}${account ? `, on ${account}` : ""}`}
+      accessibilityLabel={`Model: ${label}${state.pending ? `, switches to ${state.pending.name} after this reply` : ""}${account ? `, on ${account}` : ""}`}
       accessibilityHint="Changes the model for the next replies"
       accessibilityState={{ disabled }}
       hitSlop={8}
@@ -228,7 +234,7 @@ export function ModelChip({
       ]}
     >
       <Txt v="meta" tone="secondary" lines={1}>
-        {busy ? "Switching…" : label}
+        {busy ? "Switching…" : shown}
       </Txt>
       {account && !busy ? (
         <Txt v="meta" tone="muted" lines={1}>

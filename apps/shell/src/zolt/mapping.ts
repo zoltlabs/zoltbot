@@ -156,6 +156,7 @@ export function toBotSummary(
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     fastMode: serviceTiers(session).length ? profile?.fastMode === true : null,
+    pendingModel: text((session?.pendingModel as Row | undefined)?.model) || null,
     threadId,
     workspacePath: text(session?.cwd) || text(roots[0]?.path),
     preview: previewText(threadItems(snapshot, threadId), hiddenIds(snapshot, threadId)),

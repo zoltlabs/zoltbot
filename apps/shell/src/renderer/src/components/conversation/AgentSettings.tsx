@@ -213,11 +213,7 @@ export function AgentSettings(props: {
                 agentStatus={props.agentStatus}
                 modelOptions={props.modelOptions}
                 disabled={props.modelDisabled}
-                disabledReason={
-                  props.working
-                    ? "Wait for the current work to finish before changing models."
-                    : "Models appear once a coding agent is set up."
-                }
+                disabledReason={"Models appear once a coding agent is set up."}
                 onChange={props.onModelChange}
                 fastMode={props.bot?.fastMode ?? null}
                 onFastModeChange={(on) => props.save({ fastMode: on })}

@@ -1,6 +1,7 @@
 import { createMemo, createSignal, createUniqueId, For, onMount, Show } from "solid-js";
 import type { AgentModelId, AgentModelOption, AgentStatus } from "../../../../shared/ipc";
 import type { BotProfile } from "../../data";
+import { t } from "../../i18n";
 import { Suggestions } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { OrganizationIcon } from "../OrganizationPanel";
@@ -27,6 +28,7 @@ export function ConversationHeader(props: {
   modelDisabled: boolean;
   working: boolean;
   onModelChange: (model: AgentModelId) => void;
+  onUndoModel(): void;
   onFastModeChange?: (on: boolean) => Promise<boolean>;
   organizationOpen: boolean;
   onToggleOrganization: () => void;
@@ -73,17 +75,57 @@ export function ConversationHeader(props: {
               </Show>
               <div class="conversation-header-actions no-drag">
                 <ContextMeter context={context} />
+                {/* A10: always in the page, so screen readers hear the line come and go. */}
+                <span class="pending-model" role="status">
+                  <Show when={props.bot?.pendingModel}>
+                    {(next) => {
+                      const line = () =>
+                        t("models.pending", {
+                          name:
+                            props.modelOptions.find((option) => option.id === next())?.name ??
+                            next(),
+                        });
+                      return (
+                        <span class="pending-model-text" title={line()}>
+                          {line()}
+                        </span>
+                      );
+                    }}
+                  </Show>
+                </span>
+                {/* Undo returns to the running model, so it needs one to return to. */}
+                <Show when={props.bot?.pendingModel && props.bot?.model}>
+                  <button
+                    type="button"
+                    class="pending-model-undo"
+                    aria-label={t("models.pendingUndoLabel", {
+                      name:
+                        props.modelOptions.find((option) => option.id === props.bot?.pendingModel)
+                          ?.name ??
+                        props.bot?.pendingModel ??
+                        "",
+                    })}
+                    onClick={(event) => {
+                      // The button leaves with the held change; focus goes to the model picker.
+                      const actions = event.currentTarget.parentElement;
+                      props.onUndoModel();
+                      queueMicrotask(() =>
+                        actions
+                          ?.querySelector<HTMLButtonElement>('button[aria-label^="Agent model"]')
+                          ?.focus(),
+                      );
+                    }}
+                  >
+                    {t("models.pendingUndo")}
+                  </button>
+                </Show>
                 <Show when={props.bot}>
                   <ProviderModelPicker
                     value={props.modelValue}
                     modelOptions={props.modelOptions}
                     agentStatus={props.agentStatus}
                     disabled={props.modelDisabled}
-                    disabledReason={
-                      props.working
-                        ? "Wait for the current work to finish before changing models."
-                        : "Models appear once a coding agent is set up."
-                    }
+                    disabledReason={"Models appear once a coding agent is set up."}
                     onChange={props.onModelChange}
                     fastMode={props.bot?.fastMode ?? null}
                     onFastModeChange={props.onFastModeChange}

@@ -374,6 +374,7 @@ export function Conversation(props: ConversationProps) {
       bot.description,
       String(bot.notifications),
       bot.model,
+      bot.pendingModel ?? "",
       bot.reasoningEffort,
       bot.avatarShape,
       bot.avatarColor,
@@ -384,7 +385,8 @@ export function Conversation(props: ConversationProps) {
     settingsForm.setTitle(bot.role);
     settingsForm.setDescription(bot.description);
     settingsForm.setNotifications(bot.notifications);
-    setSettingsModel(bot.model);
+    // A10: a change held until the turn ends shows as the chosen model.
+    setSettingsModel(bot.pendingModel || bot.model);
     setSettingsReasoning(bot.reasoningEffort);
     settingsForm.setAvatarShape(bot.avatarShape);
     settingsForm.setAvatarColor(bot.avatarColor);
@@ -514,7 +516,8 @@ export function Conversation(props: ConversationProps) {
   }
 
   const working = () => agentActivity() === "Working";
-  const modelDisabled = () => !agentReady() || working();
+  // A10: a change made during a turn waits for the turn to end.
+  const modelDisabled = () => !agentReady();
   const memoryLink = () => {
     const agentId = props.bot?.profileId;
     return agentId && props.onOpenMemory ? () => props.onOpenMemory?.(agentId) : undefined;
@@ -566,6 +569,11 @@ export function Conversation(props: ConversationProps) {
         modelDisabled={modelDisabled()}
         working={working()}
         onModelChange={(model) => void selectAndConfirmModel(model)}
+        onUndoModel={() => {
+          // A10: back to what the session runs, which drops the held change.
+          const bot = props.bot;
+          if (bot) void saveBotPatch({ model: bot.model });
+        }}
         onFastModeChange={(fastMode) => saveBotPatch({ fastMode })}
         organizationOpen={organizationOpen()}
         onToggleOrganization={() =>

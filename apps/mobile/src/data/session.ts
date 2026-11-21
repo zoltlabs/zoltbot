@@ -86,6 +86,8 @@ export interface ModelState {
   started: boolean;
   /** A turn is running now; it keeps its model and the change applies to the next one. */
   running: boolean;
+  /** A10: the model the chat switches to once the running turn ends. */
+  pending?: { id: string; name: string };
 }
 /** The model chip's state, or undefined when the agent does not let you pick a model. */
 export function modelState(snapshot: Snapshot, session: Row | undefined): ModelState | undefined {
@@ -99,6 +101,7 @@ export function modelState(snapshot: Snapshot, session: Row | undefined): ModelS
   if (!list.length) return undefined;
   const current = text(session.model);
   const turns = (snapshot.entities.turn ?? []).filter((turn) => turn.sessionId === session.id);
+  const held = text((session.pendingModel as Row | undefined)?.model);
   return {
     sessionId: text(session.id),
     current,
@@ -108,6 +111,9 @@ export function modelState(snapshot: Snapshot, session: Row | undefined): ModelS
     ...(text(session.effort) ? { effort: text(session.effort) } : {}),
     started: turns.length > 0,
     running: turns.some((turn) => turn.status === "running"),
+    ...(held
+      ? { pending: { id: held, name: list.find((row) => row.id === held)?.name || held } }
+      : {}),
   };
 }
 /** "xhigh" as "Extra high"; other levels capitalized. */

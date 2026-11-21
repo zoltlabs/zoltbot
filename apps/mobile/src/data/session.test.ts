@@ -83,6 +83,10 @@ describe("models", () => {
       running: true,
     });
     expect(modelState(snapshot, threadSession(snapshot, "thread-rate-limits"))).toBeUndefined();
+    // A10: a change made during a reply is held and named until it applies.
+    const held = { ...session, pendingModel: { model: "sonnet" } };
+    expect(modelState(snapshot, held)?.pending?.id).toBe("sonnet");
+    expect(modelState(snapshot, session)?.pending).toBeUndefined();
   });
   it("marks only sent messages as places a new chat can start from", () => {
     const rows = transcript(snapshot, "thread-meal-search");

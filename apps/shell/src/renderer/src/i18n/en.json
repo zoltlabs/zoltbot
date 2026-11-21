@@ -262,5 +262,8 @@
   "models.fastMode.errorOff": "Fast mode didn't turn off. Try again.",
   "models.starred": "Starred",
   "models.star": "Star {name}",
-  "models.unstar": "Unstar {name}"
+  "models.unstar": "Unstar {name}",
+  "models.pending": "Switches to {name} after this reply",
+  "models.pendingUndo": "Undo",
+  "models.pendingUndoLabel": "Undo switch to {name}"
 }
