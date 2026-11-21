@@ -33,6 +33,7 @@ export * from "./runtime-events.js";
 export * from "./runtime-streams.js";
 export * from "./session-connect.js";
 export * from "./session-controls.js";
+export * from "./starter-jobs.js";
 export * from "./staff.js";
 export * from "./staff-apply.js";
 export * from "./task-graph.js";

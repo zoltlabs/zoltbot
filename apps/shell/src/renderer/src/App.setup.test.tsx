@@ -83,6 +83,44 @@ describe("Zoltbot connected desktop shell", () => {
     );
   });
 
+  it("offers first jobs for connected apps before finishing setup (D5)", async () => {
+    vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
+      completed: false,
+      preferredProvider: null,
+    });
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce(SETUP_STATUS);
+    const addStarter = vi.fn(async () => {});
+    window.openbot.routines = {
+      ...window.openbot.routines,
+      starters: vi.fn(async () => [
+        { id: "weekly-inbox", name: "Weekly inbox summary" },
+        { id: "morning-briefing", name: "Morning briefing" },
+      ]),
+      addStarter,
+    };
+    render(() => <App />);
+
+    const agents = await screen.findByRole("radiogroup", { name: "Default agent" });
+    await fireEvent.click(within(agents).getByRole("radio", { name: /Claude Code/ }));
+    await fireEvent.click(screen.getByRole("button", { name: "Continue with Claude Code" }));
+    expect(
+      await screen.findByRole("heading", { name: "Start with one of these" }),
+    ).toBeInTheDocument();
+    expect(window.openbot.saveSetup).not.toHaveBeenCalled();
+    const [add] = screen.getAllByRole("button", { name: "Add" });
+    await waitFor(() => expect(add).toHaveFocus());
+    await fireEvent.click(add as HTMLElement);
+    await waitFor(() =>
+      expect(addStarter).toHaveBeenCalledWith({ id: "weekly-inbox", provider: "claude" }),
+    );
+    await waitFor(() => expect(screen.queryByText("Weekly inbox summary")).not.toBeInTheDocument());
+    await fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await waitFor(() =>
+      expect(window.openbot.saveSetup).toHaveBeenCalledWith({ preferredProvider: "claude" }),
+    );
+    expect(addStarter).toHaveBeenCalledOnce();
+  });
+
   it("lets the user continue with an agent that still needs setup", async () => {
     vi.mocked(window.openbot.getSetupState).mockResolvedValueOnce({
       completed: false,

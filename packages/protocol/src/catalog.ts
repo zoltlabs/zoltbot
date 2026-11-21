@@ -784,6 +784,13 @@ const rawMethodCatalog = {
     }),
     RoutineSchema,
   ),
+  /** D5: first jobs that fit the apps the owner connected, offered at the end of setup. */
+  "routine.starters": list(object({ id: Id, name: Text, projectId: Id })),
+  /** D5: saves a starter job as a paused routine; the owner turns it on from Routines. */
+  "routine.createStarter": entry(
+    object({ jobId: Id, profileId: Id, timezone: Text }),
+    RoutineSchema,
+  ),
   "routine.update": entry(
     object({
       id: Id,

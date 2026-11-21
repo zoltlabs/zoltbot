@@ -6,7 +6,9 @@ import {
   type RoutineItem,
   type RoutineRun,
   type RoutineSchedule,
+  type StarterJobItem,
 } from "../shared/routines";
+import { chooseAgent } from "./agent-choice";
 import type { DaemonClient } from "./daemon-client";
 import { isObject, requireString } from "./parsers";
 
@@ -18,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   use_event_routine_commands: "Run it from its chat.",
   scope_unavailable: "Its project was archived or deleted.",
   routine_running: "It's already running.",
+  starter_unavailable: "Its app isn't connected any more.",
+  profile_unavailable: "Add an agent in Zoltbot first.",
 };
 
 function failure(error: unknown, fallback: string): Error {
@@ -159,6 +163,47 @@ export function routineHandlers(client: Client): Record<string, (input: unknown)
         );
       } catch (error) {
         throw failure(error, "Couldn't save the schedule. Try again.");
+      }
+    },
+    [C.routinesStarters]: async (): Promise<StarterJobItem[]> => {
+      const result = (await client.call("routine.starters", {})) as { items?: unknown[] };
+      return (result.items ?? []).flatMap((row) =>
+        isObject(row) && text(row.id) && text(row.name)
+          ? [{ id: String(row.id), name: String(row.name) }]
+          : [],
+      );
+    },
+    [C.routinesAddStarter]: async (input) => {
+      if (!isObject(input)) throw new Error("Invalid request.");
+      const jobId = requireString(input.id, "id");
+      const provider = text(input.provider);
+      const projects = client.rows("project");
+      const { items } = (await client.call("routine.starters", {})) as { items: unknown[] };
+      const job = items.find((row) => isObject(row) && row.id === jobId) as
+        | { projectId?: string }
+        | undefined;
+      const profiles = client
+        .rows("agent")
+        .filter((row) => row.archived !== true && row.hidden !== true);
+      // The agent picked in setup, else the one a new chat in that project would get.
+      const profile =
+        profiles.find((row) => row.kind === "profile" && provider && row.definitionId === provider) ??
+        chooseAgent(profiles, {
+          defaultAgentId: projects.find((row) => row.id === job?.projectId)?.defaultAgentId,
+        });
+      if (!profile) throw new Error(MESSAGES.profile_unavailable);
+      try {
+        await client.call(
+          "routine.createStarter",
+          {
+            jobId,
+            profileId: String(profile.id),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          },
+          randomUUID(),
+        );
+      } catch (error) {
+        throw failure(error, "Couldn't add it. Try again.");
       }
     },
     [C.routinesRunNow]: async (input) => {

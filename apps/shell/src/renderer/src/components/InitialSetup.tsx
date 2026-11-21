@@ -8,6 +8,7 @@ import type {
   MacPermissionId,
   MacPermissionsState,
 } from "../../../shared/ipc";
+import type { StarterJobItem } from "../../../shared/routines";
 import { ProviderPicker, type ProviderPickerOption } from "./ProviderPicker";
 
 interface InitialSetupProps {
@@ -52,6 +53,10 @@ export function InitialSetup(props: InitialSetupProps) {
   const [checking, setChecking] = createSignal(false);
   const [permissionBusy, setPermissionBusy] = createSignal<MacPermissionId | null>(null);
   const [error, setError] = createSignal("");
+  // D5: first jobs for the connected apps, shown after the agent is chosen. Null until then.
+  const [starters, setStarters] = createSignal<StarterJobItem[] | null>(null);
+  const [starterBusy, setStarterBusy] = createSignal<string | null>(null);
+  let starterList: HTMLUListElement | undefined;
   const providers = createMemo(() => props.agentStatus.providers ?? []);
   const providerOptions = createMemo<ProviderPickerOption[]>(() =>
     providers().map((provider) => ({
@@ -109,12 +114,44 @@ export function InitialSetup(props: InitialSetupProps) {
     if (!provider || saving()) return;
     setSaving(true);
     setError("");
+    if (!props.reviewing && starters() === null) {
+      // Setup goes on without them if they can't be read.
+      const jobs = await window.openbot.routines
+        ?.starters?.()
+        .catch(() => [] as StarterJobItem[]);
+      setStarters(jobs ?? []);
+      if (jobs?.length) {
+        setSaving(false);
+        queueMicrotask(() => starterList?.querySelector("button.primary")?.focus());
+        return;
+      }
+    }
     try {
       await props.onSave(provider);
     } catch (cause) {
       setError(errorMessage(cause, "Zoltbot could not save your agent."));
       setSaving(false);
     }
+  }
+
+  async function decideStarter(id: string, add: boolean): Promise<void> {
+    if (starterBusy()) return;
+    setError("");
+    if (add) {
+      setStarterBusy(id);
+      try {
+        await window.openbot.routines?.addStarter?.({ id, provider: selectedProvider() ?? undefined });
+      } catch (cause) {
+        setError(errorMessage(cause, "Zoltbot could not add it."));
+        return;
+      } finally {
+        setStarterBusy(null);
+      }
+    }
+    const left = (starters() ?? []).filter((job) => job.id !== id);
+    setStarters(left);
+    if (left.length) queueMicrotask(() => starterList?.querySelector("button.primary")?.focus());
+    else await save();
   }
 
   async function checkAgents(): Promise<void> {
@@ -148,15 +185,54 @@ export function InitialSetup(props: InitialSetupProps) {
       >
         <header class="initial-setup-header">
           <h1 id="initial-setup-title">
-            {props.reviewing ? "Agents & permissions" : "Set up a coding agent"}
+            {props.reviewing
+              ? "Agents & permissions"
+              : starters()?.length
+                ? "Start with one of these"
+                : "Set up a coding agent"}
           </h1>
-          <Show when={!props.reviewing}>
+          <Show when={!props.reviewing && !starters()?.length}>
             <p id="initial-setup-description" class="initial-setup-intro">
               Install or sign in to one of these agents to start.
             </p>
           </Show>
         </header>
 
+        <Show when={starters()?.length}>
+          <ul class="mac-permission-list starter-jobs" ref={starterList}>
+            <For each={starters() ?? []}>
+              {(job) => (
+                <li class="mac-permission-row">
+                  <span class="mac-permission-copy" id={`starter-${job.id}`}>
+                    <strong>{job.name}</strong>
+                  </span>
+                  <span class="starter-job-actions">
+                    <button
+                      type="button"
+                      class="zb-kit-button"
+                      aria-describedby={`starter-${job.id}`}
+                      disabled={starterBusy() !== null}
+                      onClick={() => void decideStarter(job.id, false)}
+                    >
+                      Skip
+                    </button>
+                    <button
+                      type="button"
+                      class="zb-kit-button primary"
+                      aria-describedby={`starter-${job.id}`}
+                      disabled={starterBusy() !== null}
+                      onClick={() => void decideStarter(job.id, true)}
+                    >
+                      Add
+                    </button>
+                  </span>
+                </li>
+              )}
+            </For>
+          </ul>
+        </Show>
+
+        <Show when={!starters()?.length}>
         <Show
           when={providerOptions().length > 0}
           fallback={
@@ -223,12 +299,15 @@ export function InitialSetup(props: InitialSetupProps) {
           </section>
         </Show>
 
+        </Show>
+
         <Show when={error()}>
           <p class="initial-setup-error" role="alert">
             {error()}
           </p>
         </Show>
 
+        <Show when={!starters()?.length}>
         <div class="initial-setup-actions">
           <Show
             when={props.reviewing}
@@ -262,6 +341,7 @@ export function InitialSetup(props: InitialSetupProps) {
                   : "Choose an agent"}
           </button>
         </div>
+        </Show>
       </section>
     </main>
   );

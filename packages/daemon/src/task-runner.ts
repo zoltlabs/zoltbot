@@ -453,7 +453,8 @@ export function taskRunner(options: TaskRunnerOptions) {
         const check =
           commandId &&
           !store.receipt(commandId) &&
-          (["routine.create", "routine.update"].includes(method) || events.handles(method))
+          (["routine.create", "routine.createStarter", "routine.update"].includes(method) ||
+            events.handles(method))
             ? await options.checkPublic(params)
             : undefined;
         const result = events.handles(method)
