@@ -5,6 +5,8 @@ export interface Attachment {
   id: string;
   label: string;
   part: UserInput[number];
+  /** C13: a long paste held as its own text part. */
+  pasted?: boolean;
 }
 export interface FileChoice {
   path: string;

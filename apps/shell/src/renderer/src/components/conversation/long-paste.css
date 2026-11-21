@@ -1,0 +1,24 @@
+/* C13: "Paste as text" on a pasted.txt card; a text button, not the round remove icon. */
+.composer-attachment > button.composer-attachment-inline {
+  display: inline-flex;
+  width: auto;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--text-heading);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.composer-attachment > button.composer-attachment-inline:hover {
+  background: rgb(var(--ink) / 0.1);
+  color: var(--text-heading);
+}
+
+.composer-attachment > button.composer-attachment-inline:focus-visible {
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: 1px;
+}

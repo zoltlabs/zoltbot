@@ -3461,7 +3461,7 @@ textarea {
 }
 
 .composer-attachment small {
-  color: rgb(var(--ink) / calc(0.4 * var(--ink-text-boost)));
+  color: rgb(var(--ink) / calc(0.6 * var(--ink-text-boost)));
   font-size: 10px;
   line-height: 14px;
 }

@@ -82,6 +82,13 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
         service.attachmentSource(parsed.attachmentId),
       );
     },
+    // Pasted files, as the preload's paste handler sends them (bytes arrive as a plain array).
+    [IPC_CHANNELS.agentImportAttachments]: (input) =>
+      Promise.all(
+        (input as { data: { name: string; bytes: number[] }[] }).data.map((item) =>
+          service.addDraftBytes(item.name, Uint8Array.from(item.bytes)),
+        ),
+      ),
     [IPC_CHANNELS.agentCreateProject]: () =>
       service.createProject(mkdtempSync(join(tmpdir(), "launch-"))),
   };
@@ -141,6 +148,27 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       (input?: unknown): Promise<unknown> =>
         (window as unknown as ZoltWindow).__zoltInvoke(channel, input);
     const target = window as unknown as ZoltWindow & { openbot: unknown };
+    // The preload's paste handler: pasted files become draft attachments.
+    const imports = new Set<(event: unknown) => void>();
+    let pastes = 0;
+    window.addEventListener("paste", (event) => {
+      const files = [...(event.clipboardData?.files ?? [])];
+      if (!files.length) return;
+      event.preventDefault();
+      const requestId = `e2e-${++pastes}`;
+      for (const listener of imports) listener({ type: "started", requestId });
+      void (async () => {
+        const data = await Promise.all(
+          files.map(async (file) => ({
+            name: file.name,
+            mimeType: file.type,
+            bytes: Array.from(new Uint8Array(await file.arrayBuffer())),
+          })),
+        );
+        const attachments = await call(channels.agentImportAttachments)({ paths: [], data });
+        for (const listener of imports) listener({ type: "completed", requestId, attachments });
+      })();
+    });
     target.__zoltEmit = (event) => {
       for (const listener of listeners) listener(event);
     };
@@ -176,7 +204,10 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         branch: call(channels.agentBranch),
         threadAction: call(channels.agentThreadAction),
         chooseAttachments: call(channels.agentChooseAttachments),
-        onAttachmentImport: () => () => undefined,
+        onAttachmentImport: (listener: (event: unknown) => void) => {
+          imports.add(listener);
+          return () => imports.delete(listener);
+        },
         discardDraftAttachment: call(channels.agentDiscardDraftAttachment),
         openAttachment: call(channels.agentOpenAttachment),
         sendMessage: call(channels.agentSendMessage),

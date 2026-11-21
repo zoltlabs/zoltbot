@@ -14,5 +14,7 @@
   "agent.fastMode.label": "Fast mode",
   "agent.fastMode.cost": "Uses more of your plan",
   "agent.continue.label": "Continue unfinished replies",
-  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”"
+  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”",
+  "composer.pastedText": "Pasted text · {lines, plural, one {# line} other {# lines}}",
+  "composer.pasteAsText": "Paste as text"
 }

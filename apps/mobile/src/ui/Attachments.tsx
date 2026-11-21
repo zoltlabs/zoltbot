@@ -10,6 +10,7 @@ import {
   searchSampleFiles,
 } from "../data/attachments";
 import { text } from "../data/view";
+import { t } from "../i18n";
 import { newId } from "../state/actions";
 import { useCall, useClient, useLink } from "../state/link";
 import { touch, type as typography, useTheme } from "../theme";
@@ -22,11 +23,14 @@ export function Attachments({
   onChange,
   threadId,
   disabled = false,
+  onPasteAsText,
 }: {
   value: Attachment[];
   onChange(value: Attachment[]): void;
   threadId?: string | undefined;
   disabled?: boolean;
+  /** C13: puts a long paste back into the message. */
+  onPasteAsText?(attachment: Attachment): void;
 }) {
   const { c } = useTheme();
   const online = useClient((s) => s.status === "online");
@@ -105,14 +109,24 @@ export function Attachments({
       {value.length ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: c["space-2"] }}>
           {value.map((attachment) => (
-            <Button
-              key={attachment.id}
-              label="Remove"
-              a11y={`Remove attachment ${attachment.label}`}
-              disabled={locked}
-              icon={<Chip label={attachment.label} />}
-              onPress={() => onChange(value.filter((entry) => entry.id !== attachment.id))}
-            />
+            <View key={attachment.id} style={{ flexDirection: "row", alignItems: "center" }}>
+              <Button
+                label="Remove"
+                a11y={`Remove attachment ${attachment.label}`}
+                disabled={locked}
+                icon={<Chip label={attachment.label} />}
+                onPress={() => onChange(value.filter((entry) => entry.id !== attachment.id))}
+              />
+              {attachment.pasted && onPasteAsText ? (
+                <Button
+                  kind="plain"
+                  label={t("composer.pasteAsText")}
+                  a11y={`${t("composer.pasteAsText")}: ${attachment.label}`}
+                  disabled={locked}
+                  onPress={() => onPasteAsText(attachment)}
+                />
+              ) : null}
+            </View>
           ))}
         </View>
       ) : null}

@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, createUniqueId, For, Show } fro
 import type { BotProfile } from "../data";
 import { Suggestions } from "../kit";
 import { AgentAvatar } from "./AgentAvatar";
+import { attachPastedText, isLongPaste } from "./conversation/long-paste";
 
 interface ComposerEditorProps {
   botId: string | undefined;
@@ -155,6 +156,11 @@ export function ComposerEditor(props: ComposerEditorProps) {
 
     const text = clipboard.getData("text/plain").replace(/\r\n?/g, "\n");
     if (!text) return;
+    // C13: a long paste goes in as pasted.txt instead of filling the composer.
+    if (isLongPaste(text)) {
+      attachPastedText(text, editor);
+      return;
+    }
 
     insertPlainText(editor, text);
     emitValue();

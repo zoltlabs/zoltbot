@@ -23,6 +23,7 @@ import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { withHidden } from "../../data/hidden";
 import { pendingFor } from "../../data/interactions";
+import { pastedAttachment, takeLongPaste } from "../../data/long-paste";
 import { pinnedRows } from "../../data/pins";
 import { withProgress } from "../../data/progress";
 import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
@@ -39,7 +40,7 @@ import {
   text,
   transcript,
 } from "../../data/view";
-import { useAction } from "../../state/actions";
+import { newId, useAction } from "../../state/actions";
 import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useSnapshot } from "../../state/link";
 import { donateBotConversation } from "../../state/sharing";
@@ -398,7 +399,17 @@ export default function Chat() {
           />
         </ScrollView>
       ) : null}
-      <Attachments value={attachments} onChange={setAttachments} threadId={id} disabled={busy} />
+      <Attachments
+        value={attachments}
+        onChange={setAttachments}
+        threadId={id}
+        disabled={busy}
+        onPasteAsText={(pasted) => {
+          setAttachments((all) => all.filter((entry) => entry.id !== pasted.id));
+          const words = pasted.part.type === "text" ? pasted.part.text : "";
+          setDraft((current) => (current.trim() ? `${current}\n${words}` : words));
+        }}
+      />
       <View
         style={[
           styles.composer,
@@ -444,7 +455,13 @@ export default function Chat() {
           <TextInput
             ref={input}
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={(next) => {
+              // C13: a paste over 2,000 characters becomes an attachment.
+              const { draft: kept, pasted } = takeLongPaste(draft, next);
+              setDraft(kept);
+              if (pasted)
+                setAttachments((all) => [...all, pastedAttachment(newId("paste"), pasted)]);
+            }}
             placeholder={canAside && delivery === "aside" ? "Ask aside…" : "Message"}
             placeholderTextColor={c["text-dim"]}
             multiline

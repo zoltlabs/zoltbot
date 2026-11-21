@@ -272,6 +272,8 @@
   "chat.message.unpinned": "Unpinned",
   "chat.message.hide": "Hide",
   "chat.askAbout": "Ask about this",
+  "composer.pastedText": "Pasted text · {lines, plural, one {# line} other {# lines}}",
+  "composer.pasteAsText": "Paste as text",
   "chat.progress.label": "Progress note:",
   "chat.reaction.agent": "{name} reacted",
   "chat.reaction.agentLabel": "{name} reacted {emoji}",

@@ -1,5 +1,5 @@
 import { quoteText, withQuote } from "@zoltbot/protocol";
-import { For, Show } from "solid-js";
+import { For, onCleanup, Show } from "solid-js";
 import type { DraftAttachment, QueueSnapshot } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
 import { t } from "../../i18n";
@@ -9,6 +9,14 @@ import { type createDictation, DictationButton } from "../Dictation";
 import { fileBadge, formatFileSize } from "./Attachments";
 import { createAsideMode } from "./aside-mode";
 import { CloseIcon, FileIcon, PlusIcon, StopIcon } from "./icons";
+import {
+  forgetPasted,
+  lineCount,
+  notePastedAttachments,
+  PASTED_NAME,
+  pastedText,
+} from "./long-paste";
+import "./long-paste.css";
 import { QueueList } from "./QueueList";
 
 export function Composer(props: {
@@ -39,6 +47,17 @@ export function Composer(props: {
   onStop: () => void;
 }) {
   let attachButton: HTMLButtonElement | undefined;
+  // C13: learn which pasted.txt attachments hold a long paste, so they can go back inline.
+  onCleanup(
+    window.openbot.agent.onAttachmentImport((event) => {
+      if (event.type === "completed") notePastedAttachments(event.attachments);
+    }),
+  );
+  const pasteAsText = (id: string, words: string) => {
+    forgetPasted(id);
+    props.onRemoveAttachment(id);
+    props.onTextChange(props.text.trim() ? `${props.text}\n${words}` : words);
+  };
   const aside = createAsideMode({
     botId: () => props.bot?.id,
     working: () => Boolean(props.activeTurnId),
@@ -84,13 +103,36 @@ export function Composer(props: {
               </Show>
             </span>
             <span>
-              <strong>{attachment.name}</strong>
-              <small>{formatFileSize(attachment.size)}</small>
+              <strong>
+                <Show when={pastedText(attachment.id)} fallback={attachment.name}>
+                  {PASTED_NAME}
+                </Show>
+              </strong>
+              <small>
+                <Show when={pastedText(attachment.id)} fallback={formatFileSize(attachment.size)}>
+                  {(words) => t("composer.pastedText", { lines: lineCount(words()) })}
+                </Show>
+              </small>
             </span>
+            <Show when={pastedText(attachment.id)}>
+              {(words) => (
+                <button
+                  type="button"
+                  class="composer-attachment-inline"
+                  aria-label={`${t("composer.pasteAsText")}: ${t("composer.pastedText", { lines: lineCount(words()) })}`}
+                  onClick={() => pasteAsText(attachment.id, words())}
+                >
+                  {t("composer.pasteAsText")}
+                </button>
+              )}
+            </Show>
             <button
               type="button"
-              aria-label={`Remove ${attachment.name}`}
-              onClick={() => props.onRemoveAttachment(attachment.id)}
+              aria-label={`Remove ${pastedText(attachment.id) ? PASTED_NAME : attachment.name}`}
+              onClick={() => {
+                forgetPasted(attachment.id);
+                props.onRemoveAttachment(attachment.id);
+              }}
             >
               <CloseIcon />
             </button>
