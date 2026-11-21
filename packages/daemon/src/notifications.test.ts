@@ -163,3 +163,44 @@ it("offers only advertised once choices for a simple public approval", () => {
   ).toEqual(["reject_once"]);
   expect(notificationChoices(request)).toEqual([]);
 });
+it("keeps a muted chat quiet except for its approvals, which show silently", () => {
+  const planner = new NotificationPlanner();
+  const muted = { ...context, muted: new Set(["thread"]) };
+  const approval: Interaction = {
+    ...request,
+    id: "approval",
+    type: "approval",
+    items: [{ id: "a", prompt: "Run tests", choices: [{ id: "allow_once" }] }],
+  };
+  const changes = planner.reconcile([request, approval], muted, at);
+  expect(changes).toEqual([
+    expect.objectContaining({ action: "show", key: "interaction:approval", silent: true }),
+  ]);
+  // Muting a chat withdraws its question that was already showing.
+  const open = new NotificationPlanner();
+  expect(open.reconcile([request], context, at)).toHaveLength(1);
+  expect(open.reconcile([request], muted, at + 1)).toEqual([
+    { action: "withdraw", key: "interaction:request" },
+  ]);
+  // A routine or notice from a muted chat never shows.
+  expect(
+    planner.reconcileRoutines(
+      [
+        {
+          id: "run",
+          taskId: "task",
+          status: "completed",
+          notify: "always",
+          outcome: "done",
+        } as never,
+      ],
+      { ...context, muted: new Set(["task:thread"]) },
+    ),
+  ).toEqual([]);
+  expect(
+    planner.reconcileNotices([{ id: "n", threadId: "thread", text: "Hi" }], {
+      ...muted,
+      chiefName: "Zolt",
+    }),
+  ).toEqual([]);
+});

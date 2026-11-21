@@ -5,6 +5,7 @@ export * from "./backup-models.js";
 export * from "./browser.js";
 export * from "./catalog.js";
 export * from "./channels.js";
+export * from "./chat-mute.js";
 export * from "./cloud.js";
 export * from "./command-prefix.js";
 export * from "./common.js";

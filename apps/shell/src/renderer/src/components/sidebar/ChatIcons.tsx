@@ -1,5 +1,7 @@
 // S9: icons for the sidebar's sort menu and a chat's row menu.
 import type { JSX } from "solid-js";
+import { t } from "../../i18n";
+import "./chat-mute.css";
 
 function Icon(props: { children: JSX.Element }) {
   return (
@@ -31,6 +33,18 @@ export const UnreadIcon = () => (
     <circle cx="10" cy="10" r="3.2" />
     <circle cx="10" cy="10" r="6.5" />
   </Icon>
+);
+/** A3: a bell with a slash, for Mute and the muted row. */
+export const MutedIcon = () => (
+  <Icon>
+    <path d="M7.2 4.3A4.5 4.5 0 0 1 14.5 8c0 2.4.5 3.9 1 4.8M13.5 14.5H3.5s1.5-1.3 1.5-6.5c0-.6.1-1.1.3-1.6M8.6 16.5a1.6 1.6 0 0 0 2.8 0M3 3l14 14" />
+  </Icon>
+);
+/** A3: shown after a muted chat's name. */
+export const MutedMark = () => (
+  <span class="bot-row-muted" role="img" aria-label={t("sidebar.chat.muted")}>
+    <MutedIcon />
+  </span>
 );
 export const ArchiveIcon = () => (
   <Icon>

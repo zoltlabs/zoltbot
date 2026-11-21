@@ -119,3 +119,32 @@ it("pushes a notice from the main agent only through a relay that announced it",
     f.close();
   }
 });
+
+it("sends no push for a muted chat's questions but still pushes its approvals", async () => {
+  const { f, request, change } = await chiefFixture();
+  const sent: Record<string, unknown>[] = [];
+  const link = { status: "online", send: (message: Record<string, unknown>) => sent.push(message) };
+  const notifier = pushNotifier({
+    store: f.store,
+    devices: { paired: () => [{ id: "phone" }] } as unknown as DeviceBook,
+    link: () => link as unknown as RelayLink,
+    delayMs: 1,
+  });
+  try {
+    change({ type: "create", kind: "settings", value: { key: "chat.muted.worker", value: true } });
+    let before = f.store.lastSeq();
+    request("worker", { type: "question", title: "Which branch?" });
+    notifier.observe(f.store.eventsSince(before));
+    await settle();
+    expect(sent).toEqual([]);
+    before = f.store.lastSeq();
+    request("worker", { type: "approval", title: "Deploy" });
+    notifier.observe(f.store.eventsSince(before));
+    await settle();
+    // The muted question is left out of the count.
+    expect(sent).toMatchObject([{ t: "push", deviceId: "phone", kind: "needs_you", count: 1 }]);
+  } finally {
+    notifier.close();
+    f.close();
+  }
+});

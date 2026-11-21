@@ -2,10 +2,13 @@
   "chat.context.compact": "Compact chat",
   "chat.context.compacting": "Compacting…",
   "chat.context.meter": "Context {percent}% full",
+  "chat.mute": "Mute",
+  "chat.muted": "Muted",
   "chat.plan.completed": "Done",
   "chat.plan.in_progress": "In progress",
   "chat.plan.pending": "Not started",
   "chat.plan.progress": "{done} of {total} done",
   "chat.plan.title": "Plan",
+  "chat.unmute": "Unmute",
   "kit.cancel": "Cancel"
 }

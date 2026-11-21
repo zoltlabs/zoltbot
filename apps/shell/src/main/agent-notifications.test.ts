@@ -36,6 +36,9 @@ describe("notificationForAgentEvent", () => {
     expect(
       notificationForAgentEvent(completed("completed"), [{ ...bot, notifications: false }]),
     ).toBeNull();
+    expect(
+      notificationForAgentEvent(completed("completed"), [{ ...bot, muted: true }]),
+    ).toBeNull();
     expect(notificationForAgentEvent({ type: "bots-changed", bots: [] }, [bot])).toBeNull();
   });
 });

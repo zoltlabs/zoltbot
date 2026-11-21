@@ -22,6 +22,14 @@ describe("thread actions", () => {
       { id: "c", confirmed: true },
     ]);
     expect(threadCommand({ botId: "c", action: "unarchive" })[0]).toBe("thread.unarchive");
+    expect(threadCommand({ botId: "c", action: "mute" })).toEqual([
+      "settings.set",
+      { key: "chat.muted.c", value: true },
+    ]);
+    expect(threadCommand({ botId: "c", action: "unmute" })).toEqual([
+      "settings.set",
+      { key: "chat.muted.c", value: false },
+    ]);
   });
 
   it("rejects unknown actions and missing chats", () => {

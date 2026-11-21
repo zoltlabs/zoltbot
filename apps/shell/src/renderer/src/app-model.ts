@@ -85,6 +85,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     projectId: stored.projectId,
     kind: stored.kind,
     pinned: stored.pinned,
+    muted: stored.muted === true,
     onboarding: stored.onboarding,
     depth: stored.depth,
     companyRole: stored.companyRole,

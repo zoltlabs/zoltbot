@@ -1,5 +1,6 @@
 // S9: pin, read state and archive for a chat, as daemon commands.
 import { randomUUID } from "node:crypto";
+import { mutedKey } from "@zoltbot/protocol";
 import { IPC_CHANNELS } from "../shared/ipc";
 import {
   THREAD_ACTIONS,
@@ -30,6 +31,9 @@ export function threadCommand({ botId: id, action }: ThreadActionInput): [string
       return ["thread.archive", { id, confirmed: true }];
     case "unarchive":
       return ["thread.unarchive", { id }];
+    case "mute":
+    case "unmute":
+      return ["settings.set", { key: mutedKey(id), value: action === "mute" }];
   }
 }
 

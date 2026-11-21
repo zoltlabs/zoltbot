@@ -166,6 +166,18 @@ describe("drawer", () => {
     expect(chats).toContain("EU pricing questions");
     expect(chats).not.toContain("Mira");
     expect(chats).not.toContain("Add VAT number field");
+    // A3: a muted chat says so.
+    const chat = drawerChats(snapshot, "acme-web", now).find(
+      (c) => c.title === "EU pricing questions",
+    );
+    expect(chat?.muted).toBe(false);
+    snapshot.entities.settings = [
+      ...(snapshot.entities.settings ?? []),
+      { key: `chat.muted.${chat?.threadId}`, value: true },
+    ];
+    expect(
+      drawerChats(snapshot, "acme-web", now).find((c) => c.threadId === chat?.threadId)?.muted,
+    ).toBe(true);
     expect(
       channelRows(
         snapshot.entities.channel ?? [],

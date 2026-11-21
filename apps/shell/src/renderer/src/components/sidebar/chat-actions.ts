@@ -57,7 +57,10 @@ export function createChatActions(deps: {
     if (action === "markUnread" && bot.id === deps.activeBotId()) keptUnread.add(bot.id);
     if (action === "markRead") deps.clearLocalUnread(bot.id);
     const done = send(bot.id, action);
-    if (action !== "archive") {
+    // A3: say what Mute keeps, since the owner can't see it.
+    if (action === "mute")
+      done.then(() => showToast({ message: t("sidebar.chat.mutedNote") })).catch(failed);
+    else if (action !== "archive") {
       done.catch(failed);
       return;
     }

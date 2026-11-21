@@ -13,7 +13,7 @@ export function notificationForAgentEvent(
   if (event.type !== "turn-completed") return null;
 
   const bot = bots.find((candidate) => candidate.id === event.botId);
-  if (!bot?.notifications) return null;
+  if (!bot?.notifications || bot.muted) return null;
 
   if (event.status !== "completed") return null;
   return { title: bot.name, body: "Finished working." };

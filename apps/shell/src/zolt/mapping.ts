@@ -1,6 +1,7 @@
 import {
   DEFAULT_TALKING_STYLE_KEY,
   effectiveTalkingStyle,
+  mutedKey,
   queueOrderKey,
   splitQuote,
 } from "@zoltbot/protocol";
@@ -171,6 +172,9 @@ export function toBotSummary(
     projectId,
     kind: text(thread.kind),
     pinned: thread.pinned === true,
+    muted:
+      (snapshot.entities.settings ?? []).find((row) => row.key === mutedKey(threadId))?.value ===
+      true,
     onboarding: false,
     depth: entry?.depth ?? 0,
     companyRole: entry?.role ?? "chat",

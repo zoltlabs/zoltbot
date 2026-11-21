@@ -70,6 +70,8 @@ export interface BotProfile {
   projectId?: string | null;
   kind?: string;
   pinned?: boolean;
+  /** A3: the owner muted this chat. */
+  muted?: boolean;
   /** Marked unread, or a reply came after the owner last read it. */
   unread?: boolean;
   /** When the chat last had activity, for sorting. */

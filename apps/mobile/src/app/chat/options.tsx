@@ -1,3 +1,4 @@
+import { mutedKey } from "@zoltbot/protocol";
 import { chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
@@ -16,6 +17,7 @@ export default function ChatOptions() {
   const snapshot = useSnapshot();
   const { run, busy } = useAction();
   const compact = useAction();
+  const mute = useAction();
   const online = useClient((state) => state.status === "online");
   const session = threadSession(snapshot, id);
   const compareMember = snapshot.entities.compareMember?.find((member) => member.threadId === id);
@@ -28,6 +30,8 @@ export default function ChatOptions() {
       row.threadId === id &&
       ["draft", "waiting", "ready", "needs_attention"].includes(text(row.status)),
   );
+  // A3: a muted chat sends no pushes except approvals.
+  const muted = snapshot.entities.settings?.find((row) => row.key === mutedKey(id))?.value === true;
   const open = (screen: string) => router.replace(`/chat/${screen}?id=${encodeURIComponent(id)}`);
   return (
     <DetailScreen title="Chat options">
@@ -60,6 +64,11 @@ export default function ChatOptions() {
             }
           />
           <Button label="Fork chat" disabled={!online} onPress={() => open("fork")} />
+          <Button
+            label={muted ? t("chat.unmute") : t("chat.mute")}
+            disabled={!online || mute.busy}
+            onPress={() => void mute.run("settings.set", { key: mutedKey(id), value: !muted })}
+          />
           {session ? (
             <Button
               label={compact.busy ? t("chat.context.compacting") : t("chat.context.compact")}

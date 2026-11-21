@@ -4,7 +4,7 @@ import type { BotProfile } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import { type Anchor, ConfirmDialog, Menu, type MenuItem } from "../../kit";
 import { DeleteIcon, EditIcon, RenameIcon } from "../SidebarIcons";
-import { ArchiveIcon, PinIcon, UnreadIcon } from "./ChatIcons";
+import { ArchiveIcon, MutedIcon, PinIcon, UnreadIcon } from "./ChatIcons";
 
 export interface BotContextMenu {
   botId: string;
@@ -38,6 +38,9 @@ export function chatMenuItems(
     state.unread
       ? item("markRead", "sidebar.chat.markRead", UnreadIcon)
       : item("markUnread", "sidebar.chat.markUnread", UnreadIcon),
+    bot.muted
+      ? item("unmute", "sidebar.chat.unmute", MutedIcon)
+      : item("mute", "sidebar.chat.mute", MutedIcon),
     ...(state.working ? [] : [item("archive", "sidebar.chat.archive", ArchiveIcon)]),
   ];
 }

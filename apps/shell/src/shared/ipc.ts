@@ -305,6 +305,8 @@ export interface BotSummary {
   projectId: string | null;
   kind: string;
   pinned: boolean;
+  /** A3: the owner muted this chat. */
+  muted: boolean;
   /** Ask what the agent should focus on when its chat is empty. */
   onboarding: boolean;
   /** How far below the project's CEO this chat sits in the company. */

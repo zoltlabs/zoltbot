@@ -1,5 +1,11 @@
 import { routineShouldNotify } from "@zoltbot/core";
-import type { DomainEvent, Interaction } from "@zoltbot/protocol";
+import {
+  type DomainEvent,
+  type Interaction,
+  mutedKey,
+  mutedThreads,
+  requestNotifies,
+} from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { chiefKeys } from "./chief/identity.js";
 import { notifyCode } from "./chief/notify.js";
@@ -31,6 +37,12 @@ export function pushNotifier(options: {
   /** Threads the main agent sent a notice from in this batch. */
   let notices: string[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /** A3: whether the owner muted a task's chat. A review still pushes: only they can act. */
+  const mutedTask = (taskId: string) => {
+    const thread = options.store.record("task", taskId)?.executorThreadId;
+    const key = mutedKey(typeof thread === "string" ? thread : `${taskId}:thread`);
+    return options.store.record("settings", key)?.value === true;
+  };
 
   function flush() {
     timer = undefined;
@@ -63,11 +75,15 @@ export function pushNotifier(options: {
     const state = options.store.snapshot(["interaction", "task", "settings"]);
     // What the main agent ranked for later waits in Needs you without a push.
     const later = laterIds(state.settings?.find((row) => row.key === chiefKeys.queue)?.value);
+    // A3: a muted chat's requests wait in Needs you without a push; its approvals still push.
+    const muted = mutedThreads(state.settings);
     const pending = (state.interaction ?? []).filter(
-      (row) => row.state === "pending" && !later.has(String(row.id)),
+      (row) => row.state === "pending" && !later.has(String(row.id)) && requestNotifies(row, muted),
     );
-    // Only new requests ranked for later: nothing worth a push.
-    if (needsYou && !reviewed && created.length && created.every((id) => later.has(id)))
+    const live = new Set(pending.map((row) => String(row.id)));
+    notices = notices.filter((threadId) => !muted.has(threadId));
+    // Only new requests ranked for later or from muted chats: nothing worth a push.
+    if (needsYou && !reviewed && created.length && created.every((id) => !live.has(id)))
       needsYou = false;
     const waiting =
       pending.length +
@@ -75,7 +91,7 @@ export function pushNotifier(options: {
     const action = needsYou
       ? approvalAction(
           pending,
-          created.filter((id) => !later.has(id)),
+          created.filter((id) => live.has(id)),
         )
       : undefined;
     // Each phone can turn off its own pushes (mobile.<deviceId>.notifyNeedsYou / notifyResults /
@@ -125,7 +141,8 @@ export function pushNotifier(options: {
           const occurrence = event.payload as import("@zoltbot/protocol").RoutineOccurrence;
           if (
             ["completed", "expired"].includes(occurrence.status) &&
-            routineShouldNotify(occurrence.notify, occurrence.outcome)
+            routineShouldNotify(occurrence.notify, occurrence.outcome) &&
+            !(occurrence.taskId && mutedTask(occurrence.taskId))
           ) {
             finished += 1;
             changed = true;
@@ -157,7 +174,7 @@ export function pushNotifier(options: {
             reviewed = true;
             changed = true;
           }
-          if (after === "failed") {
+          if (after === "failed" && !mutedTask(payload.id)) {
             finished += 1;
             changed = true;
           }
