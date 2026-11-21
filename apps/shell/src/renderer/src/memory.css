@@ -251,6 +251,37 @@
   gap: 8px;
 }
 
+.memory-merge {
+  display: grid;
+  gap: 4px;
+}
+
+.memory-merge-label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-merge ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--openbot-line);
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-tidy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .memory-forget-prompt {
   margin: 0;
   color: var(--text-secondary);

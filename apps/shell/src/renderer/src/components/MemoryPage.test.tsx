@@ -38,9 +38,11 @@ const VIEW: MemoryView = {
       agent: { id: "a1", name: "Researcher" },
       reason: "Saw the lockfile",
       forget: null,
+      merges: null,
       createdAt: "2026-01-03T00:00:00Z",
     },
   ],
+  tidy: true,
 };
 
 function page() {
@@ -159,6 +161,44 @@ describe("Memory page", () => {
     await waitFor(() =>
       expect(window.openbot.memory.decide).toHaveBeenCalledWith({ id: "pr1", decision: "reject" }),
     );
+  });
+
+  it("shows a nightly merge with both old texts, and Keep both rejects it", async () => {
+    const proposal = {
+      ...(VIEW.proposals[0] as MemoryView["proposals"][number]),
+      op: "revise" as const,
+      title: "Builds",
+      body: "Every branch build reuses the turbo cache.",
+      writer: { kind: "system" as const, id: "memory-tidy", name: "" },
+      agent: null,
+      merges: {
+        keep: "Every branch build reuses the turbo cache.",
+        drop: "Builds reuse the turbo cache on every branch.",
+      },
+    };
+    vi.mocked(window.openbot.memory.list).mockResolvedValue({ ...VIEW, proposals: [proposal] });
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: /^Needs review/ }));
+    const replaced = await within(main).findByRole("list", { name: "Replaces" });
+    expect(within(replaced).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(main).getByText("Repeat")).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Merge" })).toBeInTheDocument();
+    fireEvent.click(within(main).getByRole("button", { name: "Keep both" }));
+    await waitFor(() =>
+      expect(window.openbot.memory.decide).toHaveBeenCalledWith({ id: "pr1", decision: "reject" }),
+    );
+  });
+
+  it("turns the nightly search for repeats off", async () => {
+    vi.mocked(window.openbot.memory.list).mockResolvedValue(VIEW);
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: /^Needs review/ }));
+    const box = await within(main).findByRole("checkbox", {
+      name: "Find repeated entries each night",
+    });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    await waitFor(() => expect(window.openbot.memory.setTidy).toHaveBeenCalledWith(false));
   });
 
   it("keeps a proposal from Needs review", async () => {

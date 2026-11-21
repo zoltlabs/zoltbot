@@ -2,6 +2,7 @@ import { Value } from "@sinclair/typebox/value";
 import {
   AGENT_CONTINUE_PREFIX,
   type DomainEvent,
+  MEMORY_TIDY_SETTING,
   MUTED_PREFIX,
   STARRED_MODELS_SETTING,
   StarredModelsSchema,
@@ -82,7 +83,9 @@ export function settingsApi(options: {
     )
       throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
     if (
-      (input.key.startsWith(MUTED_PREFIX) || input.key.startsWith(AGENT_CONTINUE_PREFIX)) &&
+      (input.key.startsWith(MUTED_PREFIX) ||
+        input.key.startsWith(AGENT_CONTINUE_PREFIX) ||
+        input.key === MEMORY_TIDY_SETTING) &&
       typeof input.value !== "boolean"
     )
       throw new Error("invalid_setting: use true or false");

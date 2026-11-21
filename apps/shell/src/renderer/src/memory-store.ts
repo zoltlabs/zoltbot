@@ -2,7 +2,7 @@
 import { createSignal, onCleanup } from "solid-js";
 import type { MemoryEntry, MemoryView } from "../../shared/memory";
 
-const EMPTY: MemoryView = { entries: [], proposals: [] };
+const EMPTY: MemoryView = { entries: [], proposals: [], tidy: true };
 
 /** An IPC error's own message, without Electron's prefix. */
 export const memoryError = (error: unknown) =>
@@ -28,6 +28,7 @@ function keepUnchanged(previous: MemoryView, next: MemoryView): MemoryView {
   return {
     entries: reuse(previous.entries, next.entries),
     proposals: reuse(previous.proposals, next.proposals),
+    tidy: next.tidy,
   };
 }
 
@@ -93,6 +94,8 @@ export function createMemoryStore() {
     /** M2: takes one passage out of an entry; the entry's history keeps the old text. */
     forget: (entry: MemoryEntry, quote: string) =>
       change(() => api().forget({ id: entry.id, quote, revision: entry.revision })),
+    /** M3: turns the nightly tidy-up on or off. */
+    setTidy: (on: boolean) => change(() => api().setTidy(on)),
     decide: (id: string, decision: "accept" | "reject") =>
       change(() => api().decide({ id, decision })),
   };

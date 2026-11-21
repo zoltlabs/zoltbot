@@ -52,7 +52,7 @@ export function knowledgeEvent(
     payload: parse(KnowledgeItemSchema, item),
   });
 }
-function proposalEvent(
+export function proposalEvent(
   proposal: KnowledgeProposal,
   created: boolean,
   context: CommandContext,
@@ -322,6 +322,18 @@ export function decideProposal(
     : undefined;
   if (existing && existing.revision !== proposal.expectedRevision)
     throw new Error("knowledge_revision_conflict");
+  // M3: a tidy-up merge also archives the entry it folds in, at the revision it read.
+  const merged = proposal.merges
+    ? parse(
+        KnowledgeItemSchema,
+        state.knowledge?.find((entry) => entry.id === proposal.merges?.id) ??
+          (() => {
+            throw new Error("knowledge_not_found");
+          })(),
+      )
+    : undefined;
+  if (merged && (merged.revision !== proposal.merges?.revision || merged.status !== "active"))
+    throw new Error("knowledge_revision_conflict");
   if (proposal.forget) {
     if (!existing) throw new Error("knowledge_not_found");
     const body = withoutQuote(existing.body, proposal.forget);
@@ -361,14 +373,35 @@ export function decideProposal(
     body: params.body ?? (proposal.op === "confirm" && existing ? existing.body : proposal.body),
     tags: existing && proposal.op === "confirm" ? existing.tags : proposal.tags,
     ...(proposal.validUntil ? { validUntil: proposal.validUntil } : {}),
-    sources: mergeSources(existing?.sources ?? [], proposal.evidence),
+    sources: mergeSources(existing?.sources ?? [], merged?.sources ?? [], proposal.evidence),
   };
-  const saved = upsertKnowledge(state, value, existing?.revision ?? 0, {
+  // The folded-in entry is archived first, so a key the two entries share doesn't count as taken.
+  const target = merged
+    ? {
+        ...state,
+        knowledge: (state.knowledge ?? []).map((row) =>
+          row.id === merged.id ? { ...row, status: "archived" } : row,
+        ),
+      }
+    : state;
+  const saved = upsertKnowledge(target, value, existing?.revision ?? 0, {
     ...context,
     commandId: `${context.commandId}:item`,
   });
   const item = parse(KnowledgeItemSchema, saved.result);
   const next: KnowledgeProposal = { ...decided, state: "accepted", resultItemId: item.id };
   const events = [...saved.events, proposalEvent(next, false, context, 1)];
+  if (merged) {
+    const archived: KnowledgeItem = {
+      ...merged,
+      status: "archived",
+      writer: context.actor,
+      revision: merged.revision + 1,
+      updatedAt: context.at,
+    };
+    events.push(
+      knowledgeEvent(archived, false, { ...context, commandId: `${context.commandId}:merged` }),
+    );
+  }
   return { result: next, events };
 }

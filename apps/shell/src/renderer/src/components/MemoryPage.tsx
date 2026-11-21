@@ -15,6 +15,7 @@ const OP_KEYS = {
   revise: "memory.review.op.revise",
   confirm: "memory.review.op.confirm",
   forget: "memory.review.op.forget",
+  merge: "memory.review.op.merge",
 } as const;
 
 export function MemoryPage(props: {
@@ -113,14 +114,27 @@ export function MemoryPage(props: {
       return;
     }
     // An agent's forget request reads the other way round: accepting forgets, rejecting keeps.
-    const done = proposal.forget
+    const done = proposal.merges
       ? decision === "accept"
-        ? "memory.entry.forgot"
-        : "memory.review.notForgotten"
-      : decision === "accept"
-        ? "memory.review.kept"
-        : "memory.review.discarded";
+        ? "memory.review.merged"
+        : "memory.review.keptBoth"
+      : proposal.forget
+        ? decision === "accept"
+          ? "memory.entry.forgot"
+          : "memory.review.notForgotten"
+        : decision === "accept"
+          ? "memory.review.kept"
+          : "memory.review.discarded";
     announce(t(done, { title: proposal.title }));
+  }
+
+  const [tidySaving, setTidySaving] = createSignal(false);
+  const [tidyError, setTidyError] = createSignal<string | null>(null);
+  async function setTidy(on: boolean) {
+    setTidySaving(true);
+    setTidyError(null);
+    setTidyError(await props.store.setTidy(on));
+    setTidySaving(false);
   }
 
   const nothingSaved = () => !view().entries.length && !view().proposals.length;
@@ -250,15 +264,41 @@ export function MemoryPage(props: {
                           <li class="memory-row memory-proposal" data-proposal-id={id}>
                             <div class="memory-proposal-head">
                               <span id={`memory-proposal-op-${id}`} class="memory-op">
-                                {t(OP_KEYS[proposal().forget ? "forget" : proposal().op])}
+                                {t(
+                                  OP_KEYS[
+                                    proposal().merges
+                                      ? "merge"
+                                      : proposal().forget
+                                        ? "forget"
+                                        : proposal().op
+                                  ],
+                                )}
                               </span>
                               <span id={`memory-proposal-${id}`} class="memory-row-title">
                                 {proposal().title}
                               </span>
                             </div>
                             <p class="memory-body">{proposal().forget ?? proposal().body}</p>
-                            <Show when={proposal().reason}>
-                              <p class="memory-reason">{proposal().reason}</p>
+                            <Show
+                              when={proposal().merges}
+                              fallback={
+                                <Show when={proposal().reason}>
+                                  <p class="memory-reason">{proposal().reason}</p>
+                                </Show>
+                              }
+                            >
+                              {(merges) => (
+                                <div class="memory-merge">
+                                  <p class="memory-merge-label" id={`memory-merge-${id}`}>
+                                    {t("memory.review.replaces")}
+                                  </p>
+                                  <ul aria-labelledby={`memory-merge-${id}`}>
+                                    <For each={[merges().keep, merges().drop].filter(Boolean)}>
+                                      {(body) => <li>{body}</li>}
+                                    </For>
+                                  </ul>
+                                </div>
+                              )}
                             </Show>
                             <div class="memory-proposal-foot">
                               <span class="memory-row-meta">
@@ -273,9 +313,11 @@ export function MemoryPage(props: {
                                   onClick={() => void decide(proposal(), "accept")}
                                 >
                                   {t(
-                                    proposal().forget
-                                      ? "memory.review.forget"
-                                      : "memory.review.keep",
+                                    proposal().merges
+                                      ? "memory.review.merge"
+                                      : proposal().forget
+                                        ? "memory.review.forget"
+                                        : "memory.review.keep",
                                   )}
                                 </button>
                                 <button
@@ -286,9 +328,11 @@ export function MemoryPage(props: {
                                   onClick={() => void decide(proposal(), "reject")}
                                 >
                                   {t(
-                                    proposal().forget
-                                      ? "memory.review.dontForget"
-                                      : "memory.review.discard",
+                                    proposal().merges
+                                      ? "memory.review.keepBoth"
+                                      : proposal().forget
+                                        ? "memory.review.dontForget"
+                                        : "memory.review.discard",
                                   )}
                                 </button>
                               </div>
@@ -306,6 +350,22 @@ export function MemoryPage(props: {
                     )}
                   </For>
                 </ul>
+              </Show>
+              <label class="memory-tidy">
+                <input
+                  type="checkbox"
+                  checked={view().tidy}
+                  disabled={tidySaving()}
+                  onChange={(event) => void setTidy(event.currentTarget.checked)}
+                />
+                {t("memory.review.tidy")}
+              </label>
+              <Show when={tidyError()}>
+                {(message) => (
+                  <p class="memory-error" role="alert">
+                    {message()}
+                  </p>
+                )}
               </Show>
             </Show>
           </Show>

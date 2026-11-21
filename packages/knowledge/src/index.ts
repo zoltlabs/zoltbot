@@ -4,4 +4,5 @@ export * from "./hygiene.js";
 export * from "./policy.js";
 export * from "./repository.js";
 export * from "./retrieval.js";
+export * from "./tidy.js";
 export * from "./writes.js";

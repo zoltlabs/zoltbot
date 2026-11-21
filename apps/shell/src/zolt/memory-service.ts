@@ -1,5 +1,6 @@
 // S5: the Memory page's daemon calls.
 import { randomUUID } from "node:crypto";
+import { MEMORY_TIDY_SETTING } from "@zoltbot/protocol";
 import { IPC_CHANNELS } from "../shared/ipc";
 import type {
   MemoryDecideInput,
@@ -82,6 +83,13 @@ export function memoryService(client: DaemonClient) {
         throw error;
       }
     },
+    async setTidy(on: boolean): Promise<void> {
+      try {
+        await client.call("settings.set", { key: MEMORY_TIDY_SETTING, value: on }, randomUUID());
+      } catch {
+        throw new Error("Couldn’t change this setting. Try again.");
+      }
+    },
     async decide(input: MemoryDecideInput): Promise<void> {
       await client.call(
         "proposal.decide",
@@ -104,5 +112,9 @@ export function memoryHandlers(client: DaemonClient): Record<string, (input: unk
     },
     [IPC_CHANNELS.memoryDecide]: (input) => service.decide(parseDecide(input)),
     [IPC_CHANNELS.memoryForget]: (input) => service.forget(parseForget(input)),
+    [IPC_CHANNELS.memorySetTidy]: (input) => {
+      if (typeof input !== "boolean") throw new Error("Invalid setting.");
+      return service.setTidy(input);
+    },
   };
 }

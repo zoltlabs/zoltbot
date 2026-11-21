@@ -34,6 +34,8 @@ export const KnowledgeWriteReasonSchema = values([
   "not_found",
   /** M2: the owner asked to forget a sentence; they confirm the exact text first. */
   "forget_request",
+  /** M3: the nightly tidy-up found two entries that say the same thing. */
+  "tidy_merge",
 ]);
 export type KnowledgeWriteReason = Static<typeof KnowledgeWriteReasonSchema>;
 export const KnowledgeKindSchema = KnowledgeItemSchema.properties.kind;
@@ -56,6 +58,8 @@ export const KnowledgeProposalSchema = object({
   validUntil: Type.Optional(At),
   /** M2: the sentence an agent asked to forget, shown in the review. */
   forget: Type.Optional(Type.String({ minLength: 1, maxLength: 1200 })),
+  /** M3: the entry this merge replaces; it is archived when the merge is accepted. */
+  merges: Type.Optional(object({ id: Id, revision: Type.Integer({ minimum: 1 }) })),
   /** Why the policy routed this write to review. */
   why: KnowledgeWriteReasonSchema,
   writer: ActorSchema,
@@ -167,3 +171,7 @@ export const knowledgeWriteMethods = {
     }),
   ),
 };
+
+/** M3: the daemon setting that turns the nightly memory tidy-up off when it is false. */
+export const MEMORY_TIDY_SETTING = "memory.tidy";
+export const memoryTidyOn = (value: unknown): boolean => value !== false;

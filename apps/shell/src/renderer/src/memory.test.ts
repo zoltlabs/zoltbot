@@ -38,6 +38,7 @@ const view: MemoryView = {
     }),
   ],
   proposals: [],
+  tidy: true,
 };
 
 describe("filterMemory", () => {

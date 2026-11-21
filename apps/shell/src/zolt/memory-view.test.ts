@@ -78,7 +78,27 @@ describe("memory view", () => {
       projectId: "p1",
       projectName: "Website",
       reason: "Saw the lockfile",
+      merges: null,
     });
+    expect(view.tidy).toBe(true);
+  });
+
+  it("shows both texts of a nightly merge and reads the tidy-up setting", () => {
+    const view = toMemoryView({
+      entities: {
+        ...entities,
+        knowledge: [
+          { id: "a", body: "First text", status: "active" },
+          { id: "b", body: "Second text", status: "active" },
+        ],
+        knowledgeProposal: [
+          { id: "m", state: "pending", itemId: "a", merges: { id: "b", revision: 1 } },
+        ],
+        settings: [{ key: "memory.tidy", value: false }],
+      },
+    });
+    expect(view.proposals[0]?.merges).toEqual({ keep: "First text", drop: "Second text" });
+    expect(view.tidy).toBe(false);
   });
 });
 

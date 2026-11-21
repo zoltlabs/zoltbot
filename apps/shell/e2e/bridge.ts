@@ -316,6 +316,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         archive: call(channels.memoryArchive),
         decide: call(channels.memoryDecide),
         forget: call(channels.memoryForget),
+        setTidy: call(channels.memorySetTidy),
       },
       spend: {
         list: call(channels.spendList),

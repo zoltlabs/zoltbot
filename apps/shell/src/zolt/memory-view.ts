@@ -1,4 +1,5 @@
 // S5: the Memory page's entries and proposals, read from the daemon snapshot.
+import { MEMORY_TIDY_SETTING, memoryTidyOn } from "@zoltbot/protocol";
 import type {
   MemoryAgent,
   MemoryEntry,
@@ -72,10 +73,12 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
     .filter((row) => row.status !== "archived")
     .map((row) => toMemoryEntry(entities, row))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const knowledge = new Map((entities.knowledge ?? []).map((row) => [text(row.id), row]));
   const proposals = (entities.knowledgeProposal ?? [])
     .filter((row) => row.state === "pending")
     .map((row): MemoryProposal => {
       const project = projectOf(entities, row.scope);
+      const merged = (row.merges ?? null) as Row | null;
       return {
         id: text(row.id),
         op: pick(row.op, OPS, "create"),
@@ -89,9 +92,18 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
         agent: agentOf(writerOf(entities, row.writer)),
         reason: text(row.reason),
         forget: text(row.forget) || null,
+        merges: merged
+          ? {
+              keep: text(knowledge.get(text(row.itemId))?.body),
+              drop: text(knowledge.get(text(merged.id))?.body),
+            }
+          : null,
         createdAt: text(row.createdAt),
       };
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return { entries, proposals };
+  const tidy = memoryTidyOn(
+    (entities.settings ?? []).find((row) => row.key === MEMORY_TIDY_SETTING)?.value,
+  );
+  return { entries, proposals, tidy };
 }

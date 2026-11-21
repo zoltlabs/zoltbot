@@ -49,6 +49,8 @@ export interface MemoryProposal {
   reason: string;
   /** M2: the exact text an agent asked to forget; null for other proposals. */
   forget: string | null;
+  /** M3: a nightly merge of two entries; the text of each before the merge. Null otherwise. */
+  merges: { keep: string; drop: string } | null;
   createdAt: string;
 }
 
@@ -56,6 +58,8 @@ export interface MemoryView {
   entries: MemoryEntry[];
   /** Agent proposals waiting for the owner. */
   proposals: MemoryProposal[];
+  /** M3: whether the nightly tidy-up looks for entries that repeat each other. */
+  tidy: boolean;
 }
 
 export interface MemorySaveInput {
@@ -85,6 +89,7 @@ export const MEMORY_CHANNELS = {
   memoryArchive: "memory:archive",
   memoryDecide: "memory:decide",
   memoryForget: "memory:forget",
+  memorySetTidy: "memory:set-tidy",
 } as const;
 
 export interface MemoryDesktopApi {
@@ -97,4 +102,6 @@ export interface MemoryDesktopApi {
   decide: (input: MemoryDecideInput) => Promise<void>;
   /** M2: removes one passage from an entry as a new revision. */
   forget: (input: MemoryForgetInput) => Promise<void>;
+  /** M3: turns the nightly tidy-up on or off. */
+  setTidy: (on: boolean) => Promise<void>;
 }

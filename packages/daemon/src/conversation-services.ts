@@ -3,6 +3,7 @@ import type { OwnedRuntime, RuntimeContext } from "./api.js";
 import { backupModelsApi } from "./backup-models/service.js";
 import { backupSupervisor } from "./backup-models/supervisor.js";
 import { entityEditsApi } from "./entity-edits.js";
+import { memoryTidyTimer } from "./memory-tidy.js";
 import { orchestrationService } from "./orchestration/service.js";
 import { type QuickChatHostOptions, quickChatService } from "./quick-chat/service.js";
 import type { runtimeApi } from "./runtime-api.js";
@@ -66,6 +67,13 @@ export function conversationServices(host: {
   queueMicrotask(() => {
     void orchestration.start();
   });
+  const tidy = memoryTidyTimer({
+    store,
+    publish,
+    router: () => quick.router(),
+    containsSecret: (text) => privacy.containsSecret(text),
+    onError: host.onError,
+  });
   const backupModels = backupModelsApi({
     store,
     publish,
@@ -95,6 +103,7 @@ export function conversationServices(host: {
       );
     },
     async close() {
+      await tidy.close();
       await backup.close();
       await orchestration.close();
       quick.close();
