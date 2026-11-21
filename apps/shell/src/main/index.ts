@@ -59,6 +59,7 @@ import { desktopAccountClient } from "./desktop/native-account-client";
 import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
+import { cliHandlers } from "./desktop/cli-handlers";
 import { keepAwakeController } from "./keep-awake";
 import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
@@ -361,6 +362,10 @@ function registerIpcHandlers(setupFile: string): void {
     },
   );
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    cliHandlers({ packaged: app.isPackaged, root: paths.root, dataDir: paths.dataDir }),
+  ))
+    handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))

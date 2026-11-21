@@ -9,6 +9,7 @@ import {
   type UpdateStatus,
   type ViewHostEvent,
 } from "../shared/ipc";
+import { CLI_CHANNELS } from "../shared/cli";
 import { PREFERENCE_CHANNELS, type Preferences } from "../shared/preferences";
 
 /** ATTACHMENT_MAX_BYTES, kept here so the preload stays free of the protocol package. */
@@ -170,6 +171,10 @@ const openbotApi: OpenBotDesktopApi = {
       ipcRenderer.on(PREFERENCE_CHANNELS.preferencesEvent, handler);
       return () => ipcRenderer.removeListener(PREFERENCE_CHANNELS.preferencesEvent, handler);
     },
+  },
+  cli: {
+    status: () => ipcRenderer.invoke(CLI_CHANNELS.cliStatus),
+    install: () => ipcRenderer.invoke(CLI_CHANNELS.cliInstall),
   },
   maintenance: {
     exportData: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportData),

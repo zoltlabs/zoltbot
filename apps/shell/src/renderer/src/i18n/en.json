@@ -531,5 +531,15 @@
   "routines.keepAwake.working": "While agents work",
   "routines.keepAwake.workingOrDue": "Also before routines",
   "routines.keepAwake.failed": "Couldn't save Keep Mac awake.",
-  "routines.keepAwake.retry": "Try again"
+  "routines.keepAwake.retry": "Try again",
+  "sidebar.cli.install": "Install command-line tool",
+  "sidebar.cli.update": "Update command-line tool",
+  "sidebar.cli.title": "Install the zolt command?",
+  "sidebar.cli.body": "Adds zolt to /usr/local/bin, so Terminal and scripts can ask your agents and start tasks. macOS may ask for your password.",
+  "sidebar.cli.confirm": "Install",
+  "sidebar.cli.busy": "Installing…",
+  "sidebar.cli.installed": "Installed. Try zolt status in Terminal.",
+  "sidebar.cli.failed": "Couldn't install zolt. Try again.",
+  "sidebar.cli.other": "Another zolt is already in /usr/local/bin. Remove it, then try again.",
+  "sidebar.cli.unavailable": "This build of Zoltbot doesn't include the zolt command."
 }

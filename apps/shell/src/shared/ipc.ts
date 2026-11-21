@@ -1,5 +1,6 @@
 import type { FilePreviewKind } from "@zoltbot/protocol";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
+import type { CliDesktopApi } from "./cli";
 import type { PreferencesDesktopApi } from "./preferences";
 
 export type * from "./agent-templates";
@@ -783,6 +784,8 @@ export interface OpenBotDesktopApi {
   maintenance: MaintenanceDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
+  /** R5: installs the zolt command. Optional so test pages without it still load. */
+  cli?: CliDesktopApi;
   views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;

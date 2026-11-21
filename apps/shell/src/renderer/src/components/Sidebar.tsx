@@ -24,6 +24,7 @@ import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from 
 import { AgentAvatar } from "./AgentAvatar";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
+import { createCliEntry } from "./cli/CliEntry";
 import {
   AccountIcon,
   CloseIcon,
@@ -354,6 +355,7 @@ export function Sidebar(props: SidebarProps) {
   }
 
   const bridges = createBridgesEntry();
+  const cli = createCliEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -450,6 +452,7 @@ export function Sidebar(props: SidebarProps) {
           run: props.onOpenPermissions,
         },
         bridges.item(),
+        ...[cli.item()].filter((item) => item !== undefined),
       ],
       [
         {
@@ -782,6 +785,7 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       <bridges.Dialog />
+      <cli.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu
