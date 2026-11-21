@@ -5,11 +5,12 @@ import {
   type DomainState,
   decideWorkflowStep,
   finishTaskTurn,
+  fireRoutine,
   handle,
   type Outcome,
   startTask,
 } from "@zoltbot/core";
-import type { PipelineVersion, WorkflowEdge, WorkflowRun } from "@zoltbot/protocol";
+import type { PipelineVersion, Routine, WorkflowEdge, WorkflowRun } from "@zoltbot/protocol";
 import { openStore, type Store } from "@zoltbot/store";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { at, runtimeFixture } from "../../../tools/fakes/src/runtime-fixture.js";
@@ -456,5 +457,82 @@ describe("R7 workflow runner", () => {
       'Use the "chat-app" connection to do exactly one thing: Post a message',
     );
     expect(String(post?.brief)).toContain('Input (JSON): {"channel":"news"}');
+  });
+
+  it("runs a scheduled workflow through its own routine", async () => {
+    const scheduled = {
+      ...workflow,
+      workflowId: "daily",
+      graph: {
+        ...graph,
+        nodes: graph.nodes.map((node) =>
+          node.kind === "trigger"
+            ? {
+                ...node,
+                trigger: { type: "schedule" as const, cron: "0 9 * * *", timezone: "UTC" },
+              }
+            : node,
+        ),
+      },
+    };
+    await publish(scheduled);
+    const routine = store.record("routine", "workflow-routine:daily") as unknown as Routine;
+    expect(routine).toMatchObject({ workflowId: "daily", paused: false, name: "Morning news" });
+    expect(routine.nextRunAt > at).toBe(true);
+
+    // The routine fires: a run starts instead of a task, and the occurrence records it.
+    const fire = (id: string, scheduledAt: string, manual = false) =>
+      run(id, system, (s, c) => {
+        const current = s.routine?.find((row) => row.id === routine.id) as unknown as Routine;
+        return fireRoutine(s, current, scheduledAt, "fire", c, manual);
+      });
+    fire("fire-1", routine.nextRunAt);
+    const first = `run:${routine.id}@${routine.nextRunAt}`;
+    expect(record(first)).toMatchObject({
+      workflowId: "daily",
+      trigger: "schedule",
+      state: "running",
+    });
+    expect(store.record("routineOccurrence", `${routine.id}@${routine.nextRunAt}`)).toMatchObject({
+      status: "completed",
+    });
+    // Run now while that run is going is skipped, not doubled.
+    fire("fire-2", later(1), true);
+    expect(store.record("routineOccurrence", `${routine.id}@${later(1)}:manual`)).toMatchObject({
+      status: "skipped",
+      reason: "Previous run is still going",
+    });
+
+    // Pausing the workflow pauses its routine, and the routine can't be edited on its own.
+    runner().control("workflow.pause", { id: "daily" }, "pause");
+    expect(store.record("routine", routine.id)).toMatchObject({ paused: true });
+    // Run now while paused starts nothing.
+    fire("fire-3", later(2), true);
+    expect(store.record("routineOccurrence", `${routine.id}@${later(2)}:manual`)).toMatchObject({
+      status: "skipped",
+      reason: "Workflow is paused",
+    });
+    // A version run by hand retires the old routine for good, keeping its history.
+    await publish({ ...scheduled, graph });
+    expect(store.record("routine", routine.id)).toMatchObject({
+      paused: true,
+      workflowId: "daily",
+    });
+    expect(store.record("routine", routine.id)?.doneAt).toBeDefined();
+    runner().control("workflow.resume", { id: "daily" }, "resume");
+    fire("fire-4", later(3), true);
+    expect(store.record("routineOccurrence", `${routine.id}@${later(3)}:manual`)).toMatchObject({
+      status: "skipped",
+      reason: "Workflow no longer runs on a schedule",
+    });
+    // Event and message triggers aren't available yet.
+    const evented: PipelineVersion = structuredClone(scheduled);
+    evented.graph?.nodes.splice(0, 1, {
+      id: "start",
+      kind: "trigger",
+      name: "Message",
+      trigger: { type: "message", bridgeId: "bridge" },
+    });
+    await expect(publish(evented)).rejects.toThrow("workflow_trigger_unavailable: message");
   });
 });

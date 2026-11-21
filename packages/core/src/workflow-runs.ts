@@ -55,8 +55,8 @@ export function startWorkflowRun(
   if (!workflow?.graph) throw new Error("workflow_graph_required");
   if (state.workflowRun?.some((row) => row.id === input.runId))
     throw new Error("already_exists: workflowRun");
+  // Only "skip" is built so far, so every overlap setting runs one at a time.
   if (
-    workflow.overlap === "skip" &&
     state.workflowRun?.some(
       (row) => row.workflowId === workflow.workflowId && ACTIVE.includes(String(row.state)),
     )

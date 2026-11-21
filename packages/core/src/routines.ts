@@ -17,6 +17,7 @@ import { type CommandContext, handle, type Outcome } from "./commands.js";
 import { applyEvents, type DomainState } from "./projectors.js";
 import { nextRoutineRun } from "./routine-time.js";
 import { createTask, type TaskInput } from "./tasks.js";
+import { fireWorkflowRoutine } from "./workflow-triggers.js";
 
 export {
   ROUTINE_FOLDER_WAIT_MS,
@@ -158,6 +159,8 @@ export function fireRoutine(
   const id = `${routine.id}@${new Date(scheduledAt).toISOString()}${manual ? ":manual" : ""}`;
   const old = state.routineOccurrence?.find((row) => row.id === id);
   if (old) return { events: [], result: old };
+  if (routine.workflowId)
+    return fireWorkflowRoutine(state, routine, id, scheduledAt, disposition, context, manual);
   const previousActive = state.routineOccurrence?.some(
     (row) =>
       row.routineId === routine.id &&

@@ -47,6 +47,7 @@ export function parseRoutine(value: unknown, agents: Map<string, string>): Routi
     schedule: { cron, timezone, ...(at ? { at } : {}) },
     paused: value.paused === true,
     ...(doneAt ? { doneAt } : {}),
+    ...(text(value.workflowId) ? { workflow: true } : {}),
     nextRunAt,
     updatedAt,
     ...(source && text(source.kind) && text(source.resource)

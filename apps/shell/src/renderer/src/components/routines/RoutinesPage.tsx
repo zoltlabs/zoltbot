@@ -108,7 +108,7 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
         label: t(item.paused ? "routines.action.resume" : "routines.action.pause"),
         run: () => void setPaused(item, !item.paused),
       },
-      ...(item.trigger
+      ...(item.trigger || item.workflow
         ? []
         : [
             {

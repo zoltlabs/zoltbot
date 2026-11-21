@@ -5,6 +5,7 @@ import {
   type DomainState,
   expireInteractions,
   fireRoutine,
+  handle,
   nextRoutineRun,
   type Outcome,
   ROUTINE_FOLDER_WAIT_MS,
@@ -17,6 +18,7 @@ import {
   routineGrace,
   routineOutcome,
   taskSpendUsd,
+  workflowPausedKey,
 } from "@zoltbot/core";
 import {
   type PermissionProfile,
@@ -305,6 +307,12 @@ export function routineScheduler(options: {
           );
           if (old.event) throw new Error("use_event_routine_commands");
           if (old.updatedAt !== params.expectedUpdatedAt) throw new Error("stale_revision");
+          // R7: a workflow's routine changes with the workflow; here it can only pause or resume.
+          if (
+            old.workflowId &&
+            (params.schedule || params.template || params.notify || params.permissionCeiling)
+          )
+            throw new Error("use_workflow_commands");
           const schedule = params.schedule as Routine["schedule"] | undefined;
           // R1: a new schedule gives a finished one-time routine another run.
           const { doneAt: _done, ...kept } = old;
@@ -327,7 +335,21 @@ export function routineScheduler(options: {
               : {}),
             updatedAt: context.at,
           });
-          return { events: [routineEvent("routine", next, context)], result: next };
+          const events = [routineEvent("routine", next, context)];
+          // R7: pausing a workflow's routine pauses the workflow's runs too.
+          if (old.workflowId && typeof params.paused === "boolean") {
+            const key = workflowPausedKey(old.workflowId);
+            events.push(
+              ...handle(
+                state,
+                state.settings?.some((row) => row.key === key)
+                  ? { type: "update", kind: "settings", id: key, changes: { value: params.paused } }
+                  : { type: "create", kind: "settings", value: { key, value: params.paused } },
+                { ...context, commandId: `${context.commandId}:workflow` },
+              ).events,
+            );
+          }
+          return { events, result: next };
         });
       return undefined;
     },

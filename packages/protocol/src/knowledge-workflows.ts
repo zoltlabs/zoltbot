@@ -228,6 +228,8 @@ export const RoutineTemplateSchema = object({
 });
 export const RoutineSchema = object({
   event: Type.Optional(EventRoutineConfigSchema),
+  /** R7: the workflow this routine starts; published workflows own these routines. */
+  workflowId: Type.Optional(Id),
   id: Id,
   name: Text,
   schedule: RoutineScheduleSchema,

@@ -1,6 +1,6 @@
 // R7: workflows. Publishing saves a new immutable version; a dry run walks the graph without
 // starting anything. Real runs go through the workflow runner (workflow-runner.ts).
-import { type DomainState, handle } from "@zoltbot/core";
+import { type DomainState, handle, syncWorkflowRoutine } from "@zoltbot/core";
 import {
   type DomainEvent,
   type PipelineVersion,
@@ -156,7 +156,7 @@ export function workflowsApi(options: {
   const now = () => options.now?.() ?? new Date().toISOString();
   return async (method: string, params: Record<string, unknown>, commandId?: string) => {
     if (!methods.has(method)) return undefined;
-    const state = store.snapshot(["workflow", "workflowRun", "agent", "task"]);
+    const state = store.snapshot(["workflow", "workflowRun", "agent", "task", "routine"]);
     if (method === "workflow.list") return { items: latestWorkflows(state) };
     if (method === "workflow.runs") {
       const workflowId = typeof params.workflowId === "string" ? params.workflowId : undefined;
@@ -204,12 +204,18 @@ export function workflowsApi(options: {
         .filter((row) => row.workflowId === value.workflowId)
         .map((row) => Number(row.version));
       const next = { ...value, version: Math.max(0, ...versions) + 1 };
+      const context = { commandId, at: now(), actor: owner };
       const outcome = handle(
         current,
         { type: "create", kind: "workflow", value: next } as Parameters<typeof handle>[1],
-        { commandId, at: now(), actor: owner },
+        context,
       );
-      return { ...outcome, result: next };
+      // A schedule trigger runs through the workflow's own routine.
+      const routine = syncWorkflowRoutine(current, parse(PipelineVersionSchema, next), {
+        ...context,
+        commandId: `${commandId}:routine`,
+      });
+      return { events: [...outcome.events, ...routine], result: next };
     }).result;
     options.publish(store.eventsSince(before));
     return result;

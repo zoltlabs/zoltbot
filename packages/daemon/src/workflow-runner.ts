@@ -7,11 +7,13 @@ import {
   type DomainState,
   decideWorkflowStep,
   handle,
+  nextRoutineRun,
   type Outcome,
   startWorkflowRun,
   workflowPausedKey,
+  workflowRoutineId,
 } from "@zoltbot/core";
-import type { DomainEvent, PipelineVersion } from "@zoltbot/protocol";
+import type { DomainEvent, PipelineVersion, Routine } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { PublicWriteCheck } from "./private-input.js";
 
@@ -79,13 +81,32 @@ export function workflowRunner(options: {
     act(commandId, owner, (state, context) => {
       const key = workflowPausedKey(workflowId);
       const exists = state.settings?.some((row) => row.key === key);
-      return handle(
+      const setting = handle(
         state,
         exists
           ? { type: "update", kind: "settings", id: key, changes: { value: paused } }
           : { type: "create", kind: "settings", value: { key, value: paused } },
         context,
       );
+      // A scheduled workflow's routine pauses with it, so no new runs start either.
+      const routine = state.routine?.find((row) => row.id === workflowRoutineId(workflowId));
+      if (!routine || routine.paused === paused) return setting;
+      const moved = handle(
+        state,
+        {
+          type: "update",
+          kind: "routine",
+          id: String(routine.id),
+          changes: {
+            paused,
+            ...(paused
+              ? {}
+              : { nextRunAt: nextRoutineRun(routine.schedule as Routine["schedule"], context.at) }),
+          },
+        },
+        { ...context, commandId: `${context.commandId}:routine` },
+      );
+      return { events: [...setting.events, ...moved.events], result: setting.result };
     });
     if (!paused) for (const runId of active()) advance(runId);
     return { ok: true };

@@ -35,6 +35,8 @@ export interface RoutineItem {
   doneAt?: string;
   nextRunAt: string;
   updatedAt: string;
+  /** R7: a workflow's own routine; its schedule changes with the workflow. */
+  workflow?: boolean;
   /** Routines started by an event rather than a clock, with what they watch. */
   trigger?: { kind: RoutineTrigger; resource: string };
 }
