@@ -87,7 +87,8 @@ it("keeps credentials in the fake keychain and exposes only native metadata over
   expect(await client.status()).toEqual({ signedIn: true, sessionId: value.sessionId });
   expect(await client.request("/me")).toEqual({ name: "Example" });
   expect(requests).toBe(1);
-  expect(JSON.stringify(broker)).toBe("{}");
+  // The hook client is functions only; nothing serializable leaves the owner.
+  expect(JSON.stringify(broker)).toBe('{"hookCloud":{}}');
   expect(JSON.stringify(client)).toBe("{}");
   const stored = [...f.entries.values()][0] as { origin: string; credentials: Credentials };
   expect(stored.origin).toBe(f.options.origin);

@@ -21,6 +21,13 @@ export interface HookCloud {
   ): Promise<{ accountId: string; accountLabel: string; hookId: string } | undefined>;
   /** Requests received since `since`, oldest first. */
   requests(hookId: string, since: string): Promise<HookRequest[]>;
+  /** The editor's Copy and Rotate; see account-session/hook-cloud.ts. */
+  address?(
+    resource: string,
+    options?: { rotate?: boolean },
+  ): Promise<{ state: "ready"; url: string } | { state: "elsewhere" }>;
+  /** The editor's Send test. */
+  test?(resource: string): Promise<void>;
 }
 
 /** At most this much of a body, once JSON-encoded, reaches the agent, labelled as data. */

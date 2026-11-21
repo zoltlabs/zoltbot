@@ -19,6 +19,8 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...backupModelMacOnlyMethods,
   ...bridgeMacOnlyMethods,
   "routine.checkSource",
+  "routine.webhookAddress",
+  "routine.webhookTest",
   "routine.connectionHandoff",
   "routine.prepare",
   "routine.editEvent",

@@ -681,6 +681,15 @@ const rawMethodCatalog = {
   /** R3: starts a scheduled routine now, without moving its schedule. */
   "routine.runNow": entry(object({ id: Id }), RoutineOccurrenceSchema),
   "routine.checkSource": entry(object({ id: Id, revision: Type.Integer() }), RoutineSchema),
+  // R2: a web-address routine's address, made if missing; `rotate` replaces it.
+  "routine.webhookAddress": entry(
+    object({ id: Id, rotate: Type.Optional(Type.Boolean()) }),
+    Type.Union([
+      object({ state: Type.Literal("ready"), url: Type.String({ maxLength: 2048 }) }),
+      object({ state: Type.Literal("elsewhere") }),
+    ]),
+  ),
+  "routine.webhookTest": entry(object({ id: Id }), object({ ok: Type.Literal(true) })),
   "routine.connectionHandoff": entry(object({ id: Id, revision: Type.Integer() }), Json),
   "routine.prepare": entry(EventRoutineInputSchema, RoutineSchema),
   "routine.editEvent": entry(

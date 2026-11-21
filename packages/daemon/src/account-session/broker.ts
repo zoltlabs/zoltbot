@@ -5,6 +5,7 @@ import { createConnection } from "node:net";
 import path from "node:path";
 import { parseCredentials } from "@zoltbot/cloud-contracts";
 import { acquireOwnerLock } from "@zoltbot/store";
+import { accountHookCloud } from "./hook-cloud.js";
 import { type AccountSessionOptions, accountSession } from "./index.js";
 
 const maximumRequest = 36 * 1024 * 1024;
@@ -340,7 +341,14 @@ export async function startAccountBroker(
         credentialLock?.release();
         directoryLock.release();
       })());
-    return Object.freeze({ location: () => socketPath, close });
+    const hookCloud = accountHookCloud({
+      request: (route, method, payload) => owner.hookRequest(route, method, payload),
+      origin,
+      secrets: secretStore,
+      referenceFile: path.join(path.dirname(referenceFile), "hook-addresses-reference"),
+      fetch: fetcher,
+    });
+    return Object.freeze({ location: () => socketPath, close, hookCloud });
   } catch {
     closed = true;
     lifetime.abort();

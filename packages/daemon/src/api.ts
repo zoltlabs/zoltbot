@@ -31,6 +31,7 @@ import {
 import { openStore } from "@zoltbot/store";
 import { WebSocket, WebSocketServer } from "ws";
 import { daemonAccountOwner } from "./account-session/daemon.js";
+import { redactedHookCloud } from "./account-session/hook-cloud.js";
 import { assetServer } from "./api-assets.js";
 import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
@@ -104,11 +105,14 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  let hookCloud = options.hookCloud;
   if (options.nativeAccount) {
     const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
       logger.write("warn", "native_account_unavailable"),
     );
     if (account) resources.push(() => account.close());
+    // R2: routine web addresses go through the signed-in account; the log redacts each one.
+    hookCloud ??= account && redactedHookCloud(account.hookCloud, (url) => redactor.register(url));
   }
   if (options.cloudRunner) {
     try {
@@ -202,7 +206,7 @@ async function startOwnedDaemon(
   let interactions: InteractionEngine | undefined;
   let loadingInteractions: Promise<InteractionEngine> | undefined;
   const runtimeContext: RuntimeContext = {
-    ...(options.hookCloud ? { hookCloud: options.hookCloud } : {}),
+    ...(hookCloud ? { hookCloud } : {}),
     store,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     privacy,
@@ -300,7 +304,7 @@ async function startOwnedDaemon(
     ...(options.eventRoutineTransport
       ? { eventRoutineTransport: options.eventRoutineTransport }
       : {}),
-    ...(options.hookCloud ? { hookCloud: options.hookCloud } : {}),
+    ...(hookCloud ? { hookCloud } : {}),
     worktrees: worktreeService(options.dataDir, store),
     requestApproval: async (draft, commandId) =>
       (await loadInteractions()).request(draft, commandId),

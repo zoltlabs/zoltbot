@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import { fakeHookCloud } from "../../../tools/fakes/src/fake-hook-cloud.js";
 import { fixture } from "./event-routine-fixture.js";
 import { eventRoutines } from "./event-routines.js";
+import { webhookAddressApi } from "./webhook-address-api.js";
 import { webhookEventSource } from "./webhook-event-source.js";
 
 it("R2 starts a webhook routine from a relayed request, with its body as data", async () => {
@@ -89,5 +90,41 @@ it("R2 starts a webhook routine from a relayed request, with its body as data", 
     expect(f.store.snapshot(["task"]).task).toHaveLength(1);
   } finally {
     f.close();
+  }
+});
+
+it("R2 gives the owner a routine's address, rotates it and sends a test", async () => {
+  const f = await fixture();
+  const relay = fakeHookCloud();
+  const service = eventRoutines({
+    store: f.store,
+    run: f.run,
+    now: () => "2026-11-06T12:00:00.000Z",
+    adapters: [webhookEventSource(relay.cloud)],
+  });
+  const routine = (await service.api(
+    "routine.prepare",
+    { ...f.input, source: { kind: "webhook.received", resource: "webhook/builds" } },
+    "address-prepare",
+  )) as Routine;
+  const addresses = webhookAddressApi({ store: f.store, hookCloud: relay.cloud });
+  try {
+    const first = await addresses.api("routine.webhookAddress", { id: routine.id });
+    expect(first).toMatchObject({ state: "ready", url: expect.stringContaining("/h/") });
+    expect(await addresses.api("routine.webhookAddress", { id: routine.id })).toEqual(first);
+    const rotated = await addresses.api("routine.webhookAddress", { id: routine.id, rotate: true });
+    expect(rotated).not.toEqual(first);
+    expect(await addresses.api("routine.webhookTest", { id: routine.id })).toEqual({ ok: true });
+    const hook = await relay.cloud.hook("webhook/builds");
+    expect(await relay.cloud.requests(hook?.hookId ?? "", "2000-01-01T00:00:00.000Z")).toHaveLength(
+      1,
+    );
+    // Without a signed-in account there is no address to give.
+    const signedOut = webhookAddressApi({ store: f.store, hookCloud: undefined });
+    await expect(signedOut.api("routine.webhookAddress", { id: routine.id })).rejects.toThrow(
+      "webhook_sign_in_required",
+    );
+  } finally {
+    await f.close();
   }
 });
