@@ -150,33 +150,39 @@ export function createDelegatedRoutineTask(
     context,
   );
 }
-/** R7: a workflow's agent step, created by the runner for a run that's still going. */
+/** R7: a workflow's agent, media or connection step, created by the runner for a live run. */
 export function createWorkflowStepTask(
   state: DomainState,
   input: { runId: string; stepId: string; taskId: string },
   context: CommandContext,
 ): Outcome {
   const step = workflowStep(state, input.runId, input.stepId);
-  if (context.actor.kind !== "system" || !step || step.node.kind !== "agent")
+  if (
+    context.actor.kind !== "system" ||
+    !step ||
+    !["agent", "media", "connection"].includes(step.node.kind)
+  )
     throw new Error("workflow_grant_required");
   const { run, workflow, node } = step;
   if (!["project", "subproject"].includes(workflow.scope.type))
     throw new Error("workflow_scope_required");
+  const task = node as Extract<typeof node, { kind: "agent" | "media" | "connection" }>;
   return buildTask(
     state,
     {
       id: input.taskId,
-      title: node.name,
-      brief: workflowBrief(state, run, workflow, node),
+      title: task.name,
+      brief: workflowBrief(run, workflow, task),
       acceptance: workflow.acceptance,
-      profileId: node.profileId,
+      // A connection step runs as the workflow's own agent, which holds the connection.
+      profileId: task.kind === "connection" ? workflow.executorAgent : task.profileId,
       node: workflow.scope,
       workflowRunId: run.id,
-      stageId: node.id,
+      stageId: task.id,
       permissionCeiling: workflow.permissionProfile,
       workspaceMode: workflow.workspaceMode,
-      reviewRequired: node.gate !== "none",
-      ...(node.budgetUsd !== undefined ? { budgetUsd: node.budgetUsd } : {}),
+      reviewRequired: task.kind !== "agent" || task.gate !== "none",
+      ...(task.budgetUsd !== undefined ? { budgetUsd: task.budgetUsd } : {}),
     },
     context,
   );

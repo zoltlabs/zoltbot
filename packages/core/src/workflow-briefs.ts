@@ -33,13 +33,22 @@ export function workflowStep(state: DomainState, runId: string, stepId: string) 
   return { run, workflow, node };
 }
 
+/** What the step does: its own brief, or the one action a connection step takes. */
+function ownBrief(node: Extract<WorkflowNode, { kind: "agent" | "media" | "connection" }>) {
+  if (node.kind === "agent") return node.brief;
+  if (node.kind === "media")
+    return `${node.brief}\n\nMake one ${node.output} file for this, and name the file in your summary.`;
+  const input = JSON.stringify(node.input ?? {}).slice(0, 1500);
+  return `Use the "${node.connectionId}" connection to do exactly one thing: ${node.action}\n\nInput (JSON): ${input}\n\nDon't take any other action. In your summary, say what the connection returned.`;
+}
+
 /** The step's brief plus the output of each step that feeds it, within the brief limit. */
 export function workflowBrief(
-  _state: DomainState,
   run: WorkflowRun,
   workflow: PipelineVersion,
-  node: Extract<WorkflowNode, { kind: "agent" | "media" }>,
+  node: Extract<WorkflowNode, { kind: "agent" | "media" | "connection" }>,
 ): string {
+  const brief = ownBrief(node).slice(0, WORKFLOW_CARRY_LIMIT);
   const graph = workflow.graph;
   const nodes = new Map(graph?.nodes.map((entry) => [entry.id, entry]));
   const names = new Map(graph?.nodes.map((entry) => [entry.id, entry.name]));
@@ -56,8 +65,8 @@ export function workflowBrief(
           ]
         : [];
     });
-  if (!carried.length) return node.brief;
-  const room = WORKFLOW_CARRY_LIMIT - node.brief.length - CARRIED.length;
-  if (room <= 0) return node.brief;
-  return `${node.brief}${CARRIED}${carried.join("").slice(0, room)}`;
+  if (!carried.length) return brief;
+  const room = WORKFLOW_CARRY_LIMIT - brief.length - CARRIED.length;
+  if (room <= 0) return brief;
+  return `${brief}${CARRIED}${carried.join("").slice(0, room)}`;
 }

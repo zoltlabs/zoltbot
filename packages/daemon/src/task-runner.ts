@@ -154,9 +154,26 @@ export function taskRunner(options: TaskRunnerOptions) {
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (id, work) => run(id, system, work),
   });
+  /** Stop a routine's or workflow step's task turn. */
+  async function stopTask(taskId: string) {
+    const row = task(taskId);
+    if (row.threadId && stop) {
+      await stop(row.threadId);
+      return;
+    }
+    const turn = (store.snapshot(["turn"]).turn ?? []).find(
+      (entry) => entry.threadId === row.threadId && entry.status === "running",
+    );
+    if (row.threadId && turn && interrupt)
+      await interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`).catch(() =>
+        options.onError?.("routine_stop_uncertain"),
+      );
+  }
   const runs = workflowRunner({
     store,
     run,
+    stop: stopTask,
+    ...(options.now ? { now: options.now } : {}),
     checkPublic: options.checkPublic,
     ...(options.onError ? { onError: options.onError } : {}),
   });
@@ -164,6 +181,11 @@ export function taskRunner(options: TaskRunnerOptions) {
     ...options,
     start: async (workflow, inputs, commandId) => {
       const result = await runs.start(workflow, inputs, commandId);
+      void schedule();
+      return result;
+    },
+    control: (method, params, commandId) => {
+      const result = runs.control(method, params, commandId);
       void schedule();
       return result;
     },
@@ -181,20 +203,7 @@ export function taskRunner(options: TaskRunnerOptions) {
     store,
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (commandId, work) => run(commandId, system, work),
-    async stop(taskId) {
-      const row = task(taskId);
-      if (row.threadId && stop) {
-        await stop(row.threadId);
-        return;
-      }
-      const turn = (store.snapshot(["turn"]).turn ?? []).find(
-        (entry) => entry.threadId === row.threadId && entry.status === "running",
-      );
-      if (row.threadId && turn && interrupt)
-        await interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`).catch(() =>
-          options.onError?.("routine_stop_uncertain"),
-        );
-    },
+    stop: stopTask,
   });
   const routineTimer = setInterval(() => {
     void schedule();
@@ -234,6 +243,7 @@ export function taskRunner(options: TaskRunnerOptions) {
   async function scheduleOnce() {
     await routines.tick();
     await events.tick();
+    runs.tick();
     const state = store.snapshot([
       "task",
       "project",

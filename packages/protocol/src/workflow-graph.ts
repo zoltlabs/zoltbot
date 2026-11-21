@@ -79,6 +79,7 @@ export const WorkflowNodeSchema = Type.Union([
     connectionId: Id,
     action: Type.String({ minLength: 1, maxLength: 200 }),
     input: Json,
+    budgetUsd: Type.Optional(Type.Number({ minimum: 0 })),
     ...Position,
   }),
   object({
@@ -88,6 +89,7 @@ export const WorkflowNodeSchema = Type.Union([
     profileId: Id,
     brief: Brief,
     output: values(["image", "video"]),
+    budgetUsd: Type.Optional(Type.Number({ minimum: 0 })),
     ...Position,
   }),
 ]);

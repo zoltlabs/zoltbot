@@ -676,6 +676,13 @@ const rawMethodCatalog = {
     WorkflowRunSchema,
   ),
   "workflow.pause": entry(idParams, ok),
+  /** R7: start new steps again in a paused workflow's runs. */
+  "workflow.resume": entry(idParams, ok),
+  /** R7: answer a run's "wait for my approval" step. */
+  "workflow.decide": entry(
+    object({ id: Id, stepId: Id, decision: values(["continue", "stop"]) }),
+    WorkflowRunSchema,
+  ),
   "workflow.runs": list(WorkflowRunSchema),
   "routine.list": list(RoutineSchema),
   /** R3: starts a scheduled routine now, without moving its schedule. */

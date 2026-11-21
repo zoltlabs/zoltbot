@@ -290,5 +290,7 @@ export const WorkflowRunSchema = object({
   endedAt: Type.Optional(At),
   /** R7: each step's state, for workflows with a graph. */
   steps: Type.Optional(Type.Array(WorkflowStepStateSchema)),
+  /** R7: why a graph run stopped, as a short code. */
+  reason: Type.Optional(Type.String({ maxLength: 100 })),
 });
 export type WorkflowRun = Static<typeof WorkflowRunSchema>;

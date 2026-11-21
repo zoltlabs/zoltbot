@@ -22,6 +22,9 @@ const methods = new Set([
   "workflow.runs",
   "workflow.run",
   "workflow.draftFromTask",
+  "workflow.pause",
+  "workflow.resume",
+  "workflow.decide",
 ]);
 
 /** The newest version of each workflow. */
@@ -68,13 +71,30 @@ function checkGraph(state: DomainState, value: PipelineVersion) {
   for (const node of graph.nodes)
     if ((node.kind === "agent" || node.kind === "media") && !agents.has(node.profileId))
       throw new Error(`profile_unavailable: ${node.id}`);
+  // The total budget holds only if every step that starts a task has a ceiling of its own.
+  if (value.budget.usd !== undefined)
+    for (const node of graph.nodes)
+      if (
+        (node.kind === "agent" || node.kind === "media" || node.kind === "connection") &&
+        node.budgetUsd === undefined
+      )
+        throw new Error(`workflow_step_budget_required: ${node.id}`);
+  if (graph.nodes.some((node) => node.kind === "connection") && !agents.has(value.executorAgent))
+    throw new Error("profile_unavailable: executorAgent");
+  // A connection step acts outside the Mac before anyone reviews it, so no earlier step's text
+  // reaches its brief.
+  for (const node of graph.nodes)
+    if (
+      node.kind === "connection" &&
+      graph.edges.some((edge) => edge.to === node.id && edge.carry !== "none")
+    )
+      throw new Error(`workflow_connection_carry: ${node.id}`);
   // A step that can change files and reads an earlier step's output needs the owner's review,
   // so text from one agent never drives a writing agent unchecked.
   if (value.permissionProfile !== "read_only")
     for (const node of graph.nodes)
       if (
-        node.kind === "agent" &&
-        node.gate === "none" &&
+        ((node.kind === "agent" && node.gate === "none") || node.kind === "media") &&
         graph.edges.some((edge) => edge.to === node.id && edge.carry !== "none")
       )
         throw new Error(`workflow_review_required: ${node.id}`);
@@ -129,6 +149,8 @@ export function workflowsApi(options: {
   now?: () => string;
   /** Starts a real run; without it only dry runs are possible. */
   start?(workflow: PipelineVersion, inputs: unknown, commandId: string): Promise<unknown>;
+  /** Pause, resume and approval answers, handled by the runner. */
+  control?(method: string, params: Record<string, unknown>, commandId: string): unknown;
 }) {
   const { store } = options;
   const now = () => options.now?.() ?? new Date().toISOString();
@@ -143,6 +165,12 @@ export function workflowsApi(options: {
         .filter((run) => !workflowId || run.workflowId === workflowId)
         .sort((a, b) => String(b.startedAt ?? "").localeCompare(String(a.startedAt ?? "")));
       return { items };
+    }
+    if (["workflow.pause", "workflow.resume", "workflow.decide"].includes(method)) {
+      if (!commandId) throw new Error("command_id_required");
+      if (!options.control) throw new Error("workflow_runner_unavailable");
+      if (method !== "workflow.decide") latest(state, String(params.id));
+      return options.control(method, params, commandId);
     }
     if (method === "workflow.draftFromTask") return draftFromTask(state, String(params.taskId));
     if (method === "workflow.run") {
