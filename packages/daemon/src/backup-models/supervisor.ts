@@ -25,11 +25,13 @@ import {
   ackKey,
   activeKey,
   askedKey,
+  catalogFreeModels,
   defaultAccountId,
   effectiveOrder,
   exhaustedKey,
   type LimitRecord,
   latestNativeSession,
+  limitIdOf,
   limitKey,
   limitOf,
   type OrderEntry,
@@ -134,6 +136,7 @@ export function backupSupervisor(host: BackupSupervisorHost) {
     }
     const state = store.snapshot(kinds);
     const found = new Map<string, LimitRecord>();
+    const free = catalogFreeModels(state, now());
     for (const session of [...seen, ...(state.session ?? [])]) {
       const status = session.runtimeStatus as
         | { state?: string; resetsAt?: string; observedAt?: string }
@@ -141,7 +144,8 @@ export function backupSupervisor(host: BackupSupervisorHost) {
       if (status?.state !== "rate_limited" || !status.observedAt) continue;
       const accountId = accountOf(state, session);
       if (!accountId) continue;
-      const key = limitKey(accountId);
+      const model = typeof session.model === "string" ? session.model : undefined;
+      const key = limitKey(limitIdOf(free, accountId, model));
       const known = found.get(key) ?? setting<LimitRecord>(state, key);
       if (known && known.observedAt >= status.observedAt) continue;
       found.set(key, {
@@ -302,16 +306,25 @@ export function backupSupervisor(host: BackupSupervisorHost) {
       status?.state === "rate_limited" && status.observedAt && active?.trigger !== status.observedAt
         ? status.observedAt
         : undefined;
-    const free = (entry: OrderEntry) => !limitOf(state, entry.account.id, at) && !same(entry);
+    const freeModels = catalogFreeModels(state, at);
+    const limitFor = (accountId: string, model: string | undefined) =>
+      limitOf(state, limitIdOf(freeModels, accountId, model), at);
+    const entryLimit = (entry: OrderEntry) =>
+      limitFor(
+        entry.account.id,
+        entry.model ??
+          (entry.accountId === defaultAccountId(profile.definitionId) ? profile.model : undefined),
+      );
+    const free = (entry: OrderEntry) => !entryLimit(entry) && !same(entry);
     const from = labelOf(state, current.accountId);
-    const fromLimit = limitOf(state, current.accountId, at);
+    const fromLimit = limitFor(current.accountId, current.model);
     let index: number;
     if (hit) {
       index = order.findIndex(free);
       if (index < 0) {
         if (setting(state, exhaustedKey(threadId)) === hit) return;
         const resets = order
-          .map((entry) => limitOf(state, entry.account.id, at)?.resetsAt)
+          .map((entry) => entryLimit(entry)?.resetsAt)
           .filter((value): value is string => !!value)
           .sort()[0];
         const stamp = new Date(at).toISOString();
@@ -341,7 +354,7 @@ export function backupSupervisor(host: BackupSupervisorHost) {
       }
     } else {
       if (!active) return;
-      index = order.findIndex((entry) => !limitOf(state, entry.account.id, at));
+      index = order.findIndex((entry) => !entryLimit(entry));
       if (index < 0 || (position >= 0 && index >= position)) return;
     }
     const target = order[index] as OrderEntry;

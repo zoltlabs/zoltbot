@@ -162,6 +162,28 @@ export function toOrders(value: unknown): BackupOrders {
     ceo: row.ceo === null || row.ceo === undefined ? null : entries(row.ceo),
   };
 }
+/** A7: a free model the catalog lists, on its tool's own sign-in. */
+export interface FreeModel {
+  accountId: string;
+  model: string;
+  name: string;
+}
+export function toFreeModels(value: unknown): FreeModel[] {
+  return (Array.isArray(value) ? (value as Row[]) : [])
+    .map((row) => ({
+      accountId: text(row.accountId),
+      model: text(row.model),
+      name: text(row.name),
+    }))
+    .filter((row) => row.accountId && row.model);
+}
+/** A7: the free models an order doesn't list yet, as entries that fit in its 8 places. */
+export function missingFreeModels(order: BackupEntry[], free: FreeModel[]): BackupEntry[] {
+  return free
+    .filter((item) => !order.some((e) => e.accountId === item.accountId && e.model === item.model))
+    .slice(0, Math.max(0, 8 - order.length))
+    .map((item) => ({ accountId: item.accountId, model: item.model }));
+}
 /** The order a role runs: its own, or the employees' when it has none. */
 export const orderFor = (orders: BackupOrders, role: BackupRole) => orders[role] ?? orders.employee;
 

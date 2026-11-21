@@ -32,9 +32,25 @@ export interface BackupOrdersView {
   ceo: BackupEntryView[] | null;
 }
 
+/** A7: a free model the catalog lists, on its tool's own sign-in. */
+export interface FreeModelView {
+  accountId: string;
+  model: string;
+  name: string;
+}
+
 export interface ModelsOverview {
   accounts: ModelAccountView[];
   orders: BackupOrdersView;
+  free: FreeModelView[];
+}
+
+/** A7: the free models an order doesn't list yet, as entries that fit in its 8 places. */
+export function missingFreeModels(order: BackupEntryView[], free: FreeModelView[]) {
+  return free
+    .filter((item) => !order.some((e) => e.accountId === item.accountId && e.model === item.model))
+    .slice(0, Math.max(0, 8 - order.length))
+    .map((item) => ({ accountId: item.accountId, model: item.model }));
 }
 
 /** The command that signs a tool in to an account's own folder. */

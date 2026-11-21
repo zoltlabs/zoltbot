@@ -14,6 +14,7 @@ import type { Store } from "@zoltbot/store";
 import type { OwnedRuntime } from "../api-types.js";
 import {
   accountKey,
+  catalogFreeModels,
   defaultAccountId,
   listAccounts,
   loginKey,
@@ -95,8 +96,10 @@ export function backupModelsApi(host: {
   return async (method: string, params: Params, commandId?: string): Promise<unknown> => {
     switch (method) {
       case "modelAccount.list": {
-        const state = store.snapshot(["settings", "agentDefinition"]);
-        return { items: listAccounts(state), orders: readOrders(state) };
+        const state = store.snapshot(["settings", "agentDefinition", "session"]);
+        const items = listAccounts(state);
+        const free = catalogFreeModels(state).slice(0, 50);
+        return { items, orders: readOrders(state), free };
       }
       case "modelAccount.add": {
         const definitionId = String(params.definitionId);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accountViews,
   chatAccount,
+  missingFreeModels,
   moveEntry,
   orderFor,
   runningLimit,
@@ -9,6 +10,7 @@ import {
   switchDetail,
   switchNoteText,
   switchQuestion,
+  toFreeModels,
   toOrders,
 } from "./backup-models.js";
 import {
@@ -277,5 +279,21 @@ describe("backup models", () => {
     expect(runningLimit(snapshot({ settings: [{ key: "tasks.runningLimit", value: 50 }] }))).toBe(
       2,
     );
+  });
+});
+
+describe("A7 free models", () => {
+  it("adds only the free models the order lacks, within 8 places", () => {
+    const free = toFreeModels([
+      { accountId: "default:a", model: "x:free", name: "X" },
+      { accountId: "default:a", model: "y:free", name: "Y" },
+      { accountId: "", model: "bad" },
+    ]);
+    expect(free).toHaveLength(2);
+    expect(missingFreeModels([{ accountId: "default:a", model: "x:free" }], free)).toEqual([
+      { accountId: "default:a", model: "y:free" },
+    ]);
+    const full = Array.from({ length: 8 }, (_, i) => ({ accountId: `p${i}` }));
+    expect(missingFreeModels(full, free)).toEqual([]);
   });
 });

@@ -8,10 +8,13 @@ import {
   type BackupEntry,
   type BackupOrders,
   type BackupRole,
+  type FreeModel,
+  missingFreeModels,
   moveEntry,
   orderFor,
   RUNNING_LIMIT,
   runningLimit,
+  toFreeModels,
   toOrders,
 } from "../data/backup-models";
 import type { Row as Entity } from "../data/transport";
@@ -35,6 +38,7 @@ function useModels(online: boolean) {
   const definitions = useSnapshot().entities.agentDefinition;
   const [items, setItems] = useState<Entity[]>();
   const [orders, setOrders] = useState<BackupOrders>();
+  const [free, setFree] = useState<FreeModel[]>([]);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     const client = useLink.getState().client?.getState();
@@ -43,6 +47,7 @@ function useModels(online: boolean) {
       const result = (await client.call("modelAccount.list", {})) as Entity;
       setItems(Array.isArray(result.items) ? (result.items as Entity[]) : []);
       setOrders(toOrders(result.orders));
+      setFree(toFreeModels(result.free));
       setError("");
     } catch {
       setError("Models could not be loaded.");
@@ -52,7 +57,7 @@ function useModels(online: boolean) {
     if (online) void load();
   }, [online, load]);
   const accounts = items ? accountViews(items, definitions ?? []) : undefined;
-  return { accounts, orders, setOrders, error, reload: load };
+  return { accounts, orders, setOrders, free, error, reload: load };
 }
 
 function AccountDot({ state }: { state: AccountView["state"] }) {
@@ -71,7 +76,7 @@ export default function Models() {
   const snapshot = useSnapshot();
   const online = useClient((state) => state.status === "online");
   const { run, busy } = useAction();
-  const { accounts, orders, setOrders, error, reload } = useModels(online);
+  const { accounts, orders, setOrders, free, error, reload } = useModels(online);
   const [role, setRole] = useState<BackupRole>("employee");
   const stored = runningLimit(snapshot);
   const [limit, setLimit] = useState(stored);
@@ -83,8 +88,11 @@ export default function Models() {
   const order = orders ? orderFor(orders, role) : [];
   const byId = (id: string) => accounts?.find((account) => account.id === id);
   const unlisted = (accounts ?? []).filter(
-    (account) => !order.some((entry) => entry.accountId === account.id),
+    (account) => !order.some((entry) => entry.accountId === account.id && !entry.model),
   );
+  const freeToAdd = missingFreeModels(order, free);
+  const freeName = (entry: BackupEntry) =>
+    free.find((item) => item.accountId === entry.accountId && item.model === entry.model)?.name;
   const roleName = ROLES.find((item) => item.value === role)?.label ?? "";
 
   const save = async (entries: BackupEntry[] | null) => {
@@ -187,7 +195,8 @@ export default function Models() {
             <Group>
               {order.map((entry, index) => {
                 const name = entryName(entry);
-                const model = entry.model ?? "Default model";
+                const freeModel = freeName(entry);
+                const model = freeModel ? `${freeModel} (free)` : (entry.model ?? "Default model");
                 return (
                   <Row
                     key={`${entry.accountId}:${entry.model ?? ""}`}
@@ -248,6 +257,14 @@ export default function Models() {
               <Txt v="meta" tone="muted" style={styles.foot}>
                 No backups. Chats wait when their account hits its limit.
               </Txt>
+            ) : null}
+            {freeToAdd.length ? (
+              <Button
+                kind="plain"
+                label="Add free models"
+                disabled={locked}
+                onPress={() => void save([...order, ...freeToAdd])}
+              />
             ) : null}
             {role !== "employee" ? (
               <Button

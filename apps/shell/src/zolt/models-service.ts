@@ -91,6 +91,9 @@ export function modelsService(client: DaemonClient): ModelsDesktopApi {
       return {
         accounts: (Array.isArray(result.items) ? result.items : []).map(view),
         orders: toOrders(result.orders),
+        free: (Array.isArray(result.free) ? (result.free as Row[]) : [])
+          .map((row) => ({ accountId: text(row.accountId), model: text(row.model), name: text(row.name) }))
+          .filter((row) => row.accountId && row.model),
       };
     },
     async addAccount(input: AddModelAccountInput) {

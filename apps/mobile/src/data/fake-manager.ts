@@ -498,7 +498,19 @@ export function answerManager(method: string, p: Row, store: ManagerRows): unkno
     case "usage.query":
       return usageRecords(store, typeof p.from === "string" ? p.from : "");
     case "modelAccount.list":
-      return { items: accounts(store), orders: value(store, "models.orders") };
+      return {
+        items: accounts(store),
+        orders: value(store, "models.orders"),
+        // A7: one free model on the first tool, as the catalog would list it.
+        free: store
+          .rows("agentDefinition")
+          .slice(0, 1)
+          .map((row) => ({
+            accountId: `default:${String(row.id)}`,
+            model: "mini:free",
+            name: "Mini",
+          })),
+      };
     case "backupOrder.set": {
       const orders = { ...(value(store, "models.orders") ?? {}) } as Row;
       if (typeof p.role === "string") orders[p.role] = p.entries;

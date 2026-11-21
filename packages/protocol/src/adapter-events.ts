@@ -40,7 +40,16 @@ export const CapabilitiesSchema = object({
   safeModes: Type.Optional(Strings),
   models: object({
     selectable: Type.Boolean(),
-    list: Type.Optional(Type.Array(object({ id: Id, name: Text }))),
+    list: Type.Optional(
+      Type.Array(
+        object({
+          id: Id,
+          name: Text,
+          /** A7: the provider marks the model free to use. */
+          free: Type.Optional(Type.Boolean()),
+        }),
+      ),
+    ),
   }),
   effort: Strings,
   approvals: values(["granular", "coarse", "none"]),

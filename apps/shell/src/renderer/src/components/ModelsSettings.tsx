@@ -5,6 +5,7 @@ import {
   type ModelAccountView,
   type ModelSignIn,
   type ModelsOverview,
+  missingFreeModels,
   RUNNING_LIMIT,
 } from "../../../shared/models";
 import { Select } from "../kit";
@@ -70,8 +71,13 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
   const own = () => (role() === "employee" ? null : (overview()?.orders[role()] ?? null));
   const order = (): BackupEntryView[] => own() ?? overview()?.orders.employee ?? [];
   const shared = () => role() !== "employee" && own() === null;
+  const freeToAdd = () => missingFreeModels(order(), overview()?.free ?? []);
+  const freeName = (entry: BackupEntryView) =>
+    overview()?.free.find((f) => f.accountId === entry.accountId && f.model === entry.model)?.name;
   const unlisted = () =>
-    accounts().filter((account) => !order().some((entry) => entry.accountId === account.id));
+    accounts().filter(
+      (account) => !order().some((entry) => entry.accountId === account.id && !entry.model),
+    );
 
   async function run(action: () => Promise<unknown>, fallback: string) {
     setBusy(true);
@@ -401,7 +407,7 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                       <div class="models-row-copy">
                         <strong>{account()?.name ?? "Removed account"}</strong>
                         <span>
-                          {entry.model ?? "Default model"}
+                          {freeName(entry) ? `${freeName(entry)} (free)` : (entry.model ?? "Default model")}
                           {other() ? " · another provider" : ""}
                         </span>
                       </div>
@@ -462,6 +468,16 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                   }}
                 >
                   Add to order
+                </button>
+              </Show>
+              <Show when={freeToAdd().length}>
+                <button
+                  type="button"
+                  class="models-button"
+                  disabled={busy()}
+                  onClick={() => void saveOrder([...order(), ...freeToAdd()])}
+                >
+                  Add free models
                 </button>
               </Show>
               <Show when={role() !== "employee"}>

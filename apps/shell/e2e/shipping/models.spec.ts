@@ -42,7 +42,7 @@ function fakeAccounts(): ModelsDesktopApi & { orders: BackupOrdersView } {
       manager: null,
       ceo: null,
     } as BackupOrdersView,
-    read: async () => ({ accounts, orders: fake.orders }),
+    read: async () => ({ accounts, orders: fake.orders, free: [] }),
     async addAccount(input: { definitionId: string; label: string }) {
       const added = account(`${input.definitionId}-${accounts.length}`, `Claude · ${input.label}`);
       accounts.push(added);
