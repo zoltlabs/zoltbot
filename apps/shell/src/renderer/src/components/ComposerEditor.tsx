@@ -122,7 +122,9 @@ export function ComposerEditor(props: ComposerEditorProps) {
         setActiveOption((current) => (current - 1 + options.length) % options.length);
         return;
       }
-      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+      const plainEnter =
+        event.key === "Enter" && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey;
+      if (plainEnter || event.key === "Tab") {
         event.preventDefault();
         const bot = options[activeOption()];
         if (bot) insertMention(bot);

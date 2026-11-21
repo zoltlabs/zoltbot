@@ -3,10 +3,15 @@ import type { SendKeyPreference } from "../../../shared/preferences";
 
 // C14: Enter or ⌘ Enter sends; the other key adds a new line. ⌥ Enter still asks aside.
 
-const [sendKey, setSendKey] = createRoot(() => createSignal<SendKeyPreference>("enter"));
-export { sendKey };
+const [current, setSendKey] = createRoot(() => createSignal<SendKeyPreference>("enter"));
+/** The saved choice. Reading it starts following the preference, so any screen shows it right. */
+export function sendKey(): SendKeyPreference {
+  followSendKey();
+  return current();
+}
 
 let started = false;
+let chosen = false;
 /** Reads the preference once and follows later changes from any window. */
 export function followSendKey(): void {
   if (started) return;
@@ -15,12 +20,17 @@ export function followSendKey(): void {
   if (!preferences) return;
   void preferences
     .get()
-    .then((value) => setSendKey(value.sendKey))
+    .then((value) => {
+      // A choice made while this was loading wins over the older saved value.
+      if (!chosen) setSendKey(value.sendKey);
+    })
     .catch(() => undefined);
   preferences.onChange((value) => setSendKey(value.sendKey));
 }
 
 export function chooseSendKey(next: SendKeyPreference): void {
+  followSendKey();
+  chosen = true;
   setSendKey(next);
   void window.openbot?.preferences?.set({ sendKey: next }).catch(() => undefined);
 }
