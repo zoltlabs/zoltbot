@@ -24,6 +24,7 @@ import { Menu, type MenuItem } from "../kit";
 import { createDockEntry } from "../dock/DockEntry";
 import { createStartFreshEntry } from "../fresh/StartFreshEntry";
 import { createMoveEntry } from "../bundle/MoveEntry";
+import { createKeyboardEntry } from "../keyboard/KeyboardEntry";
 import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
@@ -362,6 +363,7 @@ export function Sidebar(props: SidebarProps) {
   const dockEntry = createDockEntry();
   const freshEntry = createStartFreshEntry();
   const moveEntry = createMoveEntry();
+  const keyboardEntry = createKeyboardEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -461,6 +463,7 @@ export function Sidebar(props: SidebarProps) {
         appearanceEntry.item(),
         soundsEntry.item(),
         dockEntry.item(),
+        keyboardEntry.item(),
         moveEntry.item(),
       ],
       [
@@ -798,6 +801,7 @@ export function Sidebar(props: SidebarProps) {
       <dockEntry.Dialog />
       <freshEntry.Dialog />
       <moveEntry.Dialog />
+      <keyboardEntry.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu

@@ -523,5 +523,12 @@
   "move.signInAgain": "Sign in again here: {names}",
   "move.exportFailed": "Couldn’t export. Try again.",
   "move.notAnExport": "That file isn’t a Zoltbot export.",
-  "move.importFailed": "Couldn’t import. Try again."
+  "move.importFailed": "Couldn’t import. Try again.",
+  "keyboard.title": "Keyboard",
+  "keyboard.change": "Change",
+  "keyboard.reset": "Reset",
+  "keyboard.changeFor": "Change {command}",
+  "keyboard.resetFor": "Reset {command}",
+  "keyboard.pressKeys": "Press keys",
+  "keyboard.conflict": "Already used by {command}"
 }

@@ -108,7 +108,8 @@ export interface ShortcutRegistry {
   /** Owner rebinds from preferences (F6): shortcut id → keys. */
   setBindings: (bindings: Readonly<Record<string, string>>) => void;
   keysFor: (id: string) => string | undefined;
-  list: () => readonly (Shortcut & { keys: string })[];
+  /** Each shortcut with the keys it answers to now and the keys it shipped with. */
+  list: () => readonly (Shortcut & { keys: string; defaultKeys: string })[];
   handle: (event: KeyboardEvent) => boolean;
 }
 
@@ -142,6 +143,7 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
     list: () =>
       [...shortcuts.values()].map((shortcut) => ({
         ...shortcut,
+        defaultKeys: shortcut.keys,
         keys: keysFor(shortcut.id) ?? shortcut.keys,
       })),
     handle(event) {
