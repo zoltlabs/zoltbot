@@ -10,6 +10,7 @@ import { AsideRow } from "./AsideRow";
 import { Icon } from "./icons";
 import { StaffCard } from "./interactions/StaffCard";
 import { Button, Txt } from "./kit";
+import { LinkCards } from "./LinkCards";
 import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import type { MarkActions } from "./message-marks";
@@ -455,6 +456,9 @@ export function Message({
         {row.files?.length ? (
           <SentFiles files={row.files} threadId={threadId} itemId={row.id} />
         ) : null}
+        {words ? (
+          <LinkCards threadId={threadId} itemId={row.id} text={words} align="flex-end" />
+        ) : null}
         <Reactions row={row} align="flex-end" />
         {edits?.count ? (
           <Button
@@ -516,6 +520,7 @@ export function Message({
           {prose}
         </Pressable>
       </SwipeReply>
+      <LinkCards threadId={threadId} itemId={row.id} text={row.text} />
       <Reactions row={row} align="flex-start" />
       <MessageActions
         row={row}
