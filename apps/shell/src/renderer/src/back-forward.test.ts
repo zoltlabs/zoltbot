@@ -128,6 +128,25 @@ describe("back and forward", () => {
     });
   });
 
+  it("records a chat opened before it reaches the chat list once it arrives", async () => {
+    await createRoot(async (dispose) => {
+      const app = setup();
+      app.selectChat("a");
+      await settle();
+      app.selectChat("new");
+      await settle();
+      await settle();
+      expect(app.pages.location()).toEqual({ id: "chat", threadId: "a" });
+      app.setChats(["a", "b", "c", "new"]);
+      await settle();
+      expect(app.pages.location()).toEqual({ id: "chat", threadId: "new" });
+      app.history.back();
+      await settle();
+      expect(app.chatId()).toBe("a");
+      dispose();
+    });
+  });
+
   it("moves off the open channel when it is deleted", async () => {
     await createRoot(async (dispose) => {
       const app = setup();
