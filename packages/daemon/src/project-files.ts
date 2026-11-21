@@ -91,6 +91,8 @@ const editable = {
     "defaultAgentId",
     "artifactDesignContextId",
     "artifactRepositoryMode",
+    "coAuthorLine",
+    "coAuthorDomain",
   ],
   subproject: ["name", "goal", "instructions"],
 } as const;

@@ -297,6 +297,10 @@ export function setUpAppTest() {
       hidden: {
         set: vi.fn().mockResolvedValue(undefined),
       },
+      coAuthor: {
+        get: vi.fn().mockResolvedValue(null),
+        set: vi.fn().mockResolvedValue(undefined),
+      },
       templates: {
         list: vi.fn().mockResolvedValue([]),
         create: vi.fn(),

@@ -25,6 +25,7 @@ import {
   SETTINGS_PANEL_MIN,
 } from "./constants";
 import { BackIcon, CloseIcon } from "./icons";
+import { CoAuthorLine } from "./CoAuthorLine";
 import { RepositoryMode } from "./RepositoryMode";
 import "./talking-style.css";
 
@@ -312,6 +313,7 @@ export function AgentSettings(props: {
         </Show>
         <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
         <Show when={props.bot?.id}>{(botId) => <RepositoryMode botId={botId()} />}</Show>
+        <Show when={props.bot?.id}>{(botId) => <CoAuthorLine botId={botId()} />}</Show>
       </div>
     </aside>
   );

@@ -116,6 +116,13 @@ test("task review commit uses durable human approval, acceptance stays separate 
     );
     const result = (await api("task.reviewCommit", params, "commit")) as { head: string };
     expect(result.head).toBeTruthy();
+    // A4: the commit names the agent that did the work, once, on the reserved domain.
+    const name = String(f.store.record("agent", "profile")?.name);
+    const body = await git(binding.cwd, ["log", "-1", "--format=%B", result.head]);
+    expect(body.match(/Co-Authored-By: /g)).toHaveLength(1);
+    expect(body).toContain(`Co-Authored-By: ${name} <`);
+    expect(body).toContain("@agents.zoltbot.invalid>");
+    expect(JSON.stringify(interaction?.context)).toContain("Co-Authored-By");
     expect(await api("task.reviewCommit", params, "commit")).toMatchObject({ head: result.head });
     await expect(api("task.integrationPreview", { id: "task" })).rejects.toThrow(
       "accept_result_first",

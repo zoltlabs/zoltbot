@@ -64,6 +64,12 @@ export const ProjectSchema = object({
   previewUrl: OptionalText,
   requireCodeReview: Type.Boolean(),
   skipFinalGateWhenReviewed: Type.Boolean(),
+  /** A4: agents' commits name them in a Co-Authored-By line; on unless false. */
+  coAuthorLine: Type.Optional(Type.Boolean()),
+  /** A4: the domain of that line's address; `agents.zoltbot.invalid` when unset. */
+  coAuthorDomain: Type.Optional(
+    Type.String({ pattern: "^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$", maxLength: 100 }),
+  ),
   archived: Type.Boolean(),
   createdAt: At,
 });

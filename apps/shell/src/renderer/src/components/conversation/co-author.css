@@ -1,0 +1,8 @@
+/* A4: the label takes the row and the switch sits at its end, like Notify above. */
+.agent-settings-model-row.agent-co-author-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.agent-co-author-row .settings-switch {
+  margin-right: 6px;
+}
