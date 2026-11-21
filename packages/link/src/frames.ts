@@ -105,6 +105,19 @@ export const ActivityFrame = object({
 });
 /** The relay feature a Mac checks before sending activity frames. */
 export const activityFeature = "liveactivity";
+
+/**
+ * P8: what a paired phone watching an agent's browser gets at most: frames this wide, this often,
+ * and this many base64 bytes a minute. The Mac skips frames past the budget before sealing; the
+ * relay sees only sealed records and keeps its own per-connection limits.
+ */
+export const phoneScreen = {
+  maxWidth: 720,
+  minIntervalMs: 333,
+  /** Base64 bytes in one frame; a larger one is skipped. */
+  maxFrameBytes: 256 * 1024,
+  bytesPerMinute: 16 * 1_048_576,
+} as const;
 /** Opaque daemon record id. Never text: an id says nothing about the request it names. */
 export const PushRecordId = Type.String({ pattern: "^[A-Za-z0-9._:-]{1,128}$" });
 /** What a push can be about. `zolt`: the main agent sent the person a notice. */

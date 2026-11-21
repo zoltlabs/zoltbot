@@ -50,6 +50,7 @@ import {
 } from "../../data/view";
 import { withCalls } from "../../data/voice";
 import { newId, useAction } from "../../state/actions";
+import { useBrowserRunning } from "../../state/browser-screen";
 import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { outbox, startOutbox } from "../../state/outbox";
@@ -126,6 +127,8 @@ export default function Chat() {
   const turn = runningTurn(snapshot, id);
   const status = useCalmStatus(workingStatus(snapshot, id));
   const who = profileName(snapshot, thread?.agentId);
+  // P8: the agent's own browser, watched and taken over from here.
+  const browserOpen = useBrowserRunning(thread ? id : undefined);
   const chief = chiefThreadId(snapshot.entities) === id;
   const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
   const location = place(snapshot, thread);
@@ -318,6 +321,16 @@ export default function Chat() {
           turnId={turn ? text(turn.id) : undefined}
           compactions={compactions(snapshot, id)}
         />
+        {browserOpen ? (
+          <Pressable
+            onPress={() => router.push(`/chat/browser?id=${encodeURIComponent(id)}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Open screen"
+            style={styles.bell}
+          >
+            <Icon name="screen" color={c["text-secondary"]} size={22} />
+          </Pressable>
+        ) : null}
         {canListen && thread && online ? (
           <Pressable
             onPress={() => router.push(`/chat/voice?id=${encodeURIComponent(id)}`)}

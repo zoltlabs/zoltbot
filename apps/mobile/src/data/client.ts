@@ -18,6 +18,8 @@ export type Client = StoreApi<ClientState> & {
   stop(): void;
   /** Unsequenced events such as Quick Chat updates, which are not part of the snapshot. */
   onEvent(listener: (event: DomainEvent) => void): () => void;
+  /** P8: one kind of notification, such as `browser.frame`. Never stored. */
+  onNotify(method: string, listener: (params: unknown) => void): () => void;
 };
 
 const empty: Snapshot = { seq: 0, entities: {}, counters: {} };
@@ -82,6 +84,7 @@ export function applyEvent(snapshot: Snapshot, event: DomainEvent): Snapshot {
 export function createClient(transport: Transport): Client {
   let stopped = false;
   const listeners = new Set<(event: DomainEvent) => void>();
+  const notified = new Map<string, Set<(params: unknown) => void>>();
   let syncing: Promise<void> | undefined;
   const store = createStore<ClientState>((_, get) => ({
     kind: transport.kind,
@@ -140,6 +143,10 @@ export function createClient(transport: Transport): Client {
       if (next !== snapshot) store.setState({ snapshot: next });
       for (const listener of listeners) listener(event);
     },
+    notify(method, params) {
+      if (stopped) return;
+      for (const listener of notified.get(method) ?? []) listener(params);
+    },
     confirmCode(code) {
       if (!stopped) store.setState({ confirmCode: code });
     },
@@ -153,6 +160,14 @@ export function createClient(transport: Transport): Client {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
+      };
+    },
+    onNotify(method: string, listener: (params: unknown) => void) {
+      const set = notified.get(method) ?? new Set();
+      notified.set(method, set);
+      set.add(listener);
+      return () => {
+        set.delete(listener);
       };
     },
   });

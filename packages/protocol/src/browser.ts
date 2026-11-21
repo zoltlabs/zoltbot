@@ -17,7 +17,10 @@ export const browserMethods = {
     }),
     result: Json,
   },
-  /** B2: opens, renews (every few seconds) or closes this connection's view of a chat's browser. */
+  /**
+   * B2: opens, renews (every few seconds) or closes this connection's view of a chat's browser.
+   * P8: a paired phone may watch, take over and send input too.
+   */
   "browser.view": { params: object({ threadId: Id, open: Type.Boolean() }), result: Json },
   /** B3: the owner takes control of a chat's browser (`control: true`) or hands it back. */
   "browser.takeover": {
@@ -48,9 +51,6 @@ export const browserMacOnlyMethods = [
   "browser.setup",
   "browser.action",
   "browser.profile.clear",
-  "browser.view",
-  "browser.takeover",
-  "browser.input",
   "browser.cookies",
   "browser.purchase.allow",
 ] as const;

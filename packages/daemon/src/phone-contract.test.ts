@@ -288,6 +288,10 @@ describe("phone contract", () => {
       ["message.list", {}],
       ["message.send", { message: { id: "m" } }],
       ["terminal.list", { threadId: "missing", readOnly: true }],
+      // P8: watch and take over the agent's browser.
+      ["browser.view", { threadId: "missing", open: false }],
+      ["browser.takeover", { threadId: "missing", control: false }],
+      ["browser.input", { threadId: "missing", event: { kind: "key", type: "text", key: "a" } }],
     ] as const)
       expect(await reason(method, params), method).not.toMatch(/mac_only|method_unavailable/);
 

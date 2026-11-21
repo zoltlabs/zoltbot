@@ -375,6 +375,10 @@ export class RelayTransport implements Transport {
       if (this.allowed) this.handlers?.event(message.params as DomainEvent);
       return;
     }
+    if (typeof message.method === "string" && message.id === undefined) {
+      if (this.allowed) this.handlers?.notify?.(message.method, message.params);
+      return;
+    }
     const entry = typeof message.id === "number" ? this.pending.get(message.id) : undefined;
     if (!entry) return;
     this.pending.delete(message.id as number);

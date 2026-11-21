@@ -18,7 +18,8 @@ export type BrowserInput =
       deltaX?: number;
       deltaY?: number;
     }
-  | { kind: "key"; type: "down" | "up"; key: string };
+  /** `text` types a string as it is (the phone's keyboard); `down`/`up` press one key. */
+  | { kind: "key"; type: "down" | "up" | "text"; key: string };
 
 const coordinate = (value: unknown, limit: number) =>
   typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= limit;
@@ -52,7 +53,7 @@ export function parseInput(value: unknown): BrowserInput {
   }
   if (
     event.kind === "key" &&
-    (event.type === "down" || event.type === "up") &&
+    (event.type === "down" || event.type === "up" || event.type === "text") &&
     typeof event.key === "string" &&
     event.key.length > 0 &&
     event.key.length <= 32

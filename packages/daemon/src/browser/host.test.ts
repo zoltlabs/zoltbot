@@ -15,20 +15,30 @@ import { describe, expect, it } from "vitest";
 import { DETECT_SCRIPT, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineFrame, EnginePage } from "./engine.js";
 import { playwrightEngine } from "./engine.js";
-import { type BrowserFrame, BrowserHost, endpointFile, MAX_FPS, VIEWER_TTL_MS } from "./host.js";
+import {
+  type BrowserFrame,
+  BrowserHost,
+  endpointFile,
+  MAX_FPS,
+  MAX_FRAME_WIDTH,
+  PHONE_VIEWER,
+  VIEWER_TTL_MS,
+} from "./host.js";
 import { browserBinding, materializeBrowser } from "./runtime.js";
 
 class FakePage implements EnginePage {
   starts = 0;
   stops = 0;
+  widths: number[] = [];
   emit: ((frame: EngineFrame) => void) | undefined;
   private closers: (() => void)[] = [];
   constructor(private readonly address = "https://example.test/") {}
   url() {
     return this.address;
   }
-  async frames(onFrame: (frame: EngineFrame) => void) {
+  async frames(onFrame: (frame: EngineFrame) => void, size: { width: number }) {
     this.starts++;
+    this.widths.push(size.width);
     this.emit = onFrame;
     return async () => {
       this.stops++;
@@ -159,6 +169,68 @@ describe("browser host", () => {
       }
       expect(count).toBeLessThanOrEqual(MAX_FPS + 1);
       expect(count).toBeGreaterThanOrEqual(MAX_FPS - 1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("gives a phone narrower frames at its own pace and budget", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "zb-host-"));
+    try {
+      const { engine, launches } = fakeEngine();
+      let clock = 1_000;
+      const host = new BrowserHost(engine, () => clock);
+      await host.ensure(binding(root), "thread");
+      const page = launches[0]?.page as FakePage;
+      let phone = 0;
+      host.view("phone", "thread", true, () => phone++, PHONE_VIEWER);
+      await settle();
+      // A phone alone gets the narrow screencast.
+      expect(page.widths).toEqual([PHONE_VIEWER.maxWidth]);
+      for (let i = 0; i < 60; i++) {
+        page.emit?.(frame);
+        clock += 1000 / 60;
+      }
+      expect(phone).toBeGreaterThanOrEqual(2);
+      expect(phone).toBeLessThanOrEqual(Math.ceil(1000 / PHONE_VIEWER.minIntervalMs));
+
+      // The Mac's panel opening widens the screencast; closing it narrows it again.
+      let mac = 0;
+      host.view("mac", "thread", true, () => mac++);
+      await settle();
+      expect(page.widths.at(-1)).toBe(MAX_FRAME_WIDTH);
+      for (let i = 0; i < 60; i++) {
+        page.emit?.(frame);
+        clock += 1000 / 60;
+      }
+      expect(mac).toBeGreaterThan(phone);
+      host.view("mac", "thread", false, () => {});
+      await settle();
+      expect(page.widths.at(-1)).toBe(PHONE_VIEWER.maxWidth);
+
+      // Past its byte budget the phone gets nothing more until the minute turns.
+      const big = { ...frame, data: Buffer.alloc(150 * 1024) };
+      const budget = PHONE_VIEWER.bytesPerMinute ?? 0;
+      let bytes = 0;
+      clock += 60_000;
+      host.view("phone", "thread", true, (f) => (bytes += f.data.length), PHONE_VIEWER);
+      await settle();
+      for (let i = 0; i < 200; i++) {
+        page.emit?.(big);
+        clock += 250;
+      }
+      expect(bytes).toBeGreaterThan(0);
+      expect(bytes).toBeLessThanOrEqual(budget);
+      const capped = bytes;
+      clock += 60_000;
+      host.view("phone", "thread", true, (f) => (bytes += f.data.length), PHONE_VIEWER);
+      page.emit?.(big);
+      expect(bytes).toBeGreaterThan(capped);
+      // A frame too large for one relay message is skipped.
+      const before = bytes;
+      clock += 1000;
+      page.emit?.({ ...frame, data: Buffer.alloc(300 * 1024) });
+      expect(bytes).toBe(before);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
