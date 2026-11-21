@@ -82,6 +82,29 @@ export const PushRegisterFrame = object({
   platform: values(["apns", "apns-sandbox"]),
   token: Type.String({ minLength: 1, maxLength: 400 }),
 });
+/**
+ * Device → relay: the push token of this phone's Live Activity (P3). ActivityKit issues one per
+ * activity; the relay keeps the latest beside the device record.
+ */
+export const ActivityRegisterFrame = object({
+  t: Type.Literal("activity.register"),
+  platform: values(["apns", "apns-sandbox"]),
+  token: Type.String({ minLength: 1, maxLength: 400 }),
+});
+/**
+ * Mac → relay: update a phone's Live Activity. Counts only, never text; the phone shows names
+ * from its own cache. Both counts at zero end the activity.
+ */
+export const ActivityFrame = object({
+  t: Type.Literal("activity"),
+  deviceId: LinkId,
+  working: Type.Integer({ minimum: 0, maximum: 999 }),
+  needsYou: Type.Integer({ minimum: 0, maximum: 999 }),
+  /** The request the phone names on its Lock Screen, so it can hide a title gone stale. */
+  topId: Type.Optional(Type.String({ pattern: "^[A-Za-z0-9._:-]{1,128}$" })),
+});
+/** The relay feature a Mac checks before sending activity frames. */
+export const activityFeature = "liveactivity";
 /** Opaque daemon record id. Never text: an id says nothing about the request it names. */
 export const PushRecordId = Type.String({ pattern: "^[A-Za-z0-9._:-]{1,128}$" });
 /** What a push can be about. `zolt`: the main agent sent the person a notice. */
@@ -132,6 +155,8 @@ export const ClientFrame = Type.Union([
   RevokeFrame,
   PushRegisterFrame,
   PushFrame,
+  ActivityRegisterFrame,
+  ActivityFrame,
   DataFrame,
 ]);
 export const ServerFrame = Type.Union([

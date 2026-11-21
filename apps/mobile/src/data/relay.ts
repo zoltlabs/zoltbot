@@ -168,6 +168,29 @@ export class RelayTransport implements Transport {
     });
   }
 
+  /**
+   * Tells the relay where to push (the app's notifications, or its Live Activity). Kept, and
+   * sent again each time the link comes back, since the relay may have dropped a stale one.
+   */
+  register(
+    kind: "push.register" | "activity.register",
+    platform: "apns" | "apns-sandbox",
+    token: string,
+  ) {
+    this.registrations.set(kind, { t: kind, platform, token });
+    if (this.allowed && this.session) this.sendRegistrations();
+  }
+  private readonly registrations = new Map<string, ClientFrame>();
+  private sendRegistrations() {
+    for (const frame of this.registrations.values()) {
+      try {
+        this.frame(frame);
+      } catch {
+        /* Tried again when the link comes back. */
+      }
+    }
+  }
+
   private frame(frame: ClientFrame) {
     const encoded = JSON.stringify(frame);
     // Sealed data is base64url, so its serialized frame contains only ASCII.
@@ -325,8 +348,10 @@ export class RelayTransport implements Transport {
       }
       this.finish = undefined;
       this.session = session;
-      if (this.allowed) this.status("online");
-      else {
+      if (this.allowed) {
+        this.status("online");
+        this.sendRegistrations();
+      } else {
         this.handlers?.confirmCode?.(session.confirmCode);
         this.status("pairing");
         this.waitForAllow(session);
@@ -371,6 +396,7 @@ export class RelayTransport implements Transport {
         this.pairing = undefined;
         this.options.paired?.();
         this.status("online");
+        this.sendRegistrations();
       },
       (error: Error) => {
         if (session !== this.session) return;

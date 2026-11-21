@@ -1,4 +1,11 @@
-import type { DeviceRecord, OfferRecord, PushPlatform, Registry } from "./registry.js";
+import {
+  type DeviceRecord,
+  type OfferRecord,
+  type PushPlatform,
+  type Registry,
+  type TokenSlot,
+  tokenFields,
+} from "./registry.js";
 
 // Firestore through its REST API, so the relay needs no gRPC client. On Cloud Run the access
 // token comes from the metadata server. Layout:
@@ -121,6 +128,12 @@ export class FirestoreRegistry implements Registry {
       record.pushToken = pushToken;
       record.platform = platform;
     }
+    const activityToken = text(doc.fields.activityToken);
+    const activityPlatform = text(doc.fields.activityPlatform);
+    if (activityToken && (activityPlatform === "apns" || activityPlatform === "apns-sandbox")) {
+      record.activityToken = activityToken;
+      record.activityPlatform = activityPlatform;
+    }
     return record;
   }
 
@@ -153,28 +166,34 @@ export class FirestoreRegistry implements Registry {
         "updatedAt",
         "pushToken",
         "platform",
+        "activityToken",
+        "activityPlatform",
         ...(this.options.permanentRevocation ? ["publicKey"] : []),
       ],
     );
   }
 
-  async setPushToken(macId: string, deviceId: string, platform: PushPlatform, token: string) {
+  async setPushToken(
+    macId: string,
+    deviceId: string,
+    platform: PushPlatform,
+    token: string,
+    slot: TokenSlot = "push",
+  ) {
+    const [tokenField, platformField] = tokenFields[slot];
+    const fields = {
+      [tokenField]: { stringValue: token },
+      [platformField]: { stringValue: platform },
+      updatedAt: this.stamp(),
+    };
+    const mask = [tokenField, platformField, "updatedAt"];
     if (this.options.permanentRevocation) {
       const path = this.devicePath(macId, deviceId),
         current = await this.request("GET", path);
       if (text(current?.fields?.status) !== "allowed") return false;
       if (!current?.updateTime) throw new Error("registry_version_missing");
       try {
-        await this.patch(
-          path,
-          {
-            pushToken: { stringValue: token },
-            platform: { stringValue: platform },
-            updatedAt: this.stamp(),
-          },
-          ["pushToken", "platform", "updatedAt"],
-          { updateTime: current.updateTime },
-        );
+        await this.patch(path, fields, mask, { updateTime: current.updateTime });
         return true;
       } catch (error) {
         // Firestore uses FAILED_PRECONDITION (HTTP 400) or a conflict for a stale version.
@@ -185,24 +204,15 @@ export class FirestoreRegistry implements Registry {
     }
     const current = await this.getDevice(macId, deviceId);
     if (current?.status !== "allowed") return false;
-    await this.patch(
-      this.devicePath(macId, deviceId),
-      {
-        pushToken: { stringValue: token },
-        platform: { stringValue: platform },
-        updatedAt: this.stamp(),
-      },
-      ["pushToken", "platform", "updatedAt"],
-    );
+    await this.patch(this.devicePath(macId, deviceId), fields, mask);
     return true;
   }
 
-  async clearPushToken(macId: string, deviceId: string) {
+  async clearPushToken(macId: string, deviceId: string, slot: TokenSlot = "push") {
     const current = await this.getDevice(macId, deviceId);
     if (!current) return;
     await this.patch(this.devicePath(macId, deviceId), { updatedAt: this.stamp() }, [
-      "pushToken",
-      "platform",
+      ...tokenFields[slot],
       "updatedAt",
     ]);
   }

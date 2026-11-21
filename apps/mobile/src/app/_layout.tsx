@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { startAppLock, useAppLock } from "../state/app-lock";
 import { useLink } from "../state/link";
+import { startLiveActivity } from "../state/live-activity";
 import { startNotificationActions } from "../state/notifications";
 import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
@@ -23,6 +24,9 @@ export default function RootLayout() {
   }, []);
   // Notification taps and Allow/Reject buttons, once screens can be navigated to.
   useEffect(() => (booted ? startNotificationActions() : undefined), [booted]);
+  useEffect(() => {
+    if (booted) startLiveActivity();
+  }, [booted]);
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(c["bg-page"]);
   }, [c]);

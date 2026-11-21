@@ -1,4 +1,5 @@
 import type { InteractionAnswer } from "@zoltbot/protocol";
+import { laterRanked } from "@zoltbot/protocol";
 import { type ChiefState, chiefKeys, setting } from "./identity.js";
 
 // Zolt's order and recommendations on Needs you, and how your
@@ -82,14 +83,7 @@ export function queueOrder(state: ChiefState): Row[] {
 }
 
 /** Ids ranked `later`, which never notify. */
-export function laterIds(value: unknown): Set<string> {
-  const items = (value as Partial<ChiefQueue> | undefined)?.items;
-  return new Set(
-    Object.entries(items && typeof items === "object" ? items : {})
-      .filter(([, triage]) => triage?.rank === "later" && !triage.outcome)
-      .map(([id]) => id),
-  );
-}
+export const laterIds = (value: unknown): Set<string> => laterRanked(value);
 
 /** How your answer compared with Zolt's recommendation. Undefined when there is nothing to judge. */
 export function compareOutcome(

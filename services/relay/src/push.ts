@@ -33,9 +33,47 @@ export interface PushRequest {
 /** `gone` means APNs says the token is no longer valid and should be forgotten. */
 export type PushResult = { ok: true } | { ok: false; gone: boolean; reason: string };
 
+/** P3: a Live Activity update. Two counts, nothing else; zero and zero ends it. */
+export interface ActivityRequest {
+  platform: PushPlatform;
+  token: string;
+  working: number;
+  needsYou: number;
+  /** The request the phone names on its Lock Screen. An id, never text. */
+  topId?: string;
+}
+
 export interface PushSender {
   send(request: PushRequest): Promise<PushResult>;
+  sendActivity?(request: ActivityRequest): Promise<PushResult>;
   close?(): void;
+}
+
+const count = (value: number) => Number.isInteger(value) && value >= 0 && value <= 999;
+/** The APNs body of a Live Activity push: counts and an event, never text. */
+export function activityPayload(
+  working: number,
+  needsYou: number,
+  now = Date.now(),
+  topId?: string,
+) {
+  if (
+    !count(working) ||
+    !count(needsYou) ||
+    (topId !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(topId))
+  )
+    throw new Error("push_scope_invalid");
+  const timestamp = Math.floor(now / 1000);
+  const end = working === 0 && needsYou === 0;
+  return {
+    aps: {
+      timestamp,
+      event: end ? "end" : "update",
+      "content-state": { working, needsYou, ...(topId ? { topId } : {}) },
+      // Ended: leave the last state up for a minute, then remove it.
+      ...(end ? { "dismissal-date": timestamp + 60 } : {}),
+    },
+  };
 }
 
 export function pushText(kind: PushKind, count: number) {
@@ -99,6 +137,11 @@ export function apnsPayload(
 /** Records pushes for tests. */
 export class FakePush implements PushSender {
   readonly sent: PushRequest[] = [];
+  readonly activities: ActivityRequest[] = [];
+  async sendActivity(request: ActivityRequest): Promise<PushResult> {
+    this.activities.push(request);
+    return { ok: true };
+  }
   constructor(
     private readonly result: (request: PushRequest) => PushResult = () => ({ ok: true }),
   ) {}
@@ -192,16 +235,45 @@ export class ApnsPush implements PushSender {
     } catch {
       return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });
     }
+    return this.post(request.platform, request.token, body, {
+      "apns-topic": this.options.topic,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+    });
+  }
+
+  sendActivity(request: ActivityRequest): Promise<PushResult> {
+    let body: string;
+    try {
+      body = JSON.stringify(
+        activityPayload(request.working, request.needsYou, this.now(), request.topId),
+      );
+    } catch {
+      return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });
+    }
+    // Updates are low priority so iOS budgets them; an end is delivered at once.
+    const end = request.working === 0 && request.needsYou === 0;
+    return this.post(request.platform, request.token, body, {
+      "apns-topic": `${this.options.topic}.push-type.liveactivity`,
+      "apns-push-type": "liveactivity",
+      "apns-priority": end ? "10" : "5",
+    });
+  }
+
+  private post(
+    platform: PushPlatform,
+    token: string,
+    body: string,
+    headers: Record<string, string>,
+  ): Promise<PushResult> {
     return new Promise((resolve) => {
       let stream: http2.ClientHttp2Stream;
       try {
-        stream = this.session(this.origins[request.platform]).request({
+        stream = this.session(this.origins[platform]).request({
           ":method": "POST",
-          ":path": `/3/device/${encodeURIComponent(request.token)}`,
+          ":path": `/3/device/${encodeURIComponent(token)}`,
           authorization: `bearer ${this.token()}`,
-          "apns-topic": this.options.topic,
-          "apns-push-type": "alert",
-          "apns-priority": "10",
+          ...headers,
           "content-type": "application/json",
         });
       } catch (error) {

@@ -11,8 +11,17 @@ export interface DeviceRecord {
   status: "allowed" | "revoked";
   pushToken?: string;
   platform?: PushPlatform;
+  /** The phone's Live Activity push token (P3), and the APNs environment it belongs to. */
+  activityToken?: string;
+  activityPlatform?: PushPlatform;
   updatedAt: string;
 }
+/** Which token: the app's notifications, or its Live Activity. */
+export type TokenSlot = "push" | "activity";
+export const tokenFields = {
+  push: ["pushToken", "platform"],
+  activity: ["activityToken", "activityPlatform"],
+} as const;
 
 export interface OfferRecord {
   offerId: string;
@@ -33,9 +42,10 @@ export interface Registry {
     deviceId: string,
     platform: PushPlatform,
     token: string,
+    slot?: TokenSlot,
   ): Promise<boolean>;
   /** Drops a push token APNs rejected. */
-  clearPushToken(macId: string, deviceId: string): Promise<void>;
+  clearPushToken(macId: string, deviceId: string, slot?: TokenSlot): Promise<void>;
   putOffer(offer: OfferRecord): Promise<void>;
   getOffer(offerId: string): Promise<OfferRecord | undefined>;
 }
@@ -78,23 +88,31 @@ export class MemoryRegistry implements Registry {
     this.devices.set(this.key(macId, deviceId), record);
   }
 
-  async setPushToken(macId: string, deviceId: string, platform: PushPlatform, token: string) {
+  async setPushToken(
+    macId: string,
+    deviceId: string,
+    platform: PushPlatform,
+    token: string,
+    slot: TokenSlot = "push",
+  ) {
     const current = this.devices.get(this.key(macId, deviceId));
     if (current?.status !== "allowed") return false;
+    const [tokenField, platformField] = tokenFields[slot];
     this.devices.set(this.key(macId, deviceId), {
       ...current,
-      platform,
-      pushToken: token,
+      [platformField]: platform,
+      [tokenField]: token,
       updatedAt: this.stamp(),
     });
     return true;
   }
 
-  async clearPushToken(macId: string, deviceId: string) {
+  async clearPushToken(macId: string, deviceId: string, slot: TokenSlot = "push") {
     const current = this.devices.get(this.key(macId, deviceId));
     if (!current) return;
-    const { pushToken: _token, platform: _platform, ...rest } = current;
-    this.devices.set(this.key(macId, deviceId), { ...rest, updatedAt: this.stamp() });
+    const rest: DeviceRecord = { ...current, updatedAt: this.stamp() };
+    for (const field of tokenFields[slot]) delete rest[field];
+    this.devices.set(this.key(macId, deviceId), rest);
   }
 
   async putOffer(offer: OfferRecord) {

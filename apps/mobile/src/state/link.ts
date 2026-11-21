@@ -33,6 +33,9 @@ const keychain: SecretStore = {
   remove: (key) => SecureStore.deleteItemAsync(key),
 };
 const socket = (url: string) => new WebSocket(url) as unknown as LinkSocket;
+const relays = new WeakMap<Client, RelayTransport>();
+/** The relay link behind a client, to register push tokens with that Mac's relay. */
+export const relayOf = (client: Client | undefined) => (client ? relays.get(client) : undefined);
 
 interface LinkState {
   booted: boolean;
@@ -114,19 +117,19 @@ export const useLink = create<LinkState>((set, get) => {
     pairing?: ReturnType<typeof readPairingUrl>["pairing"],
   ) => {
     const identity = await deviceIdentity(keychain);
-    const client = createClient(
-      new RelayTransport({
-        identity,
-        mac,
-        socket,
-        ...(pairing
-          ? {
-              pairing: { ...pairing, deviceName: Constants.deviceName ?? "iPhone" },
-              paired: () => void paired(mac, client),
-            }
-          : {}),
-      }),
-    );
+    const transport = new RelayTransport({
+      identity,
+      mac,
+      socket,
+      ...(pairing
+        ? {
+            pairing: { ...pairing, deviceName: Constants.deviceName ?? "iPhone" },
+            paired: () => void paired(mac, client),
+          }
+        : {}),
+    });
+    const client = createClient(transport);
+    relays.set(client, transport);
     return client;
   };
   /** The Mac allowed this phone: keep it, and show it unless the person moved on. */

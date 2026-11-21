@@ -1,3 +1,4 @@
+export * from "./activity-counts.js";
 export * from "./adapter-events.js";
 export * from "./agent-templates.js";
 export * from "./artifacts.js";

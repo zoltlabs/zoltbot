@@ -64,7 +64,8 @@
       ],
       "expo-notifications",
       "./plugins/with-bot-sharing.cjs",
-      "./plugins/with-app-lock.cjs"
+      "./plugins/with-app-lock.cjs",
+      "./plugins/with-live-activity.cjs"
     ],
     "experiments": {
       "typedRoutes": false

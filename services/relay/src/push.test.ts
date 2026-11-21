@@ -2,7 +2,7 @@ import { generateKeyPairSync, verify } from "node:crypto";
 import http2 from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { ApnsPush, apnsJwt, apnsPayload, pushText } from "./push.js";
+import { ApnsPush, activityPayload, apnsJwt, apnsPayload, pushText } from "./push.js";
 
 const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -77,6 +77,39 @@ describe("several Macs", () => {
     expect(apnsPayload("needs_you", 2, undefined, undefined, undefined, "a b")).toEqual(
       apnsPayload("needs_you", 2),
     );
+  });
+});
+
+describe("Live Activity", () => {
+  it("carries two counts and an event, and nothing else", () => {
+    expect(activityPayload(2, 1, 1_700_000_000_000)).toEqual({
+      aps: {
+        timestamp: 1_700_000_000,
+        event: "update",
+        "content-state": { working: 2, needsYou: 1 },
+      },
+    });
+    expect(activityPayload(0, 0, 1_700_000_000_000)).toEqual({
+      aps: {
+        timestamp: 1_700_000_000,
+        event: "end",
+        "content-state": { working: 0, needsYou: 0 },
+        "dismissal-date": 1_700_000_060,
+      },
+    });
+    expect(activityPayload(1, 1, 1_700_000_000_000, "req:1").aps["content-state"]).toEqual({
+      working: 1,
+      needsYou: 1,
+      topId: "req:1",
+    });
+    expect(() => activityPayload(1, 1, 0, "Deploy the thing")).toThrow("push_scope_invalid");
+    for (const bad of [-1, 1.5, 1000, Number.NaN])
+      expect(() => activityPayload(bad, 0)).toThrow("push_scope_invalid");
+    // Whatever goes in, only numbers come out: no field can carry text.
+    const text = JSON.stringify(activityPayload(3, 4));
+    expect(
+      text.replace(/"(aps|timestamp|event|update|content-state|working|needsYou)"/g, ""),
+    ).toMatch(/^[{}:,\d]+$/);
   });
 });
 
