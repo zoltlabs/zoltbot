@@ -2,7 +2,7 @@
 // steps follow along edges that carry an upstream step's output. A run walks the graph in order,
 // and each agent step is a task in the existing task runner.
 import { type Static, Type } from "@sinclair/typebox";
-import { Id, Json, object, values } from "./common.js";
+import { At, Id, Json, object, values } from "./common.js";
 import { EventSourceSchema } from "./event-routines.js";
 
 /** Text a step adds to the next step's brief is capped, so a run can't flood a prompt. */
@@ -105,6 +105,22 @@ export const WorkflowGraphSchema = object({
   edges: Type.Array(WorkflowEdgeSchema, { maxItems: WORKFLOW_NODE_LIMIT * 2 }),
 });
 
+/** One step's state within a run. */
+export const WorkflowStepStateSchema = object({
+  id: Id,
+  state: values(["waiting", "running", "needs_you", "done", "skipped", "failed", "would_run"]),
+  taskId: Type.Optional(Id),
+  /** The step's output, as carried to later steps. */
+  output: Type.Optional(Type.String({ maxLength: WORKFLOW_CARRY_LIMIT })),
+  /** For a condition: which branch it took. */
+  branch: Type.Optional(values(["true", "false"])),
+  /** A dry run's estimate: the step's budget ceiling. */
+  costCeilingUsd: Type.Optional(Type.Number({ minimum: 0 })),
+  startedAt: Type.Optional(At),
+  endedAt: Type.Optional(At),
+});
+export type WorkflowStepState = Static<typeof WorkflowStepStateSchema>;
+
 export type WorkflowTrigger = Static<typeof WorkflowTriggerSchema>;
 export type WorkflowNode = Static<typeof WorkflowNodeSchema>;
 export type WorkflowEdge = Static<typeof WorkflowEdgeSchema>;
@@ -194,4 +210,39 @@ function upstream(graph: WorkflowGraph, id: string) {
   const found = walk(graph, id, false);
   found.delete(id);
   return found;
+}
+
+/** Whether a condition step's test passes on its source step's output. */
+export function conditionHolds(
+  node: Extract<WorkflowNode, { kind: "condition" }>,
+  output: { text: string; outcome?: string },
+): boolean {
+  const value = node.value.trim().toLowerCase();
+  if (node.test === "outcome") return (output.outcome ?? "").toLowerCase() === value;
+  const text = output.text.toLowerCase();
+  return node.test === "equals" ? text.trim() === value : text.includes(value);
+}
+
+/**
+ * Steps that can no longer run, given the branches decided so far: a step is skipped when every
+ * edge into it comes from a skipped step or from a branch its condition didn't take.
+ */
+export function workflowSkipped(
+  graph: WorkflowGraph,
+  branches: Readonly<Record<string, "true" | "false">>,
+): Set<string> {
+  const skipped = new Set<string>();
+  for (const id of workflowOrder(graph) ?? []) {
+    const incoming = graph.edges.filter((edge) => edge.to === id);
+    if (!incoming.length) continue;
+    const dead = incoming.every(
+      (edge) =>
+        skipped.has(edge.from) ||
+        (edge.port !== undefined &&
+          branches[edge.from] !== undefined &&
+          branches[edge.from] !== edge.port),
+    );
+    if (dead) skipped.add(id);
+  }
+  return skipped;
 }

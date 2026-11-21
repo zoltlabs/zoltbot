@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "./index.js";
 import {
+  conditionHolds,
   type WorkflowGraph,
   WorkflowGraphSchema,
   workflowGraphProblems,
   workflowOrder,
+  workflowSkipped,
 } from "./workflow-graph.js";
 
 const agent = (id: string) => ({
@@ -109,5 +111,28 @@ describe("R7 workflow graphs", () => {
     const long = graph();
     long.nodes[1] = { ...agent("research"), brief: "x".repeat(4001) };
     expect(() => parse(WorkflowGraphSchema, long)).toThrow();
+  });
+
+  it("decides conditions without a model and skips the branch not taken", () => {
+    const value = graph();
+    const check = value.nodes.find((node) => node.kind === "condition");
+    if (check?.kind !== "condition") throw new Error("fixture");
+    expect(conditionHolds(check, { text: "Three NEW issues" })).toBe(true);
+    expect(conditionHolds(check, { text: "Nothing to report" })).toBe(false);
+    expect(
+      conditionHolds(
+        { ...check, test: "outcome", value: "actionable" },
+        { text: "", outcome: "actionable" },
+      ),
+    ).toBe(true);
+    expect([...workflowSkipped(value, {})]).toEqual([]);
+    expect([...workflowSkipped(value, { check: "true" })]).toEqual(["later"]);
+    // A step after both branches still runs.
+    value.nodes.push(agent("wrap"));
+    value.edges.push(
+      { from: "post", to: "wrap", carry: "none" },
+      { from: "later", to: "wrap", carry: "none" },
+    );
+    expect([...workflowSkipped(value, { check: "false" })]).toEqual(["post"]);
   });
 });

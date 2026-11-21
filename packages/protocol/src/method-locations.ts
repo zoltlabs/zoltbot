@@ -21,6 +21,8 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "routine.checkSource",
   "routine.webhookAddress",
   "routine.webhookTest",
+  // R7: a published graph can start paid agent work, so only the Mac publishes.
+  "workflow.publish",
   "routine.connectionHandoff",
   "routine.prepare",
   "routine.editEvent",

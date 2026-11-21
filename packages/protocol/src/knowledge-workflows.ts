@@ -14,7 +14,7 @@ import {
   values,
 } from "./common.js";
 import { EventRoutineConfigSchema, RoutineSourceEventSchema } from "./event-routines.js";
-import { WorkflowGraphSchema } from "./workflow-graph.js";
+import { WorkflowGraphSchema, WorkflowStepStateSchema } from "./workflow-graph.js";
 
 export const SourceRefSchema = object({
   kind: values(["task", "thread", "file", "url", "deliverable"]),
@@ -288,4 +288,6 @@ export const WorkflowRunSchema = object({
   resultHash: OptionalText,
   startedAt: Type.Optional(At),
   endedAt: Type.Optional(At),
+  /** R7: each step's state, for workflows with a graph. */
+  steps: Type.Optional(Type.Array(WorkflowStepStateSchema)),
 });
