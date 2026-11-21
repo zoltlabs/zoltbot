@@ -1,3 +1,4 @@
+import { activityNotifier } from "./activity-push.js";
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { bundleApi, bundleSkills } from "./bundle.js";
 import { companyApi } from "./company-api.js";
@@ -572,6 +573,8 @@ async function startOwnedDaemon(
     ...(options.relay?.pushDelayMs !== undefined ? { delayMs: options.relay.pushDelayMs } : {}),
   });
   resources.push(() => push.close());
+  const activity = activityNotifier({ store, devices, link: () => link });
+  resources.push(() => activity.close());
   const terminals = new TerminalRuntime(() => store.snapshot());
   resources.push(() => terminals.close());
   // Zolt wakes itself only while the person is away; anything they do counts as being here.
@@ -895,6 +898,7 @@ async function startOwnedDaemon(
     finish.observe(events);
     bridges.observe(events);
     push.observe(events);
+    activity.observe(events);
     taint(events);
     browser.observe(events);
     for (const event of events)

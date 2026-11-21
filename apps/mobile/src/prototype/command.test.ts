@@ -79,7 +79,14 @@ beforeAll(async () => {
     useWindowDimensions: () => ({ width: 390, height: 844, fontScale }),
     Alert: { alert: () => {} },
   };
-  const theme = { mono: "monospace", touch: 44, useTheme: () => ({ c: dark }), type: {} };
+  const theme = {
+    mono: "monospace",
+    touch: 44,
+    useTheme: () => ({ c: dark }),
+    type: {},
+    useType: () => ({}),
+    useTextScale: () => 1,
+  };
   const module = {
     exports: {} as { Command: ComponentType<{ initialProject?: Project }> },
   };

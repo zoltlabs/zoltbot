@@ -5,7 +5,7 @@ import type { DomainEvent, UserInput } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { cookieSettings, siteSettings } from "./consent.js";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
-import { browserHostFor, onBrowserHost } from "./host.js";
+import { browserHostFor, onBrowserHost, PHONE_VIEWER } from "./host.js";
 import { profileApi } from "./profiles.js";
 import { PURCHASE_ALLOW_SETTING } from "./purchase.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
@@ -94,7 +94,7 @@ export function browserApi(
     method: string,
     p: Record<string, unknown>,
     authority: "human" | "task_policy" = "human",
-    client?: { send(text: string): void },
+    client?: { send(text: string): void; deviceId?: string },
   ) => {
     if (!method.startsWith("browser.")) return undefined;
     if (method === "browser.readiness") return browserReadiness(directory);
@@ -103,8 +103,14 @@ export function browserApi(
       if (!client) throw Error("browser_view_requires_connection");
       const host = browserHostFor(directory);
       if (!host) return { running: false, url: null };
-      return host.view(viewerKey(client), String(p.threadId), p.open === true, (frame) =>
-        client.send(JSON.stringify({ jsonrpc: "2.0", method: "browser.frame", params: frame })),
+      // P8: a paired phone watches over the relay, at its own pace and budget.
+      return host.view(
+        viewerKey(client),
+        String(p.threadId),
+        p.open === true,
+        (frame) =>
+          client.send(JSON.stringify({ jsonrpc: "2.0", method: "browser.frame", params: frame })),
+        client.deviceId ? PHONE_VIEWER : undefined,
       );
     }
     // B3: the owner's takeover. Input is never logged or stored.

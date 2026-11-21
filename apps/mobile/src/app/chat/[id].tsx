@@ -38,6 +38,7 @@ import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import { useCalmStatus, workingStatus } from "../../data/status";
+import { scaleText } from "../../data/text-size";
 import type { Row } from "../../data/transport";
 import {
   place,
@@ -49,11 +50,12 @@ import {
 } from "../../data/view";
 import { withCalls } from "../../data/voice";
 import { newId, useAction } from "../../state/actions";
+import { useBrowserRunning } from "../../state/browser-screen";
 import { useChatDraft } from "../../state/chat-draft";
-import { useClient, useSnapshot } from "../../state/link";
+import { useClient, useLink, useSnapshot } from "../../state/link";
 import { outbox, startOutbox } from "../../state/outbox";
 import { donateBotConversation } from "../../state/sharing";
-import { sans, touch, useTheme } from "../../theme";
+import { sans, touch, useTextScale, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { BotAvatar } from "../../ui/BotAvatar";
@@ -125,6 +127,8 @@ export default function Chat() {
   const turn = runningTurn(snapshot, id);
   const status = useCalmStatus(workingStatus(snapshot, id));
   const who = profileName(snapshot, thread?.agentId);
+  // P8: the agent's own browser, watched and taken over from here.
+  const browserOpen = useBrowserRunning(thread ? id : undefined);
   const chief = chiefThreadId(snapshot.entities) === id;
   const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
   const location = place(snapshot, thread);
@@ -137,6 +141,7 @@ export default function Chat() {
   const pinnedIds = new Set(pinned.map((row) => row.id));
   // C6: the message being replied to; its quote goes ahead of the words when sent.
   const [replyTo, setReplyTo] = useState<TranscriptRow>();
+  const textSize = useTextScale();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   // O4: the composer's microphone and voice mode, in builds that can listen.
   const canListen = useCanListen();
@@ -219,7 +224,8 @@ export default function Chat() {
       return;
     }
     // C12: while the Mac is unreachable, or behind messages still waiting, text waits too.
-    if (!online || outbox.has(id)) {
+    const macId = useLink.getState().activeId;
+    if (!online || outbox.has(id, macId)) {
       if (attachments.length || artifactTarget) {
         Alert.alert("Attachments need your Mac. Send them once it’s back.");
         return;
@@ -231,6 +237,7 @@ export default function Chat() {
           input: composeInput(words, []),
           text: words,
           createdAt: new Date().toISOString(),
+          ...(macId ? { macId } : {}),
         });
       } catch (error) {
         Alert.alert(error instanceof Error ? error.message : String(error));
@@ -314,6 +321,16 @@ export default function Chat() {
           turnId={turn ? text(turn.id) : undefined}
           compactions={compactions(snapshot, id)}
         />
+        {browserOpen ? (
+          <Pressable
+            onPress={() => router.push(`/chat/browser?id=${encodeURIComponent(id)}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Open screen"
+            style={styles.bell}
+          >
+            <Icon name="screen" color={c["text-secondary"]} size={22} />
+          </Pressable>
+        ) : null}
         {canListen && thread && online ? (
           <Pressable
             onPress={() => router.push(`/chat/voice?id=${encodeURIComponent(id)}`)}
@@ -423,6 +440,7 @@ export default function Chat() {
                   ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
                   : {})}
                 {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
+                canBranch={online && !turn && !request && !compareReadOnly}
                 {...(row.turnId && edits.get(row.turnId)?.length
                   ? {
                       edits: {
@@ -567,7 +585,7 @@ export default function Chat() {
             editable={!!thread}
             accessibilityLabel="Message"
             style={[
-              styles.input,
+              scaleText(styles.input, textSize),
               { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-raised"] },
             ]}
           />

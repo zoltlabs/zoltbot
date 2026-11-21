@@ -1,4 +1,4 @@
-// C4, C5 and C6: Reply, Pin, Unpin, Hide and Show for the chat's messages.
+// C4, C5, C6 and C8: Reply, Pin, Unpin, Hide, Show and React for the chat's messages.
 import { AccessibilityInfo, Alert } from "react-native";
 import type { TranscriptRow } from "../data/view";
 import { usePrefs } from "../state/prefs";
@@ -13,6 +13,8 @@ export interface MarkActions {
   isPinned: (rowId: string) => boolean;
   set: (row: TranscriptRow, pinned: boolean) => void;
   hide: (row: TranscriptRow, hidden: boolean) => void;
+  /** The owner's reaction; null clears it. */
+  react: (row: TranscriptRow, emoji: string | null) => void;
   /** Quotes the message in the composer. */
   reply?: (row: TranscriptRow) => void;
 }
@@ -23,8 +25,14 @@ export function messageMarks(
   run: Run,
   reply?: (row: TranscriptRow) => void,
 ): MarkActions {
-  const call = (method: string, row: TranscriptRow, done: string, failed: string) =>
-    void run(method, { threadId, itemId: row.id }, { quiet: true }).then(
+  const call = (
+    method: string,
+    row: TranscriptRow,
+    done: string,
+    failed: string,
+    extra: Record<string, unknown> = {},
+  ) =>
+    void run(method, { threadId, itemId: row.id, ...extra }, { quiet: true }).then(
       (sent) => sent !== undefined && AccessibilityInfo.announceForAccessibility(done),
       (error: unknown) =>
         Alert.alert(
@@ -36,6 +44,14 @@ export function messageMarks(
   return {
     ...(reply ? { reply } : {}),
     isPinned: (rowId) => pinnedIds.has(rowId),
+    react: (row, emoji) =>
+      call(
+        "message.react",
+        row,
+        emoji ? `Reacted ${emoji}` : "Reaction removed",
+        "Couldn’t react to the message. Try again.",
+        { emoji },
+      ),
     set: (row, on) =>
       on
         ? call("message.pin", row, "Pinned", "Couldn’t pin the message. Try again.")

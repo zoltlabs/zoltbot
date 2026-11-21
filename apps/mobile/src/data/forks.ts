@@ -75,6 +75,7 @@ const forkReasons: Record<string, string> = {
   fork_destination_unavailable: "Choose an available agent.",
   native_fork_unverified: "A native fork needs the same agent. Choose Automatic or Copy.",
   fork_requires_idle: "Stop the current work and answer what it asked first.",
+  fork_boundary_unavailable: "This reply can’t start a branch. Try a later reply that finished.",
   fork_history_unavailable: "This chat has no saved history yet.",
   fork_configuration_unavailable: "The chat's original setup is no longer available.",
   fork_execution_context_unavailable: "This chat's browser or artifact state cannot be copied yet.",

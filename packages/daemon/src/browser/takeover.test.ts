@@ -300,6 +300,12 @@ it("accepts only well-formed input and never echoes keys in errors", () => {
     y: 2,
     deltaY: 40,
   });
+  // P8: the phone's keyboard types text as it is.
+  expect(parseInput({ kind: "key", type: "text", key: "héllo" })).toEqual({
+    kind: "key",
+    type: "text",
+    key: "héllo",
+  });
   for (const bad of [
     { kind: "mouse", type: "down", x: -1, y: 2 },
     { kind: "mouse", type: "down", x: Number.NaN, y: 2 },

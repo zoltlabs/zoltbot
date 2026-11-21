@@ -26,14 +26,54 @@ export interface PushRequest {
   threadId?: string;
   /** Org-bound notice; Cloud approvals are reviewed and signed inside the app. */
   cloud?: CloudPushContext;
+  /** The Mac that sent it, so a phone paired with several Macs opens the right one. An id only. */
+  macId?: string;
 }
 
 /** `gone` means APNs says the token is no longer valid and should be forgotten. */
 export type PushResult = { ok: true } | { ok: false; gone: boolean; reason: string };
 
+/** P3: a Live Activity update. Two counts, nothing else; zero and zero ends it. */
+export interface ActivityRequest {
+  platform: PushPlatform;
+  token: string;
+  working: number;
+  needsYou: number;
+  /** The request the phone names on its Lock Screen. An id, never text. */
+  topId?: string;
+}
+
 export interface PushSender {
   send(request: PushRequest): Promise<PushResult>;
+  sendActivity?(request: ActivityRequest): Promise<PushResult>;
   close?(): void;
+}
+
+const count = (value: number) => Number.isInteger(value) && value >= 0 && value <= 999;
+/** The APNs body of a Live Activity push: counts and an event, never text. */
+export function activityPayload(
+  working: number,
+  needsYou: number,
+  now = Date.now(),
+  topId?: string,
+) {
+  if (
+    !count(working) ||
+    !count(needsYou) ||
+    (topId !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(topId))
+  )
+    throw new Error("push_scope_invalid");
+  const timestamp = Math.floor(now / 1000);
+  const end = working === 0 && needsYou === 0;
+  return {
+    aps: {
+      timestamp,
+      event: end ? "end" : "update",
+      "content-state": { working, needsYou, ...(topId ? { topId } : {}) },
+      // Ended: leave the last state up for a minute, then remove it.
+      ...(end ? { "dismissal-date": timestamp + 60 } : {}),
+    },
+  };
 }
 
 export function pushText(kind: PushKind, count: number) {
@@ -48,6 +88,7 @@ export function apnsPayload(
   action?: PushAction,
   threadId?: string,
   cloud?: CloudPushContext,
+  macId?: string,
 ) {
   // A notice is not a request, so it leaves the badge (what needs you) as it is.
   const aps =
@@ -75,7 +116,11 @@ export function apnsPayload(
     const data = { scope, threadId };
     return { aps, ...data, body: data };
   }
-  if (!action) return threadId ? { aps, threadId, body: { threadId } } : { aps };
+  const from = macId && /^[A-Za-z0-9_-]{1,128}$/.test(macId) ? { macId } : {};
+  if (!action) {
+    const data = { ...(threadId ? { threadId } : {}), ...from };
+    return Object.keys(data).length ? { aps, ...data, body: data } : { aps };
+  }
   // The app registers the "approval" category with Allow once and Reject buttons. The ids sit
   // at the top level of the APNs payload (the app's notification data) and are mirrored under
   // `body`, which expo-notifications prefers as data when present.
@@ -84,6 +129,7 @@ export function apnsPayload(
     interactionId: action.interactionId,
     version: action.version,
     threadId: action.threadId,
+    ...from,
   };
   return { aps: { ...aps, category: action.category }, ...data, body: data };
 }
@@ -91,6 +137,11 @@ export function apnsPayload(
 /** Records pushes for tests. */
 export class FakePush implements PushSender {
   readonly sent: PushRequest[] = [];
+  readonly activities: ActivityRequest[] = [];
+  async sendActivity(request: ActivityRequest): Promise<PushResult> {
+    this.activities.push(request);
+    return { ok: true };
+  }
   constructor(
     private readonly result: (request: PushRequest) => PushResult = () => ({ ok: true }),
   ) {}
@@ -114,11 +165,12 @@ export interface ApnsOptions {
   teamId: string;
   /** The app's bundle id. */
   topic: string;
-  origins?: Partial<Record<PushPlatform, string>>;
+  origins?: Partial<Record<ApnsPlatform, string>>;
   now?: () => number;
 }
 
-const defaultOrigins: Record<PushPlatform, string> = {
+type ApnsPlatform = Exclude<PushPlatform, "fcm">;
+const defaultOrigins: Record<ApnsPlatform, string> = {
   apns: "https://api.push.apple.com",
   "apns-sandbox": "https://api.sandbox.push.apple.com",
 };
@@ -137,7 +189,7 @@ export function apnsJwt(key: string, keyId: string, teamId: string, issuedAt: nu
 
 /** HTTP/2 APNs client with one cached session per origin. */
 export class ApnsPush implements PushSender {
-  private readonly origins: Record<PushPlatform, string>;
+  private readonly origins: Record<ApnsPlatform, string>;
   private readonly sessions = new Map<string, http2.ClientHttp2Session>();
   private readonly now: () => number;
   private jwt?: { value: string; issuedAt: number };
@@ -172,21 +224,59 @@ export class ApnsPush implements PushSender {
     let body: string;
     try {
       body = JSON.stringify(
-        apnsPayload(request.kind, request.count, request.action, request.threadId, request.cloud),
+        apnsPayload(
+          request.kind,
+          request.count,
+          request.action,
+          request.threadId,
+          request.cloud,
+          request.macId,
+        ),
       );
     } catch {
       return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });
     }
+    return this.post(request.platform, request.token, body, {
+      "apns-topic": this.options.topic,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+    });
+  }
+
+  sendActivity(request: ActivityRequest): Promise<PushResult> {
+    let body: string;
+    try {
+      body = JSON.stringify(
+        activityPayload(request.working, request.needsYou, this.now(), request.topId),
+      );
+    } catch {
+      return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });
+    }
+    // Updates are low priority so iOS budgets them; an end is delivered at once.
+    const end = request.working === 0 && request.needsYou === 0;
+    return this.post(request.platform, request.token, body, {
+      "apns-topic": `${this.options.topic}.push-type.liveactivity`,
+      "apns-push-type": "liveactivity",
+      "apns-priority": end ? "10" : "5",
+    });
+  }
+
+  private post(
+    platform: PushPlatform,
+    token: string,
+    body: string,
+    headers: Record<string, string>,
+  ): Promise<PushResult> {
+    if (platform === "fcm")
+      return Promise.resolve({ ok: false, gone: false, reason: "platform_unsupported" });
     return new Promise((resolve) => {
       let stream: http2.ClientHttp2Stream;
       try {
-        stream = this.session(this.origins[request.platform]).request({
+        stream = this.session(this.origins[platform]).request({
           ":method": "POST",
-          ":path": `/3/device/${encodeURIComponent(request.token)}`,
+          ":path": `/3/device/${encodeURIComponent(token)}`,
           authorization: `bearer ${this.token()}`,
-          "apns-topic": this.options.topic,
-          "apns-push-type": "alert",
-          "apns-priority": "10",
+          ...headers,
           "content-type": "application/json",
         });
       } catch (error) {

@@ -30,7 +30,12 @@ let kit: Record<string, (...args: never[]) => unknown>;
 
 beforeAll(async () => {
   const result = await build({
-    entryPoints: [path.resolve("apps/mobile/src/ui/kit.tsx")],
+    // The kit, plus the Android menu sheet's state to check what it was given.
+    stdin: {
+      contents: 'export * from "./kit"; export { menuSheet } from "./menu-sheet-store";',
+      resolveDir: path.resolve("apps/mobile/src/ui"),
+      loader: "ts",
+    },
     bundle: true,
     write: false,
     format: "cjs",
@@ -85,6 +90,8 @@ beforeAll(async () => {
     type: {},
     avatarColors: () => ({ body: "", eye: "", screen: "" }),
     useTheme: () => ({ scheme: "dark", c: dark }),
+    useType: () => ({}),
+    useTextScale: () => 1,
   };
   const require = (id: string) =>
     id === "react-native" ? native : id === "kit-theme" ? theme : uiRequire(id);
@@ -143,6 +150,25 @@ it("falls back to an alert without the disabled items off iOS", () => {
     ["Delete agent…", "destructive"],
     ["Cancel", "cancel"],
   ]);
+});
+
+it("opens a sheet off iOS when the menu is too long for an alert", () => {
+  os = "android";
+  const chosen: string[] = [];
+  showMenu(
+    [
+      { label: "Opus", onPress: () => chosen.push("opus") },
+      { label: "Sonnet", onPress: () => chosen.push("sonnet") },
+      { label: "Other model…", onPress: () => chosen.push("other") },
+    ],
+    "Model",
+  );
+  expect(alert).toBeUndefined();
+  const open = (
+    kit.menuSheet as unknown as { get: () => { title?: string; items: { label: string }[] } }
+  ).get();
+  expect(open.title).toBe("Model");
+  expect(open.items.map((item) => item.label)).toEqual(["Opus", "Sonnet", "Other model…"]);
 });
 
 it("confirms with a destructive verb-plus-object button and Cancel", () => {

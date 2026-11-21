@@ -7,7 +7,17 @@
     "production": {
       "distribution": "store",
       "autoIncrement": true,
-      "node": "24.22.1"
+      "node": "24.22.1",
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
@@ -18,6 +28,10 @@
         "ascApiKeyPath": "$EXPO_ASC_API_KEY_PATH",
         "ascApiKeyId": "$EXPO_ASC_KEY_ID",
         "ascApiKeyIssuerId": "$EXPO_ASC_ISSUER_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "$EXPO_PLAY_SERVICE_ACCOUNT_KEY_PATH",
+        "track": "internal"
       }
     }
   }

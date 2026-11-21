@@ -2,13 +2,17 @@
 import { useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { unreachable } from "../data/outbox";
+import { useLink } from "../state/link";
 import { outbox, useOutbox } from "../state/outbox";
 import { useTheme } from "../theme";
 import { Button, Txt } from "./kit";
 
 export function WaitingMessages({ threadId }: { threadId: string }) {
   const { c } = useTheme();
-  const messages = useOutbox((state) => state.messages).filter((row) => row.threadId === threadId);
+  const macId = useLink((state) => state.activeId);
+  const messages = useOutbox((state) => state.messages).filter(
+    (row) => row.threadId === threadId && (!row.macId || !macId || row.macId === macId),
+  );
   const [busy, setBusy] = useState<string>();
   if (!messages.length) return null;
   const sendNow = async (id: string) => {

@@ -1,5 +1,6 @@
 import type { Interaction } from "@zoltbot/protocol";
 import { permissionExpansion } from "@zoltbot/ui/interactions/request-presentation";
+import { router } from "expo-router";
 import { Alert, StyleSheet, View } from "react-native";
 import { switchQuestion } from "../../data/backup-models";
 import { type AnswerDraft, defaultTitles, typeLabels } from "../../data/interactions";
@@ -110,12 +111,17 @@ function RequestCard({ request, who, position }: CardProps) {
     ) : type === "approval" ? (
       <ApprovalCard request={request} disabled={disabled} submit={submit} />
     ) : request.id.startsWith("browser-takeover:") && request.id.includes(":help-") ? (
-      // B4: the browser runs on the Mac; the phone only says where to finish.
+      // B4, P8: the browser runs on the Mac; the phone opens its screen to take over there.
       <View style={styles.context}>
         {request.items[0]?.prompt ? <Txt v="body">{request.items[0].prompt}</Txt> : null}
-        <Txt v="meta" tone="muted">
-          Finish on your Mac.
-        </Txt>
+        <Button
+          label="Open screen"
+          kind="primary"
+          disabled={disabled}
+          onPress={() =>
+            router.push(`/chat/browser?id=${encodeURIComponent(String(request.threadId))}`)
+          }
+        />
       </View>
     ) : type === "plan" || type === "gate" ? (
       <PlanCard request={request} disabled={disabled} submit={submit} />

@@ -38,6 +38,12 @@
       ],
       "expo-document-picker",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Zoltbot uses Face ID to unlock the app."
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "Zoltbot uses the microphone when you talk to an agent.",
@@ -57,7 +63,12 @@
         }
       ],
       "expo-notifications",
-      "./plugins/with-bot-sharing.cjs"
+      "./plugins/with-bot-sharing.cjs",
+      "./plugins/with-app-lock.cjs",
+      "./plugins/with-live-activity.cjs",
+      "./plugins/with-shortcuts.cjs",
+      "./plugins/with-app-icons.cjs",
+      "./plugins/with-android-share.cjs"
     ],
     "experiments": {
       "typedRoutes": false
@@ -70,6 +81,25 @@
       }
     },
     "owner": "zoltlabs",
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "android": {
+      "package": "com.zoltlabs.zoltbot",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android/foreground.png",
+        "monochromeImage": "./assets/android/monochrome.png",
+        "backgroundColor": "#20211E"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_BIOMETRIC"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
+    }
   }
 }

@@ -6,7 +6,7 @@ import { createClient } from "./client.js";
 import { FakeTransport } from "./fake.js";
 import { preferenceKey, readClock, readPhonePrefs } from "./preferences.js";
 import { macFolder, newProject } from "./projects.js";
-import { inspectPush, type PushApi } from "./push.js";
+import { inspectPush, type PushApi, pushPlatform } from "./push.js";
 
 describe("mobile helpers", () => {
   it("uses existing input parts and gates unsupported operations", () => {
@@ -132,6 +132,24 @@ it("asks only when requested and reads a native APNs token after permission", as
     throw new Error("Simulator");
   });
   expect((await inspectPush(api, false)).permission.granted).toBe(true);
+});
+
+it("names the relay platform of a push token (P9)", async () => {
+  expect(pushPlatform("ios", false)).toBe("apns");
+  expect(pushPlatform("ios", true)).toBe("apns-sandbox");
+  expect(pushPlatform("android", true)).toBe("fcm");
+  expect(pushPlatform("web", false)).toBeUndefined();
+  const granted = { granted: true, canAskAgain: true, status: "granted" };
+  const android: PushApi = {
+    getPermissionsAsync: async () => granted,
+    requestPermissionsAsync: async () => granted,
+    getDevicePushTokenAsync: async () => ({ type: "android", data: "fcm-token" }),
+  };
+  expect(await inspectPush(android, false)).toMatchObject({ token: "fcm-token", platform: "fcm" });
+  const iphone = { ...android, getDevicePushTokenAsync: async () => ({ type: "ios", data: "t" }) };
+  expect((await inspectPush(iphone, false, true)).platform).toBe("apns-sandbox");
+  const web = { ...android, getDevicePushTokenAsync: async () => ({ type: "web", data: [1] }) };
+  expect(await inspectPush(web, false)).toMatchObject({ token: undefined, platform: undefined });
 });
 
 it("does not publish a sample setting when persistence fails", async () => {

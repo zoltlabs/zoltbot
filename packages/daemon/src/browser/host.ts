@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { phoneScreen } from "@zoltbot/link";
 import { consentChoice, siteOf } from "./consent.js";
 import { DETECT_SCRIPT, NUDGES, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
@@ -46,6 +47,19 @@ export const MAX_FRAME_WIDTH = 1280;
 /** A viewer that doesn't renew within this time is dropped (its window closed or crashed). */
 export const VIEWER_TTL_MS = 20_000;
 
+/** What one viewer takes: frame width, rate and, for viewers over the relay, a byte budget. */
+export interface ViewerLimits {
+  maxWidth: number;
+  minIntervalMs: number;
+  /** A frame larger than this many base64 bytes is skipped. */
+  maxFrameBytes?: number;
+  /** Frames past this many base64 bytes in a minute are skipped until the minute turns. */
+  bytesPerMinute?: number;
+}
+const DESKTOP_VIEWER: ViewerLimits = { maxWidth: MAX_FRAME_WIDTH, minIntervalMs: 0 };
+/** P8: a paired phone over the relay: a narrower picture, a few times a second. */
+export const PHONE_VIEWER: ViewerLimits = phoneScreen;
+
 interface Running {
   binding: BrowserBinding;
   threadId: string;
@@ -55,6 +69,8 @@ interface Running {
   page?: EnginePage | undefined;
   pointer?: { x: number; y: number } | undefined;
   stop?: Promise<() => Promise<void>> | undefined;
+  /** The screencast's width: the widest any viewer takes. */
+  width?: number | undefined;
   lastFrame: number;
   generation: number;
   /** B3: the owner's takeover card while they control the browser. */
@@ -79,6 +95,9 @@ interface Viewer {
   threadId: string;
   send: (frame: BrowserFrame) => void;
   expires: number;
+  limits: ViewerLimits;
+  last: number;
+  budget: { since: number; used: number };
 }
 
 export const endpointFile = (b: Pick<BrowserBinding, "home">) => path.join(b.home, "endpoint.json");
@@ -401,7 +420,8 @@ export class BrowserHost {
     if (!run.page || !this.watched(run.threadId).length || !this.running.has(run.binding.id))
       return;
     const page = run.page;
-    run.stop = page.frames((frame) => this.frame(run, page, frame), { width: MAX_FRAME_WIDTH });
+    run.width = this.widthFor(run.threadId);
+    run.stop = page.frames((frame) => this.frame(run, page, frame), { width: run.width });
     await run.stop.catch(() => {
       run.stop = undefined;
     });
@@ -422,31 +442,72 @@ export class BrowserHost {
       return;
     }
     run.lastFrame = now;
-    const body: BrowserFrame = {
-      threadId: run.threadId,
-      data: frame.data.toString("base64"),
-      width: frame.width,
-      height: frame.height,
-      url: page.url(),
-      ...(run.pointer ? { pointer: run.pointer } : {}),
-    };
-    for (const viewer of viewers)
+    let body: BrowserFrame | undefined;
+    for (const viewer of viewers) {
+      const { limits, budget } = viewer;
+      if (now - viewer.last < limits.minIntervalMs) continue;
+      body ??= {
+        threadId: run.threadId,
+        data: frame.data.toString("base64"),
+        width: frame.width,
+        height: frame.height,
+        url: page.url(),
+        ...(run.pointer ? { pointer: run.pointer } : {}),
+      };
+      if (limits.maxFrameBytes !== undefined && body.data.length > limits.maxFrameBytes) continue;
+      if (limits.bytesPerMinute !== undefined) {
+        if (now - budget.since >= 60_000) {
+          budget.since = now;
+          budget.used = 0;
+        }
+        if (budget.used + body.data.length > limits.bytesPerMinute) continue;
+        budget.used += body.data.length;
+      }
+      viewer.last = now;
       try {
         viewer.send(body);
       } catch {
         // A closed connection; its viewer expires.
       }
+    }
+  }
+
+  /** The widest picture anyone watching the chat takes. */
+  private widthFor(threadId: string) {
+    return Math.max(0, ...this.watched(threadId).map((v) => v.limits.maxWidth)) || MAX_FRAME_WIDTH;
   }
 
   /** Opens, renews or closes one viewer of a chat's browser. */
-  view(viewerId: string, threadId: string, open: boolean, send: (frame: BrowserFrame) => void) {
+  view(
+    viewerId: string,
+    threadId: string,
+    open: boolean,
+    send: (frame: BrowserFrame) => void,
+    limits: ViewerLimits = DESKTOP_VIEWER,
+  ) {
     const before = this.viewers.get(viewerId);
-    if (open) this.viewers.set(viewerId, { threadId, send, expires: this.now() + VIEWER_TTL_MS });
+    // A renewal keeps the viewer's pace and budget.
+    const kept = before?.threadId === threadId ? before : undefined;
+    if (open)
+      this.viewers.set(viewerId, {
+        threadId,
+        send,
+        expires: this.now() + VIEWER_TTL_MS,
+        limits,
+        last: kept?.last ?? 0,
+        budget: kept?.budget ?? { since: this.now(), used: 0 },
+      });
     else this.viewers.delete(viewerId);
     for (const id of new Set([threadId, before?.threadId]))
       if (id) {
         const run = this.forThread(id);
-        if (run && Boolean(run.stop) !== this.watched(id).length > 0) void this.restream(run);
+        const watching = this.watched(id).length > 0;
+        if (
+          run &&
+          (Boolean(run.stop) !== watching ||
+            (watching && run.stop && run.width !== this.widthFor(id)))
+        )
+          void this.restream(run);
       }
     const run = this.forThread(threadId);
     return {

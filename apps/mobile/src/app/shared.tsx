@@ -20,11 +20,11 @@ export default function SharedInbox() {
           Shared drafts
         </Txt>
         <Txt tone="muted">
-          Review a saved share and send it to a bot. Drafts stay on this iPhone until sent or
+          Review a saved share and send it to a bot. Drafts stay on this phone until sent or
           discarded.
         </Txt>
         {!sharingAvailable ? (
-          <Txt>Sharing requires an iOS development or production build.</Txt>
+          <Txt>Sharing needs a development or store build of the app.</Txt>
         ) : null}
         {error ? (
           <Button

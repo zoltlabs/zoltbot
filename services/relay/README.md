@@ -51,9 +51,11 @@ Tests use `MemoryRegistry`.
 | `APNS_KEY_ID` | unset | The key's id from the Apple developer site. |
 | `APNS_TEAM_ID` | unset | The Apple team id. |
 | `APNS_TOPIC` | unset | The app's bundle id. |
+| `FCM_SERVICE_ACCOUNT` | unset | A Firebase service-account key (JSON) for Android pushes. On Cloud Run this comes from Secret Manager. |
+| `FCM_SERVICE_ACCOUNT_FILE` | unset | Path to that key, used when `FCM_SERVICE_ACCOUNT` is unset. |
 | `RELAY_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. |
 
-Without all four APNs values the relay runs with pushes turned off and logs `push_disabled`.
+Without all four APNs values the relay runs with iPhone pushes turned off and logs `push_disabled`. Without an FCM key it runs with Android pushes turned off and logs `fcm_disabled`. Android pushes carry the same fixed sentence and ids as iPhone ones.
 
 ## Run locally
 

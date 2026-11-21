@@ -25,13 +25,18 @@ const pending = new Map<string, Attempt>();
 
 /** Fork a chat into the agent you choose, like the desktop's Fork conversation. */
 export default function Fork() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, turnId } = useLocalSearchParams<{ id: string; turnId?: string }>();
+  // P5: Branch from here forks after that reply's turn instead of the whole chat.
+  const boundary = turnId ? { kind: "after_turn" as const, turnId } : undefined;
+  const key = turnId ? `${id}:${turnId}` : id;
   const { c } = useTheme();
   const snapshot = useSnapshot();
   const online = useClient((state) => state.status === "online");
   const thread = snapshot.entities.thread?.find((row) => row.id === id);
-  const saved = pending.get(id);
-  const [name, setName] = useState(saved?.title ?? `${text(thread?.title) || "Chat"} · fork`);
+  const saved = pending.get(key);
+  const [name, setName] = useState(
+    saved?.title ?? `${text(thread?.title) || "Chat"} · ${turnId ? "branch" : "fork"}`,
+  );
   const [destination, setDestination] = useState(saved?.destination ?? "");
   const [method, setMethod] = useState<Method>((saved?.kind as Method | undefined) ?? "");
   const [preview, setPreview] = useState<Entity>();
@@ -44,9 +49,11 @@ export default function Fork() {
     if (!client) return;
     let live = true;
     setPreview(undefined);
+    setError("");
     client
       .call("thread.forkPreview", {
         id,
+        ...(turnId ? { boundary: { kind: "after_turn", turnId } } : {}),
         ...(destination ? { destinationProfileId: destination } : {}),
         ...(method ? { kind: method } : {}),
       })
@@ -60,18 +67,18 @@ export default function Fork() {
     return () => {
       live = false;
     };
-  }, [id, destination, method]);
+  }, [id, turnId, destination, method]);
 
   const create = async () => {
     const client = useLink.getState().client?.getState();
     if (!client) return;
-    const attempt = pending.get(id) ?? {
+    const attempt = pending.get(key) ?? {
       id: newId("fork"),
       title: name.trim(),
       destination,
       kind: method || text(preview?.kind),
     };
-    pending.set(id, attempt);
+    pending.set(key, attempt);
     setWorking(true);
     setError("");
     try {
@@ -80,6 +87,7 @@ export default function Fork() {
         {
           id,
           title: attempt.title,
+          ...(boundary ? { boundary } : {}),
           ...(attempt.destination ? { destinationProfileId: attempt.destination } : {}),
           ...(attempt.kind ? { kind: attempt.kind } : {}),
         },
@@ -89,7 +97,7 @@ export default function Fork() {
         setError("Your Mac has not confirmed the fork yet. Trying again checks the same one.");
         return;
       }
-      pending.delete(id);
+      pending.delete(key);
       router.dismiss();
       router.push(`/chat/${text(operation.childThreadId)}`);
     } catch {
@@ -116,7 +124,7 @@ export default function Fork() {
       <View style={styles.head}>
         <Button kind="plain" label="Cancel" disabled={working} onPress={() => router.back()} />
         <Txt v="cardTitle" accessibilityRole="header">
-          Fork chat
+          {turnId ? "Branch chat" : "Fork chat"}
         </Txt>
         <Button
           kind="plain"

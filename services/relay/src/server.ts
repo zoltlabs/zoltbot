@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import type { Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
+  activityFeature,
   ClientFrame,
   type ClientFrame as ClientFrameType,
   fromB64,
@@ -19,7 +20,7 @@ import {
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
 import { Bucket, defaultLimits, type Limits } from "./limits.js";
 import type { PushSender } from "./push.js";
-import type { OfferRecord, Registry } from "./registry.js";
+import type { OfferRecord, Registry, TokenSlot } from "./registry.js";
 
 // Layer 1 of packages/link/src/frames.ts. The relay checks who is on each socket, routes data
 // frames between a Mac and the devices it allowed, and never looks inside a payload. All
@@ -226,9 +227,11 @@ export function createRelay(options: RelayOptions): Relay {
       if (frame.t === "allow") return allow(conn, frame);
       if (frame.t === "revoke") return revoke(conn, frame);
       if (frame.t === "push") return pushTo(conn, frame);
+      if (frame.t === "activity") return activityTo(conn, frame);
     } else {
       if (frame.t === "data") return deviceData(conn, frame);
       if (frame.t === "push.register") return pushRegister(conn, frame);
+      if (frame.t === "activity.register") return pushRegister(conn, frame, "activity");
     }
     strike(conn, "not_allowed", `${frame.t} is not for a ${conn.role}`);
   }
@@ -279,7 +282,10 @@ export function createRelay(options: RelayOptions): Relay {
     if (previous) replace(previous);
     macs.set(id, conn);
     ready(conn, id);
-    send(conn, { t: "features", push: [...pushKinds] });
+    send(conn, {
+      t: "features",
+      push: [...pushKinds, ...(push.sendActivity ? [activityFeature] : [])],
+    });
     log("info", "mac_ready", { id });
     for (const device of devices.get(id)?.values() ?? []) {
       send(device, { t: "presence", id, online: true });
@@ -403,6 +409,32 @@ export function createRelay(options: RelayOptions): Relay {
     log("info", "device_revoked", { macId, deviceId: frame.deviceId });
   }
 
+  /** P3: counts for a phone's Live Activity. Dropped when the phone has no activity running. */
+  async function activityTo(conn: Conn, frame: Frame<"activity">) {
+    const macId = conn.id ?? "";
+    if (!push.sendActivity) return;
+    const record = await registry.getDevice(macId, frame.deviceId);
+    if (record?.status !== "allowed" || !record.activityToken || !record.activityPlatform) return;
+    void push
+      .sendActivity({
+        platform: record.activityPlatform,
+        token: record.activityToken,
+        working: frame.working,
+        needsYou: frame.needsYou,
+        ...(frame.topId ? { topId: frame.topId } : {}),
+      })
+      .then(async (result) => {
+        if (result.ok) return;
+        log("warn", "activity_push_failed", {
+          macId,
+          deviceId: frame.deviceId,
+          reason: result.reason,
+        });
+        if (result.gone) await registry.clearPushToken(macId, frame.deviceId, "activity");
+      })
+      .catch((error: unknown) => log("error", "activity_push_failed", { error: String(error) }));
+  }
+
   async function pushTo(conn: Conn, frame: Frame<"push">) {
     const macId = conn.id ?? "";
     const record = await registry.getDevice(macId, frame.deviceId);
@@ -412,6 +444,7 @@ export function createRelay(options: RelayOptions): Relay {
       token: record.pushToken,
       kind: frame.kind,
       count: frame.count,
+      macId,
       ...(frame.category === "approval" &&
       frame.interactionId !== undefined &&
       frame.threadId !== undefined &&
@@ -453,7 +486,11 @@ export function createRelay(options: RelayOptions): Relay {
     send(mac, { t: "data", from: conn.id ?? "", payload: frame.payload });
   }
 
-  async function pushRegister(conn: Conn, frame: Frame<"push.register">) {
+  async function pushRegister(
+    conn: Conn,
+    frame: Frame<"push.register"> | Frame<"activity.register">,
+    slot: TokenSlot = "push",
+  ) {
     if (conn.access !== "allowed")
       return strike(conn, "not_allowed", "pair before registering for pushes");
     const stored = await registry.setPushToken(
@@ -461,6 +498,7 @@ export function createRelay(options: RelayOptions): Relay {
       conn.id ?? "",
       frame.platform,
       frame.token,
+      slot,
     );
     if (!stored) strike(conn, "not_allowed", "this device is not allowed");
   }
