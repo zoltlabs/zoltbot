@@ -9,6 +9,8 @@ export const ROUTINE_CHANNELS = {
   routinesRunNow: "routines:run-now",
   routinesAddToCalendar: "routines:add-to-calendar",
   routinesWebAddress: "routines:web-address",
+  routinesStarters: "routines:starters",
+  routinesAddStarter: "routines:add-starter",
 } as const;
 
 export interface RoutineSchedule {
@@ -50,12 +52,22 @@ export interface RoutineRun {
   reason?: string;
 }
 
+/** D5: a first job offered at the end of setup, for an app the owner connected. */
+export interface StarterJobItem {
+  id: string;
+  name: string;
+}
+
 export interface RoutinesDesktopApi {
   list: () => Promise<RoutineItem[]>;
   history: (id: string) => Promise<RoutineRun[]>;
   setPaused: (input: { id: string; paused: boolean }) => Promise<RoutineItem>;
   setSchedule: (input: { id: string; schedule: RoutineSchedule }) => Promise<RoutineItem>;
   runNow: (id: string) => Promise<void>;
+  /** D5: the first jobs that fit the connected apps; empty when none do. */
+  starters?: () => Promise<StarterJobItem[]>;
+  /** D5: saves one as a paused routine, run by an agent from `provider` when there is one. */
+  addStarter?: (input: { id: string; provider?: string }) => Promise<void>;
   /** R6: opens the coming runs in the Calendar app; only the desktop app has it. */
   addToCalendar?: (input: { names: boolean }) => Promise<{ runs: number }>;
   /** R2: copies, tests or rotates a routine's web address; only the desktop app has it. */

@@ -343,6 +343,8 @@ const openbotApi: OpenBotDesktopApi = {
     runNow: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesRunNow, id),
     addToCalendar: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesAddToCalendar, input),
     webAddress: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesWebAddress, input),
+    starters: () => ipcRenderer.invoke(IPC_CHANNELS.routinesStarters),
+    addStarter: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesAddStarter, input),
   },
   workflows: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.workflowsList),

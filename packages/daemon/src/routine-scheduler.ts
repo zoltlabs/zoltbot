@@ -6,6 +6,7 @@ import {
   expireInteractions,
   fireRoutine,
   handle,
+  matchStarterJobs,
   nextRoutineRun,
   type Outcome,
   ROUTINE_FOLDER_WAIT_MS,
@@ -14,6 +15,7 @@ import {
   routineCapAnswer,
   routineCapCheck,
   routineEvent,
+  routineFromStarter,
   routineFromTask,
   routineGrace,
   routineOutcome,
@@ -31,6 +33,7 @@ import {
   RoutineTemplateSchema,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { ConnectionRegistry } from "../../connections/src/registry.js";
 
 export function routineScheduler(options: {
   store: Store;
@@ -39,6 +42,16 @@ export function routineScheduler(options: {
   stop(taskId: string): Promise<void>;
 }) {
   const { store, run } = options;
+  const connections = new ConnectionRegistry(store.database);
+  /** `again` keeps a job already added, so adding it twice answers with the same routine. */
+  const starters = (again = false) => {
+    const rows = store.snapshot(["project", "routine"]);
+    return matchStarterJobs(
+      connections.list(),
+      new Set((rows.project ?? []).filter((row) => !row.archived).map((row) => String(row.id))),
+      again ? new Set() : new Set((rows.routine ?? []).map((row) => String(row.id))),
+    );
+  };
   let lastTick: number | undefined;
   async function reconcile() {
     for (const raw of store.snapshot(["routineOccurrence"]).routineOccurrence ?? []) {
@@ -260,7 +273,31 @@ export function routineScheduler(options: {
             (row) => row.routineId === params.id,
           ),
         };
+      // D5: the first jobs that fit the apps the owner connected.
+      if (method === "routine.starters")
+        return {
+          items: starters().map(({ job, projectId }) => ({
+            id: job.id,
+            name: job.name,
+            projectId,
+          })),
+        };
       if (!commandId) throw new Error("command_id_required");
+      if (method === "routine.createStarter") {
+        const match = starters(true).find((row) => row.job.id === params.jobId);
+        if (!match) throw new Error("starter_unavailable");
+        return command(commandId, (state, context) =>
+          routineFromStarter(
+            state,
+            {
+              match,
+              profileId: String(params.profileId),
+              timezone: String(params.timezone),
+            },
+            { ...context, actor: { kind: "human", id: "local-owner" } },
+          ),
+        );
+      }
       if (method === "routine.create")
         return command(commandId, (state, context) =>
           routineFromTask(
