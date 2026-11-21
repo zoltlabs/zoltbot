@@ -708,3 +708,33 @@ it("R1: a one-time run missed while the Mac slept follows the missed-run rule", 
     missed.close();
   }
 });
+
+it("R3: Run now starts a manual run and leaves the schedule as it was", async () => {
+  const f = await fixture(false, false, {
+    cron: "@once",
+    timezone: "UTC",
+    at: "2026-11-05T09:00:00.000Z",
+  });
+  try {
+    f.setNow("2026-11-04T10:00:00.000Z");
+    const occurrence = (await f.runner.api("routine.runNow", { id: "r" }, "run-now")) as {
+      id: string;
+      manual?: boolean;
+      status: string;
+    };
+    expect(occurrence).toMatchObject({ manual: true, status: "queued" });
+    const routine = f.store.record("routine", "r");
+    expect(routine?.nextRunAt).toBe("2026-11-05T09:00:00.000Z");
+    expect(routine?.doneAt).toBeUndefined();
+    // The same command doesn't start a second run.
+    await f.runner.api("routine.runNow", { id: "r" }, "run-now");
+    expect(f.occurrences()).toHaveLength(1);
+    // Nor does another while it is going; history doesn't grow.
+    await expect(f.runner.api("routine.runNow", { id: "r" }, "run-again")).rejects.toThrow(
+      "routine_running",
+    );
+    expect(f.occurrences()).toHaveLength(1);
+  } finally {
+    f.close();
+  }
+});

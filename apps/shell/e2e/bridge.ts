@@ -372,6 +372,13 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         remove: call(channels.bridgesRemove),
         targets: call(channels.bridgesTargets),
       },
+      routines: {
+        list: call(channels.routinesList),
+        history: call(channels.routinesHistory),
+        setPaused: call(channels.routinesSetPaused),
+        setSchedule: call(channels.routinesSetSchedule),
+        runNow: call(channels.routinesRunNow),
+      },
       templates: {
         list: call(channels.agentTemplatesList),
         create: call(channels.agentTemplatesCreate),

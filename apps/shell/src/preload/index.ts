@@ -269,6 +269,13 @@ const openbotApi: OpenBotDesktopApi = {
     remove: (id) => ipcRenderer.invoke(IPC_CHANNELS.bridgesRemove, id),
     targets: () => ipcRenderer.invoke(IPC_CHANNELS.bridgesTargets),
   },
+  routines: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.routinesList),
+    history: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesHistory, id),
+    setPaused: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetPaused, input),
+    setSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetSchedule, input),
+    runNow: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesRunNow, id),
+  },
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesCreate, input),

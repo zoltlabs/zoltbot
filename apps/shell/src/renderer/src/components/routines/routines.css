@@ -1,0 +1,240 @@
+/* The Routines page (R3). Colors are theme tokens. */
+
+.routines-list,
+.routines-agenda-list,
+.routines-runs ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.routines-item {
+  border-bottom: 1px solid var(--openbot-line);
+}
+
+.routines-item-main {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.routines-item-text {
+  display: grid;
+  min-width: min(240px, 100%);
+  flex: 1;
+  gap: 2px;
+}
+
+.routines-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routines-meta,
+.routines-note {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.routines-note {
+  margin: 0;
+}
+
+.routines-status {
+  flex: 0 1 auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.routines-item-paused .routines-name {
+  color: var(--text-secondary);
+}
+
+.routines-more {
+  flex: none;
+}
+
+.routines-runs {
+  padding: 0 0 12px;
+}
+
+.routines-runs li,
+.routines-agenda-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 4px 0;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.routines-runs time,
+.routines-agenda-list time {
+  min-width: 9ch;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Schedule tab */
+.routines-schedule {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(200px, 2fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@container (max-width: 640px) {
+  .routines-schedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.routines-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.routines-schedule h2 {
+  margin: 0 0 8px;
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.routines-calendar-head h2 {
+  margin: 0;
+}
+
+.routines-calendar-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.routines-month {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.routines-month th {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.routines-month td {
+  padding: 2px;
+}
+
+.routines-day {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.routines-day:hover {
+  background: var(--surface-pill-hover);
+}
+
+.routines-day-busy {
+  color: var(--text-primary);
+}
+
+.routines-day[aria-current="date"] {
+  box-shadow: inset 0 0 0 2px var(--text-accent);
+  font-weight: 600;
+}
+
+.routines-day:disabled {
+  opacity: 0.4;
+}
+
+.routines-day:disabled:hover {
+  background: transparent;
+}
+
+.routines-calendar-nav [aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+.routines-day[aria-pressed="true"] {
+  background: var(--surface-option-selected);
+  color: var(--openbot-white);
+}
+
+.routines-day:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.routines-day-count {
+  min-width: 16px;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  padding: 0 4px;
+  color: var(--text-accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.routines-agenda {
+  display: grid;
+  gap: 20px;
+}
+
+/* Schedule dialog */
+.routines-form {
+  display: grid;
+  gap: 12px;
+}
+
+.routines-choice {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.routines-choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.routines-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.routines-form-error {
+  margin: 0 auto 0 0;
+}

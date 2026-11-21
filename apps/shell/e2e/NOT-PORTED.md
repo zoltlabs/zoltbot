@@ -7,7 +7,7 @@ These tests from `tests/shipping` and `tests/compare` still run against `package
 - `shipping.spec.ts` "publish → durable approval → PR → selected feedback → original task revision": no Tasks view, Shipping panel, Needs you approvals or Settings theme switch.
 - `shipping.spec.ts` "link, stale refresh, accepted-task feedback and guarded merge UI": no Shipping panel for linking, refreshing or merging a pull request.
 - `wakes.spec.ts` "Wake when: save, edit, cancel, fallback, and accessible responsive review": no Wake when dialog or waiting-wakes region in the chat.
-- `event-routines.spec.ts` "event draft → dry run → saved paused → enabled → paused": no Routines view.
+- `event-routines.spec.ts` "event draft → dry run → saved paused → enabled → paused": the Routines page (`shipping/routines.spec.ts`) lists, pauses and resumes event routines, but has no event draft or dry run.
 - `chat-actions.spec.ts` (partly ported to `shipping/chat-actions.spec.ts` and `shipping/sidebar-organize.spec.ts`): no hover Pin button on rows, no Quick Chat history.
 - `company.spec.ts` (partly ported to `shipping/company.spec.ts`): no forms to edit responsibilities, create initiatives, propose organization changes or save project reports; no light theme.
 

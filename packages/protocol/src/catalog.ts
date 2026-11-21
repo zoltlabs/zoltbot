@@ -678,6 +678,8 @@ const rawMethodCatalog = {
   "workflow.pause": entry(idParams, ok),
   "workflow.runs": list(WorkflowRunSchema),
   "routine.list": list(RoutineSchema),
+  /** R3: starts a scheduled routine now, without moving its schedule. */
+  "routine.runNow": entry(object({ id: Id }), RoutineOccurrenceSchema),
   "routine.checkSource": entry(object({ id: Id, revision: Type.Integer() }), RoutineSchema),
   "routine.connectionHandoff": entry(object({ id: Id, revision: Type.Integer() }), Json),
   "routine.prepare": entry(EventRoutineInputSchema, RoutineSchema),

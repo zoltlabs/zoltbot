@@ -276,6 +276,27 @@ export function routineScheduler(options: {
             { ...context, actor: { kind: "human", id: "local-owner" } },
           ),
         );
+      if (method === "routine.runNow")
+        return command(commandId, (state, context) => {
+          const current = parse(
+            RoutineSchema,
+            state.routine?.find((row) => row.id === params.id),
+          );
+          if (current.event) throw new Error("use_event_routine_commands");
+          // R3: a second Run now while one is going adds nothing, not even a skipped row.
+          const active = state.routineOccurrence?.some(
+            (row) =>
+              row.routineId === current.id &&
+              ["queued", "started"].includes(String(row.status)) &&
+              state.task?.some(
+                (task) =>
+                  task.id === row.taskId &&
+                  ["queued", "running", "blocked"].includes(String(task.state)),
+              ),
+          );
+          if (active) throw new Error("routine_running");
+          return fireRoutine(state, current, context.at, "fire", context, true);
+        });
       if (method === "routine.update")
         return command(commandId, (state, context) => {
           const old = parse(

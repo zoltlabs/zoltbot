@@ -152,8 +152,10 @@ export function fireRoutine(
   scheduledAt: string,
   disposition: "fire" | "missed",
   context: CommandContext,
+  /** R3: Run now. The run is marked manual and the schedule stays as it is. */
+  manual = false,
 ): Outcome {
-  const id = `${routine.id}@${new Date(scheduledAt).toISOString()}`;
+  const id = `${routine.id}@${new Date(scheduledAt).toISOString()}${manual ? ":manual" : ""}`;
   const old = state.routineOccurrence?.find((row) => row.id === id);
   if (old) return { events: [], result: old };
   const previousActive = state.routineOccurrence?.some(
@@ -171,6 +173,7 @@ export function fireRoutine(
     scheduledAt,
     status,
     notify: routine.notify,
+    ...(manual ? { manual: true } : {}),
     createdAt: context.at,
     updatedAt: context.at,
     ...(previousActive && disposition !== "missed"
@@ -224,7 +227,7 @@ export function fireRoutine(
   };
   events.push(
     routineEvent("routineOccurrence", occurrence, context),
-    routineEvent("routine", next, context),
+    ...(manual ? [] : [routineEvent("routine", next, context)]),
   );
   return { events, result: occurrence };
 }
