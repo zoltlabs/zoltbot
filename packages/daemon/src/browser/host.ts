@@ -13,6 +13,7 @@ import path from "node:path";
 import { consentChoice, siteOf } from "./consent.js";
 import { DETECT_SCRIPT, NUDGES, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
+import type { PurchaseDetails } from "./purchase.js";
 import type { BrowserBinding } from "./runtime.js";
 import {
   type BrowserInput,
@@ -61,6 +62,8 @@ interface Running {
   /** B5: the site whose cookie banner was answered last, for the panel. */
   cookies?: { site: string } | undefined;
   consentWindow: { since: number; count: number };
+  /** B6: the held pay click waiting for the owner. */
+  purchase?: ((approve: boolean) => Promise<boolean>) | undefined;
 }
 
 interface Viewer {
@@ -82,6 +85,11 @@ export class BrowserHost {
 
   /** B4: the agent asked for the owner; the listener raises a card and calls control(). */
   onHelp: ((threadId: string, request: HelpRequest, url: string) => void) | undefined;
+
+  /** B6: a pay click was held; the listener raises a card and calls control(). */
+  onPurchase: ((threadId: string, details: PurchaseDetails, url: string) => void) | undefined;
+  /** B6: sites where the owner lets the agent pay without asking. */
+  purchaseSites: () => readonly string[] = () => [];
 
   /** B5: sites where cookie banners are accepted; everywhere else they're rejected. */
   cookieSites: () => readonly string[] = () => [];
@@ -155,6 +163,7 @@ export class BrowserHost {
           run.cookies = { site: siteOf(url) };
           return consentChoice(url, this.cookieSites());
         },
+        purchase: (url, details, answer) => this.held(banners.run, url, details, answer),
       });
     } catch (error) {
       if (scratch) rmSync(scratch, { recursive: true, force: true });
@@ -192,6 +201,65 @@ export class BrowserHost {
     const temp = `${file}.${process.pid}`;
     writeFileSync(temp, JSON.stringify({ endpoint: browser.endpoint }), { mode: 0o600 });
     renameSync(temp, file);
+  }
+
+  /** B6: the owner's own clicks and listed sites go through; anything else waits for a card. */
+  private held(
+    run: Running | undefined,
+    url: string,
+    details: PurchaseDetails,
+    answer: (approve: boolean) => Promise<boolean>,
+  ) {
+    if (!run) return void answer(false);
+    if (owning(run.control) || consentChoice(url, this.purchaseSites()) === "accept")
+      return void answer(true);
+    // One question at a time; the agent is already waiting on the open card.
+    if (run.purchase || run.control) return void answer(false);
+    run.purchase = answer;
+    try {
+      if (!this.onPurchase) throw Error("no_listener");
+      this.onPurchase(run.threadId, details, url);
+    } catch {
+      run.purchase = undefined;
+      void answer(false);
+      this.note(
+        run,
+        "The owner couldn’t be asked to confirm the purchase, so nothing was clicked.",
+      );
+    }
+  }
+
+  /** B6: the owner's answer. Approval clicks the held button once; the agent hears either way. */
+  async settlePurchase(threadId: string, approve: boolean) {
+    const run = this.forThread(threadId);
+    const answer = run?.purchase;
+    if (!run || !answer) return false;
+    run.purchase = undefined;
+    const card = run.control;
+    const clicked = approve && (await answer(true));
+    if (!approve) await answer(false);
+    // The owner may have taken over meanwhile; their card stays.
+    if (run.control !== card) return clicked;
+    this.control(
+      threadId,
+      undefined,
+      !approve
+        ? "The owner declined the purchase."
+        : clicked
+          ? "The owner confirmed the purchase, and the button was clicked once."
+          : "The owner confirmed the purchase, but the page had changed, so nothing was clicked.",
+    );
+    return clicked;
+  }
+
+  /** B6: forgets a held click without clicking it. */
+  dropPurchase(threadId: string) {
+    const run = this.forThread(threadId);
+    const answer = run?.purchase;
+    if (!run || !answer) return false;
+    run.purchase = undefined;
+    void answer(false);
+    return true;
   }
 
   /** B4: picks up `need-human` requests the agent's launcher left. */

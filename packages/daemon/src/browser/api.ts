@@ -3,10 +3,11 @@ import type { DomainState } from "@zoltbot/core";
 import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
-import { cookieSettings } from "./consent.js";
+import { cookieSettings, siteSettings } from "./consent.js";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
 import { browserHostFor, onBrowserHost } from "./host.js";
 import { profileApi } from "./profiles.js";
+import { PURCHASE_ALLOW_SETTING } from "./purchase.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
 import { takeoverApi } from "./takeover.js";
 
@@ -36,12 +37,14 @@ export function browserApi(
     ...(options.publish ? { publish: options.publish } : {}),
   });
   const cookies = cookieSettings(store, options.publish);
+  const payments = siteSettings(store, PURCHASE_ALLOW_SETTING, options.publish);
   const takeover = takeoverApi({
     store,
     host: () => browserHostFor(directory),
     ready: (setup) =>
       onBrowserHost(directory, (host) => {
         host.cookieSites = cookies.sites;
+        host.purchaseSites = payments.sites;
         setup(host);
       }),
     ...(options.publish ? { publish: options.publish } : {}),
@@ -107,6 +110,8 @@ export function browserApi(
     if (method === "browser.input") return takeover.input(String(p.threadId), p.event);
     // B5: accept or reject cookie banners on one site.
     if (method === "browser.cookies") return cookies.set(p.site, p.accept === true);
+    // B6: only the owner lets the agent pay on a site without asking.
+    if (method === "browser.purchase.allow") return payments.set(p.site, p.allow === true);
     if (method === "browser.profile.get") return profiles.get(String(p.agentId));
     if (method === "browser.profile.clear")
       return profiles.clear(String(p.agentId), p.confirmed === true);

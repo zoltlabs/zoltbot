@@ -5,11 +5,13 @@ import { type CommandContext, type DomainState, handle, requestInteraction } fro
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { BrowserHost } from "./host.js";
-import { HELP_MARK, type HelpRequest, parseInput } from "./takeover-files.js";
+import type { PurchaseDetails } from "./purchase.js";
+import { BUY_MARK, HELP_MARK, type HelpRequest, parseInput } from "./takeover-files.js";
 
 export const TAKEOVER_PREFIX = "browser-takeover:";
 const HAND_BACK = "hand-back";
 const TAKE_OVER = "take-over";
+const ALLOW_CLICK = "allow-click";
 const HELP_TITLES: Record<HelpRequest["reason"], (name: string, site: string) => string> = {
   sign_in: (name, site) => `${name} needs you to sign in to ${site}`,
   verification: (name, site) => `${name} needs you to finish a check on ${site}`,
@@ -88,7 +90,12 @@ export function takeoverApi(options: {
   const raise = (
     threadId: string,
     id: string,
-    card: { title: string; prompt: string; option: { id: string; label: string } },
+    card: {
+      title: string;
+      prompt: string;
+      options: { id: string; label: string }[];
+      type?: "gate" | "approval";
+    },
   ) => {
     const { agentId } = nameOf(threadId);
     write(id, (s, context) => [
@@ -98,11 +105,21 @@ export function takeoverApi(options: {
           id,
           agentId,
           threadId,
-          type: "gate",
+          type: card.type ?? "gate",
           title: card.title.slice(0, 200),
           chain: [{ kind: "system", id: "browser-takeover" }],
           urgency: "blocking",
-          items: [{ id: "choice", prompt: card.prompt.slice(0, 2000), options: [card.option] }],
+          items: [
+            {
+              id: "choice",
+              prompt: card.prompt.slice(0, 2000),
+              options: card.options,
+              // An approval is answered with one of its offered choices; the options name them.
+              ...(card.type === "approval"
+                ? { choices: [{ id: "allow_once" as const }, { id: "reject_once" as const }] }
+                : {}),
+            },
+          ],
         },
         `${id}:item`,
         context,
@@ -116,7 +133,7 @@ export function takeoverApi(options: {
     raise(threadId, id, {
       title: "You’re in control of the browser",
       prompt: `${nameOf(threadId).name} waits until you hand it back.`,
-      option: { id: HAND_BACK, label: "Hand back" },
+      options: [{ id: HAND_BACK, label: "Hand back" }],
     });
     return host.control(threadId, id);
   };
@@ -134,7 +151,33 @@ export function takeoverApi(options: {
       prompt: request.note
         ? `${name} says: “${request.note}”`
         : "Take over to finish, then hand it back.",
-      option: { id: TAKE_OVER, label: "Take over" },
+      options: [{ id: TAKE_OVER, label: "Take over" }],
+    });
+    host.control(threadId, id);
+  };
+
+  /** B6: a held pay click becomes an approval; the agent's browser commands wait for it. */
+  const confirm = (host: BrowserHost, threadId: string, details: PurchaseDetails, url: string) => {
+    let site = "a site";
+    try {
+      site = new URL(url).host || site;
+    } catch {}
+    const { name } = nameOf(threadId);
+    const id = `${TAKEOVER_PREFIX}${threadId}:${BUY_MARK}${randomUUID()}`;
+    raise(threadId, id, {
+      type: "approval",
+      title: `Confirm purchase on ${site}`,
+      prompt: [
+        `${name} wants to click “${details.text}” on this page. This may complete a payment.`,
+        details.total
+          ? `Total shown on the page: ${details.total}`
+          : "No total found. Check the Browser panel.",
+      ].join("\n"),
+      // Cancel first: the consequential choice is the last, primary button.
+      options: [
+        { id: "cancel", label: "Cancel" },
+        { id: ALLOW_CLICK, label: "Allow click" },
+      ],
     });
     host.control(threadId, id);
   };
@@ -145,6 +188,7 @@ export function takeoverApi(options: {
     wired.add(host);
     host.onControlLost = (interactionId) => closeCard(interactionId, "cancel");
     host.onHelp = (threadId, request, url) => ask(host, threadId, request, url);
+    host.onPurchase = (threadId, details, url) => confirm(host, threadId, details, url);
     return host;
   };
   const bind = () => {
@@ -164,6 +208,19 @@ export function takeoverApi(options: {
         closeCard(current, "accept", TAKE_OVER);
         return { control: true, url: takeCard(host, threadId) || null };
       }
+      // Taking over drops a held purchase: nothing is clicked, and the agent hears why.
+      if (current?.includes(`:${BUY_MARK}`)) {
+        // Nothing held means the owner's approval is already clicking it.
+        host.control(
+          threadId,
+          undefined,
+          host.dropPurchase(threadId)
+            ? "The owner took over the browser instead of confirming the purchase, so nothing was clicked."
+            : "The owner took over the browser.",
+        );
+        closeCard(current, "cancel");
+        return { control: true, url: takeCard(host, threadId) || null };
+      }
       if (current) return { control: true, url: host.forThread(threadId)?.page?.url() ?? null };
       return { control: true, url: takeCard(host, threadId) || null };
     },
@@ -172,7 +229,8 @@ export function takeoverApi(options: {
     handBack(threadId: string) {
       const host = bind();
       const interactionId = host?.controller(threadId);
-      if (!host || !interactionId) return { control: false };
+      if (!host || !interactionId || interactionId.includes(`:${BUY_MARK}`))
+        return { control: false };
       const url = host.control(threadId, undefined);
       closeCard(interactionId, "accept");
       return { control: false, url: url || null };
@@ -196,15 +254,25 @@ export function takeoverApi(options: {
         if (state === "pending") continue;
         const threadId = event.aggregateId.slice(TAKEOVER_PREFIX.length).split(":")[0] ?? "";
         if (host.controller(threadId) !== event.aggregateId) continue;
+        const resolution = (
+          event.payload as {
+            resolution?: {
+              action?: string;
+              choice?: string;
+              answers?: Record<string, { options?: string[] }>;
+            };
+          }
+        ).resolution;
+        if (event.aggregateId.includes(`:${BUY_MARK}`)) {
+          const yes = resolution?.action === "accept" && resolution.choice === "allow_once";
+          void host.settlePurchase(threadId, yes);
+          continue;
+        }
         if (!event.aggregateId.includes(`:${HELP_MARK}`)) {
           host.control(threadId, undefined);
           continue;
         }
-        const answer = (
-          event.payload as {
-            resolution?: { action?: string; answers?: Record<string, { options?: string[] }> };
-          }
-        ).resolution;
+        const answer = resolution;
         if (answer?.action === "accept" && answer.answers?.choice?.options?.includes(TAKE_OVER))
           // Not inside the store's own notification.
           queueMicrotask(() => {

@@ -260,10 +260,14 @@ export const CONSENT_SCRIPT = `(() => {
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })()`;
 
-/** The owner's list, read from settings, and the one way to change it. */
-export function cookieSettings(store: Store, publish?: (events: DomainEvent[]) => void) {
+/** B5 cookie banners. */
+export const cookieSettings = (store: Store, publish?: (events: DomainEvent[]) => void) =>
+  siteSettings(store, COOKIE_ACCEPT_SETTING, publish);
+
+/** A list of sites the owner keeps in settings, and the one way to change it. */
+export function siteSettings(store: Store, key: string, publish?: (events: DomainEvent[]) => void) {
   const sites = () => {
-    const row = store.snapshot(["settings"]).settings?.find((r) => r.key === COOKIE_ACCEPT_SETTING);
+    const row = store.snapshot(["settings"]).settings?.find((r) => r.key === key);
     try {
       return parseCookieSites(row?.value ?? []);
     } catch {
@@ -272,24 +276,24 @@ export function cookieSettings(store: Store, publish?: (events: DomainEvent[]) =
   };
   return {
     sites,
-    /** Accepts or rejects banners on a site from now on; returns the new list. */
+    /** Adds a site, or removes it and any listed site covering it; returns the new list. */
     set(site: unknown, accept: boolean) {
       const [host] = parseCookieSites([site]);
       if (!host) throw Error("invalid_cookie_sites");
       // Rejecting removes whichever listed site covered this one, so the choice takes effect.
       const current = sites().filter((s) => (accept ? s !== host : !covers(s, host)));
       const value = parseCookieSites(accept ? [...current, host] : current);
-      const commandId = `browser-cookies:${randomUUID()}`;
+      const commandId = `browser-sites:${randomUUID()}`;
       const before = store.lastSeq();
       store.dispatch(commandId, () => ({
         events: [
           {
             eventId: `${commandId}:0`,
             aggregateType: "settings",
-            aggregateId: COOKIE_ACCEPT_SETTING,
+            aggregateId: key,
             type: "settings.created",
             occurredAt: new Date().toISOString(),
-            payload: { key: COOKIE_ACCEPT_SETTING, value },
+            payload: { key, value },
           },
         ],
         result: { ok: true },

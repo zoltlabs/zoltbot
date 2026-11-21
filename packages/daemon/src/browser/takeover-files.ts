@@ -63,9 +63,11 @@ export function parseInput(value: unknown): BrowserInput {
 
 /** B4: marks a card the agent asked for, as opposed to the owner's own takeover. */
 export const HELP_MARK = "help-";
+/** B6: marks a card holding a pay click for the owner's confirmation. */
+export const BUY_MARK = "buy-";
 /** Whether the owner holds the browser (not just an open request for help). */
 export const owning = (control: string | undefined) =>
-  Boolean(control && !control.includes(`:${HELP_MARK}`));
+  Boolean(control && !control.includes(`:${HELP_MARK}`) && !control.includes(`:${BUY_MARK}`));
 
 /** B4: the agent's `need-human` request; the daemon picks it up and raises a card. */
 export const helpFile = (b: Pick<BrowserBinding, "home">) => path.join(b.home, "help.json");

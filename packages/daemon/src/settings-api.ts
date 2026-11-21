@@ -25,6 +25,8 @@ function reserved(key: string) {
     key.startsWith("browser.profile.") ||
     // B5: the cookie list changes through browser.cookies, which checks each site.
     key.startsWith("browser.cookies.") ||
+    // B6: the purchase guard's exceptions change through browser.purchase.allow.
+    key.startsWith("browser.purchase.") ||
     key.startsWith("fork.") ||
     (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||

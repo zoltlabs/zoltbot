@@ -485,7 +485,22 @@ export function toPrompt(interaction: Row): {
   const questions = items.map((item, index) => {
     const id = text(item.id) || `q${index}`;
     let choices: PromptOption[] = [];
-    if (type === "approval") {
+    // B6: only the browser's purchase card; other approvals with options keep their own meaning.
+    const purchase =
+      type === "approval" &&
+      text(interaction.id).startsWith("browser-takeover:") &&
+      Array.isArray(item.options);
+    if (purchase) {
+      // B6: an approval that names its own buttons for allow_once; "cancel" declines.
+      choices = (item.options as Row[]).map((option) => ({
+        label: text(option.label),
+        description: text(option.description),
+        answer:
+          text(option.id) === "cancel"
+            ? { action: "decline" }
+            : { action: "accept", choice: "allow_once" },
+      }));
+    } else if (type === "approval") {
       const native = Array.isArray(item.choices) ? (item.choices as Row[]) : [];
       for (const choice of native) {
         const label = APPROVAL_LABELS[text(choice.id)];
@@ -524,7 +539,10 @@ export function toPrompt(interaction: Row): {
       header: text(item.header) || text(interaction.title) || headerFor(type),
       question: [text(item.prompt), detail].filter(Boolean).join("\n\n"),
       isSecret: item.secret === true,
-      ...(type === "gate" && choices.length ? { choiceOnly: true } : {}),
+      ...(((type === "gate" && Array.isArray(item.options) && !item.multi) || purchase) &&
+      choices.length
+        ? { choiceOnly: true }
+        : {}),
       options: choices.length
         ? choices.map((choice) => ({ label: choice.label, description: choice.description }))
         : null,

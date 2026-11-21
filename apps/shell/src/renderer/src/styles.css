@@ -3885,6 +3885,15 @@ textarea {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 19px;
+  white-space: pre-line;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 8px;
 }
 
 .prompt-question .choice-option {

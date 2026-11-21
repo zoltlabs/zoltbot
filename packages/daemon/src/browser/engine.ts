@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { CONSENT_SCRIPT, type ConsentChoice } from "./consent.js";
+import { PURCHASE_SCRIPT, type PurchaseDetails, parsePurchase } from "./purchase.js";
 import { cliPath } from "./runtime.js";
 
 export interface EngineFrame {
@@ -55,6 +56,14 @@ export interface BrowserEngine {
     title: string;
     /** B5: what to do with a cookie banner on a page, asked once per frame that shows one. */
     consent?: (pageUrl: string) => ConsentChoice;
+    /**
+     * B6: a click that would pay was held. `answer(true)` clicks it once; `answer(false)` drops it.
+     */
+    purchase?: (
+      pageUrl: string,
+      details: PurchaseDetails,
+      answer: (approve: boolean) => Promise<boolean>,
+    ) => void;
   }): Promise<EngineBrowser>;
 }
 
@@ -193,6 +202,48 @@ export function playwrightEngine(
           consent(String(source.page?.url?.() ?? "")),
         );
         await context.addInitScript(CONSENT_SCRIPT);
+      }
+      const { purchase } = options;
+      if (purchase) {
+        await context.exposeBinding(
+          "__zoltbotPurchase",
+          (source: { page: Playwright; frame: Playwright }, raw: unknown, secret: unknown) => {
+            if (typeof secret !== "string" || !/^[0-9a-f]{32}$/.test(secret)) return;
+            const frame = source.frame;
+            const go = (step: boolean | "done") =>
+              frame
+                .evaluate(
+                  ([key, value]: [string, boolean | "done"]) =>
+                    (
+                      window as unknown as {
+                        __zoltbotPurchaseGo?: (secret: string, step: boolean | "done") => unknown;
+                      }
+                    ).__zoltbotPurchaseGo?.(key, value) ?? false,
+                  [secret, step],
+                )
+                .catch(() => false);
+            const details = parsePurchase(raw);
+            // A hold the daemon can't describe is dropped, so the frame can hold the next one.
+            if (!details) return void go(false);
+            purchase(String(source.page?.url?.() ?? ""), details, async (approve) => {
+              const step = await go(approve);
+              if (!approve || step === false) return Boolean(step) && !approve;
+              if (step === "done") return true;
+              // A real click, with the user activation payment pages need.
+              try {
+                await frame
+                  .locator(`[data-zoltbot-allow="${secret}"]`)
+                  .click({ timeout: 5000, force: true });
+                return true;
+              } catch {
+                return false;
+              } finally {
+                await go("done");
+              }
+            });
+          },
+        );
+        await context.addInitScript(PURCHASE_SCRIPT);
       }
       const { endpoint } = await context.browser().bind(options.title);
       forgetListing(options.title);

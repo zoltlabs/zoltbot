@@ -26,6 +26,11 @@ export const browserMethods = {
   },
   /** B3: one mouse or key event from the owner while in control. Never logged. */
   "browser.input": { params: object({ threadId: Id, event: Json }), result: Json },
+  /** B6: lets the agent pay on one site without asking (`allow: true`), or asks again. */
+  "browser.purchase.allow": {
+    params: object({ site: Type.String({ minLength: 1, maxLength: 253 }), allow: Type.Boolean() }),
+    result: Json,
+  },
   /** B5: accept (`accept: true`) or reject cookie banners on one site from now on. */
   "browser.cookies": {
     params: object({ site: Type.String({ minLength: 1, maxLength: 253 }), accept: Type.Boolean() }),
@@ -47,6 +52,7 @@ export const browserMacOnlyMethods = [
   "browser.takeover",
   "browser.input",
   "browser.cookies",
+  "browser.purchase.allow",
 ] as const;
 
 /** B1: a profile an agent keeps between browser launches, in the daemon's data folder. */

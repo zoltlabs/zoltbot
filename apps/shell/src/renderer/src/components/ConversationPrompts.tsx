@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import type { AgentPromptQuestion } from "../../../shared/ipc";
 
 export function ChoiceCard(props: {
@@ -90,18 +90,34 @@ export function PromptCard(props: {
     await props.onSubmit(result);
     setSubmitting(false);
   };
-  // One question with one fixed choice: a single button answers it.
+  // One question with a few fixed choices (Hand back; Place order or Cancel): each is a button.
   const single = () => {
     const [question] = props.questions;
-    return props.questions.length === 1 && question?.choiceOnly && question.options?.length === 1
-      ? { question, option: question.options[0] as { label: string } }
+    const options = question?.options ?? [];
+    return props.questions.length === 1 &&
+      question?.choiceOnly &&
+      options.length >= 1 &&
+      options.length <= 3
+      ? { question, options }
       : undefined;
   };
+  const [sending, setSending] = createSignal("");
+  // Said once the card is on screen, so a screen reader hears that something waits.
+  const [arrived, setArrived] = createSignal("");
+  createEffect(() => {
+    const header = single()?.question.header ?? "";
+    setArrived("");
+    if (!header) return;
+    const timer = setTimeout(() => setArrived(header), 150);
+    onCleanup(() => clearTimeout(timer));
+  });
   const answerSingle = async (id: string, label: string) => {
     if (submitting()) return;
     setSubmitting(true);
+    setSending(label);
     await props.onSubmit({ [id]: [label] });
     setSubmitting(false);
+    setSending("");
   };
   return (
     <Show
@@ -166,19 +182,38 @@ export function PromptCard(props: {
       }
     >
       {(only) => (
-        <section class="prompt-card" aria-label={only().question.header}>
+        <section
+          class="prompt-card"
+          aria-label={only().question.header}
+          aria-describedby={`prompt-text-${only().question.id}`}
+        >
           <div class="prompt-question">
             <strong>{only().question.header}</strong>
-            <p class="prompt-single-text">{only().question.question}</p>
+            <p id={`prompt-text-${only().question.id}`} class="prompt-single-text">
+              {only().question.question}
+            </p>
           </div>
-          <button
-            type="button"
-            class="prompt-submit"
-            disabled={submitting()}
-            onClick={() => void answerSingle(only().question.id, only().option.label)}
-          >
-            {only().option.label}
-          </button>
+          <p class="sr-only" role="status">
+            {arrived()}
+          </p>
+          <div class="prompt-actions">
+            <For each={only().options}>
+              {(option, index) => (
+                <button
+                  type="button"
+                  class={
+                    only().options.length > 1
+                      ? `zb-kit-button${index() === only().options.length - 1 ? " primary" : ""}`
+                      : "prompt-submit"
+                  }
+                  disabled={submitting()}
+                  onClick={() => void answerSingle(only().question.id, option.label)}
+                >
+                  {submitting() && sending() === option.label ? "Sending…" : option.label}
+                </button>
+              )}
+            </For>
+          </div>
         </section>
       )}
     </Show>

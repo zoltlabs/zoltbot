@@ -80,9 +80,11 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     const framePage = new FramePage(jpeg, "https://shop.example.test/orders");
     let pointer: ((page: EnginePage, point: { x: number; y: number }) => void) | undefined;
     let consent: ((url: string) => string) | undefined;
+    let purchase: Parameters<BrowserEngine["launch"]>[0]["purchase"];
     const engine: BrowserEngine = {
       async launch(options) {
         consent = options.consent;
+        purchase = options.purchase;
         return {
           endpoint: "/tmp/fake.sock",
           pages: () => [framePage],
@@ -215,6 +217,34 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     await panel.getByRole("button", { name: "Reject from now on" }).click();
     await expect(cookieLine).toHaveText("Cookie banners on shop.example.test: rejected");
     expect(consent?.("https://shop.example.test/cart")).toBe("reject");
+
+    // B6: the agent clicks Place order. The click waits on a card; Place order clicks it once.
+    const approvals: boolean[] = [];
+    purchase?.(
+      "https://shop.example.test/checkout",
+      { text: "Place order", total: "$42.10" },
+      async (approve) => {
+        approvals.push(approve);
+        return true;
+      },
+    );
+    const confirm = page.getByRole("region", { name: "Confirm purchase on shop.example.test" });
+    await expect(confirm).toContainText("Research wants to click “Place order” on this page.", {
+      timeout: 10_000,
+    });
+    await expect(confirm).toContainText("Total shown on the page: $42.10");
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/b6-confirm-${scheme}.png` });
+    }
+    await confirm.getByRole("button", { name: "Allow click" }).click();
+    await expect.poll(() => approvals).toEqual([true]);
+    expect(readFileSync(notesFile(binding), "utf8")).toContain(
+      "The owner confirmed the purchase, and the button was clicked once.",
+    );
+    expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
 
     // Closing the panel stops the screencast.
     await panel.getByRole("button", { name: "Close browser" }).click();
