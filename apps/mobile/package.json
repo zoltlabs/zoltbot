@@ -8,6 +8,7 @@
     "start": "expo start",
     "ios": "expo run:ios",
     "theme": "node scripts/build-theme.mjs",
+    "check:native": "zsh scripts/check-native.sh",
     "prototype:screenshots": "node scripts/project-command-preview.mjs"
   },
   "dependencies": {

@@ -14,6 +14,14 @@ interface ShareBridge {
 }
 const bridge =
   Platform.OS === "ios" ? (NativeModules.ZoltShare as ShareBridge | undefined) : undefined;
+/** P4: Siri learns agent names from the share directory once it changes. */
+const shortcuts = NativeModules.ZoltShortcuts as
+  | { refresh(): Promise<void>; takeOpenDraft(): Promise<string | null> }
+  | undefined;
+
+/** The draft a Siri or Shortcuts action saved for the app to open, taken once. */
+export const takeOpenDraft = async () =>
+  (await shortcuts?.takeOpenDraft().catch(() => null)) ?? undefined;
 export const sharingAvailable = Boolean(bridge);
 export const useSharing = create<{
   drafts: SharedDraft[];
@@ -45,6 +53,7 @@ export async function syncShareRecipients(expectedDirectory?: string) {
       : [];
   if (expectedDirectory !== undefined && JSON.stringify(recipients) !== expectedDirectory) return;
   await bridge.syncRecipients(recipients);
+  await shortcuts?.refresh().catch(() => undefined);
 }
 
 export async function donateBotConversation(threadId: string) {

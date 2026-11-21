@@ -1,6 +1,6 @@
 import { terms } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Image, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { draftDestination, type SharedDraft, shareRecipients } from "../../data/sharing";
@@ -206,6 +206,17 @@ function ReviewDraft({ draft }: { draft: SharedDraft }) {
 export default function SharedReview() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const draft = useSharing((state) => state.drafts.find((row) => row.id === id));
+  // A draft from Siri or Shortcuts arrives with the app already open, before the list refreshes.
+  const missing = !draft;
+  const [looked, setLooked] = useState(!missing);
+  useEffect(() => {
+    if (!missing) return;
+    setLooked(false);
+    void useSharing
+      .getState()
+      .refresh()
+      .finally(() => setLooked(true));
+  }, [missing]);
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -220,9 +231,9 @@ export default function SharedReview() {
       <BackBar label="Shared drafts" />
       {draft ? (
         <ReviewDraft key={draft.id} draft={draft} />
-      ) : (
+      ) : looked ? (
         <Txt style={{ padding: 20 }}>This draft has been sent or removed.</Txt>
-      )}
+      ) : null}
     </View>
   );
 }

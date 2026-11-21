@@ -217,19 +217,8 @@ final class ShareViewController: UIViewController {
     }
   }
   private static func photo(_ url: URL) throws -> SharePhoto {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-      let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-        kCGImageSourceCreateThumbnailFromImageAlways: true,
-        kCGImageSourceCreateThumbnailWithTransform: true,
-        kCGImageSourceThumbnailMaxPixelSize: 1024
-      ] as CFDictionary)
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
     else { throw ShareStore.failure("Could not decode this photo.") }
-    let image = UIImage(cgImage: thumb)
-    for quality in stride(from: 0.7, through: 0.1, by: -0.1) {
-      if let data = image.jpegData(compressionQuality: quality), data.count <= 60_000 {
-        return SharePhoto(base64: data.base64EncodedString(), mimeType: "image/jpeg")
-      }
-    }
-    throw ShareStore.failure("This photo is too detailed to send. Try a smaller image.")
+    return try ShareStore.photo(source)
   }
 }
