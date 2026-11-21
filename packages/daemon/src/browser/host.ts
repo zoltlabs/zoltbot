@@ -1,10 +1,27 @@
 // B2: one daemon-owned browser per browser task chat, watched from the Browser panel.
-import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DETECT_SCRIPT, NUDGES, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
 import type { BrowserBinding } from "./runtime.js";
-import { type BrowserInput, controlFile, notesFile } from "./takeover-files.js";
+import {
+  type BrowserInput,
+  controlFile,
+  type HelpRequest,
+  helpFile,
+  notesFile,
+  owning,
+  parseHelp,
+} from "./takeover-files.js";
 
 /** One frame for the panel. Transient: never stored in the event log. */
 export interface BrowserFrame {
@@ -38,6 +55,8 @@ interface Running {
   generation: number;
   /** B3: the owner's takeover card while they control the browser. */
   control?: string | undefined;
+  /** B4: nudges already given, by kind and site. */
+  nudged: Set<string>;
 }
 
 interface Viewer {
@@ -56,6 +75,10 @@ export class BrowserHost {
 
   /** B3: called when a browser closes while the owner controls it, so its card can be withdrawn. */
   onControlLost: ((interactionId: string) => void) | undefined;
+
+  /** B4: the agent asked for the owner; the listener raises a card and calls control(). */
+  onHelp: ((threadId: string, request: HelpRequest, url: string) => void) | undefined;
+  private helpTimer: ReturnType<typeof setInterval> | undefined;
 
   /** Profiles being launched, so two chats of one agent can't both take its kept profile. */
   private readonly claimed = new Set<string>();
@@ -90,6 +113,7 @@ export class BrowserHost {
     rmSync(endpointFile(binding), { force: true });
     // B3: a control file from before a restart would keep the agent waiting for no one.
     rmSync(controlFile(binding), { force: true });
+    rmSync(helpFile(binding), { force: true });
     // B1: a kept profile can be open in one browser at a time; a second one runs isolated.
     const kept =
       binding.profile &&
@@ -131,12 +155,15 @@ export class BrowserHost {
       ...(scratch ? { scratch } : {}),
       lastFrame: 0,
       generation: 0,
+      nudged: new Set(),
     };
     this.running.set(binding.id, run);
     browser.onPage((page) => this.follow(run, page));
     browser.onPointer((page, point) => {
       if (page === run.page) run.pointer = point;
     });
+    this.helpTimer ??= setInterval(() => this.checkHelp(), 500);
+    this.helpTimer.unref?.();
     const first = browser.pages().at(-1);
     if (first) this.follow(run, first);
     mkdirSync(binding.home, { recursive: true, mode: 0o700 });
@@ -146,10 +173,62 @@ export class BrowserHost {
     renameSync(temp, file);
   }
 
+  /** B4: picks up `need-human` requests the agent's launcher left. */
+  checkHelp() {
+    for (const run of this.running.values()) {
+      const file = helpFile(run.binding);
+      if (!existsSync(file)) continue;
+      let request: HelpRequest | undefined;
+      try {
+        request = parseHelp(JSON.parse(readFileSync(file, "utf8")));
+      } catch {}
+      rmSync(file, { force: true });
+      if (!request || run.control || !this.onHelp) continue;
+      try {
+        this.onHelp(run.threadId, request, run.page?.url() ?? "");
+      } catch {
+        // No card, no control file: the launcher tells the agent it couldn't ask.
+      }
+    }
+  }
+
+  /** B4: tells the agent once per site when a page wants a password, a check or payment. */
+  private async detect(run: Running, page: EnginePage) {
+    if (run.control || page !== run.page) return;
+    let needs: PageNeeds | undefined;
+    try {
+      // A page can stall its own scripts; don't wait on it.
+      needs = await Promise.race([
+        page.evaluate<PageNeeds>(DETECT_SCRIPT),
+        new Promise<undefined>((resolve) => {
+          const timer = setTimeout(resolve, 2000) as { unref?: () => void };
+          timer.unref?.();
+        }),
+      ]);
+    } catch {
+      return;
+    }
+    let site = "";
+    try {
+      site = new URL(page.url()).host;
+    } catch {}
+    for (const kind of ["password", "verification", "payment"] as const) {
+      if (!needs?.[kind] || run.nudged.has(`${kind}:${site}`) || run.nudged.size >= 12) continue;
+      run.nudged.add(`${kind}:${site}`);
+      this.note(run, NUDGES[kind]);
+    }
+  }
+
+  private note(run: Running, text: string) {
+    mkdirSync(run.binding.home, { recursive: true, mode: 0o700 });
+    appendFileSync(notesFile(run.binding), `${JSON.stringify({ text })}\n`, { mode: 0o600 });
+  }
+
   /** Watches the newest page; the panel follows it. */
   private follow(run: Running, page: EnginePage) {
     run.page = page;
     run.pointer = undefined;
+    page.onLoad(() => void this.detect(run, page));
     page.onClose(() => {
       if (run.page !== page) return;
       const next = run.browser
@@ -232,7 +311,8 @@ export class BrowserHost {
     return {
       running: Boolean(run?.page),
       url: run?.page?.url() ?? null,
-      control: Boolean(run?.control),
+      control: owning(run?.control),
+      asked: Boolean(run?.control) && !owning(run?.control),
     };
   }
 
@@ -240,7 +320,7 @@ export class BrowserHost {
    * B3: gives the owner control (the launcher waits while the control file exists) or hands it
    * back, leaving the agent a note with where the page is now. Returns the page's address.
    */
-  control(threadId: string, interactionId: string | undefined) {
+  control(threadId: string, interactionId: string | undefined, note?: string) {
     const run = this.forThread(threadId);
     if (!run) throw Error("browser_not_running");
     const url = run.page?.url() ?? "";
@@ -251,10 +331,9 @@ export class BrowserHost {
     } else if (run.control) {
       run.control = undefined;
       // The note goes first, so the next command the launcher runs already sees it.
-      appendFileSync(
-        notesFile(run.binding),
-        `${JSON.stringify({ text: `The owner used the browser and handed it back at ${url || "a blank page"}.` })}\n`,
-        { mode: 0o600 },
+      this.note(
+        run,
+        note ?? `The owner used the browser and handed it back at ${url || "a blank page"}.`,
       );
       rmSync(file, { force: true });
     }
@@ -269,7 +348,7 @@ export class BrowserHost {
   /** B3: the owner's mouse or key, only while they control the browser. Never logged. */
   async input(threadId: string, event: BrowserInput) {
     const run = this.forThread(threadId);
-    if (!run?.control || !run.page) throw Error("browser_not_in_control");
+    if (!owning(run?.control) || !run?.page) throw Error("browser_not_in_control");
     // Engine errors can quote the key; they never leave here.
     try {
       if (event.kind === "mouse") {
@@ -320,17 +399,27 @@ export class BrowserHost {
   }
 
   async closeAll() {
+    clearInterval(this.helpTimer);
+    this.helpTimer = undefined;
     for (const id of [...this.starting.keys(), ...this.running.keys()]) await this.close(id);
   }
 }
 
 const hosts = new Map<string, BrowserHost>();
+const setups = new Map<string, (host: BrowserHost) => void>();
+/** Runs `setup` on the data folder's host now, or when the runtime creates it. */
+export function onBrowserHost(dataDir: string, setup: (host: BrowserHost) => void) {
+  setups.set(dataDir, setup);
+  const host = hosts.get(dataDir);
+  if (host) setup(host);
+}
 /** The daemon's one host for its data folder, shared by the runtime and the API. */
 export function browserHostFor(dataDir: string, engine?: () => BrowserEngine) {
   let host = hosts.get(dataDir);
   if (!host && engine) {
     host = new BrowserHost(engine(), undefined, path.join(dataDir, "browser", "scratch"));
     hosts.set(dataDir, host);
+    setups.get(dataDir)?.(host);
   }
   return host;
 }

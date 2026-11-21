@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
@@ -8,7 +8,7 @@ import type { BrowserEngine, EnginePage } from "./engine.js";
 import { BrowserHost } from "./host.js";
 import { browserBinding } from "./runtime.js";
 import { TAKEOVER_PREFIX, takeoverApi } from "./takeover.js";
-import { controlFile, notesFile, parseInput } from "./takeover-files.js";
+import { controlFile, helpFile, notesFile, parseHelp, parseInput } from "./takeover-files.js";
 
 function setup(root: string) {
   const sent: unknown[] = [];
@@ -57,6 +57,7 @@ const cards = (f: Awaited<ReturnType<typeof runtimeFixture>>) =>
     .interaction?.filter((row) => String(row.id).startsWith(TAKEOVER_PREFIX)) ?? []) as {
     id: string;
     state: string;
+    title?: string;
     items?: { prompt?: string }[];
     resolution?: { action?: string };
   }[];
@@ -185,6 +186,110 @@ it("a card left open by a stopped daemon is withdrawn, and a stale control file 
   } finally {
     f.close();
   }
+});
+
+function answerCard(
+  f: Awaited<ReturnType<typeof runtimeFixture>>,
+  id: string,
+  answer: { action: "accept" | "decline"; answers?: Record<string, { options: string[] }> },
+) {
+  const before = f.store.lastSeq();
+  f.store.dispatch(`answer:${id}`, (state) =>
+    handle(
+      state,
+      {
+        type: "answer",
+        id,
+        version: 1,
+        answer: { ...answer, by: { kind: "human", id: "local-owner" }, at },
+      },
+      { commandId: `answer:${id}`, at, actor: { kind: "human", id: "local-owner" } },
+    ),
+  );
+  return f.store.eventsSince(before);
+}
+
+it("need-human raises a card naming the site; Take over on it gives the owner the browser", async () => {
+  const f = await runtimeFixture();
+  try {
+    const { host, binding } = setup(f.root);
+    const takeover = takeoverApi({ store: f.store, host: () => host, ready: (s) => s(host) });
+    await host.ensure(binding, "thread");
+    writeFileSync(
+      helpFile(binding),
+      JSON.stringify({ reason: "sign_in", note: "Log in to see orders" }),
+    );
+    host.checkHelp();
+    expect(existsSync(helpFile(binding))).toBe(false);
+    expect(existsSync(controlFile(binding))).toBe(true);
+    const [help] = cards(f);
+    expect(help).toMatchObject({
+      state: "pending",
+      title: expect.stringMatching(/ needs you to sign in to shop\.example\.test$/),
+      items: [
+        {
+          prompt: "Fixture says: “Log in to see orders”",
+          options: [{ id: "take-over", label: "Take over" }],
+        },
+      ],
+    });
+
+    takeover.observe(
+      answerCard(f, String(help?.id), {
+        action: "accept",
+        answers: { choice: { options: ["take-over"] } },
+      }),
+    );
+    await Promise.resolve();
+    const open = cards(f).filter((card) => card.state === "pending");
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ title: "You’re in control of the browser" });
+    expect(existsSync(controlFile(binding))).toBe(true);
+    takeover.handBack("thread");
+    expect(existsSync(controlFile(binding))).toBe(false);
+  } finally {
+    f.close();
+  }
+});
+
+it("Take over in the panel answers an open request, and declining tells the agent", async () => {
+  const f = await runtimeFixture();
+  try {
+    const { host, binding } = setup(f.root);
+    const takeover = takeoverApi({ store: f.store, host: () => host, ready: (s) => s(host) });
+    await host.ensure(binding, "thread");
+    writeFileSync(helpFile(binding), JSON.stringify({ reason: "payment" }));
+    host.checkHelp();
+    const [help] = cards(f);
+    expect(help).toMatchObject({
+      title: expect.stringMatching(/ needs you to confirm a payment on shop\.example\.test$/),
+      items: [{ prompt: "Take over to finish, then hand it back." }],
+    });
+    takeover.take("thread");
+    expect(cards(f).find((card) => card.id === help?.id)?.state).toBe("answered");
+    expect(cards(f).filter((card) => card.state === "pending")).toHaveLength(1);
+    takeover.handBack("thread");
+
+    writeFileSync(helpFile(binding), JSON.stringify({ reason: "verification" }));
+    host.checkHelp();
+    const asked = cards(f).find((card) => card.state === "pending");
+    takeover.observe(answerCard(f, String(asked?.id), { action: "decline" }));
+    expect(existsSync(controlFile(binding))).toBe(false);
+    expect(readFileSync(notesFile(binding), "utf8")).toContain(
+      "The owner didn’t take over the browser.",
+    );
+  } finally {
+    f.close();
+  }
+});
+
+it("accepts only well-formed help requests", () => {
+  expect(parseHelp({ reason: "sign_in", note: "  Log\n in  " })).toEqual({
+    reason: "sign_in",
+    note: "Log in",
+  });
+  expect(parseHelp({ reason: "captcha" })).toBeUndefined();
+  expect(parseHelp({ reason: "other", note: "x".repeat(900) })?.note).toHaveLength(300);
 });
 
 it("accepts only well-formed input and never echoes keys in errors", () => {

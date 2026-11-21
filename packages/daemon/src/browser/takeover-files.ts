@@ -60,3 +60,27 @@ export function parseInput(value: unknown): BrowserInput {
     return { kind: "key", type: event.type, key: event.key };
   throw Error("browser_input_invalid");
 }
+
+/** B4: marks a card the agent asked for, as opposed to the owner's own takeover. */
+export const HELP_MARK = "help-";
+/** Whether the owner holds the browser (not just an open request for help). */
+export const owning = (control: string | undefined) =>
+  Boolean(control && !control.includes(`:${HELP_MARK}`));
+
+/** B4: the agent's `need-human` request; the daemon picks it up and raises a card. */
+export const helpFile = (b: Pick<BrowserBinding, "home">) => path.join(b.home, "help.json");
+export const HELP_REASONS = ["sign_in", "verification", "payment", "other"] as const;
+export type HelpReason = (typeof HELP_REASONS)[number];
+export interface HelpRequest {
+  reason: HelpReason;
+  note: string;
+}
+/** Notes the agent writes are short; the owner reads them on a card. */
+export const HELP_NOTE_MAX = 300;
+
+export function parseHelp(value: unknown): HelpRequest | undefined {
+  const row = (value ?? {}) as Record<string, unknown>;
+  if (!HELP_REASONS.includes(row.reason as HelpReason)) return undefined;
+  const note = typeof row.note === "string" ? row.note.replace(/\s+/g, " ").trim() : "";
+  return { reason: row.reason as HelpReason, note: note.slice(0, HELP_NOTE_MAX) };
+}

@@ -131,8 +131,12 @@ export const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}
 function renderBrowserGuidance(
   b: Omit<BrowserBinding, "guidanceText" | "guidanceHash" | "version"> & { version: number },
 ) {
+  // B4: a daemon-run browser can ask the owner directly; others keep their earlier text.
+  const help = b.hosted
+    ? `If a page needs a sign-in, a check or a payment, run ${shellQuote(b.launcher)} need-human sign_in|verification|payment|other 'why', then wait; never type passwords or solve checks.`
+    : "If login or takeover is needed, ask the human through the existing question tool; unattended waits expire.";
   // Absolute paths are long and repeat across launches; name each folder once (fixed budget, I9).
-  return `Browser verification (isolated local session, CLI ${b.runtimeVersion}). Run ${shellQuote(b.launcher)} open ${shellQuote(b.url ?? "about:blank")}, then snapshot before using refs, fill/click as needed, screenshot --filename=${shellQuote(path.join(b.artifactRoot, "capture.png"))}. Generated files go in that capture folder. Register the capture with team_browser_evidence using a path relative to it, URL, viewport and check outcome. Then inspect the returned canonicalPath with your native image tool, and report what the pixels show. Capture alone does not prove inspection. Checks are agent reports. Pause before human takeover. Shell approvals do not provide per-click security. If login or takeover is needed, ask the human through the existing question tool; unattended waits expire. Do not capture secrets, cookies or network bodies.`;
+  return `Browser verification (isolated local session, CLI ${b.runtimeVersion}). Run ${shellQuote(b.launcher)} open ${shellQuote(b.url ?? "about:blank")}, then snapshot before using refs, fill/click as needed, screenshot --filename=${shellQuote(path.join(b.artifactRoot, "capture.png"))}. Generated files go in that capture folder. Register the capture with team_browser_evidence using a path relative to it, URL, viewport and check outcome. Then inspect the returned canonicalPath with your native image tool, and report what the pixels show. Capture alone does not prove inspection. Checks are agent reports. Pause before human takeover. Shell approvals do not provide per-click security. ${help} Do not capture secrets, cookies or network bodies.`;
 }
 export function materializeBrowser(b: BrowserBinding) {
   if (b.runtimeVersion !== CLI_VERSION || b.version !== 1)

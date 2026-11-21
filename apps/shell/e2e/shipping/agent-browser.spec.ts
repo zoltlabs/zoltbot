@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type {
@@ -8,7 +8,7 @@ import type {
 } from "../../../../packages/daemon/src/browser/engine";
 import { browserHostFor, forgetBrowserHost } from "../../../../packages/daemon/src/browser/host";
 import { browserBinding } from "../../../../packages/daemon/src/browser/runtime";
-import { notesFile } from "../../../../packages/daemon/src/browser/takeover-files";
+import { helpFile, notesFile } from "../../../../packages/daemon/src/browser/takeover-files";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme, shellSession } from "../harness";
 
@@ -164,6 +164,30 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     await expect(prompt.getByText("Research waits until you hand it back.")).toBeVisible();
     await prompt.getByRole("button", { name: "Hand back" }).click();
     await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible({ timeout: 10_000 });
+    expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
+
+    // B4: the agent asks for a sign-in. The chat's card names the site; Take over opens the panel.
+    await panel.getByRole("button", { name: "Close browser" }).click();
+    writeFileSync(
+      helpFile(binding),
+      JSON.stringify({ reason: "sign_in", note: "Sign in to see past orders." }),
+    );
+    const ask = page.getByRole("region", {
+      name: "Research needs you to sign in to shop.example.test",
+    });
+    await expect(ask.getByText("Sign in to see past orders.")).toBeVisible({ timeout: 10_000 });
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/b4-ask-${scheme}.png` });
+    }
+    await ask.getByRole("button", { name: "Take over" }).click();
+    await expect(panel.locator(".agent-browser-control-status")).toHaveText("You’re in control", {
+      timeout: 10_000,
+    });
+    await panel.getByRole("button", { name: "Hand back" }).click();
+    await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
     expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
 
     // Closing the panel stops the screencast.

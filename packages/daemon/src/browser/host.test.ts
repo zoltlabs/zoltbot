@@ -12,6 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
+import { DETECT_SCRIPT, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineFrame, EnginePage } from "./engine.js";
 import { playwrightEngine } from "./engine.js";
 import { type BrowserFrame, BrowserHost, endpointFile, MAX_FPS, VIEWER_TTL_MS } from "./host.js";
@@ -99,6 +100,7 @@ describe("browser host", () => {
         running: true,
         url: "https://example.test/",
         control: false,
+        asked: false,
       });
       await settle();
       expect(page.starts).toBe(1);
@@ -277,6 +279,99 @@ describe.skipIf(!shell)("hosted launcher with a real browser", () => {
           )
         : [];
       expect(named).toEqual([]);
+    } finally {
+      await host.closeAll();
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("spots sign-in, human checks and payment fields, and ignores hidden ones", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "zb-detect-"));
+    const browser = await playwrightEngine(root, { executablePath: shell as string }).launch({
+      userDataDir: path.join(root, "data"),
+      headless: true,
+      title: `zb-detect-${Date.now()}`,
+    });
+    try {
+      const page = browser.pages()[0] as EnginePage;
+      const check = (html: string) =>
+        page.evaluate<PageNeeds>(
+          `(() => { document.body.innerHTML = ${JSON.stringify(html)}; return ${DETECT_SCRIPT}; })()`,
+        );
+      const none = { password: false, verification: false, payment: false };
+      expect(await check("<h1>Orders</h1><input name=q>")).toEqual(none);
+      expect(await check("<form><input name=user><input type=password></form>")).toEqual({
+        ...none,
+        password: true,
+      });
+      expect(await check("<input type=password style='display:none'>")).toEqual(none);
+      expect(
+        await check(
+          "<iframe src='https://www.google.com/recaptcha/api2/anchor' width=300 height=80></iframe>",
+        ),
+      ).toEqual({ ...none, verification: true });
+      expect(
+        await check("<div class='cf-turnstile' style='width:300px;height:65px'></div>"),
+      ).toEqual({
+        ...none,
+        verification: true,
+      });
+      expect(await check("<input autocomplete='cc-number'><input autocomplete='cc-exp'>")).toEqual({
+        ...none,
+        payment: true,
+      });
+    } finally {
+      await browser.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("lets the agent ask the owner, and tells it once when a page wants a password", async () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "zb-help-"));
+    const host = new BrowserHost(
+      playwrightEngine(root, { executablePath: shell as string }),
+      undefined,
+      path.join(root, "scratch"),
+    );
+    const asked: unknown[] = [];
+    host.onHelp = (threadId, request) => {
+      asked.push(request);
+      host.control(threadId, "card");
+    };
+    const run = promisify(execFile);
+    try {
+      const b = binding(root);
+      materializeBrowser(b);
+      await host.ensure(b, "thread");
+      const opened = await run(
+        b.launcher,
+        ["open", "data:text/html,<form><input type=password></form>"],
+        { cwd: b.cwd, timeout: 60_000 },
+      );
+      let seen = opened.stdout;
+      for (let i = 0; i < 5 && !seen.includes("asks for a password"); i++)
+        seen += (await run(b.launcher, ["snapshot"], { cwd: b.cwd, timeout: 60_000 })).stdout;
+      expect(seen).toContain("This page asks for a password.");
+      // Once per site: a reload doesn't repeat it.
+      await run(b.launcher, ["reload"], { cwd: b.cwd, timeout: 60_000 });
+      const again = await run(b.launcher, ["snapshot"], { cwd: b.cwd, timeout: 60_000 });
+      expect(again.stdout).not.toContain("asks for a password");
+
+      const help = await run(
+        b.launcher,
+        ["need-human", "sign_in", "Log", "in", "to", "the", "shop"],
+        {
+          cwd: b.cwd,
+          timeout: 60_000,
+        },
+      );
+      expect(help.stdout).toContain("Asked the owner.");
+      expect(asked).toEqual([{ reason: "sign_in", note: "Log in to the shop" }]);
+      expect(existsSync(path.join(b.home, "control.json"))).toBe(true);
+      host.control("thread", undefined);
+      await expect(
+        run(b.launcher, ["need-human", "captcha"], { cwd: b.cwd, timeout: 60_000 }),
+      ).rejects.toMatchObject({ code: 2 });
     } finally {
       await host.closeAll();
       rmSync(root, { recursive: true, force: true });

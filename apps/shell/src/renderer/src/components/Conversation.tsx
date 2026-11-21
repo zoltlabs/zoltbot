@@ -17,11 +17,11 @@ import type { BotMessage, BotProfile } from "../data";
 import { ARTIFACT_PANEL_MAX, ARTIFACT_PANEL_MIN, ArtifactPanel } from "./ArtifactPanel";
 import { expandComposerMentions } from "./ComposerEditor";
 import { PromptCard } from "./ConversationPrompts";
+import { AgentBrowserPanel } from "./conversation/AgentBrowserPanel";
 import { AgentSettings, createAgentSettingsForm } from "./conversation/AgentSettings";
 import { createMediaPreview, MediaPreviewDialog } from "./conversation/Attachments";
 import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask-about";
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
-import { AgentBrowserPanel } from "./conversation/AgentBrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
 import { Composer } from "./conversation/Composer";
 import { ConversationHeader } from "./conversation/ConversationHeader";
@@ -703,7 +703,18 @@ export function Conversation(props: ConversationProps) {
               <Show
                 when={prompt().switchDialog}
                 fallback={
-                  <PromptCard questions={prompt().questions} onSubmit={props.onAnswerPrompt} />
+                  <PromptCard
+                    questions={prompt().questions}
+                    onSubmit={(answers) => {
+                      // B4: taking over from the agent's request opens its browser beside the chat.
+                      if (
+                        String(prompt().requestId).startsWith("browser-takeover:") &&
+                        Object.values(answers).flat().includes("Take over")
+                      )
+                        setActiveRightPanel("browser");
+                      return props.onAnswerPrompt(answers);
+                    }}
+                  />
                 }
               >
                 {(dialog) => (

@@ -4,7 +4,7 @@ import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
-import { browserHostFor } from "./host.js";
+import { browserHostFor, onBrowserHost } from "./host.js";
 import { profileApi } from "./profiles.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
 import { takeoverApi } from "./takeover.js";
@@ -37,6 +37,7 @@ export function browserApi(
   const takeover = takeoverApi({
     store,
     host: () => browserHostFor(directory),
+    ready: (setup) => onBrowserHost(directory, setup),
     ...(options.publish ? { publish: options.publish } : {}),
   });
   const audit = async (
