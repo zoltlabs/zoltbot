@@ -327,5 +327,7 @@
   "models.unstar": "Unstar {name}",
   "models.pending": "Switches to {name} after this reply",
   "models.pendingUndo": "Undo",
-  "models.pendingUndoLabel": "Undo switch to {name}"
+  "models.pendingUndoLabel": "Undo switch to {name}",
+  "agent.continue.label": "Continue unfinished replies",
+  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”"
 }

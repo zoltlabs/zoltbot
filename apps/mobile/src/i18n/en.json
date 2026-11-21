@@ -12,5 +12,7 @@
   "chat.unmute": "Unmute",
   "kit.cancel": "Cancel",
   "agent.fastMode.label": "Fast mode",
-  "agent.fastMode.cost": "Uses more of your plan"
+  "agent.fastMode.cost": "Uses more of your plan",
+  "agent.continue.label": "Continue unfinished replies",
+  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”"
 }

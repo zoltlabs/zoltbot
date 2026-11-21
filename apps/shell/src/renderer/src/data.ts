@@ -66,6 +66,8 @@ export interface BotProfile {
   reasoningEffort: AgentReasoningEffort;
   /** A5: null when the provider has no faster tier. */
   fastMode?: boolean | null;
+  /** C11: continue replies that end on a promise. */
+  continueTurns?: boolean;
   /** A10: the model the agent switches to once its turn ends. */
   pendingModel?: AgentModelId | null;
   threadId: string | null;

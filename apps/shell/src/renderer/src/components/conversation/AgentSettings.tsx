@@ -270,6 +270,24 @@ export function AgentSettings(props: {
             <span />
           </button>
         </div>
+        <div class="agent-settings-notifications">
+          <strong id="agent-continue-label">{t("agent.continue.label")}</strong>
+          <button
+            type="button"
+            role="switch"
+            class="settings-switch"
+            classList={{ "settings-switch-on": props.bot?.continueTurns !== false }}
+            aria-labelledby="agent-continue-label"
+            aria-describedby="agent-continue-note"
+            aria-checked={props.bot?.continueTurns !== false}
+            onClick={() => void props.save({ continueTurns: props.bot?.continueTurns === false })}
+          >
+            <span />
+          </button>
+        </div>
+        <p id="agent-continue-note" class="agent-settings-note">
+          {t("agent.continue.note")}
+        </p>
         <div class="agent-settings-model-row agent-settings-context-row">
           <span aria-hidden="true">{t("agent.contextFull.label")}</span>
           <Select

@@ -71,6 +71,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
     fastMode: stored.fastMode ?? null,
+    continueTurns: stored.continueTurns !== false,
     pendingModel: stored.pendingModel ?? null,
     threadId: stored.threadId,
     accent:

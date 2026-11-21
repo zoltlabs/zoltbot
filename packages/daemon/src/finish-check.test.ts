@@ -1,13 +1,8 @@
+import { agentContinueKey } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { forkFixture } from "../../../tools/fakes/src/fork-fixture.js";
 import { at } from "../../../tools/fakes/src/runtime-fixture.js";
-import {
-  CONTINUE_TEXT,
-  continueSettingKey,
-  endsOnPromise,
-  finishCheck,
-  unfinishedTurn,
-} from "./finish-check.js";
+import { CONTINUE_TEXT, endsOnPromise, finishCheck, unfinishedTurn } from "./finish-check.js";
 
 it("spots replies that end on a promise", () => {
   expect(endsOnPromise("Found the bug. I'll fix it now.")).toBe(true);
@@ -156,7 +151,7 @@ it("leaves finished work, tool calls, questions, forks and switched-off agents a
         });
       if (change === "aside") g.put("thread", { ...thread, kind: "aside" });
       if (change === "off")
-        g.put("settings", { key: continueSettingKey(String(thread.agentId)), value: false });
+        g.put("settings", { key: agentContinueKey(String(thread.agentId)), value: false });
       if (change === "readOnly") {
         const agent = g.store.record("agent", String(thread.agentId)) as Record<string, unknown>;
         g.put("agent", { ...agent, permissionProfile: "read_only" });

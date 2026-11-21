@@ -1,5 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
 import {
+  AGENT_CONTINUE_PREFIX,
   type DomainEvent,
   MUTED_PREFIX,
   STARRED_MODELS_SETTING,
@@ -80,7 +81,10 @@ export function settingsApi(options: {
       !Value.Check(TaskRunningLimitSchema, input.value)
     )
       throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
-    if (input.key.startsWith(MUTED_PREFIX) && typeof input.value !== "boolean")
+    if (
+      (input.key.startsWith(MUTED_PREFIX) || input.key.startsWith(AGENT_CONTINUE_PREFIX)) &&
+      typeof input.value !== "boolean"
+    )
       throw new Error("invalid_setting: use true or false");
     if (input.key === STARRED_MODELS_SETTING && !Value.Check(StarredModelsSchema, input.value))
       throw new Error("invalid_setting: use a list of up to 200 model ids");

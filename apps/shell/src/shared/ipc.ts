@@ -300,6 +300,8 @@ export interface BotSummary {
   reasoningEffort: AgentReasoningEffort;
   /** A5: Fast mode on or off; null when the agent's provider has no faster tier. */
   fastMode?: boolean | null;
+  /** C11: send one "Continue." when a reply ends on a promise. */
+  continueTurns?: boolean;
   /** A10: the model the agent switches to once its turn ends; null when none is held. */
   pendingModel?: AgentModelId | null;
   threadId: string | null;
@@ -411,6 +413,7 @@ export interface UpdateBotInput {
   model?: AgentModelId;
   reasoningEffort?: AgentReasoningEffort;
   fastMode?: boolean;
+  continueTurns?: boolean;
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
   contextFull?: ContextFullAction;

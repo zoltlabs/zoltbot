@@ -2,11 +2,8 @@
 // agent gets one "Continue." so the work happens without the person asking. At most once for each
 // message the person sends, and never in forks, asides, task chats or read-only agents.
 import { type DomainState, queueSystemNotice } from "@zoltbot/core";
-import type { DomainEvent } from "@zoltbot/protocol";
+import { agentContinueKey, continuesTurns, type DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
-
-/** Settings row that turns the check off for one agent. Absent means on. */
-export const continueSettingKey = (agentId: string) => `agent.continue.${agentId}`;
 
 /** The text sent to the agent. Short on purpose: it counts toward the injected-text budget (I9). */
 export const CONTINUE_TEXT = "Continue.";
@@ -48,8 +45,8 @@ export function unfinishedTurn(state: DomainState, turnId: string): Row | undefi
   if (thread.kind !== "main" && thread.kind !== "side") return undefined;
   const agent = state.agent?.find((row) => row.id === thread.agentId);
   if (!agent || agent.permissionProfile === "read_only") return undefined;
-  const off = state.settings?.find((row) => row.key === continueSettingKey(String(agent.id)));
-  if (off?.value === false) return undefined;
+  const setting = state.settings?.find((row) => row.key === agentContinueKey(String(agent.id)));
+  if (!continuesTurns(setting?.value)) return undefined;
   // Only the thread's latest turn, and only once nothing else is running there.
   const turns = (state.turn ?? []).filter((row) => row.threadId === thread.id);
   if (turns.some((row) => row.status === "running" || text(row.startedAt) > text(turn.startedAt)))

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { fileMimeType, MUTED_PREFIX } from "@zoltbot/protocol";
+import { agentContinueKey, fileMimeType, MUTED_PREFIX } from "@zoltbot/protocol";
 import type {
   AccountUsage,
   AgentEvent,
@@ -372,6 +372,14 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       );
     if (input.fastMode !== undefined)
       calls.push(setFastMode(this.client, text(thread.agentId), session, input.fastMode));
+    if (input.continueTurns !== undefined)
+      calls.push(
+        this.client.call(
+          "settings.set",
+          { key: agentContinueKey(text(thread.agentId)), value: input.continueTurns },
+          randomUUID(),
+        ),
+      );
     if (input.role !== undefined)
       calls.push(
         this.client.call(

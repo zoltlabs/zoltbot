@@ -1,4 +1,6 @@
 import {
+  agentContinueKey,
+  continuesTurns,
   DEFAULT_TALKING_STYLE_KEY,
   effectiveTalkingStyle,
   type TalkingStyle,
@@ -46,6 +48,12 @@ export default function ProfileSheet() {
   );
   const [style, setStyle] = useState(initialStyle);
   const [fastMode, setFastMode] = useState(profile?.fastMode === true);
+  const [initialContinue] = useState(() =>
+    continuesTurns(
+      (snapshot.entities.settings ?? []).find((row) => row.key === agentContinueKey(id))?.value,
+    ),
+  );
+  const [continueTurns, setContinueTurns] = useState(initialContinue);
   if (!profile) return null;
   const fastOffered = offersFastMode(snapshot, id);
 
@@ -60,6 +68,11 @@ export default function ProfileSheet() {
     );
   };
   const save = async () => {
+    if (
+      continueTurns !== initialContinue &&
+      !(await run("settings.set", { key: agentContinueKey(id), value: continueTurns }))
+    )
+      return;
     const saved = await run("agent.update", {
       id,
       changes: {
@@ -168,6 +181,22 @@ export default function ProfileSheet() {
             ) : null}
           </View>
         ) : null}
+        <View style={styles.fast}>
+          <View style={styles.line}>
+            <Txt tone="muted" style={styles.flex}>
+              {t("agent.continue.label")}
+            </Txt>
+            <Switch
+              value={continueTurns}
+              onValueChange={setContinueTurns}
+              accessibilityLabel={t("agent.continue.label")}
+              accessibilityHint={t("agent.continue.note")}
+            />
+          </View>
+          <Txt v="meta" tone="muted" style={styles.cost}>
+            {t("agent.continue.note")}
+          </Txt>
+        </View>
       </View>
       <View style={styles.labelled}>
         <Txt v="meta" tone="secondary">

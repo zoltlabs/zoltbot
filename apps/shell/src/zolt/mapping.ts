@@ -1,4 +1,6 @@
 import {
+  agentContinueKey,
+  continuesTurns,
   DEFAULT_TALKING_STYLE_KEY,
   effectiveTalkingStyle,
   mutedKey,
@@ -168,6 +170,11 @@ export function toBotSummary(
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     fastMode: serviceTiers(session).length ? profile?.fastMode === true : null,
+    continueTurns: continuesTurns(
+      (snapshot.entities.settings ?? []).find(
+        (row) => row.key === agentContinueKey(text(thread.agentId)),
+      )?.value,
+    ),
     pendingModel: text((session?.pendingModel as Row | undefined)?.model) || null,
     threadId,
     workspacePath: text(session?.cwd) || text(roots[0]?.path),
