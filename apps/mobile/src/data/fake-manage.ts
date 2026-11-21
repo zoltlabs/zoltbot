@@ -1,6 +1,13 @@
 import { readSchedule } from "./manage.js";
 import type { Row } from "./transport.js";
 
+/** P10: sample catalog apps: id, name, and whether the phone can sign in to it. */
+const sampleApps: [string, string, boolean][] = [
+  ["gmail", "Gmail", true],
+  ["slack", "Slack", true],
+  ["linear", "Linear", false],
+];
+
 /** What the sample Mac needs from FakeTransport to answer management calls. */
 export interface FakeRows {
   rows(kind: string): Row[];
@@ -263,6 +270,41 @@ export class SampleManagement {
         if (!healthy) throw new Error("connection_health_failed");
         return { ok: true };
       }
+      // P10: apps the phone can add. Signing in needs a real Mac and browser.
+      case "connection.catalog.list":
+        return {
+          items: sampleApps.map(([id, name, phoneSignIn]) => ({
+            id,
+            name,
+            description: `Lets agents use ${name}.`,
+            origin: `https://${id}.example`,
+            documentation: `https://${id}.example/docs`,
+            permissions: "Read and write",
+            availability: "available",
+            phoneSignIn,
+          })),
+        };
+      case "connection.install": {
+        const app = sampleApps.find(([id]) => id === p.serviceId);
+        if (!app) throw new Error("connection_service_unsupported");
+        const row: Row = {
+          id: `connection-${app[0]}`,
+          name: app[1],
+          projectId: String(p.projectId),
+          version: 1,
+          transport: { kind: "https", url: `https://${app[0]}.example/mcp` },
+          schemaTokens: { value: 2048, source: "estimated" },
+          source: `catalog:${app[0]}:v1`,
+          enabled: false,
+          profileIds: [],
+          credentialStatus: "needs_sign_in",
+          health: "not_checked",
+        };
+        this.connections = [...this.connections.filter((entry) => entry.id !== row.id), row];
+        return structuredClone(row);
+      }
+      case "connection.auth.startForPhone":
+        throw new Error("mac_only:connection.auth.startForPhone");
       case "connection.affectedSessions":
         this.connection(p.id);
         return { sessionIds: p.id === "connection-github" ? ["session-meal"] : [] };

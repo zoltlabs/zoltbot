@@ -65,6 +65,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="pair" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="connection-done" options={{ animation: "none" }} />
           <Stack.Screen
             name="project-sheet"
             options={{

@@ -105,6 +105,7 @@ export function connectionsApi(options: {
         return {
           items: connectionRecipes.map((recipe) => ({
             ...recipe,
+            phoneSignIn: isBrokerService(recipe.id),
             availability:
               !isBrokerService(recipe.id) || configured.includes(recipe.id)
                 ? "available"

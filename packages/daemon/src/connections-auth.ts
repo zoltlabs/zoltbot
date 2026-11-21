@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   ConnectionOAuth,
+  OAuthCallback,
   OAuthConfiguration,
   OAuthPending,
 } from "../../connections/src/oauth.js";
@@ -11,6 +12,7 @@ import {
   type ServiceId,
 } from "../../connections/src/recipes.js";
 import type { ConnectionRecord, ConnectionRegistry } from "../../connections/src/registry.js";
+import { isBrokerService } from "../../connections/src/service-catalog.js";
 import type { PrivateVault } from "./private-context.js";
 
 export function connectionsAuth(options: {
@@ -52,7 +54,9 @@ export function connectionsAuth(options: {
       attempts.clear();
     },
     async api(method: string, params: Record<string, unknown>) {
-      if (method === "connection.auth.start") {
+      if (method === "connection.auth.start" || method === "connection.auth.startForPhone") {
+        const forPhone = method === "connection.auth.startForPhone";
+        if (forPhone && params.configuration !== undefined) throw new Error("invalid_params");
         if (!oauth) throw new Error("keychain_unavailable");
         if (params.confirmed !== true) throw new Error("connection_confirmation_required");
         const connection = options.registry.get(String(params.id));
@@ -83,7 +87,10 @@ export function connectionsAuth(options: {
             policy: { origins: supplied.origins },
           };
         }
-        const pending = await oauth.start(config);
+        // P10: only the cloud broker accepts the phone app's redirect.
+        if (forPhone && !(service && isBrokerService(service)))
+          throw new Error("oauth_phone_unsupported");
+        const pending = await oauth.start(config, undefined, forPhone ? "phone" : "loopback");
         const id = randomUUID();
         const attempt = {
           connectionId: connection.id,
@@ -128,6 +135,15 @@ export function connectionsAuth(options: {
           destination: new URL(config.authorizationEndpoint).host,
           scopes: config.scopes,
         };
+      }
+      if (method === "connection.auth.finish") {
+        const attempt = attempts.get(String(params.id));
+        if (!attempt?.pending.complete) throw new Error("oauth_attempt_not_found");
+        const callback: OAuthCallback = { state: String(params.state) };
+        for (const key of ["code", "iss", "error"] as const)
+          if (typeof params[key] === "string") callback[key] = params[key];
+        attempt.pending.complete(callback);
+        return { state: attempt.state };
       }
       if (method === "connection.auth.status" || method === "connection.auth.cancel") {
         const attempt = attempts.get(String(params.id));

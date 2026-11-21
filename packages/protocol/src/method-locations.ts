@@ -31,13 +31,11 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "routine.retrySource",
   "routine.archiveHistory",
   "routine.create",
-  "connection.install",
   // I6: the registry is searched and its packages run from the Mac.
   "connection.registry.search",
   "connection.registry.add",
+  // P10: the phone signs in with startForPhone, which accepts no OAuth settings.
   "connection.auth.start",
-  "connection.auth.status",
-  "connection.auth.cancel",
   "connection.import",
   "connection.save",
   "device.pair.start",
