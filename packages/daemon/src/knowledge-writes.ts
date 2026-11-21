@@ -92,6 +92,7 @@ const why: Record<KnowledgeWriteReason, string> = {
   not_found: "item not found",
   forget_request: "sent to the user to confirm the exact text",
   tidy_merge: "two entries overlap; sent to the user to confirm the merge",
+  imported: "read from an export; sent to the user to review",
 };
 export interface KnowledgeWriteResult {
   result: "applied" | "proposed" | "merged" | "rejected";

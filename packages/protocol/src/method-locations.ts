@@ -36,6 +36,10 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "detect.startLogin",
   "native.openCommand",
   "diagnostics.export",
+  // M4: these read files on the Mac by path.
+  "memory.import.preview",
+  "memory.import.start",
+  "memory.import.status",
 ];
 export type MethodWhere = "local" | "cloud" | "both";
 const cloudOnlyMethods: readonly MethodName[] = [

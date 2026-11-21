@@ -123,4 +123,20 @@ describe("memory service", () => {
       expect.any(String),
     );
   });
+
+  it("previews the picked export and turns daemon errors into a sentence", async () => {
+    const call = vi.fn(async () => ({ memories: 3, conversations: 12 }));
+    const client = { call, snapshot: { entities } } as unknown as DaemonClient;
+    const picked = memoryService(client, async () => "/Users/you/Downloads/chatgpt.zip");
+    expect(await picked.importChoose("chatgpt")).toEqual({
+      source: "chatgpt",
+      path: "/Users/you/Downloads/chatgpt.zip",
+      name: "chatgpt.zip",
+      memories: 3,
+      conversations: 12,
+    });
+    expect(await memoryService(client, async () => undefined).importChoose("chatgpt")).toBeNull();
+    call.mockRejectedValueOnce(new Error("import_file_type: pick the .zip or .json export."));
+    await expect(picked.importChoose("chatgpt")).rejects.toThrow("Pick the .zip or .json export.");
+  });
 });

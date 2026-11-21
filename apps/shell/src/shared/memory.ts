@@ -82,6 +82,28 @@ export interface MemoryDecideInput {
   decision: "accept" | "reject";
 }
 
+/** M4: where an imported export came from. */
+export type MemoryImportSource = "chatgpt" | "claude" | "gemini";
+
+/** M4: the export the owner picked, before anything is imported. */
+export interface MemoryImportChoice {
+  source: MemoryImportSource;
+  path: string;
+  /** The file name, shown in the preview. */
+  name: string;
+  memories: number;
+  conversations: number;
+}
+
+export interface MemoryImportStatus {
+  id: string;
+  state: "reading" | "done" | "failed";
+  conversations: number;
+  read: number;
+  proposed: number;
+  error?: string;
+}
+
 export const MEMORY_CHANNELS = {
   memoryList: "memory:list",
   memoryRevisions: "memory:revisions",
@@ -90,6 +112,9 @@ export const MEMORY_CHANNELS = {
   memoryDecide: "memory:decide",
   memoryForget: "memory:forget",
   memorySetTidy: "memory:set-tidy",
+  memoryImportChoose: "memory:import-choose",
+  memoryImportStart: "memory:import-start",
+  memoryImportStatus: "memory:import-status",
 } as const;
 
 export interface MemoryDesktopApi {
@@ -104,4 +129,11 @@ export interface MemoryDesktopApi {
   forget: (input: MemoryForgetInput) => Promise<void>;
   /** M3: turns the nightly tidy-up on or off. */
   setTidy: (on: boolean) => Promise<void>;
+  /** M4: asks for an export file and reads what it holds; null when the owner cancels. */
+  importChoose: (source: MemoryImportSource) => Promise<MemoryImportChoice | null>;
+  importStart: (choice: {
+    source: MemoryImportSource;
+    path: string;
+  }) => Promise<MemoryImportStatus>;
+  importStatus: (id: string) => Promise<MemoryImportStatus>;
 }

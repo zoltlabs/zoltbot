@@ -214,6 +214,9 @@ const openbotApi: OpenBotDesktopApi = {
     decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecide, input),
     forget: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryForget, input),
     setTidy: (on) => ipcRenderer.invoke(IPC_CHANNELS.memorySetTidy, on),
+    importChoose: (source) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportChoose, source),
+    importStart: (choice) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStart, choice),
+    importStatus: (id) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStatus, id),
   },
   spend: {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),

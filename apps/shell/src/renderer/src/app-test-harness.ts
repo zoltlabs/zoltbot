@@ -292,6 +292,9 @@ export function setUpAppTest() {
         decide: vi.fn().mockResolvedValue(undefined),
         forget: vi.fn().mockResolvedValue(undefined),
         setTidy: vi.fn().mockResolvedValue(undefined),
+        importChoose: vi.fn().mockResolvedValue(null),
+        importStart: vi.fn(),
+        importStatus: vi.fn(),
       },
       pins: {
         set: vi.fn().mockResolvedValue(undefined),

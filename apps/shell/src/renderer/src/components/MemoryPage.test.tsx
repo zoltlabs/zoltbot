@@ -201,6 +201,69 @@ describe("Memory page", () => {
     await waitFor(() => expect(window.openbot.memory.setTidy).toHaveBeenCalledWith(false));
   });
 
+  it("imports an export after the owner confirms, then shows what is waiting for review", async () => {
+    vi.mocked(window.openbot.memory.list).mockResolvedValue(VIEW);
+    const memory = window.openbot.memory;
+    vi.mocked(memory.importChoose).mockResolvedValue({
+      source: "claude",
+      path: "/Users/you/Downloads/claude.zip",
+      name: "claude.zip",
+      memories: 2,
+      conversations: 30,
+    });
+    vi.mocked(memory.importStart).mockResolvedValue({
+      id: "import-1",
+      state: "reading",
+      conversations: 30,
+      read: 0,
+      proposed: 2,
+    });
+    vi.mocked(memory.importStatus).mockResolvedValue({
+      id: "import-1",
+      state: "done",
+      conversations: 30,
+      read: 30,
+      proposed: 7,
+    });
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: "Import memory…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Claude" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Import from Claude?" });
+    expect(dialog).toHaveTextContent("claude.zip has 2 saved memories and 30 conversations.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Import" }));
+    expect(await within(main).findByText("Reading conversations: 0 of 30")).toBeInTheDocument();
+    expect(memory.importStart).toHaveBeenCalledWith({
+      source: "claude",
+      path: "/Users/you/Downloads/claude.zip",
+    });
+    expect(
+      await within(main).findByText("7 memories to review", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(main).getByRole("button", { name: "Review" }));
+    expect(within(main).getByRole("button", { name: /^Needs review/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("says when an export has nothing to import", async () => {
+    vi.mocked(window.openbot.memory.list).mockResolvedValue(VIEW);
+    vi.mocked(window.openbot.memory.importChoose).mockResolvedValue({
+      source: "gemini",
+      path: "/x.json",
+      name: "x.json",
+      memories: 0,
+      conversations: 0,
+    });
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: "Import memory…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Gemini" }));
+    expect(await within(main).findByRole("alert")).toHaveTextContent(
+      "This Gemini export has no memories or conversations.",
+    );
+    expect(window.openbot.memory.importStart).not.toHaveBeenCalled();
+  });
+
   it("keeps a proposal from Needs review", async () => {
     vi.mocked(window.openbot.memory.list).mockResolvedValue(VIEW);
     const main = page();

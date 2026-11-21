@@ -273,6 +273,14 @@
   font-size: 12px;
 }
 
+.memory-import-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .memory-tidy {
   display: flex;
   align-items: center;

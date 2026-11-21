@@ -36,6 +36,8 @@ export const KnowledgeWriteReasonSchema = values([
   "forget_request",
   /** M3: the nightly tidy-up found two entries that say the same thing. */
   "tidy_merge",
+  /** M4: a fact read from another assistant's export. */
+  "imported",
 ]);
 export type KnowledgeWriteReason = Static<typeof KnowledgeWriteReasonSchema>;
 export const KnowledgeKindSchema = KnowledgeItemSchema.properties.kind;
@@ -115,6 +117,20 @@ export const SessionTaintSchema = object({
 });
 export type SessionTaint = Static<typeof SessionTaintSchema>;
 
+export const MemoryImportSourceSchema = values(["chatgpt", "claude", "gemini"]);
+export const MemoryImportStatusSchema = object({
+  id: Id,
+  state: values(["reading", "done", "failed"]),
+  /** Conversations the import reads. */
+  conversations: Type.Integer({ minimum: 0 }),
+  /** Conversations read so far. */
+  read: Type.Integer({ minimum: 0 }),
+  /** Proposals waiting in Needs review from this import. */
+  proposed: Type.Integer({ minimum: 0 }),
+  error: OptionalText,
+});
+export type MemoryImportStatus = Static<typeof MemoryImportStatusSchema>;
+
 const entry = <P extends TSchema, R extends TSchema>(params: P, result: R) => ({ params, result });
 const ok = object({ ok: Type.Boolean() });
 export const knowledgeWriteMethods = {
@@ -159,6 +175,23 @@ export const knowledgeWriteMethods = {
     }),
     KnowledgeItemSchema,
   ),
+  /** M4: what an export from another assistant holds, before anything is imported. */
+  "memory.import.preview": entry(
+    object({
+      source: MemoryImportSourceSchema,
+      path: Type.String({ minLength: 1, maxLength: 4096 }),
+    }),
+    object({ memories: Type.Integer({ minimum: 0 }), conversations: Type.Integer({ minimum: 0 }) }),
+  ),
+  /** M4: saved memories become proposals now; conversations are read in the background. */
+  "memory.import.start": entry(
+    object({
+      source: MemoryImportSourceSchema,
+      path: Type.String({ minLength: 1, maxLength: 4096 }),
+    }),
+    MemoryImportStatusSchema,
+  ),
+  "memory.import.status": entry(object({ id: Id }), MemoryImportStatusSchema),
   "knowledge.revert": entry(
     object({ id: Id, expectedRevision: Type.Integer({ minimum: 1 }), confirmed: Type.Boolean() }),
     KnowledgeItemSchema,

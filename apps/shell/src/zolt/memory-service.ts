@@ -1,11 +1,15 @@
 // S5: the Memory page's daemon calls.
 import { randomUUID } from "node:crypto";
+import { basename } from "node:path";
 import { MEMORY_TIDY_SETTING } from "@zoltbot/protocol";
 import { IPC_CHANNELS } from "../shared/ipc";
 import type {
   MemoryDecideInput,
   MemoryEntry,
   MemoryForgetInput,
+  MemoryImportChoice,
+  MemoryImportSource,
+  MemoryImportStatus,
   MemorySaveInput,
 } from "../shared/memory";
 import type { DaemonClient } from "./daemon-client";
@@ -34,13 +38,49 @@ function parseForget(input: unknown): MemoryForgetInput {
   return { id: requireString(input.id, "id"), quote, revision };
 }
 
+const IMPORT_SOURCES: readonly MemoryImportSource[] = ["chatgpt", "claude", "gemini"];
+function parseSource(value: unknown): MemoryImportSource {
+  if (!IMPORT_SOURCES.includes(value as MemoryImportSource)) throw new Error("Invalid source.");
+  return value as MemoryImportSource;
+}
+
+/** The daemon's import errors carry a code and a sentence; the sentence is for the owner. */
+function importError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : "";
+  const sentence = /import_[a-z_]+: (.+)$/.exec(message)?.[1];
+  return new Error(
+    sentence
+      ? `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}`
+      : "Couldn’t read this export. Try again.",
+  );
+}
+
+/** The Mac's file picker; loaded only in the app, so the service stays testable in Node. */
+async function pickExport(): Promise<string | undefined> {
+  const { BrowserWindow, dialog } = await import("electron");
+  const options = {
+    title: "Choose the export file",
+    buttonLabel: "Choose",
+    properties: ["openFile" as const],
+    filters: [{ name: "Export", extensions: ["zip", "json"] }],
+  };
+  const window = BrowserWindow.getFocusedWindow();
+  const result = window
+    ? await dialog.showOpenDialog(window, options)
+    : await dialog.showOpenDialog(options);
+  return result.canceled ? undefined : result.filePaths[0];
+}
+
 function parseDecide(input: unknown): MemoryDecideInput {
   if (!isObject(input) || (input.decision !== "accept" && input.decision !== "reject"))
     throw new Error("Choose Keep or Discard.");
   return { id: requireString(input.id, "id"), decision: input.decision };
 }
 
-export function memoryService(client: DaemonClient) {
+export function memoryService(
+  client: DaemonClient,
+  pick: () => Promise<string | undefined> = pickExport,
+) {
   const entities = () => client.snapshot.entities as Record<string, Row[] | undefined>;
   return {
     list: () => toMemoryView(client.snapshot as { entities: Record<string, Row[] | undefined> }),
@@ -90,6 +130,37 @@ export function memoryService(client: DaemonClient) {
         throw new Error("Couldn’t change this setting. Try again.");
       }
     },
+    async importChoose(source: MemoryImportSource): Promise<MemoryImportChoice | null> {
+      const path = await pick();
+      if (!path) return null;
+      try {
+        const counts = (await client.call("memory.import.preview", { source, path })) as {
+          memories: number;
+          conversations: number;
+        };
+        return { source, path, name: basename(path), ...counts };
+      } catch (error) {
+        throw importError(error);
+      }
+    },
+    async importStart(source: MemoryImportSource, path: string): Promise<MemoryImportStatus> {
+      try {
+        return (await client.call(
+          "memory.import.start",
+          { source, path },
+          randomUUID(),
+        )) as MemoryImportStatus;
+      } catch (error) {
+        throw importError(error);
+      }
+    },
+    async importStatus(id: string): Promise<MemoryImportStatus> {
+      try {
+        return (await client.call("memory.import.status", { id })) as MemoryImportStatus;
+      } catch (error) {
+        throw importError(error);
+      }
+    },
     async decide(input: MemoryDecideInput): Promise<void> {
       await client.call(
         "proposal.decide",
@@ -112,6 +183,12 @@ export function memoryHandlers(client: DaemonClient): Record<string, (input: unk
     },
     [IPC_CHANNELS.memoryDecide]: (input) => service.decide(parseDecide(input)),
     [IPC_CHANNELS.memoryForget]: (input) => service.forget(parseForget(input)),
+    [IPC_CHANNELS.memoryImportChoose]: (source) => service.importChoose(parseSource(source)),
+    [IPC_CHANNELS.memoryImportStart]: (input) => {
+      if (!isObject(input)) throw new Error("Invalid import.");
+      return service.importStart(parseSource(input.source), requireString(input.path, "path"));
+    },
+    [IPC_CHANNELS.memoryImportStatus]: (id) => service.importStatus(requireString(id, "id")),
     [IPC_CHANNELS.memorySetTidy]: (input) => {
       if (typeof input !== "boolean") throw new Error("Invalid setting.");
       return service.setTidy(input);

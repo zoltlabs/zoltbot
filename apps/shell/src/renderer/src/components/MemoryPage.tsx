@@ -7,6 +7,7 @@ import { Select } from "../kit";
 import { agentOptions, filterMemory, type MemoryFilter, projectOptions } from "../memory";
 import type { MemoryStore } from "../memory-store";
 import { MemoryEntryRow, memoryMeta } from "./MemoryEntryRow";
+import { createMemoryImport, MemoryImportButton, MemoryImportStatusView } from "./MemoryImport";
 import { SidebarToggleIcon } from "./SidebarIcons";
 import "../memory.css";
 
@@ -137,6 +138,8 @@ export function MemoryPage(props: {
     setTidySaving(false);
   }
 
+  const memoryImport = createMemoryImport();
+
   const nothingSaved = () => !view().entries.length && !view().proposals.length;
 
   return (
@@ -201,6 +204,10 @@ export function MemoryPage(props: {
               onChange={(projectId) => update({ projectId })}
             />
           </Show>
+          <MemoryImportButton
+            busy={memoryImport.busy()}
+            onPick={(source) => void memoryImport.pick(source)}
+          />
           <input
             type="search"
             class="zb-kit-input memory-search"
@@ -211,6 +218,7 @@ export function MemoryPage(props: {
           />
         </div>
         <output class="sr-only">{announcement()}</output>
+        <MemoryImportStatusView import={memoryImport} onReview={() => setReviewing(true)} />
         <Show when={props.store.error()}>
           {(message) => (
             <p class="tasks-error" role="alert">
