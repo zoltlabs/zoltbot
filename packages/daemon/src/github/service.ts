@@ -1,8 +1,10 @@
 import { type InteractionDraft, parse, ShippingOperationSchema } from "@zoltbot/protocol";
+import type { InstallationTokens } from "../../../github/src/app-token.js";
 import { type GitHubClient, githubClient, pullUrl } from "../../../github/src/client.js";
 import { ghTransport } from "../../../github/src/transport.js";
 import { git, repositoryLock } from "../../../gitkit/src/git.js";
 import { githubRemotes, publishHash } from "../../../gitkit/src/publish.js";
+import { githubBotTransport } from "./bot.js";
 import { shippingFeedback } from "./feedback.js";
 import { ShippingProposals } from "./proposals.js";
 import { type PublishInput, shippingPublishing } from "./publishing.js";
@@ -11,6 +13,8 @@ import { now, type ShippingContext, shippingState } from "./state.js";
 export function shippingService(
   options: Omit<ShippingContext, "client"> & {
     client?: GitHubClient;
+    /** I8: installation tokens for writing as zoltbot[bot]; absent without a cloud account. */
+    botTokens?: InstallationTokens;
     requestApproval(draft: InteractionDraft, id: string): Promise<unknown>;
     pollMs?: number;
   },
@@ -22,7 +26,11 @@ export function shippingService(
     closed: () => closed,
     client:
       options.client ??
-      githubClient((endpoint, method, body) => ghTransport(endpoint, method, body, abort.signal)),
+      githubClient(
+        githubBotTransport(options.store, options.botTokens, (endpoint, method, body, _s, token) =>
+          ghTransport(endpoint, method, body, abort.signal, token),
+        ),
+      ),
   };
   const state = shippingState(context),
     proposals = new ShippingProposals();

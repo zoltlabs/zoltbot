@@ -5,7 +5,11 @@ import type {
   OAuthPending,
 } from "../../connections/src/oauth.js";
 import { ConnectionOAuth as OAuth } from "../../connections/src/oauth.js";
-import { recipeAuthorization, type ServiceId } from "../../connections/src/recipes.js";
+import {
+  connectionRecipes,
+  recipeAuthorization,
+  type ServiceId,
+} from "../../connections/src/recipes.js";
 import type { ConnectionRecord, ConnectionRegistry } from "../../connections/src/registry.js";
 import type { PrivateVault } from "./private-context.js";
 
@@ -53,10 +57,10 @@ export function connectionsAuth(options: {
         if (params.confirmed !== true) throw new Error("connection_confirmation_required");
         const connection = options.registry.get(String(params.id));
         if (connection.transport.kind !== "https") throw new Error("oauth_transport_unsupported");
-        const service =
-          /^catalog:(linear|sentry|github|posthog|gmail|google_drive|google_docs|slack):v1$/.exec(
-            connection.source,
-          )?.[1] as ServiceId | undefined;
+        const named = /^catalog:([a-z_]+):v1$/.exec(connection.source)?.[1];
+        const service = connectionRecipes.some((recipe) => recipe.id === named)
+          ? (named as ServiceId)
+          : undefined;
         const supplied = params.configuration as
           | (Omit<OAuthConfiguration, "identity" | "resource" | "policy"> & { origins: string[] })
           | undefined;

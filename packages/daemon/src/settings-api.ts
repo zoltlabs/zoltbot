@@ -3,6 +3,7 @@ import {
   AGENT_CONTINUE_PREFIX,
   BRIDGE_PREFIX,
   type DomainEvent,
+  GITHUB_BOT_SETTING,
   MEMORY_TIDY_SETTING,
   MUTED_PREFIX,
   STARRED_MODELS_SETTING,
@@ -92,7 +93,8 @@ export function settingsApi(options: {
     if (
       (input.key.startsWith(MUTED_PREFIX) ||
         input.key.startsWith(AGENT_CONTINUE_PREFIX) ||
-        input.key === MEMORY_TIDY_SETTING) &&
+        input.key === MEMORY_TIDY_SETTING ||
+        input.key === GITHUB_BOT_SETTING) &&
       typeof input.value !== "boolean"
     )
       throw new Error("invalid_setting: use true or false");

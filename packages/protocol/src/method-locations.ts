@@ -32,6 +32,9 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "routine.archiveHistory",
   "routine.create",
   "connection.install",
+  // I6: the registry is searched and its packages run from the Mac.
+  "connection.registry.search",
+  "connection.registry.add",
   "connection.auth.start",
   "connection.auth.status",
   "connection.auth.cancel",
