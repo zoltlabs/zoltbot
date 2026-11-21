@@ -56,6 +56,7 @@ import { paletteItems } from "./palette-items";
 import { followSounds, playSound } from "./sounds/sounds";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
+import { UpdatePill } from "./updates/UpdatePill";
 
 export function App() {
   const [botList, setBotList] = createSignal<BotProfile[]>([]);
@@ -737,6 +738,7 @@ export function App() {
             onBack={history.back}
             onForward={history.forward}
           />
+          <UpdatePill status={updateStatus()} onRestart={() => void runUpdateAction()} />
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}

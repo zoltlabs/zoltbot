@@ -16,7 +16,8 @@ import path from "node:path";
 import { Arch, build, Platform } from "electron-builder";
 import { bundleRuntime } from "./bundle-runtime.mjs";
 
-// Builds dist/release/Zoltbot-<version>-<arch>.dmg. The app folder holds the desktop bundle,
+// Builds dist/release/Zoltbot-<version>-<arch>.dmg, plus a .zip and latest-mac.yml for app updates
+// (D3) when the build is signed. The app folder holds the desktop bundle,
 // the daemon bundle with its installed dependencies and source-relative resources, the built
 // UI, and a Node runtime of the same version as this one for the daemon (D125).
 //   --unsigned  ad-hoc signature, for local testing only; Gatekeeper blocks it once downloaded
@@ -95,7 +96,12 @@ writeFileSync(
           }
         : {}),
       // The shell's main bundle leaves only ws outside; the daemon names its own natives.
-      dependencies: { ...externalDependencies(metafile), ws: shellPackage.dependencies.ws },
+      dependencies: {
+        ...externalDependencies(metafile),
+        ws: shellPackage.dependencies.ws,
+        // D3: the shell's main bundle loads it only when the build has an update feed.
+        "electron-updater": shellPackage.dependencies["electron-updater"],
+      },
     },
     null,
     2,
@@ -120,7 +126,9 @@ speechHelper(path.join(stage, "bin/zoltbot-speech"));
 const electron = shellPackage.devDependencies.electron;
 await build({
   publish: "never",
-  targets: Platform.MAC.createTarget("dmg", arch),
+  // D3: the zip is what app updates download; macOS only installs updates to a signed app, so an
+  // unsigned build has neither the zip nor an update feed.
+  targets: Platform.MAC.createTarget(unsigned ? ["dmg"] : ["dmg", "zip"], arch),
   config: {
     appId: "ai.zoltbot.desktop",
     productName: "Zoltbot",
@@ -151,8 +159,13 @@ await build({
     },
     // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder fills these in.
     dmg: { artifactName: "${productName}-${version}-${arch}.${ext}" },
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder fills these in.
+    zip: { artifactName: "${productName}-${version}-${arch}-mac.${ext}" },
     afterPack: addArchitectureFiles,
-    publish: null,
+    // A signed build reads updates from GitHub Releases: electron-builder writes app-update.yml
+    // into the app and latest-mac.yml next to the zip. Uploading stays a manual step
+    // (docs/releasing.md); `publish: "never"` above keeps it so.
+    publish: unsigned ? null : { provider: "github", owner: "zoltlabs", repo: "zoltbot" },
   },
 });
 

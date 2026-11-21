@@ -590,7 +590,9 @@ async function startOwnedDaemon(
       );
     switch (request.method) {
       case "hello":
-        return { protocolVersion, version: "0.1.0" };
+        // D3: the app that started this daemon names its version, so a newer app can tell the
+        // daemon is older and replace it.
+        return { protocolVersion, version: process.env.ZOLTBOT_APP_VERSION || null };
       case "snapshot.get": {
         const entities = store.snapshot();
         const partial = new Map(manager?.streamItems().map((item) => [item.id, item]) ?? []);

@@ -26,6 +26,7 @@ import {
   type DictationAccessStatus,
   type ExportResult,
   IPC_CHANNELS,
+  type UpdateStatus,
 } from "../shared/ipc";
 import { normalizePreferences, PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
@@ -62,6 +63,8 @@ import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
+import { electronUpdateFeed } from "./update-feed";
+import { UpdaterService } from "./updater";
 import { appearanceFollower, followWindowTheme, windowBackground } from "./window-theme";
 import { connectNotifications } from "./zolt-notifications";
 
@@ -91,11 +94,16 @@ const hosted = hostedOrigins(
   process.env,
   app.isPackaged ? readFileSync(join(paths.root, "package.json"), "utf8") : undefined,
 );
-const daemonHost = new DaemonHost(paths, {
-  ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
-  ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
-  ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
-});
+const daemonHost = new DaemonHost(
+  paths,
+  {
+    ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
+    ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
+    ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
+  },
+  // D3: a packaged app replaces an older daemon left running from before an update.
+  app.isPackaged ? app.getVersion() : undefined,
+);
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
@@ -321,18 +329,30 @@ function registerIpcHandlers(setupFile: string): void {
     return shell.openExternal(url.toString());
   });
 
-  const updateStatus = {
-    phase: "unsupported" as const,
-    currentVersion: app.getVersion(),
-    availableVersion: null,
-    progress: null,
-    checkedAt: null,
-    message: null,
+  // D3: unsupported until a signed build's update feed loads.
+  const emitUpdate = (status: UpdateStatus) => {
+    for (const window of BrowserWindow.getAllWindows())
+      if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.updateEvent, status);
   };
-  handleTrusted(IPC_CHANNELS.updateGetStatus, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateCheck, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateDownload, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateInstall, () => undefined);
+  let updater = new UpdaterService(undefined, {
+    currentVersion: app.getVersion(),
+    emit: emitUpdate,
+  });
+  void electronUpdateFeed(app.isPackaged)
+    .then((feed) => {
+      if (!feed) return;
+      updater = new UpdaterService(feed, { currentVersion: app.getVersion(), emit: emitUpdate });
+      updater.start();
+    })
+    .catch(() => undefined);
+  handleTrusted(IPC_CHANNELS.updateGetStatus, () => updater.status);
+  handleTrusted(IPC_CHANNELS.updateCheck, () => updater.check());
+  handleTrusted(IPC_CHANNELS.updateDownload, () => updater.download());
+  handleTrusted(IPC_CHANNELS.updateInstall, () => {
+    // quitAndInstall closes the windows before before-quit: let them close instead of hiding.
+    isQuitting = true;
+    updater.install();
+  });
   handleTrusted(IPC_CHANNELS.maintenanceExportData, () => exportDiagnostics());
   handleTrusted(IPC_CHANNELS.maintenanceExportDiagnostics, () => exportDiagnostics());
   handleTrusted(IPC_CHANNELS.artifactPrepare, (hash: unknown) =>

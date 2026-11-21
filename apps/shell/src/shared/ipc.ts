@@ -188,6 +188,8 @@ export interface UpdateStatus {
   progress: number | null;
   checkedAt: string | null;
   message: string | null;
+  /** D3: the release's notes as plain text, for "What's new". */
+  releaseNotes?: string | null;
 }
 
 export interface ExportResult {
