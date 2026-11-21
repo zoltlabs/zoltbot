@@ -6,6 +6,7 @@ import type { RoutineItem, RoutineRun } from "../../../../shared/routines";
 import { t } from "../../i18n";
 import { type Anchor, Menu, type MenuItem } from "../../kit";
 import { SidebarToggleIcon } from "../SidebarIcons";
+import { AddToCalendar } from "./AddToCalendar";
 import { KeepAwakeSelect } from "./KeepAwakeSelect";
 import {
   dateTimeText,
@@ -165,7 +166,13 @@ export function RoutinesPage(props: { sidebarCollapsed: boolean; onShowSidebar: 
               {t("routines.view.schedule")}
             </button>
           </fieldset>
-          <KeepAwakeSelect />
+          <div class="routines-tools">
+            <KeepAwakeSelect />
+            <AddToCalendar
+              items={items}
+              onAdded={(runs) => setStatus(t("routines.calendar.added", { count: runs }))}
+            />
+          </div>
         </div>
         <output class="sr-only">{status()}</output>
         <Show when={error()}>

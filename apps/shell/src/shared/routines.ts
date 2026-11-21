@@ -7,6 +7,7 @@ export const ROUTINE_CHANNELS = {
   routinesSetPaused: "routines:set-paused",
   routinesSetSchedule: "routines:set-schedule",
   routinesRunNow: "routines:run-now",
+  routinesAddToCalendar: "routines:add-to-calendar",
 } as const;
 
 export interface RoutineSchedule {
@@ -51,4 +52,6 @@ export interface RoutinesDesktopApi {
   setPaused: (input: { id: string; paused: boolean }) => Promise<RoutineItem>;
   setSchedule: (input: { id: string; schedule: RoutineSchedule }) => Promise<RoutineItem>;
   runNow: (id: string) => Promise<void>;
+  /** R6: opens the coming runs in the Calendar app; only the desktop app has it. */
+  addToCalendar?: (input: { names: boolean }) => Promise<{ runs: number }>;
 }

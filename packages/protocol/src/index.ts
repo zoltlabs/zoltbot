@@ -39,6 +39,7 @@ export * from "./private-values.js";
 export * from "./progress-notes.js";
 export * from "./quick-chat.js";
 export * from "./reply-quote.js";
+export * from "./routine-calendar.js";
 export * from "./routine-time.js";
 export * from "./session-order.js";
 export * from "./shipping.js";

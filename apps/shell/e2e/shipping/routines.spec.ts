@@ -3,7 +3,7 @@ import { parseEvent } from "@zoltbot/protocol";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, shellSession } from "../harness";
 
-/** R1, R3, R4: the Routines page runs a routine now, pauses it, makes it one-time and shows it on the calendar. */
+/** R1, R3, R4, R6: the Routines page runs a routine now, pauses it, makes it one-time, adds it to Calendar and shows it on the calendar. */
 test("routines run now, pause, reschedule once and show on the calendar", async ({ page }) => {
   const fixture = await compareFixture();
   const at = new Date().toISOString();
@@ -115,6 +115,15 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     await expect(row).toContainText("Once · First");
     const saved = fixture.daemon.store.record("routine", routine.id);
     expect(saved?.schedule).toMatchObject({ cron: "@once", at: `${day}T09:00:00.000Z` });
+
+    // R6: the coming runs go to Calendar, here without their names.
+    await main.getByRole("button", { name: "Add to Calendar" }).click();
+    const calendar = page.getByRole("dialog", { name: "Add runs to Calendar" });
+    await calendar.getByRole("checkbox", { name: "Show routine names" }).uncheck();
+    expect(await axeViolations(page)).toEqual([]);
+    await calendar.getByRole("button", { name: "Add runs" }).click();
+    await expect(calendar).toBeHidden();
+    await expect(main.getByRole("status")).toHaveText("Added 1 run to Calendar.");
 
     await main.getByRole("button", { name: "Schedule", exact: true }).click();
     const runDay = new Date(`${day}T09:00:00.000Z`);

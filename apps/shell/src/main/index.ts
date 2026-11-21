@@ -13,10 +13,10 @@ import {
   nativeImage,
   nativeTheme,
   type OpenDialogOptions,
+  powerSaveBlocker,
   protocol,
   session,
   shell,
-  powerSaveBlocker,
   systemPreferences,
   type WebContents,
 } from "electron";
@@ -49,6 +49,8 @@ import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
+import { calendarHandlers } from "./desktop/calendar-handlers";
+import { cliHandlers } from "./desktop/cli-handlers";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
@@ -58,9 +60,8 @@ import { desktopKitAsset } from "./desktop/kit-assets";
 import { desktopAccountClient } from "./desktop/native-account-client";
 import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
-import { readMacPermissions, requestMacPermission } from "./mac-permissions";
-import { cliHandlers } from "./desktop/cli-handlers";
 import { keepAwakeController } from "./keep-awake";
+import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
@@ -364,6 +365,14 @@ function registerIpcHandlers(setupFile: string): void {
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(
     cliHandlers({ packaged: app.isPackaged, root: paths.root, dataDir: paths.dataDir }),
+  ))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    calendarHandlers({
+      client,
+      folder: join(paths.dataDir, "shell"),
+      open: (path) => shell.openPath(path),
+    }),
   ))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))

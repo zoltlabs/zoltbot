@@ -5,6 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 import { runAttachmentAction } from "../src/main/attachment-actions";
+import { calendarHandlers } from "../src/main/desktop/calendar-handlers";
 import { preferenceHandlers } from "../src/main/desktop/preferences-handlers";
 import { IPC_CHANNELS } from "../src/shared/ipc";
 import { normalizePreferences, parsePreferencesPatch } from "../src/shared/preferences";
@@ -44,6 +45,12 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
   return {
     ...agentHandlers(service),
     ...preferenceHandlers(memoryPreferences(), () => undefined),
+    // The file is written for real; the headless page never opens Calendar.
+    ...calendarHandlers({
+      client: service.client,
+      folder: mkdtempSync(join(tmpdir(), "zolt-e2e-calendar-")),
+      open: async () => "",
+    }),
     [IPC_CHANNELS.accountGetStatus]: () => account,
     [IPC_CHANNELS.accountSignIn]: () => account,
     [IPC_CHANNELS.accountSignOut]: () => account,
@@ -378,6 +385,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         setPaused: call(channels.routinesSetPaused),
         setSchedule: call(channels.routinesSetSchedule),
         runNow: call(channels.routinesRunNow),
+        addToCalendar: call(channels.routinesAddToCalendar),
       },
       templates: {
         list: call(channels.agentTemplatesList),

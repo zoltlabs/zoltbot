@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { CLI_CHANNELS } from "../shared/cli";
 import {
   type AgentEvent,
   type AttachmentImportEvent,
@@ -9,7 +10,6 @@ import {
   type UpdateStatus,
   type ViewHostEvent,
 } from "../shared/ipc";
-import { CLI_CHANNELS } from "../shared/cli";
 import { PREFERENCE_CHANNELS, type Preferences } from "../shared/preferences";
 
 /** ATTACHMENT_MAX_BYTES, kept here so the preload stays free of the protocol package. */
@@ -280,6 +280,7 @@ const openbotApi: OpenBotDesktopApi = {
     setPaused: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetPaused, input),
     setSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetSchedule, input),
     runNow: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesRunNow, id),
+    addToCalendar: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesAddToCalendar, input),
   },
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
