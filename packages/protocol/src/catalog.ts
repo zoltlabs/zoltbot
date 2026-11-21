@@ -11,7 +11,6 @@ import {
 } from "./artifacts.js";
 import { backupModelMethods } from "./backup-models.js";
 import { bridgeMethods } from "./bridges.js";
-import { vaultMethods } from "./vault.js";
 import { BrowserSelectionSchema, browserMethods } from "./browser.js";
 import {
   ChannelPostSchema,
@@ -101,6 +100,7 @@ import {
 import { SkillProposalSchema, skillMethods } from "./skills.js";
 import { staffMethods } from "./staff.js";
 import { terminalMethods } from "./terminal.js";
+import { vaultMethods } from "./vault.js";
 
 import { ViewRecordSchema, viewMethods } from "./views.js";
 import { WakeSchema, wakeMethods } from "./wakes.js";
@@ -222,7 +222,12 @@ const rawMethodCatalog = {
   ...bridgeMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
-    object({ protocolVersion: Type.Integer(), version: Text }),
+    object({
+      protocolVersion: Type.Integer(),
+      version: Text,
+      // I8: where the owner installs the GitHub App; only when this daemon has a cloud account.
+      githubInstallUrl: Type.Optional(Text),
+    }),
   ),
   "snapshot.get": entry(
     empty,

@@ -145,7 +145,21 @@ export const shippingMethods = {
 };
 /** I8: when true, pull requests come from zoltbot[bot] on repositories with the app installed. */
 export const GITHUB_BOT_SETTING = "github.postAsBot";
-export const GITHUB_APP_INSTALL_URL = "https://github.com/apps/zoltbot/installations/new";
+/**
+ * I8: the cloud page that starts installing the GitHub App and links it to the signed-in account.
+ * It sits under the build's cloud origin, so forks and test clouds get their own.
+ */
+export const GITHUB_APP_INSTALL_PATH = "/api/github/install";
+export function githubAppInstallUrl(cloudOrigin: string | undefined): string | undefined {
+  if (!cloudOrigin) return undefined;
+  try {
+    const url = new URL(GITHUB_APP_INSTALL_PATH, cloudOrigin);
+    const local = url.protocol === "http:" && url.hostname === "127.0.0.1";
+    return url.protocol === "https:" || local ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
 export const shippingMacOnlyMethods = [
   "shipping.setup",
   "shipping.linkPreview",

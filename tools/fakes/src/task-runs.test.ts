@@ -524,6 +524,13 @@ for (const cloud of ["off", "startup_failed", "native_owner", "native_owner_fail
         seed(daemon, test.store.snapshot()[kind] ?? [], kind, "seed");
       seed(daemon, [project([])], "project", "seed");
       client = await connect(daemon);
+      // I8: a daemon with a cloud account names the cloud's GitHub App install page.
+      const hello = await client.call("hello", { token: daemon.token, protocolVersion: 1 });
+      expect(hello.githubInstallUrl).toBe(
+        nativeRoot && cloud === "native_owner"
+          ? `http://127.0.0.1:${address.port}/api/github/install`
+          : undefined,
+      );
       const created = await client.call(
         "task.create",
         {

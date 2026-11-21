@@ -1,4 +1,4 @@
-import { GITHUB_APP_INSTALL_URL, GITHUB_BOT_SETTING } from "@zoltbot/protocol";
+import { GITHUB_BOT_SETTING } from "@zoltbot/protocol";
 import { useState } from "react";
 import type { ChatConnection, Row } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
@@ -54,10 +54,15 @@ export function GitHubSettings({ connection }: { connection: ChatConnection }) {
         </label>
         <p className="settings-hint">
           Pull requests come from zoltbot[bot] on repositories where the Zoltbot app is installed,
-          and from you everywhere else. Needs a Zoltbot account.{" "}
-          <a href={GITHUB_APP_INSTALL_URL} target="_blank" rel="noreferrer">
-            Install on GitHub
-          </a>
+          and from you everywhere else. Needs a Zoltbot account.
+          {connection.githubInstallUrl ? (
+            <>
+              {" "}
+              <a href={connection.githubInstallUrl} target="_blank" rel="noreferrer">
+                Install on GitHub
+              </a>
+            </>
+          ) : null}
         </p>
       </div>
       {tasks.length ? (

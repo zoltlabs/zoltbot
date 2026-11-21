@@ -19,6 +19,7 @@ import { type Command, handle } from "@zoltbot/core/commands";
 import { pairingOfferTtlMs } from "@zoltbot/link";
 import {
   type DomainEvent,
+  githubAppInstallUrl,
   HOST_WORKSPACE_REF,
   ImportReceiptSchema,
   type Interaction,
@@ -114,6 +115,8 @@ async function startOwnedDaemon(
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
   let botTokens: ReturnType<typeof githubAccountTokens> | undefined;
+  // I8: the cloud's install page for the GitHub App, which the settings link opens.
+  const githubInstallUrl = githubAppInstallUrl(options.nativeAccount?.origin);
   if (options.nativeAccount) {
     const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
       logger.write("warn", "native_account_unavailable"),
@@ -663,7 +666,11 @@ async function startOwnedDaemon(
       case "hello":
         // D3: the app that started this daemon names its version, so a newer app can tell the
         // daemon is older and replace it.
-        return { protocolVersion, version: process.env.ZOLTBOT_APP_VERSION || null };
+        return {
+          protocolVersion,
+          version: process.env.ZOLTBOT_APP_VERSION || null,
+          ...(githubInstallUrl ? { githubInstallUrl } : {}),
+        };
       case "snapshot.get": {
         const entities = store.snapshot();
         const partial = new Map(manager?.streamItems().map((item) => [item.id, item]) ?? []);
