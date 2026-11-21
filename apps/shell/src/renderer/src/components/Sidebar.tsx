@@ -34,6 +34,7 @@ import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link
 import { openVoiceSettings, VoiceSettingsHost } from "./conversation/VoiceSettings";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
+import { createCliEntry } from "./cli/CliEntry";
 import {
   AccountIcon,
   CloseIcon,
@@ -96,6 +97,8 @@ interface SidebarProps {
   onOpenMemory?: () => void;
   usageOpen?: boolean;
   onOpenUsage?: () => void;
+  routinesOpen?: boolean;
+  onOpenRoutines?: () => void;
   /** V1: the Vault page. */
   vaultOpen?: boolean;
   onOpenVault?: () => void;
@@ -366,6 +369,7 @@ export function Sidebar(props: SidebarProps) {
   }
 
   const bridges = createBridgesEntry();
+  const cli = createCliEntry();
   const appearanceEntry = createAppearanceEntry();
   const soundsEntry = createSoundsEntry();
   const dockEntry = createDockEntry();
@@ -474,6 +478,7 @@ export function Sidebar(props: SidebarProps) {
         dockEntry.item(),
         keyboardEntry.item(),
         moveEntry.item(),
+        ...[cli.item()].filter((item) => item !== undefined),
       ],
       [
         {
@@ -532,6 +537,8 @@ export function Sidebar(props: SidebarProps) {
         onOpenMemory={props.onOpenMemory}
         usageOpen={props.usageOpen}
         onOpenUsage={props.onOpenUsage}
+        routinesOpen={props.routinesOpen}
+        onOpenRoutines={props.onOpenRoutines}
         vaultOpen={props.vaultOpen}
         onOpenVault={props.onOpenVault}
         dataOpen={props.dataOpen}
@@ -815,6 +822,7 @@ export function Sidebar(props: SidebarProps) {
       <freshEntry.Dialog />
       <moveEntry.Dialog />
       <keyboardEntry.Dialog />
+      <cli.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu

@@ -9,6 +9,7 @@ export type Route =
   | { id: "models" }
   | { id: "memory"; agentId: string | null }
   | { id: "usage" }
+  | { id: "routines" }
   | { id: "vault" }
   | { id: "data" };
 

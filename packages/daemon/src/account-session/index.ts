@@ -1,6 +1,7 @@
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { type Credentials, parseCredentials as credentials } from "@zoltbot/cloud-contracts";
 import { cloudSettingsRequest } from "./cloud-settings.js";
+import { hookRouteRequest } from "./hook-routes.js";
 
 export interface AccountSessionOptions {
   origin?: string;
@@ -154,6 +155,14 @@ export function accountSession(options: AccountSessionOptions) {
         };
         if (routes[path] !== method) throw new Error("account_request_invalid");
         return request(path, method, payload, true);
+      }),
+    // R2: the daemon's own client for routine web addresses; the broker's IPC can't reach these.
+    hookRequest: (path: string, method = "GET", payload?: string) =>
+      serialized(async () => {
+        if (!origin) throw new Error("accounts_not_configured");
+        const route = hookRouteRequest(path, method, payload);
+        if (!route) throw new Error("account_request_invalid");
+        return route.response(await request(path, method, route.payload, true));
       }),
     endpoint,
     sessionId: () => tokens?.sessionId,

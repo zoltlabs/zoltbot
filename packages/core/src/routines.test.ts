@@ -72,3 +72,22 @@ it("rejects the former workflow and continuing-session routine contract", () => 
     parse(RoutineSchema, { id: "old", target: { kind: "prompt", chatMode: "continue" } }),
   ).toThrow();
 });
+
+it("R1: a one-time schedule runs at its instant across a clock change, then never", () => {
+  // 1:30 on the morning New York's clocks go back is a fixed instant, not a wall time.
+  const once = {
+    cron: "@once",
+    timezone: "America/New_York",
+    at: "2026-11-01T06:30:00.000Z",
+  };
+  expect(nextRoutineRun(once, "2026-11-01T00:00:00Z")).toBe("2026-11-01T06:30:00.000Z");
+  expect(nextRoutineRun(once, "2026-11-01T06:30:00Z")).toBe("9999-12-31T23:59:59.000Z");
+  expect(routineGrace(once, once.at)).toBe(3 * 60 * 60_000);
+  expect(() => nextRoutineRun({ cron: "@once", timezone: "UTC" }, once.at)).toThrow(
+    "invalid_routine_schedule",
+  );
+  expect(() =>
+    nextRoutineRun({ cron: "0 9 * * *", timezone: "UTC", at: once.at }, once.at),
+  ).toThrow("invalid_routine_schedule");
+  expect(() => nextRoutineRun({ ...once, timezone: "invalid" }, once.at)).toThrow();
+});

@@ -49,6 +49,7 @@ import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
 import { createChatActions } from "./components/sidebar/chat-actions";
 import { TasksPage } from "./components/TasksPage";
+import { RoutinesPage } from "./components/routines/RoutinesPage";
 import { UsagePage } from "./components/UsagePage";
 import { VaultPage } from "./components/vault/VaultPage";
 import type { BotProfile } from "./data";
@@ -73,6 +74,7 @@ export function App() {
   }));
   const [modelsOpen, setModelsOpen] = pageFlag(pages, "models");
   const [usageOpen, setUsageOpen] = pageFlag(pages, "usage");
+  const [routinesOpen, setRoutinesOpen] = pageFlag(pages, "routines");
   const [vaultOpen, setVaultOpen] = pageFlag(pages, "vault");
   const [dataOpen, setDataOpen] = pageFlag(pages, "data");
   const [memoryAgent, setMemoryAgent] = createSignal<string | null>(null);
@@ -178,6 +180,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setRoutinesOpen(false);
     setDataOpen(false);
     setAgentPickerOpen(false);
     setTasksProject(projectId === undefined ? (activeBot()?.projectId ?? null) : projectId);
@@ -203,6 +206,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setRoutinesOpen(false);
     setDataOpen(false);
     setAgentPickerOpen(false);
     channels.open(channelId);
@@ -427,6 +431,12 @@ export function App() {
     setMemoryOpen(true);
   }
 
+  function openRoutines() {
+    closePages();
+    setAgentPickerOpen(false);
+    setRoutinesOpen(true);
+  }
+
   function openVault() {
     closePages();
     setAgentPickerOpen(false);
@@ -453,6 +463,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setRoutinesOpen(false);
     setVaultOpen(false);
     setDataOpen(false);
   }
@@ -464,6 +475,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setRoutinesOpen(false);
     setVaultOpen(false);
     setDataOpen(false);
     setAgentPickerOpen(false);
@@ -680,6 +692,7 @@ export function App() {
       modelsOpen() ||
       memoryOpen() ||
       usageOpen() ||
+      routinesOpen() ||
       vaultOpen() ||
       dataOpen() ||
       channelOpen()
@@ -781,6 +794,7 @@ export function App() {
                 modelsOpen() ||
                 memoryOpen() ||
                 usageOpen() ||
+                routinesOpen() ||
                 vaultOpen() ||
                 dataOpen() ||
                 channelOpen()
@@ -800,6 +814,7 @@ export function App() {
                     setModelsOpen(false);
                     setMemoryOpen(false);
                     setUsageOpen(false);
+                    setRoutinesOpen(false);
                     setVaultOpen(false);
                     setDataOpen(false);
                     setAgentPickerOpen(false);
@@ -813,6 +828,7 @@ export function App() {
                 setModelsOpen(false);
                 setMemoryOpen(false);
                 setUsageOpen(false);
+                setRoutinesOpen(false);
                 setDataOpen(false);
                 setMapOpen(true);
               }}
@@ -829,6 +845,8 @@ export function App() {
               onOpenMemory={() => openMemory()}
               usageOpen={usageOpen()}
               onOpenUsage={openUsage}
+              routinesOpen={routinesOpen()}
+              onOpenRoutines={openRoutines}
               vaultOpen={vaultOpen()}
               onOpenVault={openVault}
               dataOpen={dataOpen()}
@@ -879,6 +897,7 @@ export function App() {
               modelsOpen() ||
               memoryOpen() ||
               usageOpen() ||
+              routinesOpen() ||
               vaultOpen() ||
               dataOpen() ||
               channelOpen() ||
@@ -954,6 +973,12 @@ export function App() {
                 if (chatId && botList().some((bot) => bot.id === chatId)) selectBot(chatId);
                 else setMapOpen(false);
               }}
+            />
+          </Show>
+          <Show when={routinesOpen()}>
+            <RoutinesPage
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
             />
           </Show>
           <Show when={usageOpen()}>

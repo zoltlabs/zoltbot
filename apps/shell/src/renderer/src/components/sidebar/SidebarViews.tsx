@@ -1,4 +1,4 @@
-// The sidebar's page buttons: Map, Tasks, Models, Memory, Usage, Vault and Data.
+// The sidebar's page buttons: Map, Tasks, Models, Memory, Routines, Usage, Vault and Data.
 import { Show } from "solid-js";
 import { t } from "../../i18n";
 import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
@@ -23,6 +23,15 @@ function UsageIcon() {
         stroke-width="1.6"
         stroke-linecap="round"
       />
+    </svg>
+  );
+}
+
+function RoutinesIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <circle cx="10" cy="10" r="6.5" stroke-width="1.4" />
+      <path d="M10 6.5V10l2.5 1.5" stroke-width="1.4" stroke-linecap="round" />
     </svg>
   );
 }
@@ -54,6 +63,7 @@ export function SidebarViews(props: {
   modelsOpen?: boolean;
   memoryOpen?: boolean;
   usageOpen?: boolean;
+  routinesOpen?: boolean;
   vaultOpen?: boolean;
   dataOpen?: boolean;
   /** Tasks and approvals waiting on the owner. */
@@ -65,6 +75,7 @@ export function SidebarViews(props: {
   onOpenModels?: (() => void) | undefined;
   onOpenMemory?: (() => void) | undefined;
   onOpenUsage?: (() => void) | undefined;
+  onOpenRoutines?: (() => void) | undefined;
   onOpenVault?: (() => void) | undefined;
   onOpenData?: (() => void) | undefined;
 }) {
@@ -133,6 +144,20 @@ export function SidebarViews(props: {
               <span class="sr-only"> {t("sidebar.views.toReview")}</span>
             </span>
           </Show>
+        </button>
+      </Show>
+      <Show when={props.onOpenRoutines}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.routinesOpen === true }}
+          aria-pressed={props.routinesOpen === true}
+          onClick={() => props.onOpenRoutines?.()}
+        >
+          <span class="sidebar-map-icon">
+            <RoutinesIcon />
+          </span>
+          <span class="bot-row-copy">{t("routines.title")}</span>
         </button>
       </Show>
       <Show when={props.onOpenUsage}>

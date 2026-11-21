@@ -35,6 +35,7 @@ import {
 import { openStore } from "@zoltbot/store";
 import { WebSocket, WebSocketServer } from "ws";
 import { daemonAccountOwner } from "./account-session/daemon.js";
+import { redactedHookCloud } from "./account-session/hook-cloud.js";
 import { assetServer } from "./api-assets.js";
 import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
@@ -115,6 +116,7 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  let hookCloud = options.hookCloud;
   let botTokens: ReturnType<typeof githubAccountTokens> | undefined;
   // I8: the cloud's install page for the GitHub App, which the settings link opens.
   const githubInstallUrl = githubAppInstallUrl(options.nativeAccount?.origin);
@@ -123,6 +125,8 @@ async function startOwnedDaemon(
       logger.write("warn", "native_account_unavailable"),
     );
     if (account) resources.push(() => account.close());
+    // R2: routine web addresses go through the signed-in account; the log redacts each one.
+    hookCloud ??= account && redactedHookCloud(account.hookCloud, (url) => redactor.register(url));
     if (account)
       botTokens = githubAccountTokens(account.location(), options.nativeAccount.origin, logger);
   }
@@ -220,6 +224,7 @@ async function startOwnedDaemon(
   const projectData = new ProjectDatabases(path.join(options.dataDir, "project-data"));
   resources.push(() => projectData.close());
   const runtimeContext: RuntimeContext = {
+    ...(hookCloud ? { hookCloud } : {}),
     store,
     projectData,
     ...(options.secrets ? { secrets: options.secrets } : {}),
@@ -321,6 +326,7 @@ async function startOwnedDaemon(
     ...(options.eventRoutineTransport
       ? { eventRoutineTransport: options.eventRoutineTransport }
       : {}),
+    ...(hookCloud ? { hookCloud } : {}),
     worktrees: worktreeService(options.dataDir, store),
     requestApproval: async (draft, commandId) =>
       (await loadInteractions()).request(draft, commandId),

@@ -18,7 +18,7 @@ export interface EventIdentity {
   accountId: string;
   accountLabel: string;
   repositoryId: string;
-  sourceMode: "local_poll" | "mock";
+  sourceMode: "local_poll" | "mock" | "cloud_pull";
 }
 export interface EventScan {
   events: RoutineSourceEvent[];

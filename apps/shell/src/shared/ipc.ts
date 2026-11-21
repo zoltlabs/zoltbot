@@ -1,4 +1,5 @@
 import type { FilePreviewKind } from "@zoltbot/protocol";
+import type { CliDesktopApi } from "./cli";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
@@ -42,6 +43,7 @@ import type {
   BranchRequest,
   BranchResult,
 } from "./branches";
+import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
@@ -53,7 +55,6 @@ import type {
 import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
-import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { DATA_CHANNELS, type DataDesktopApi } from "./data";
@@ -62,12 +63,14 @@ import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from ".
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
+import { ROUTINE_CHANNELS, type RoutinesDesktopApi } from "./routines";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
 import { VAULT_CHANNELS, type VaultDesktopApi } from "./vault";
 import type { ViewsDesktopApi } from "./views";
+import { WORKFLOW_CHANNELS, type WorkflowsDesktopApi } from "./workflows";
 import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
 
 export const IPC_CHANNELS = {
@@ -148,6 +151,8 @@ export const IPC_CHANNELS = {
   ...AGENT_TEMPLATE_CHANNELS,
   ...CO_AUTHOR_CHANNELS,
   ...BRIDGE_CHANNELS,
+  ...ROUTINE_CHANNELS,
+  ...WORKFLOW_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -805,6 +810,8 @@ export interface OpenBotDesktopApi {
   dock?: import("./dock").DockDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
+  /** R5: installs the zolt command. Optional so test pages without it still load. */
+  cli?: CliDesktopApi;
   views: ViewsDesktopApi;
   artifacts: ArtifactDesktopApi;
   dictation: DictationDesktopApi;
@@ -826,4 +833,6 @@ export interface OpenBotDesktopApi {
   templates: AgentTemplatesDesktopApi;
   coAuthor: CoAuthorDesktopApi;
   bridges: BridgesDesktopApi;
+  routines: RoutinesDesktopApi;
+  workflows: WorkflowsDesktopApi;
 }

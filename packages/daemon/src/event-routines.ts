@@ -404,7 +404,9 @@ export function eventRoutines(options: {
                 taskStarted: false,
                 explanation: config.source.kind.startsWith("github.")
                   ? "Synthetic matching example only. No provider delivery or agent execution verified."
-                  : "Setup preview only. This source has no supported event delivery or normalizer yet; the draft remains paused.",
+                  : config.source.kind === "webhook.received"
+                    ? "Anyone who has this routine's web address can start it, up to the daily limit. Each request reaches the agent as untrusted data."
+                    : "Setup preview only. This source has no supported event delivery or normalizer yet; the draft remains paused.",
                 task: {
                   title: next.template.title,
                   brief: next.template.brief,
@@ -415,7 +417,9 @@ export function eventRoutines(options: {
                 offlinePolicy: EVENT_OFFLINE_POLICY,
                 setup: config.source.kind.startsWith("github.")
                   ? "Enable verifies the current gh account and repository. Uses existing GitHub shipping sign-in; this does not connect MCP tools."
-                  : "Agent tools and event delivery need separate setup in Connections. Event delivery is not yet supported for this source.",
+                  : config.source.kind === "webhook.received"
+                    ? "Enable checks that your cloud account owns this web address. Rotating the address pauses the routine until you enable it again."
+                    : "Agent tools and event delivery need separate setup in Connections. Event delivery is not yet supported for this source.",
               }
             : next;
         return { events: [routineEvent("routine", next, context), ...grantEvents], result };

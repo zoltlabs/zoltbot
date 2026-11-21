@@ -6,6 +6,7 @@ import {
   type Profile,
   parse,
   parseEvent,
+  ROUTINE_ONCE,
   type Routine,
   type RoutineOccurrence,
   RoutineOccurrenceSchema,
@@ -16,6 +17,7 @@ import { type CommandContext, handle, type Outcome } from "./commands.js";
 import { applyEvents, type DomainState } from "./projectors.js";
 import { nextRoutineRun } from "./routine-time.js";
 import { createTask, type TaskInput } from "./tasks.js";
+import { fireWorkflowRoutine } from "./workflow-triggers.js";
 
 export {
   ROUTINE_FOLDER_WAIT_MS,
@@ -151,10 +153,14 @@ export function fireRoutine(
   scheduledAt: string,
   disposition: "fire" | "missed",
   context: CommandContext,
+  /** R3: Run now. The run is marked manual and the schedule stays as it is. */
+  manual = false,
 ): Outcome {
-  const id = `${routine.id}@${new Date(scheduledAt).toISOString()}`;
+  const id = `${routine.id}@${new Date(scheduledAt).toISOString()}${manual ? ":manual" : ""}`;
   const old = state.routineOccurrence?.find((row) => row.id === id);
   if (old) return { events: [], result: old };
+  if (routine.workflowId)
+    return fireWorkflowRoutine(state, routine, id, scheduledAt, disposition, context, manual);
   const previousActive = state.routineOccurrence?.some(
     (row) =>
       row.routineId === routine.id &&
@@ -170,6 +176,7 @@ export function fireRoutine(
     scheduledAt,
     status,
     notify: routine.notify,
+    ...(manual ? { manual: true } : {}),
     createdAt: context.at,
     updatedAt: context.at,
     ...(previousActive && disposition !== "missed"
@@ -217,11 +224,13 @@ export function fireRoutine(
   const next = {
     ...routine,
     nextRunAt: nextRoutineRun(routine.schedule, scheduledAt),
+    // R1: a one-time routine is done once it has run or been missed.
+    ...(routine.schedule.cron === ROUTINE_ONCE ? { doneAt: context.at } : {}),
     updatedAt: context.at,
   };
   events.push(
     routineEvent("routineOccurrence", occurrence, context),
-    routineEvent("routine", next, context),
+    ...(manual ? [] : [routineEvent("routine", next, context)]),
   );
   return { events, result: occurrence };
 }

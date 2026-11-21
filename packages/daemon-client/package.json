@@ -1,0 +1,17 @@
+{
+  "name": "@zoltbot/daemon-client",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zoltbot/protocol": "workspace:*",
+    "ws": "8.19.0"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.1"
+  }
+}

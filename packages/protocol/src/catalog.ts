@@ -722,7 +722,12 @@ const rawMethodCatalog = {
   "workflow.list": list(PipelineVersionSchema),
   "workflow.draftFromTask": entry(object({ taskId: Id }), PipelineVersionSchema),
   "workflow.publish": entry(
-    object({ value: PipelineVersionSchema, confirmed: Type.Boolean() }),
+    object({
+      value: PipelineVersionSchema,
+      confirmed: Type.Boolean(),
+      /** The version the edit started from; publishing refuses if a newer one landed since. */
+      baseVersion: Type.Optional(Type.Integer({ minimum: 1 })),
+    }),
     PipelineVersionSchema,
   ),
   "workflow.run": entry(
@@ -735,9 +740,27 @@ const rawMethodCatalog = {
     WorkflowRunSchema,
   ),
   "workflow.pause": entry(idParams, ok),
+  /** R7: start new steps again in a paused workflow's runs. */
+  "workflow.resume": entry(idParams, ok),
+  /** R7: answer a run's "wait for my approval" step. */
+  "workflow.decide": entry(
+    object({ id: Id, stepId: Id, decision: values(["continue", "stop"]) }),
+    WorkflowRunSchema,
+  ),
   "workflow.runs": list(WorkflowRunSchema),
   "routine.list": list(RoutineSchema),
+  /** R3: starts a scheduled routine now, without moving its schedule. */
+  "routine.runNow": entry(object({ id: Id }), RoutineOccurrenceSchema),
   "routine.checkSource": entry(object({ id: Id, revision: Type.Integer() }), RoutineSchema),
+  // R2: a web-address routine's address, made if missing; `rotate` replaces it.
+  "routine.webhookAddress": entry(
+    object({ id: Id, rotate: Type.Optional(Type.Boolean()) }),
+    Type.Union([
+      object({ state: Type.Literal("ready"), url: Type.String({ maxLength: 2048 }) }),
+      object({ state: Type.Literal("elsewhere") }),
+    ]),
+  ),
+  "routine.webhookTest": entry(object({ id: Id }), object({ ok: Type.Literal(true) })),
   "routine.connectionHandoff": entry(object({ id: Id, revision: Type.Integer() }), Json),
   "routine.prepare": entry(EventRoutineInputSchema, RoutineSchema),
   "routine.editEvent": entry(

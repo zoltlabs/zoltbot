@@ -33,6 +33,8 @@ function reserved(key: string) {
     key.startsWith("browser.purchase.") ||
     key.startsWith("fork.") ||
     (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
+    // R7: a workflow pauses only through workflow.pause, which pauses its routine too.
+    key.startsWith("workflow.") ||
     key.startsWith("routine.handoff.") ||
     key.startsWith("routine.event.health.") ||
     key.startsWith("runtime.private.") ||

@@ -14,6 +14,7 @@ import {
   values,
 } from "./common.js";
 import { EventRoutineConfigSchema, RoutineSourceEventSchema } from "./event-routines.js";
+import { WorkflowGraphSchema, WorkflowStepStateSchema } from "./workflow-graph.js";
 
 export const SourceRefSchema = object({
   kind: values(["task", "thread", "file", "url", "deliverable"]),
@@ -196,13 +197,20 @@ export const PipelineVersionSchema = object({
       maxRounds: Type.Integer({ minimum: 1 }),
     }),
   ),
+  /** R7: steps linked as a graph. Without it, `stages` run in order as before. */
+  graph: Type.Optional(WorkflowGraphSchema),
 });
 export type PipelineVersion = Static<typeof PipelineVersionSchema>;
 export const RoutineScheduleSchema = object({
-  // Five-field daily/weekly cron, or @every <minutes>m.
+  // Five-field daily/weekly cron, or @every <minutes>m. R1: "@once" with `at` runs one time.
   cron: Text,
   timezone: Text,
+  at: Type.Optional(At),
 });
+/** R1: the `cron` value of a schedule that runs once, at `at`. */
+export const ROUTINE_ONCE = "@once";
+/** R1: a routine with nothing left to run has this as its next run. */
+export const ROUTINE_NEVER = "9999-12-31T23:59:59.000Z";
 export const RoutineInputsSchema = object({
   browser: Type.Optional(BrowserSelectionSchema),
   knowledge: Type.Union([Type.Literal("inherit"), Strings]),
@@ -220,6 +228,8 @@ export const RoutineTemplateSchema = object({
 });
 export const RoutineSchema = object({
   event: Type.Optional(EventRoutineConfigSchema),
+  /** R7: the workflow this routine starts; published workflows own these routines. */
+  workflowId: Type.Optional(Id),
   id: Id,
   name: Text,
   schedule: RoutineScheduleSchema,
@@ -227,6 +237,8 @@ export const RoutineSchema = object({
   permissionCeiling: PermissionProfileSchema,
   notify: values(["always", "actionable_only"]),
   paused: Type.Boolean(),
+  /** R1: when a one-time routine ran (or was missed); it stays in history. */
+  doneAt: Type.Optional(At),
   nextRunAt: At,
   createdAt: At,
   updatedAt: At,
@@ -278,4 +290,9 @@ export const WorkflowRunSchema = object({
   resultHash: OptionalText,
   startedAt: Type.Optional(At),
   endedAt: Type.Optional(At),
+  /** R7: each step's state, for workflows with a graph. */
+  steps: Type.Optional(Type.Array(WorkflowStepStateSchema)),
+  /** R7: why a graph run stopped, as a short code. */
+  reason: Type.Optional(Type.String({ maxLength: 100 })),
 });
+export type WorkflowRun = Static<typeof WorkflowRunSchema>;

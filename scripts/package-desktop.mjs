@@ -55,6 +55,9 @@ cpSync(path.join(root, "apps/shell/out"), path.join(stage, "out"), { recursive: 
 cpSync(path.join(root, "apps/shell/build/zoltbot.png"), path.join(stage, "zoltbot.png"));
 const shellPackage = json("apps/shell/package.json");
 
+// R5: the zolt command, run by Settings' "Install command-line tool" with the app's own Node.
+run("node", ["apps/cli/build.mjs", path.join(stage, "zolt.mjs")]);
+
 // Workspace files the daemon reads next to its source, at the same relative paths.
 const { metafile } = await bundleRuntime(
   "packages/daemon/src/main.ts",

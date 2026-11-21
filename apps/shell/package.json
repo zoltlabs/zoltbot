@@ -40,6 +40,7 @@
     "@floating-ui/dom": "1.8.0",
     "@zoltbot/artifact-kit": "workspace:*",
     "@zoltbot/daemon": "workspace:*",
+    "@zoltbot/daemon-client": "workspace:*",
     "@zoltbot/protocol": "workspace:*",
     "electron-updater": "^6.8.11",
     "mdast-util-from-markdown": "2.1.0",

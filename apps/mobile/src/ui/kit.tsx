@@ -202,7 +202,14 @@ export function Row({
     styles.row,
     !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
   ];
-  if (!onPress) return <View style={style}>{content}</View>;
+  if (!onPress)
+    return label ? (
+      <View style={style} accessible accessibilityLabel={label}>
+        {content}
+      </View>
+    ) : (
+      <View style={style}>{content}</View>
+    );
   return (
     <Pressable
       onPress={onPress}

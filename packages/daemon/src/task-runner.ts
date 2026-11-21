@@ -41,6 +41,10 @@ import { prepareTaskWorktree } from "./prepare-task-worktree.js";
 import type { PublicWriteCheck } from "./private-input.js";
 import { routineScheduler } from "./routine-scheduler.js";
 import type { Runner } from "./runner/interface.js";
+import { webhookAddressApi } from "./webhook-address-api.js";
+import { webhookEventSource } from "./webhook-event-source.js";
+import { workflowRunner } from "./workflow-runner.js";
+import { workflowsApi } from "./workflows-api.js";
 import { worktreeApi } from "./worktree-api.js";
 import type { worktreeService } from "./worktree-service.js";
 
@@ -53,6 +57,7 @@ export interface TaskRunnerOptions {
   now?(): string;
   routinePollMs?: number;
   eventRoutineTransport?: import("../../github/src/transport.js").GitHubTransport;
+  hookCloud?: import("./webhook-event-source.js").HookCloud;
   stopUnattended?(threadId: string): Promise<void>;
   worktrees?: ReturnType<typeof worktreeService>;
   requestApproval?(draft: InteractionDraft, commandId: string): Promise<unknown>;
@@ -144,28 +149,61 @@ export function taskRunner(options: TaskRunnerOptions) {
   const events = eventRoutines({
     checkPublic: options.checkPublic,
     ...(options.eventRoutineTransport ? { transport: options.eventRoutineTransport } : {}),
+    ...(options.hookCloud ? { adapters: [webhookEventSource(options.hookCloud)] } : {}),
     store,
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (id, work) => run(id, system, work),
+  });
+  /** Stop a routine's or workflow step's task turn. */
+  async function stopTask(taskId: string) {
+    const row = task(taskId);
+    if (row.threadId && stop) {
+      await stop(row.threadId);
+      return;
+    }
+    const turn = (store.snapshot(["turn"]).turn ?? []).find(
+      (entry) => entry.threadId === row.threadId && entry.status === "running",
+    );
+    if (row.threadId && turn && interrupt)
+      await interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`).catch(() =>
+        options.onError?.("routine_stop_uncertain"),
+      );
+  }
+  const runs = workflowRunner({
+    store,
+    run,
+    stop: stopTask,
+    ...(options.now ? { now: options.now } : {}),
+    checkPublic: options.checkPublic,
+    ...(options.onError ? { onError: options.onError } : {}),
+  });
+  const workflows = workflowsApi({
+    ...options,
+    start: async (workflow, inputs, commandId) => {
+      const result = await runs.start(workflow, inputs, commandId);
+      void schedule();
+      return result;
+    },
+    control: (method, params, commandId) => {
+      const result = runs.control(method, params, commandId);
+      void schedule();
+      return result;
+    },
+  });
+  const addresses = webhookAddressApi({
+    store,
+    hookCloud: options.hookCloud,
+    rebind: async (id, revision, commandId) => {
+      const params = { id, revision };
+      const check = store.receipt(commandId) ? undefined : await options.checkPublic(params);
+      return events.api("routine.checkSource", params, commandId, check);
+    },
   });
   const routines = routineScheduler({
     store,
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (commandId, work) => run(commandId, system, work),
-    async stop(taskId) {
-      const row = task(taskId);
-      if (row.threadId && stop) {
-        await stop(row.threadId);
-        return;
-      }
-      const turn = (store.snapshot(["turn"]).turn ?? []).find(
-        (entry) => entry.threadId === row.threadId && entry.status === "running",
-      );
-      if (row.threadId && turn && interrupt)
-        await interrupt(row.threadId, String(turn.id), `routine:stop:${taskId}`).catch(() =>
-          options.onError?.("routine_stop_uncertain"),
-        );
-    },
+    stop: stopTask,
   });
   const routineTimer = setInterval(() => {
     void schedule();
@@ -205,6 +243,7 @@ export function taskRunner(options: TaskRunnerOptions) {
   async function scheduleOnce() {
     await routines.tick();
     await events.tick();
+    runs.tick();
     const state = store.snapshot([
       "task",
       "project",
@@ -378,6 +417,7 @@ export function taskRunner(options: TaskRunnerOptions) {
             options.onError?.("task_finish_failed");
           }
         }
+        runs.observe(events);
         void schedule();
       });
     },
@@ -399,6 +439,7 @@ export function taskRunner(options: TaskRunnerOptions) {
           options.onError?.("task_resume_failed");
         }
       }
+      runs.resume();
       await schedule();
     },
     async api(
@@ -406,6 +447,8 @@ export function taskRunner(options: TaskRunnerOptions) {
       params: Record<string, unknown>,
       commandId?: string,
     ): Promise<unknown> {
+      if (addresses.handles(method)) return addresses.api(method, params, commandId);
+      if (method.startsWith("workflow.")) return workflows(method, params, commandId);
       if (method.startsWith("routine.")) {
         const check =
           commandId &&

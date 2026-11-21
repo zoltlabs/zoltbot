@@ -2,8 +2,15 @@ import { type Static, Type } from "@sinclair/typebox";
 import { At, Id, object, ScopeSchema, values } from "./common.js";
 
 const Short = Type.String({ minLength: 1, maxLength: 200 });
+/** R2: "webhook.received" is a request to the routine's web address, relayed by the cloud. */
+const EventKindSchema = values([
+  "github.ci_failed",
+  "sentry.issue_created",
+  "github.review_requested",
+  "webhook.received",
+]);
 export const EventSourceSchema = object({
-  kind: values(["github.ci_failed", "sentry.issue_created", "github.review_requested"]),
+  kind: EventKindSchema,
   resource: Type.String({
     minLength: 1,
     maxLength: 200,
@@ -27,7 +34,7 @@ export const EventRoutineConfigSchema = object({
   commandDigest: Type.Optional(Id),
   revision: Type.Integer({ minimum: 1 }),
   generation: Type.Optional(Type.Integer({ minimum: 1 })),
-  sourceMode: Type.Optional(values(["local_poll", "mock"])),
+  sourceMode: Type.Optional(values(["local_poll", "mock", "cloud_pull"])),
   phase: values(["draft", "saved"]),
   proposedBy: Id,
   chatId: Type.Optional(Id),
@@ -44,7 +51,7 @@ export const RoutineSourceEventSchema = object({
   normalizerVersion: Type.Literal(1),
   digest: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   key: Short,
-  kind: values(["github.ci_failed", "sentry.issue_created", "github.review_requested"]),
+  kind: EventKindSchema,
   resource: Short,
   accountId: Short,
   resourceId: Short,

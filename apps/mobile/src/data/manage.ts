@@ -46,7 +46,22 @@ export function readClockText(value: string): { hour: number; minute: number } |
   return { hour: Number(match[1]), minute: Number(match[2]) };
 }
 
+/** R1: "Once, Fri 6 Nov, 9:00" in the routine's own timezone. */
+export function onceLabel(schedule: Routine["schedule"]): string {
+  const at = new Date(schedule.at ?? "");
+  if (Number.isNaN(at.getTime())) return "Once";
+  return `Once, ${at.toLocaleString(undefined, {
+    timeZone: schedule.timezone,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
+
 export function scheduleLabel(cron: string): string {
+  if (cron === "@once") return "Once";
   const schedule = readSchedule(cron);
   if (schedule.kind === "other") return cron;
   if (schedule.kind === "interval")
@@ -66,6 +81,8 @@ export const notifyLabel = (notify: Routine["notify"]) =>
 export function routineStatus(routine: Routine): string {
   if (routine.paused) return "Paused";
   if (routine.event) return "Waiting for events";
+  if (routine.doneAt) return "Done";
+  if (routine.schedule.cron === "@once") return onceLabel(routine.schedule);
   const next = new Date(routine.nextRunAt);
   if (Number.isNaN(next.getTime())) return scheduleLabel(routine.schedule.cron);
   return `Next ${next.toLocaleString(undefined, {

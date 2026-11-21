@@ -5,6 +5,7 @@ import {
   type DomainState,
   expireInteractions,
   fireRoutine,
+  handle,
   nextRoutineRun,
   type Outcome,
   ROUTINE_FOLDER_WAIT_MS,
@@ -17,6 +18,7 @@ import {
   routineGrace,
   routineOutcome,
   taskSpendUsd,
+  workflowPausedKey,
 } from "@zoltbot/core";
 import {
   type PermissionProfile,
@@ -190,7 +192,10 @@ export function routineScheduler(options: {
       );
       // On boot/wake there is one catch-up allowance for the daemon, across all routines.
       const latestMissed = routines
-        .filter((routine) => !routine.event && !routine.paused && routine.nextRunAt <= now)
+        .filter(
+          (routine) =>
+            !routine.event && !routine.paused && !routine.doneAt && routine.nextRunAt <= now,
+        )
         .map((routine) => {
           let latest = routine.nextRunAt,
             next = nextRoutineRun(routine.schedule, latest);
@@ -208,7 +213,7 @@ export function routineScheduler(options: {
           (a, b) => b.latest.localeCompare(a.latest) || a.routine.id.localeCompare(b.routine.id),
         )[0]?.routine.id;
       for (const routine of routines) {
-        if (routine.event || routine.paused || routine.nextRunAt > now) continue;
+        if (routine.event || routine.paused || routine.doneAt || routine.nextRunAt > now) continue;
         const due: string[] = [];
         let cursor = routine.nextRunAt;
         while (cursor <= now) {
@@ -227,7 +232,7 @@ export function routineScheduler(options: {
               RoutineSchema,
               state.routine?.find((row) => row.id === routine.id),
             );
-            if (current.paused) return { events: [], result: current };
+            if (current.paused || current.doneAt) return { events: [], result: current };
             return fireRoutine(state, current, scheduledAt, catchUp ? "fire" : "missed", context);
           });
         }
@@ -273,6 +278,27 @@ export function routineScheduler(options: {
             { ...context, actor: { kind: "human", id: "local-owner" } },
           ),
         );
+      if (method === "routine.runNow")
+        return command(commandId, (state, context) => {
+          const current = parse(
+            RoutineSchema,
+            state.routine?.find((row) => row.id === params.id),
+          );
+          if (current.event) throw new Error("use_event_routine_commands");
+          // R3: a second Run now while one is going adds nothing, not even a skipped row.
+          const active = state.routineOccurrence?.some(
+            (row) =>
+              row.routineId === current.id &&
+              ["queued", "started"].includes(String(row.status)) &&
+              state.task?.some(
+                (task) =>
+                  task.id === row.taskId &&
+                  ["queued", "running", "blocked"].includes(String(task.state)),
+              ),
+          );
+          if (active) throw new Error("routine_running");
+          return fireRoutine(state, current, context.at, "fire", context, true);
+        });
       if (method === "routine.update")
         return command(commandId, (state, context) => {
           const old = parse(
@@ -281,9 +307,17 @@ export function routineScheduler(options: {
           );
           if (old.event) throw new Error("use_event_routine_commands");
           if (old.updatedAt !== params.expectedUpdatedAt) throw new Error("stale_revision");
+          // R7: a workflow's routine changes with the workflow; here it can only pause or resume.
+          if (
+            old.workflowId &&
+            (params.schedule || params.template || params.notify || params.permissionCeiling)
+          )
+            throw new Error("use_workflow_commands");
           const schedule = params.schedule as Routine["schedule"] | undefined;
+          // R1: a new schedule gives a finished one-time routine another run.
+          const { doneAt: _done, ...kept } = old;
           const next = parse(RoutineSchema, {
-            ...old,
+            ...(schedule ? kept : old),
             ...(schedule ? { schedule } : {}),
             ...(params.template ? { template: parse(RoutineTemplateSchema, params.template) } : {}),
             ...(params.notify ? { notify: params.notify } : {}),
@@ -301,7 +335,21 @@ export function routineScheduler(options: {
               : {}),
             updatedAt: context.at,
           });
-          return { events: [routineEvent("routine", next, context)], result: next };
+          const events = [routineEvent("routine", next, context)];
+          // R7: pausing a workflow's routine pauses the workflow's runs too.
+          if (old.workflowId && typeof params.paused === "boolean") {
+            const key = workflowPausedKey(old.workflowId);
+            events.push(
+              ...handle(
+                state,
+                state.settings?.some((row) => row.key === key)
+                  ? { type: "update", kind: "settings", id: key, changes: { value: params.paused } }
+                  : { type: "create", kind: "settings", value: { key, value: params.paused } },
+                { ...context, commandId: `${context.commandId}:workflow` },
+              ).events,
+            );
+          }
+          return { events, result: next };
         });
       return undefined;
     },

@@ -15,7 +15,7 @@ import {
   setLimits,
   startTask,
 } from "@zoltbot/core";
-import type { Routine } from "@zoltbot/protocol";
+import { ROUTINE_NEVER, type Routine } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { runtimeFixture } from "../../../tools/fakes/src/runtime-fixture.js";
 import { NotificationPlanner } from "./notifications.js";
@@ -23,7 +23,11 @@ import { recover } from "./recovery.js";
 import { taskRunner } from "./task-runner.js";
 
 const initial = "2026-11-04T00:00:00.000Z";
-async function fixture(folder = false, browser = false) {
+async function fixture(
+  folder = false,
+  browser = false,
+  schedule: Routine["schedule"] = { cron: "@every 60m", timezone: "UTC" },
+) {
   const f = await runtimeFixture();
   let now = initial,
     serial = 0;
@@ -97,7 +101,7 @@ async function fixture(folder = false, browser = false) {
         id: "r",
         name: "Check",
         taskId: "manual",
-        schedule: { cron: "@every 60m", timezone: "UTC" },
+        schedule,
         notify: "actionable_only",
         permissionCeiling: "full_access",
       },
@@ -645,6 +649,91 @@ it("A9: a run that reaches its routine's cap asks the owner, and Stop ends it", 
     expect(f.store.record("task", taskId)).toMatchObject({ state: "cancelled" });
     // The estimate reads only finished runs; this one expired.
     expect(routineRunEstimate(f.store.snapshot(), "r")).toBeUndefined();
+  } finally {
+    f.close();
+  }
+});
+
+it("R1: runs a one-time routine once, then keeps it as done", async () => {
+  const f = await fixture(false, false, {
+    cron: "@once",
+    timezone: "America/New_York",
+    at: "2026-11-04T14:00:00.000Z",
+  });
+  try {
+    expect(f.routine.nextRunAt).toBe("2026-11-04T14:00:00.000Z");
+    f.setNow("2026-11-04T13:59:00.000Z");
+    await f.runner.schedule();
+    expect(f.occurrences()).toHaveLength(0);
+    f.setNow("2026-11-04T14:00:30.000Z");
+    await f.runner.schedule();
+    expect(f.occurrences().map((row) => row.status)).toEqual(["queued"]);
+    const done = f.store.record("routine", "r");
+    expect(done?.doneAt).toBe("2026-11-04T14:00:30.000Z");
+    expect(done?.nextRunAt).toBe(ROUTINE_NEVER);
+    f.setNow("2026-11-05T14:00:30.000Z");
+    await f.runner.schedule();
+    expect(f.occurrences()).toHaveLength(1);
+  } finally {
+    f.close();
+  }
+});
+
+it("R1: a one-time run missed while the Mac slept follows the missed-run rule", async () => {
+  const late = await fixture(false, false, {
+    cron: "@once",
+    timezone: "UTC",
+    at: "2026-11-04T09:00:00.000Z",
+  });
+  try {
+    // Within three hours it still runs on wake.
+    late.setNow("2026-11-04T11:30:00.000Z");
+    await late.runner.schedule();
+    expect(late.occurrences().map((row) => row.status)).toEqual(["queued"]);
+  } finally {
+    late.close();
+  }
+  const missed = await fixture(false, false, {
+    cron: "@once",
+    timezone: "UTC",
+    at: "2026-11-04T09:00:00.000Z",
+  });
+  try {
+    missed.setNow("2026-11-04T13:00:00.000Z");
+    await missed.runner.schedule();
+    expect(missed.occurrences().map((row) => row.status)).toEqual(["missed"]);
+    expect(missed.store.record("routine", "r")?.doneAt).toBeTruthy();
+    expect(missed.store.snapshot(["task"]).task).toHaveLength(1);
+  } finally {
+    missed.close();
+  }
+});
+
+it("R3: Run now starts a manual run and leaves the schedule as it was", async () => {
+  const f = await fixture(false, false, {
+    cron: "@once",
+    timezone: "UTC",
+    at: "2026-11-05T09:00:00.000Z",
+  });
+  try {
+    f.setNow("2026-11-04T10:00:00.000Z");
+    const occurrence = (await f.runner.api("routine.runNow", { id: "r" }, "run-now")) as {
+      id: string;
+      manual?: boolean;
+      status: string;
+    };
+    expect(occurrence).toMatchObject({ manual: true, status: "queued" });
+    const routine = f.store.record("routine", "r");
+    expect(routine?.nextRunAt).toBe("2026-11-05T09:00:00.000Z");
+    expect(routine?.doneAt).toBeUndefined();
+    // The same command doesn't start a second run.
+    await f.runner.api("routine.runNow", { id: "r" }, "run-now");
+    expect(f.occurrences()).toHaveLength(1);
+    // Nor does another while it is going; history doesn't grow.
+    await expect(f.runner.api("routine.runNow", { id: "r" }, "run-again")).rejects.toThrow(
+      "routine_running",
+    );
+    expect(f.occurrences()).toHaveLength(1);
   } finally {
     f.close();
   }

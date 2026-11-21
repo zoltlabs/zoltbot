@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
@@ -13,6 +14,7 @@ import {
   nativeImage,
   nativeTheme,
   type OpenDialogOptions,
+  powerSaveBlocker,
   protocol,
   session,
   shell,
@@ -53,6 +55,9 @@ import { startFreshHandlers } from "./start-fresh";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
+import { calendarHandlers } from "./desktop/calendar-handlers";
+import { webAddressHandlers } from "./desktop/web-address-handlers";
+import { cliHandlers } from "./desktop/cli-handlers";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
@@ -62,6 +67,7 @@ import { desktopKitAsset } from "./desktop/kit-assets";
 import { desktopAccountClient } from "./desktop/native-account-client";
 import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
+import { keepAwakeController } from "./keep-awake";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
@@ -110,6 +116,14 @@ const daemonHost = new DaemonHost(
 );
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+// R4: keeps the Mac awake while agents work or a routine is due, as the owner chose.
+const keepAwake = keepAwakeController({
+  blocker: powerSaveBlocker,
+  mode: async () =>
+    (await readPreferences(join(app.getPath("userData"), PREFERENCES_FILE))).keepAwake,
+  rows: (kind) => client.rows(kind),
+  online: () => client.status === "online",
+});
 // D4: the agent dock.
 const dock = electronDock({
   preload: join(__dirname, "../preload/index.cjs"),
@@ -385,9 +399,26 @@ function registerIpcHandlers(setupFile: string): void {
       appearance.apply(saved, BrowserWindow.getAllWindows());
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
+      void keepAwake.refresh();
     },
   );
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    cliHandlers({ packaged: app.isPackaged, root: paths.root, dataDir: paths.dataDir }),
+  ))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    calendarHandlers({
+      client,
+      folder: join(paths.dataDir, "shell"),
+      open: (path) => shell.openPath(path),
+    }),
+  ))
+    handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(
+    webAddressHandlers({ client, copy: (text) => clipboard.writeText(text), commandId: randomUUID }),
+  ))
+    handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(dockHandlers(dock, showChat)))
     handleTrusted(channel, handler);
   const fresh = startFreshHandlers({
@@ -753,6 +784,13 @@ if (!hasSingleInstanceLock) {
       mainWindow.on("focus", requests.tick);
       mainWindow.on("blur", requests.tick);
       app.on("before-quit", requests.close);
+      // Only turns, tasks, routines and the connection change whether work is running.
+      client.onChange((change) => {
+        if (change.kind !== "rows" || ["turn", "task", "routine"].includes(change.aggregateType))
+          keepAwake.update();
+      });
+      void keepAwake.refresh();
+      app.on("before-quit", keepAwake.close);
       registerIpcHandlers(join(app.getPath("userData"), SETUP_FILE));
       configureApplicationMenu();
       await loadRenderer(mainWindow);

@@ -68,6 +68,15 @@ importers:
         specifier: 8.19.0
         version: 8.19.0
 
+  apps/cli:
+    dependencies:
+      '@zoltbot/daemon-client':
+        specifier: workspace:*
+        version: link:../../packages/daemon-client
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+
   apps/desktop:
     dependencies:
       '@zoltbot/cloud-contracts':
@@ -200,6 +209,9 @@ importers:
       '@zoltbot/daemon':
         specifier: workspace:*
         version: link:../../packages/daemon
+      '@zoltbot/daemon-client':
+        specifier: workspace:*
+        version: link:../../packages/daemon-client
       '@zoltbot/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -553,6 +565,19 @@ importers:
       ws:
         specifier: 8.19.0
         version: 8.19.0
+
+  packages/daemon-client:
+    dependencies:
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      ws:
+        specifier: 8.19.0
+        version: 8.19.0
+    devDependencies:
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
 
   packages/detect:
     dependencies:

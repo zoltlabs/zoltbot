@@ -1,0 +1,248 @@
+/* The Workflows view (R7). Colors are theme tokens. */
+
+.workflow-open {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.workflow-open:focus-visible,
+.workflow-step:focus-visible {
+  outline: 2px solid var(--control-accent);
+  outline-offset: 2px;
+}
+
+.workflow-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 0 12px;
+}
+
+.workflow-title {
+  flex: 1;
+  min-width: min(200px, 100%);
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.workflow-actions,
+.workflow-decide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workflow-runbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-bottom: 12px;
+}
+
+.workflow-run-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.workflow-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 16px;
+  align-items: start;
+}
+
+.workflow-detail {
+  container-type: inline-size;
+}
+
+/* The pane, not the window, decides: the sidebar can make it narrow on a wide screen. */
+@container (max-width: 720px) {
+  .workflow-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workflow-panel-asks {
+    order: -1;
+  }
+}
+
+.workflows-view .zb-kit-button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.workflow-canvas {
+  overflow: auto;
+  min-height: 160px;
+  padding: 12px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+}
+
+.workflow-plane {
+  position: relative;
+}
+
+.workflow-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.workflow-edge {
+  fill: none;
+  stroke: var(--openbot-line);
+  stroke-width: 1.5;
+}
+
+.workflow-edge-taken {
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+}
+
+.workflow-edge-untaken {
+  stroke-dasharray: 4 4;
+}
+
+.workflow-port {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.workflow-port-taken {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+
+.workflow-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-steps li {
+  position: absolute;
+}
+
+.workflow-step {
+  display: grid;
+  width: 200px;
+  height: 88px;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.workflow-step-chosen {
+  border-color: var(--text-primary);
+  background: var(--surface-option-selected);
+}
+
+.workflow-step-kind,
+.workflow-step-state {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.workflow-step-name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.workflow-step-needs_you,
+.workflow-step-failed {
+  border-width: 2px;
+}
+
+.workflow-step-needs_you .workflow-step-state,
+.workflow-step-failed .workflow-step-state {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.workflow-step-skipped .workflow-step-name {
+  color: var(--text-secondary);
+}
+
+.workflow-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.workflow-panel h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.workflow-panel dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.workflow-panel dt {
+  color: var(--text-secondary);
+}
+
+.workflow-panel dd {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.workflow-brief {
+  margin: 0;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.workflow-ask {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.workflow-form {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-form-brief {
+  min-height: 96px;
+  padding: 8px 10px;
+  resize: vertical;
+  font: inherit;
+}

@@ -12,6 +12,7 @@ export default defineConfig({
         exclude: [
           "@zoltbot/protocol",
           "@zoltbot/daemon",
+          "@zoltbot/daemon-client",
           "@zoltbot/artifact-kit",
           "mdast-util-from-markdown",
           "mdast-util-gfm",

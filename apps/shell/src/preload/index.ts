@@ -2,6 +2,7 @@ import { BUNDLE_CHANNELS } from "../shared/bundle";
 import { START_FRESH_CHANNELS } from "../shared/start-fresh";
 import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { CLI_CHANNELS } from "../shared/cli";
 import {
   type AgentBrowserFrame,
   type AgentEvent,
@@ -189,6 +190,10 @@ const openbotApi: OpenBotDesktopApi = {
       return () => ipcRenderer.removeListener(PREFERENCE_CHANNELS.preferencesEvent, handler);
     },
   },
+  cli: {
+    status: () => ipcRenderer.invoke(CLI_CHANNELS.cliStatus),
+    install: () => ipcRenderer.invoke(CLI_CHANNELS.cliInstall),
+  },
   maintenance: {
     exportData: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportData),
     exportDiagnostics: () => ipcRenderer.invoke(IPC_CHANNELS.maintenanceExportDiagnostics),
@@ -329,6 +334,23 @@ const openbotApi: OpenBotDesktopApi = {
     save: (input) => ipcRenderer.invoke(IPC_CHANNELS.bridgesSave, input),
     remove: (id) => ipcRenderer.invoke(IPC_CHANNELS.bridgesRemove, id),
     targets: () => ipcRenderer.invoke(IPC_CHANNELS.bridgesTargets),
+  },
+  routines: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.routinesList),
+    history: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesHistory, id),
+    setPaused: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetPaused, input),
+    setSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesSetSchedule, input),
+    runNow: (id) => ipcRenderer.invoke(IPC_CHANNELS.routinesRunNow, id),
+    addToCalendar: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesAddToCalendar, input),
+    webAddress: (input) => ipcRenderer.invoke(IPC_CHANNELS.routinesWebAddress, input),
+  },
+  workflows: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.workflowsList),
+    run: (id) => ipcRenderer.invoke(IPC_CHANNELS.workflowsRun, id),
+    setPaused: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsSetPaused, input),
+    decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsDecide, input),
+    agents: () => ipcRenderer.invoke(IPC_CHANNELS.workflowsAgents),
+    edit: (input) => ipcRenderer.invoke(IPC_CHANNELS.workflowsEdit, input),
   },
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
