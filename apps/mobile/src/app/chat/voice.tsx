@@ -22,7 +22,8 @@ import { useLink, useSnapshot } from "../../state/link";
 import { useTheme } from "../../theme";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { Button, Txt } from "../../ui/kit";
-import { allowListening, listen, phoneEngine } from "../../ui/speech";
+import { replyEngine, setCalling } from "../../ui/read-aloud";
+import { allowListening, listen } from "../../ui/speech";
 
 const TICK_MS = 100;
 const DENIED = "Allow the microphone and speech recognition for Zoltbot in Settings.";
@@ -146,7 +147,7 @@ export default function VoiceMode() {
         setMuted(quiet);
       },
     });
-    const queue = new SpeechQueue(() => phoneEngine(), {
+    const queue = new SpeechQueue(replyEngine, {
       onReading: (reading) => {
         if (reading) machine.speaking(texts.current.get(reading) ?? "");
         else machine.replyDone();
@@ -155,6 +156,7 @@ export default function VoiceMode() {
     const finish = () => {
       if (ended) return;
       ended = true;
+      setCalling(false);
       generation++;
       clearTimeout(retry);
       clearTimeout(slipTimer);
@@ -187,6 +189,7 @@ export default function VoiceMode() {
         session = undefined;
       },
     };
+    setCalling(true);
     void allowListening().then((allowed) => {
       if (ended) return;
       if (allowed) void hear();

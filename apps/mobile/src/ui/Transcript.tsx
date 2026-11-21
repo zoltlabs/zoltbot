@@ -15,6 +15,7 @@ import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
 import type { MarkActions } from "./message-marks";
 import { ProgressRow } from "./ProgressRow";
+import { readAloud, readableReply, stopReading, useReading } from "./read-aloud";
 import { SentFiles } from "./SentFiles";
 import { pick } from "./SessionControls";
 import { SwipeReply } from "./SwipeReply";
@@ -62,8 +63,16 @@ function MessageActions({
   marks?: MarkActions;
 }) {
   const pinned = marks?.isPinned(row.id) ?? false;
+  const reading = useReading((state) => state.id === row.id);
   const [error, setError] = useState("");
   const options = [
+    ...(readableReply(row)
+      ? [
+          reading
+            ? { label: "Stop reading", run: stopReading }
+            : { label: "Read aloud", run: () => readAloud(row) },
+        ]
+      : []),
     ...(queue
       ? queuedOptions(edit, queue)
       : edit

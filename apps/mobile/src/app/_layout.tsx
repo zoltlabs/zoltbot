@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { useLink } from "../state/link";
 import { startNotificationActions } from "../state/notifications";
+import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
 import { BotAvatarPalette } from "../ui/BotAvatar";
 import { SharingLifecycle } from "../ui/SharingLifecycle";
@@ -14,6 +15,7 @@ export default function RootLayout() {
   const booted = useLink((state) => state.booted);
   useEffect(() => {
     void useLink.getState().boot();
+    loadVoicePrefs();
   }, []);
   // Notification taps and Allow/Reject buttons, once screens can be navigated to.
   useEffect(() => (booted ? startNotificationActions() : undefined), [booted]);

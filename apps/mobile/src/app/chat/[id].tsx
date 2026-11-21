@@ -60,6 +60,7 @@ import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
 import { ReplyBar } from "../../ui/ReplyBar";
+import { useReadNewReplies } from "../../ui/read-aloud";
 import { useRowPositions } from "../../ui/row-positions";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { useCanListen, useDictation } from "../../ui/speech";
@@ -132,6 +133,7 @@ export default function Chat() {
   // O4: the composer's microphone and voice mode, in builds that can listen.
   const canListen = useCanListen();
   const dictation = useDictation(draft, setDraft, id);
+  useReadNewReplies(id, rows);
   const marks = online
     ? messageMarks(id, pinnedIds, run, (row) => {
         setReplyTo(row);
