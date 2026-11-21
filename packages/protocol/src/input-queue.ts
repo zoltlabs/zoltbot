@@ -6,7 +6,7 @@ import { At, Id, object, UserInputSchema, values } from "./common.js";
  * text: a message from another chat, a work supervision notice, or the end of a team wait.
  */
 export const InputNoticeSchema = object({
-  kind: values(["team", "supervision", "wait"]),
+  kind: values(["team", "supervision", "wait", "continue"]),
   type: Type.Optional(values(["brief", "question", "update", "reply", "report"])),
   messageId: Type.Optional(Id),
   fromThreadId: Type.Optional(Id),

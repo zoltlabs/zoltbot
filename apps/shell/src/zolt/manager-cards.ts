@@ -83,6 +83,13 @@ export function noticeFor(snapshot: Snapshot, item: Row): ConversationNotice | u
       meta: text(notice.preview) || words?.meta || text(notice.state),
     };
   }
+  if (kind === "continue")
+    return {
+      kind: "continue",
+      from: chat(snapshot, item.threadId),
+      verb: "continued automatically",
+      text: "",
+    };
   if (kind === "wait")
     return {
       kind: "wait",

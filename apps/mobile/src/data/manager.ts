@@ -25,7 +25,7 @@ export interface ChatRef {
 
 /** One compact centered line: a message between agents, a supervision notice or a wait. */
 export interface NoticeLine {
-  kind: "team" | "supervision" | "wait" | "waiting";
+  kind: "team" | "supervision" | "wait" | "continue" | "waiting";
   from?: ChatRef;
   to?: ChatRef;
   verb?: string;
@@ -142,6 +142,13 @@ export function noticeFor(snapshot: Snapshot, item: Row): NoticeLine | undefined
       meta: text(notice.preview) || known?.meta || text(notice.state),
     };
   }
+  if (kind === "continue")
+    return {
+      kind: "continue",
+      from: chatRef(snapshot, item.threadId),
+      verb: "continued automatically",
+      text: "",
+    };
   if (kind === "wait")
     return {
       kind: "wait",

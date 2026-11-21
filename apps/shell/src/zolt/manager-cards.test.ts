@@ -199,6 +199,9 @@ describe("noticeFor", () => {
         body: { notice: { kind: "wait", waitId: "wait1", state: "fallback" } },
       }),
     ).toMatchObject({ kind: "wait", meta: "fallback time passed" });
+    expect(
+      noticeFor(state, { threadId: "mgr", body: { notice: { kind: "continue" } } }),
+    ).toMatchObject({ kind: "continue", from: { name: "Payments" }, verb: "continued automatically" });
   });
 
   it("shows Zoltbot's wake-ups and notices as notices, not the person's words", () => {

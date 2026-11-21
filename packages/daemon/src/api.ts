@@ -47,6 +47,7 @@ import { conversationServices } from "./conversation-services.js";
 import { creationApi } from "./creation-api.js";
 import { type Cleanup, withDaemonResources } from "./daemon-resources.js";
 import { deviceBook } from "./devices.js";
+import { finishCheck } from "./finish-check.js";
 import { forkApi } from "./fork-api.js";
 import { shippingService } from "./github/service.js";
 import { respondHostApproval } from "./host-approvals.js";
@@ -531,6 +532,14 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => chiefWake.close());
+  // C11: a turn that ends on "I'll do X" with nothing done gets one "Continue.".
+  const finish = finishCheck({
+    store,
+    publish,
+    wake: runtimeContext.wake,
+    onError: (code) => logger.write("warn", code),
+  });
+  resources.push(() => finish.close());
   const call = async (
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
@@ -762,6 +771,7 @@ async function startOwnedDaemon(
   const taint = taintObserver(store);
   observers = (events) => {
     companyWatch.observe();
+    finish.observe(events);
     push.observe(events);
     taint(events);
     for (const event of events)

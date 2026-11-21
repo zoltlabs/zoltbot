@@ -179,6 +179,18 @@ describe("manager chat", () => {
     expect(row?.notice?.kind).toBe("team");
   });
 
+  it("reads an automatic continue as one line, not as your words", () => {
+    const data = managerChat();
+    const nudge = item("fc-1", "theo", 1, "user", {
+      origin: "system",
+      input: [{ type: "text", text: "Continue." }],
+      notice: { kind: "continue" },
+    });
+    expect(noticeText(noticeFor(data, nudge) ?? { kind: "team", text: "" })).toBe(
+      "Theo continued automatically",
+    );
+  });
+
   it("puts a supervision notice before the [Zoltbot] event check", () => {
     const data = managerChat();
     data.entities.item = [
