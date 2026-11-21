@@ -187,3 +187,52 @@ it("changes model and effort only to what the session offers, once per command i
     test.close();
   }
 });
+
+it("A5: sets a listed service tier once per command id and audits it", async () => {
+  const test = await runtimeFixture();
+  const store = test.store;
+  const capabilities = (serviceTiers?: string[], commandId = `caps:${serviceTiers ?? "none"}`) =>
+    store.dispatch(commandId, (state) =>
+      handle(
+        state,
+        {
+          type: "update",
+          kind: "session",
+          id: "session",
+          changes: { capabilities: { modes: [], ...(serviceTiers ? { serviceTiers } : {}) } },
+        },
+        { commandId, at, actor: { kind: "system", id: "runtime" } },
+      ),
+    );
+  capabilities(["fast"]);
+  const calls: (string | null)[] = [];
+  const native = {
+    async setServiceTier(tier: string | null) {
+      calls.push(tier);
+    },
+  };
+  const manager = {
+    live: () => ({ threadId: "thread", native, worker: { nativeTurnId: () => undefined } }),
+    track: <T>(work: Promise<T>) => work,
+  } as unknown as SessionManager;
+  const api = sessionCommands({ store, manager, publish: () => {} });
+  try {
+    await expect(
+      api("session.setServiceTier", { id: "session", tier: "flex" }, "bad"),
+    ).rejects.toThrow("unsupported_service_tier");
+    await api("session.setServiceTier", { id: "session", tier: "fast" }, "on");
+    await api("session.setServiceTier", { id: "session", tier: "fast" }, "on");
+    expect(calls).toEqual(["fast"]);
+    expect(store.snapshot().session?.[0]?.serviceTier).toBe("fast");
+    expect(store.snapshot().audit?.at(-1)).toMatchObject({ action: "session.setServiceTier" });
+    await api("session.setServiceTier", { id: "session", tier: null }, "off");
+    expect(calls).toEqual(["fast", null]);
+    expect(store.snapshot().session?.[0]?.serviceTier).toBeUndefined();
+    capabilities();
+    await expect(
+      api("session.setServiceTier", { id: "session", tier: null }, "none"),
+    ).rejects.toThrow("unsupported_service_tier");
+  } finally {
+    test.close();
+  }
+});

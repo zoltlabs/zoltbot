@@ -219,6 +219,8 @@ export function AgentSettings(props: {
                     : "Models appear once a coding agent is set up."
                 }
                 onChange={props.onModelChange}
+                fastMode={props.bot?.fastMode ?? null}
+                onFastModeChange={(on) => props.save({ fastMode: on })}
               />
             </div>
             <div class="agent-settings-model-row agent-settings-thinking-row">

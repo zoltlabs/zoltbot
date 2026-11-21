@@ -1,7 +1,17 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ActionSheetIOS, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import {
+  ActionSheetIOS,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from "react-native";
+import { offersFastMode } from "../../data/session";
 import { definitionName, text } from "../../data/view";
+import { t } from "../../i18n";
 import { useAction } from "../../state/actions";
 import { useClient, useSnapshot } from "../../state/link";
 import { touch, useTheme } from "../../theme";
@@ -21,7 +31,9 @@ export default function ProfileSheet() {
   const [definitionId, setDefinitionId] = useState(text(profile?.definitionId));
   const [model, setModel] = useState(text(profile?.model));
   const [instructions, setInstructions] = useState(text(profile?.instructions));
+  const [fastMode, setFastMode] = useState(profile?.fastMode === true);
   if (!profile) return null;
+  const fastOffered = offersFastMode(snapshot, id);
 
   const pickTool = () => {
     const labels = definitions.map((row) => text(row.displayName));
@@ -41,6 +53,7 @@ export default function ProfileSheet() {
         definitionId,
         instructions,
         ...(model.trim() ? { model: model.trim() } : {}),
+        ...(fastOffered ? { fastMode } : {}),
       },
     });
     if (saved) router.back();
@@ -99,7 +112,15 @@ export default function ProfileSheet() {
           <Txt>{definitionName(snapshot, definitionId)}</Txt>
           <Icon name="down" size={14} stroke={2} color={c["text-muted"]} />
         </Pressable>
-        <View style={styles.line}>
+        <View
+          style={[
+            styles.line,
+            fastOffered && {
+              borderBottomColor: c.border,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+            },
+          ]}
+        >
           <Txt tone="muted" style={styles.flex}>
             Model
           </Txt>
@@ -112,6 +133,26 @@ export default function ProfileSheet() {
             style={[styles.inline, { color: c.text }]}
           />
         </View>
+        {fastOffered ? (
+          <View style={styles.fast}>
+            <View style={styles.line}>
+              <Txt tone="muted" style={styles.flex}>
+                {t("agent.fastMode.label")}
+              </Txt>
+              <Switch
+                value={fastMode}
+                onValueChange={setFastMode}
+                accessibilityLabel={t("agent.fastMode.label")}
+                accessibilityHint={fastMode ? t("agent.fastMode.cost") : undefined}
+              />
+            </View>
+            {fastMode ? (
+              <Txt v="meta" tone="muted" style={styles.cost}>
+                {t("agent.fastMode.cost")}
+              </Txt>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       <View style={styles.labelled}>
         <Txt v="meta" tone="secondary">
@@ -160,5 +201,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   flex: { flex: 1 },
+  fast: { paddingBottom: 4 },
+  cost: { paddingHorizontal: 16, paddingBottom: 10, marginTop: -6 },
   inline: { minWidth: 120, minHeight: touch, textAlign: "right", fontSize: 15 },
 });

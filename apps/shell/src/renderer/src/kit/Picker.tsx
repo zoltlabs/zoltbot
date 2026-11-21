@@ -1,4 +1,5 @@
 import {
+  children,
   createEffect,
   createMemo,
   createSignal,
@@ -252,6 +253,11 @@ export interface ComboboxProps<T extends string> extends PickerProps<T> {
   emptyLabel: string;
   /** Names the open panel when it should differ from `label`, for example "Choose agent model". */
   panelLabel?: string;
+  /**
+   * Controls below the list that change the choice, such as a Fast mode switch. Tab moves from
+   * the search field to them, and from them back out of the panel.
+   */
+  footer?: JSX.Element;
 }
 
 /** Picks one value from a long list with search, such as the model or agent picker. */
@@ -289,6 +295,9 @@ function ComboboxPanel<T extends string>(props: {
 }) {
   let element: HTMLDivElement | undefined;
   let input: HTMLInputElement | undefined;
+  let footer: HTMLDivElement | undefined;
+  // Resolved once, so the footer's controls aren't rebuilt (and don't lose focus) on each read.
+  const footerContent = children(() => props.picker.footer);
   const listId = createUniqueId();
   const [query, setQuery] = createSignal("");
   const matches = createMemo(() => {
@@ -374,7 +383,11 @@ function ComboboxPanel<T extends string>(props: {
                 choose(activeOption());
               } else if (event.key === "Tab") {
                 event.preventDefault();
-                props.onClose();
+                const next = event.shiftKey
+                  ? undefined
+                  : footer?.querySelector<HTMLElement>("button:not([disabled]), input");
+                if (next) next.focus();
+                else props.onClose();
               }
             }}
           />
@@ -412,6 +425,23 @@ function ComboboxPanel<T extends string>(props: {
         <Show when={matches().length === 0}>
           <div class="zb-kit-empty-row" role="status">
             {props.picker.emptyLabel}
+          </div>
+        </Show>
+        <Show when={footerContent()}>
+          <div
+            ref={footer}
+            class="zb-kit-combobox-footer"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              event.preventDefault();
+              if (event.shiftKey) input?.focus();
+              else {
+                returnFocus(props.anchor);
+                props.onClose();
+              }
+            }}
+          >
+            {footerContent()}
           </div>
         </Show>
       </div>

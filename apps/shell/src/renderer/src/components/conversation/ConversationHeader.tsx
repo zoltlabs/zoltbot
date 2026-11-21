@@ -27,6 +27,7 @@ export function ConversationHeader(props: {
   modelDisabled: boolean;
   working: boolean;
   onModelChange: (model: AgentModelId) => void;
+  onFastModeChange?: (on: boolean) => Promise<boolean>;
   organizationOpen: boolean;
   onToggleOrganization: () => void;
   browserControlled: boolean;
@@ -84,6 +85,8 @@ export function ConversationHeader(props: {
                         : "Models appear once a coding agent is set up."
                     }
                     onChange={props.onModelChange}
+                    fastMode={props.bot?.fastMode ?? null}
+                    onFastModeChange={props.onFastModeChange}
                   />
                 </Show>
                 <Show when={props.bot?.projectId}>

@@ -41,6 +41,8 @@ export interface OpenOptions {
   cwd: string;
   model?: string;
   effort?: string;
+  /** A5: a faster tier from capabilities.serviceTiers to launch with. */
+  serviceTier?: string;
   permissionProfile: PermissionProfile;
   appendInstructions?: string;
   /** Positive evidence that a Zoltbot-created native session has never received a prompt. */
@@ -83,6 +85,11 @@ export interface AgentSession {
   interrupt(): Promise<void>;
   respond(interactionId: string, answer: InteractionAnswer): Promise<void>;
   setModel(model: string, effort?: string): Promise<void>;
+  /**
+   * Present when capabilities.serviceTiers lists a tier. Applies the tier (null: standard) from
+   * the next turn; a running turn keeps the tier it started with.
+   */
+  setServiceTier?(tier: string | null): Promise<void>;
   setMode(mode: string): Promise<void>;
   compact(instructions?: string): Promise<void>;
   rename(name: string): Promise<void>;

@@ -7,5 +7,7 @@
   "chat.plan.pending": "Not started",
   "chat.plan.progress": "{done} of {total} done",
   "chat.plan.title": "Plan",
-  "kit.cancel": "Cancel"
+  "kit.cancel": "Cancel",
+  "agent.fastMode.label": "Fast mode",
+  "agent.fastMode.cost": "Uses more of your plan"
 }

@@ -1,10 +1,12 @@
 import { type AgentSession, AsyncQueue } from "@zoltbot/adapters-sdk";
-import type { AgentEvent, UserInput } from "@zoltbot/protocol";
+import type { AgentEvent, Capabilities, UserInput } from "@zoltbot/protocol";
 import { referenceCapabilities } from "./capabilities.js";
 
 /** Deterministic independent columns, including a slow column and a mid-turn failure. */
 export class CompareFakeSession implements AgentSession {
-  readonly capabilities = referenceCapabilities;
+  readonly capabilities: Capabilities;
+  /** A5: each service tier the daemon set, in order. */
+  readonly tiers: (string | null)[] = [];
   readonly received: UserInput[] = [];
   readonly firstTokens: number[] = [];
   readonly eventsQueue = new AsyncQueue<AgentEvent>();
@@ -23,7 +25,9 @@ export class CompareFakeSession implements AgentSession {
     readonly fail = false,
     readonly question?: { threadId: string; profileId: string },
     readonly answer = `${nativeId} answer`,
+    extra: Partial<Capabilities> = {},
   ) {
+    this.capabilities = { ...referenceCapabilities, ...extra };
     void this.eventsQueue.push({
       t: "session.ready",
       nativeId,
@@ -141,6 +145,9 @@ export class CompareFakeSession implements AgentSession {
     this.finish = undefined;
   }
   async setModel() {}
+  async setServiceTier(tier: string | null) {
+    this.tiers.push(tier);
+  }
   async setMode() {}
   async compact() {
     const before = this.contextUsed;

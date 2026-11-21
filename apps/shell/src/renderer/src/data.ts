@@ -59,6 +59,8 @@ export interface BotProfile {
   notifications: boolean;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  /** A5: null when the provider has no faster tier. */
+  fastMode?: boolean | null;
   threadId: string | null;
   accent: BotAccent;
   avatarShape: BotAvatarShape;

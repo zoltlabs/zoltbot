@@ -70,6 +70,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     notifications: stored.notifications,
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
+    fastMode: stored.fastMode ?? null,
     threadId: stored.threadId,
     accent:
       stored.name.toLowerCase() === "new agent"

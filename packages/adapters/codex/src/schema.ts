@@ -70,6 +70,13 @@ export class CodexSchemas {
     }
     if (!validate(value)) throw new Error("provider_protocol_error");
   }
+  /** Whether the installed Codex's schema lists a property on a type, such as a turn option. */
+  accepts(name: string, property: string) {
+    const type = this.v2[name] ?? this.definitions[name];
+    if (!type || typeof type !== "object") return false;
+    const properties = (type as { properties?: unknown }).properties;
+    return Boolean(properties && typeof properties === "object" && property in properties);
+  }
   request(value: unknown) {
     this.check("ClientRequest", value);
   }

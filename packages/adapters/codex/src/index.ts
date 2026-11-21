@@ -185,7 +185,15 @@ export class CodexAdapter implements AgentAdapter {
       if (models) {
         session.capabilities.models.list = models.list;
         session.capabilities.effort = models.effort;
+        // A5: Codex lists each model's tiers; an older CLI can't take one on a turn.
+        if (
+          models.serviceTiers.length &&
+          peer.rpc.schemas.accepts("TurnStartParams", "serviceTier")
+        )
+          session.capabilities.serviceTiers = models.serviceTiers;
       }
+      if (options.serviceTier && session.capabilities.serviceTiers?.includes(options.serviceTier))
+        await session.setServiceTier(options.serviceTier);
       return session;
     } catch (error) {
       if (session) await session.close();
@@ -256,13 +264,19 @@ export class CodexAdapter implements AgentAdapter {
 
 /**
  * The visible models from Codex's model/list, and every reasoning effort some model accepts
- * (listed as strings or as { reasoningEffort }).
+ * (listed as strings or as { reasoningEffort }), and every service tier some model offers.
  */
 export function codexModelOptions(data: unknown[]) {
   const rows = data
     .map(object)
     .filter((row) => row.hidden !== true && typeof row.id === "string" && row.id);
   const effort = new Set<string>();
+  const serviceTiers = new Set<string>();
+  for (const row of rows)
+    for (const tier of Array.isArray(row.serviceTiers) ? row.serviceTiers : []) {
+      const id = typeof tier === "string" ? tier : object(tier).id;
+      if (typeof id === "string" && id) serviceTiers.add(id);
+    }
   for (const row of rows)
     for (const option of Array.isArray(row.supportedReasoningEfforts)
       ? row.supportedReasoningEfforts
@@ -273,5 +287,6 @@ export function codexModelOptions(data: unknown[]) {
   return {
     list: rows.map((row) => ({ id: String(row.id), name: String(row.displayName ?? row.id) })),
     effort: [...effort],
+    serviceTiers: [...serviceTiers],
   };
 }

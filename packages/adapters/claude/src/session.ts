@@ -31,7 +31,11 @@ import { type ClaudePolicy, claudeAnswer, claudeInteraction, grantedMode } from 
 import { claudeMode, claudeModes, claudeOptions, claudeSafeModes } from "./launch.js";
 import { ClaudeMapper } from "./mapping.js";
 import { rewindResult } from "./rewind.js";
-import { claudeCapabilities, claudeModelOptions } from "./session-capabilities.js";
+import {
+  claudeCapabilities,
+  claudeModelOptions,
+  claudeServiceTiers,
+} from "./session-capabilities.js";
 import { HostProcess } from "./transport.js";
 import { rateLimitStatus, record, string } from "./usage.js";
 
@@ -217,6 +221,9 @@ export class ClaudeSession implements AgentSession {
         this.capabilities.models.list = options.list;
         this.capabilities.effort = options.effort;
       }
+      const tiers = claudeServiceTiers(initialized);
+      if (tiers.length) this.capabilities.serviceTiers = tiers;
+      else delete this.capabilities.serviceTiers;
       if (Array.isArray(initialized.commands))
         this.capabilities.slashCommands = nativeCommands(initialized.commands);
       else delete this.capabilities.slashCommands;
@@ -610,6 +617,16 @@ export class ClaudeSession implements AgentSession {
     this.keepModel(model, effort);
     await this.stopQuery();
     this.armIdle();
+  }
+  /** A5: fast mode is a flag setting, applied live; the next launch passes it too. */
+  async setServiceTier(tier: string | null) {
+    if (this.closed || this.dead) throw new Error("session_closed");
+    if (tier !== null && !this.capabilities.serviceTiers?.includes(tier))
+      throw new Error("unsupported_service_tier");
+    await this.connecting;
+    if (this.query) await this.control((q) => q.applyFlagSettings({ fastMode: tier === "fast" }));
+    if (tier) this.options.serviceTier = tier;
+    else delete this.options.serviceTier;
   }
   private keepModel(model: string, effort?: string) {
     this.options.model = model;

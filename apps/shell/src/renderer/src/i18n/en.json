@@ -255,5 +255,9 @@
   "chat.hide.undo": "Undo",
   "chat.hide.row": "Hidden message",
   "chat.hide.show": "Show",
-  "chat.hide.showLabel": "Show hidden message"
+  "chat.hide.showLabel": "Show hidden message",
+  "models.fastMode.label": "Fast mode",
+  "models.fastMode.cost": "Uses more of your plan",
+  "models.fastMode.errorOn": "Fast mode didn't turn on. Try again.",
+  "models.fastMode.errorOff": "Fast mode didn't turn off. Try again."
 }

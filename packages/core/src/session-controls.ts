@@ -247,3 +247,55 @@ export function requestFilesRewind(
     { kind: "rewind", sessionId: input.sessionId, turnId: input.turnId },
   );
 }
+
+/**
+ * A5: record a human Fast mode change before the native session is told. A faster tier costs
+ * more, so the change is audited. The tier must be one the session lists; null is standard.
+ */
+export function requestServiceTier(
+  state: DomainState,
+  sessionId: string,
+  tier: string | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "human") throw new Error("human_service_tier_change_required");
+  const { session, capabilities } = liveSession(state, sessionId);
+  const tiers = Array.isArray(capabilities.serviceTiers) ? capabilities.serviceTiers : [];
+  if (!tiers.length || (tier !== null && !tiers.includes(tier)))
+    throw new Error("unsupported_service_tier");
+  return audited(
+    state,
+    "session.setServiceTier",
+    sessionId,
+    {
+      threadId: session.threadId,
+      tier,
+      ...(typeof session.serviceTier === "string" ? { previous: session.serviceTier } : {}),
+    },
+    context,
+    { kind: "set_service_tier", sessionId, tier },
+  );
+}
+
+/** Stores the tier the native session accepted; null drops it. */
+export function settleServiceTier(
+  state: DomainState,
+  sessionId: string,
+  tier: string | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "system") throw new Error("system_service_tier_writer_required");
+  const session = state.session?.find((row) => row.id === sessionId);
+  if (!session || ["closed", "failed"].includes(String(session.state)))
+    return { events: [], result: { tier } };
+  return handle(
+    state,
+    {
+      type: "update",
+      kind: "session",
+      id: sessionId,
+      changes: { serviceTier: tier ?? undefined },
+    },
+    context,
+  );
+}

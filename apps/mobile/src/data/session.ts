@@ -208,3 +208,20 @@ export function compactions(snapshot: Snapshot, threadId: string): number {
       ((row.body ?? {}) as Row).code === "context_compacted",
   ).length;
 }
+
+/**
+ * A5: whether a profile's provider offers a faster tier, read from its chats' sessions. Fast
+ * mode is offered only then.
+ */
+export function offersFastMode(snapshot: Snapshot, profileId: string): boolean {
+  const threads = new Set(
+    (snapshot.entities.thread ?? [])
+      .filter((row) => row.agentId === profileId)
+      .map((row) => text(row.id)),
+  );
+  return (snapshot.entities.session ?? []).some((row) => {
+    if (!threads.has(text(row.threadId))) return false;
+    const tiers = ((row.capabilities ?? {}) as Row).serviceTiers;
+    return Array.isArray(tiers) && tiers.length > 0;
+  });
+}

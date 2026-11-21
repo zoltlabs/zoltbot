@@ -12,6 +12,7 @@ import {
   modelState,
   modeState,
   modeWidens,
+  offersFastMode,
   planOpen,
   runningBackground,
   threadSession,
@@ -307,5 +308,25 @@ describe("context use", () => {
       },
     };
     expect(compactions(withNotes, "a")).toBe(1);
+  });
+});
+
+describe("A5 fast mode", () => {
+  it("is offered only for a profile whose chats run on a provider with a faster tier", () => {
+    const snapshot = {
+      entities: {
+        thread: [
+          { id: "t1", agentId: "fast" },
+          { id: "t2", agentId: "plain" },
+        ],
+        session: [
+          { id: "s1", threadId: "t1", capabilities: { serviceTiers: ["fast"] } },
+          { id: "s2", threadId: "t2", capabilities: { serviceTiers: [] } },
+        ],
+      },
+    } as unknown as Parameters<typeof offersFastMode>[0];
+    expect(offersFastMode(snapshot, "fast")).toBe(true);
+    expect(offersFastMode(snapshot, "plain")).toBe(false);
+    expect(offersFastMode(snapshot, "missing")).toBe(false);
   });
 });

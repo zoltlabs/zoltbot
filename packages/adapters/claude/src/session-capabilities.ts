@@ -53,3 +53,22 @@ export function claudeModelOptions(models: unknown[]) {
   }
   return { list, effort: [...effort] };
 }
+
+/** Reasons fast mode can never serve this install, so offering the switch would only fail. */
+const fastModeBlocked = new Set([
+  "free",
+  "not_first_party",
+  "disabled_by_env",
+  "extra_usage_disabled",
+  "sdk_opt_in_required",
+]);
+
+/**
+ * A5: Claude's faster tier, when its initialize result reports a fast mode state (CLIs that
+ * predate fast mode leave it out) and nothing rules it out for this install.
+ */
+export function claudeServiceTiers(initialized: Record<string, unknown>): string[] {
+  if (typeof initialized.fast_mode_state !== "string") return [];
+  const reason = initialized.fast_mode_disabled_reason;
+  return typeof reason === "string" && fastModeBlocked.has(reason) ? [] : ["fast"];
+}

@@ -566,6 +566,7 @@ export function Conversation(props: ConversationProps) {
         modelDisabled={modelDisabled()}
         working={working()}
         onModelChange={(model) => void selectAndConfirmModel(model)}
+        onFastModeChange={(fastMode) => saveBotPatch({ fastMode })}
         organizationOpen={organizationOpen()}
         onToggleOrganization={() =>
           setActiveRightPanel(organizationOpen() ? "none" : "organization")

@@ -5,7 +5,15 @@ import type { Store } from "@zoltbot/store";
 import type { PrivateInputGuard } from "./private-input.js";
 
 // What a profile editor may change. Permissions and tools keep their own confirmed flows.
-const profileFields = ["name", "definitionId", "model", "effort", "instructions"] as const;
+const profileFields = [
+  "name",
+  "definitionId",
+  "model",
+  "effort",
+  "instructions",
+  // A5: Fast mode per agent.
+  "fastMode",
+] as const;
 
 /** `agent.update` for the profile editor and `project.archive`, both used by the phone. */
 export function entityEditsApi(host: {

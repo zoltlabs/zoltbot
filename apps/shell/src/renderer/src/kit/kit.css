@@ -273,6 +273,12 @@
   color: var(--text-muted);
 }
 
+.zb-kit-combobox-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--openbot-line);
+  padding: 8px 12px;
+}
+
 /* Popover and Tooltip */
 .zb-kit-popover {
   z-index: var(--zb-z-popover);

@@ -7,6 +7,8 @@ export async function compareFixture(
   options: {
     longFirst?: boolean;
     secrets?: import("../../../packages/daemon/src/api.js").DaemonOptions["secrets"];
+    /** A5: faster tiers every fake session offers. */
+    serviceTiers?: string[];
   } = {},
 ) {
   const f = await runtimeFixture("zoltbot.db");
@@ -94,6 +96,7 @@ export async function compareFixture(
                 : options.longFirst && input.profile.id === "profile"
                   ? "x".repeat(30000)
                   : `${input.profile.name} answer`,
+              options.serviceTiers ? { serviceTiers: options.serviceTiers } : {},
             );
             natives.set(input.thread.id, native);
             return native;

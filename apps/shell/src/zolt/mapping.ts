@@ -59,6 +59,12 @@ export function latestSession(snapshot: Snapshot, threadId: string): Row | undef
   return latest;
 }
 
+/** A5: the faster tiers the session's provider offers, from its capabilities. */
+export function serviceTiers(session: Row | undefined): string[] {
+  const tiers = (session?.capabilities as Row | undefined)?.serviceTiers;
+  return Array.isArray(tiers) ? tiers.filter((tier): tier is string => typeof tier === "string") : [];
+}
+
 export function profileFor(snapshot: Snapshot, thread: Row): Row | undefined {
   return (snapshot.entities.agent ?? []).find((agent) => agent.id === thread.agentId);
 }
@@ -147,6 +153,7 @@ export function toBotSummary(
     ...(unread ? { unread } : {}),
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
+    fastMode: serviceTiers(session).length ? profile?.fastMode === true : null,
     threadId,
     workspacePath: text(session?.cwd) || text(roots[0]?.path),
     preview: previewText(threadItems(snapshot, threadId), hiddenIds(snapshot, threadId)),

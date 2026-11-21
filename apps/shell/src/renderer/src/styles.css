@@ -3956,6 +3956,23 @@ textarea {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 
+/* A5: Fast mode switch in the model picker's footer. */
+.fast-mode-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.fast-mode-switch.settings-switch-on {
+  background: var(--openbot-orange);
+}
+
+.fast-mode-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .provider-model-disabled-reason {
   grid-column: 2;
   color: var(--text-muted);

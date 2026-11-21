@@ -155,6 +155,7 @@ export function sampleSnapshot(now = Date.now()): Snapshot {
     effort: ["low", "medium", "high", "xhigh", "max"],
     modes: ["default", "acceptEdits", "plan", "bypassPermissions"],
     safeModes: ["default", "plan"],
+    serviceTiers: ["fast"],
   };
   const turn = (id: string, threadId: string, sessionId: string): Row => ({
     id,

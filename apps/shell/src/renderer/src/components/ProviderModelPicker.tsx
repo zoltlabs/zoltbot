@@ -1,4 +1,4 @@
-import { createMemo, createUniqueId, Show } from "solid-js";
+import { createMemo, createSignal, createUniqueId, Show } from "solid-js";
 import type {
   AgentModelId,
   AgentModelOption,
@@ -6,6 +6,7 @@ import type {
   AgentProviderStatus,
   AgentStatus,
 } from "../../../shared/ipc";
+import { t } from "../i18n";
 import { Combobox, ModelLogo, type PickerOption } from "../kit";
 
 interface ProviderModelPickerProps {
@@ -19,6 +20,10 @@ interface ProviderModelPickerProps {
   /** Why the picker is disabled. Shown under a field; read to screen readers on a pill. */
   disabledReason?: string;
   onChange: (model: AgentModelId) => void;
+  /** A5: Fast mode on or off, or null when the provider has no faster tier (no switch). */
+  fastMode?: boolean | null;
+  /** Resolves false when the change wasn't saved. */
+  onFastModeChange?(on: boolean): Promise<boolean>;
 }
 
 /**
@@ -54,6 +59,10 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     }),
   );
   const field = () => props.variant === "field";
+  // A memo, so the switch is built once and keeps focus while it turns on and off.
+  const fastModeShown = createMemo(
+    () => typeof props.fastMode === "boolean" && Boolean(props.onFastModeChange),
+  );
   const reasonId = createUniqueId();
   const reason = () => (props.disabled ? props.disabledReason : undefined);
 
@@ -76,6 +85,14 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
         placeholder={displayModelName(undefined, props.value)}
         class={field() ? "provider-model-trigger-field" : "provider-model-trigger-pill"}
         onChange={props.onChange}
+        footer={
+          fastModeShown() ? (
+            <FastModeSwitch
+              on={props.fastMode === true}
+              onChange={(on) => props.onFastModeChange?.(on) ?? Promise.resolve(false)}
+            />
+          ) : undefined
+        }
       />
       <Show when={reason()}>
         <span id={reasonId} class={field() ? "provider-model-disabled-reason" : "sr-only"}>
@@ -83,6 +100,58 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
         </span>
       </Show>
     </span>
+  );
+}
+
+/** A5: the faster, costlier tier. The cost shows while it is on; a failed save says so. */
+export function FastModeSwitch(props: { on: boolean; onChange(on: boolean): Promise<boolean> }) {
+  const labelId = createUniqueId();
+  const noteId = createUniqueId();
+  const [failed, setFailed] = createSignal<"on" | "off" | null>(null);
+  const [saving, setSaving] = createSignal(false);
+  const toggle = async () => {
+    if (saving()) return;
+    setSaving(true);
+    setFailed(null);
+    const next = !props.on;
+    try {
+      if (!(await props.onChange(next))) setFailed(next ? "on" : "off");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const note = () =>
+    failed() === "on"
+      ? t("models.fastMode.errorOn")
+      : failed() === "off"
+        ? t("models.fastMode.errorOff")
+        : props.on ? t("models.fastMode.cost") : undefined;
+  return (
+    <div class="fast-mode-row">
+      <span id={labelId}>{t("models.fastMode.label")}</span>
+      <button
+        type="button"
+        role="switch"
+        class="settings-switch fast-mode-switch"
+        classList={{ "settings-switch-on": props.on }}
+        aria-labelledby={labelId}
+        aria-checked={props.on}
+        aria-describedby={note() ? noteId : undefined}
+        aria-busy={saving() || undefined}
+        onClick={() => void toggle()}
+      >
+        <span />
+      </button>
+      <Show when={note()}>
+        <p
+          id={noteId}
+          class={failed() ? "zb-kit-error" : "zb-kit-consequence"}
+          role={failed() ? "alert" : undefined}
+        >
+          {note()}
+        </p>
+      </Show>
+    </div>
   );
 }
 

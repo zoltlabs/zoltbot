@@ -25,6 +25,7 @@ const sessionControls = new Set([
   "session.setMode",
   "session.setModel",
   "session.setEffort",
+  "session.setServiceTier",
   "session.stopBackground",
   "session.rewind",
 ]);

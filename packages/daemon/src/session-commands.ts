@@ -5,8 +5,10 @@ import {
   type Outcome,
   requestBackgroundStop,
   requestFilesRewind,
+  requestServiceTier,
   requestSessionMode,
   requestSessionModel,
+  settleServiceTier,
   settleSessionMode,
   settleSessionModel,
   widensPermission,
@@ -164,6 +166,29 @@ export function sessionCommands(options: {
     );
     return { ok: true as const };
   }
+  /** A5: Fast mode. Recorded and audited first, as a faster tier costs more. */
+  async function setServiceTier(sessionId: string, tier: string | null, commandId: string) {
+    const expected = { kind: "set_service_tier", sessionId, tier };
+    if (replay(commandId, expected, "service_tier_change_failed")) return { ok: true as const };
+    const live = manager.live(sessionId);
+    const apply = live.native.setServiceTier?.bind(live.native);
+    if (!apply) throw new Error("unsupported_service_tier");
+    await audited(
+      commandId,
+      expected,
+      (state, context) => requestServiceTier(state, sessionId, tier, context),
+      async () => {
+        await apply(tier);
+        commit(
+          `${commandId}:tier`,
+          (state, context) => settleServiceTier(state, sessionId, tier, context),
+          system,
+        );
+      },
+      "service_tier_change_failed",
+    );
+    return { ok: true as const };
+  }
   async function stopBackground(sessionId: string, taskId: string, commandId: string) {
     const expected = { kind: "stop_background", sessionId, taskId };
     if (replay(commandId, expected, "background_stop_failed")) return { ok: true as const };
@@ -260,6 +285,13 @@ export function sessionCommands(options: {
       };
       return once(commandId, `session.setModel:${sessionId}:${model}:${effort ?? ""}`, () =>
         setModel(sessionId, change, commandId),
+      );
+    }
+    if (method === "session.setServiceTier") {
+      if (!commandId) throw new Error("command_id_required");
+      const tier = typeof params.tier === "string" ? params.tier : null;
+      return once(commandId, `${method}:${sessionId}:${tier ?? ""}`, () =>
+        setServiceTier(sessionId, tier, commandId),
       );
     }
     if (method === "session.stopBackground") {
