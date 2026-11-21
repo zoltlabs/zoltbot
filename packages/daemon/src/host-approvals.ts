@@ -15,6 +15,7 @@ export function respondHostApproval(
         viewProposal?: string;
         backupSwitch?: unknown;
         staffChange?: unknown;
+        connectionProposal?: unknown;
       }
     | undefined;
   if (input?.cuaSession)
@@ -34,6 +35,10 @@ export function respondHostApproval(
   if (input?.viewProposal)
     return import("./views/tool-save.js").then((tools) =>
       tools.respondViewApproval(context, request, answer),
+    );
+  if (input?.connectionProposal)
+    return import("./connection-proposal.js").then((tools) =>
+      tools.respondConnectionProposal(context, request, answer),
     );
   if (input?.staffChange)
     return import("./staff-tools.js").then((tools) =>

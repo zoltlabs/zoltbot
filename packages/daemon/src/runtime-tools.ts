@@ -8,6 +8,10 @@ import { channelToolDefinitions, channelToolNames, channelTools } from "./channe
 import { chatSignalToolDefinition, chatSignalTools } from "./chat-signal-tools.js";
 import { chiefToolDefinitions, chiefToolNames, chiefTools } from "./chief/tools.js";
 import { companyToolDefinition, companyTools } from "./company-tools.js";
+import {
+  connectionProposalToolDefinition,
+  connectionProposalTools,
+} from "./connection-proposal.js";
 import { cuaToolDefinition } from "./cua/policy.js";
 import type { CuaRuntime } from "./cua/runtime.js";
 import { eventRoutineToolDefinition, eventRoutineTools } from "./event-routine-tools.js";
@@ -93,6 +97,12 @@ export function runtimeTools(
     const thread = context.store.record("thread", actor.threadId);
     if (thread?.fork && name !== "team_get_knowledge") return false;
     if (name === "chat_wake") return !thread?.fork;
+    // Offered only where the owner talks (production-runtime ownerChat), never in browser sessions.
+    if (name === "connection_propose") {
+      const frozen = context.store.record("settings", `runtime.configuration.${actor.sessionId}`)
+        ?.value as { launchManifest?: { browser?: unknown } } | undefined;
+      return !thread?.taskId && !frozen?.launchManifest?.browser;
+    }
     if (name === "chat_signal") return !thread?.fork && !thread?.taskId;
     if (name === "routine_draft") return eventRoutine.authorize(actor);
     if (name === "native_app") {
@@ -134,6 +144,7 @@ export function runtimeTools(
         (call) => options.cua?.call(call) ?? Promise.resolve({ error: "cua_unavailable" }),
       ],
       ["chat_wake", chatWake],
+      ["connection_propose", connectionProposalTools(context)],
       ["chat_signal", chatSignal],
       ["routine_draft", eventRoutine.call],
       ["team_artifact", artifacts.call],
@@ -228,6 +239,8 @@ const artifactDescriptions: Record<string, string> = {
   team_browser_evidence:
     "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
+  connection_propose:
+    "Ask to add a registry app for you: search(query), propose(registryId, reason).",
   chat_signal: "emoji react, not filler; status: doing-now line; progress: milestone note",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
@@ -262,6 +275,11 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
     required: ["action"],
   },
   chat_signal: { type: "object", properties: { emoji: {}, status: {}, progress: {} } },
+  connection_propose: {
+    type: "object",
+    properties: { action: {}, query: {}, registryId: {}, reason: {} },
+    required: ["action"],
+  },
   chat_wake: {
     type: "object",
     properties: {
@@ -393,8 +411,12 @@ export const indirectRuntimeToolDefinitions = [
   compactTool(wakeToolDefinition),
   viewToolHint,
 ];
-/** A compact hint for chats the owner talks in directly; task and fork chats have no owner turns. */
-export const chatSignalIndirectToolDefinitions = [compactTool(chatSignalToolDefinition)];
+/** Compact hints for chats the owner talks in directly; task and fork chats have no owner turns. */
+export const ownerChatIndirectToolDefinitions = [
+  compactTool(chatSignalToolDefinition),
+  // Asking for an app only makes sense where the owner can answer the card.
+  compactTool(connectionProposalToolDefinition),
+];
 /** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
 export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
 /** A compact hint for chats that belong to a team channel. */
@@ -448,6 +470,7 @@ export const allRuntimeToolDefinitions = [
   ...chiefToolDefinitions,
   eventRoutineToolDefinition,
   wakeToolDefinition,
+  connectionProposalToolDefinition,
   chatSignalToolDefinition,
   ...teamWaitToolDefinitions,
   ...channelToolDefinitions,

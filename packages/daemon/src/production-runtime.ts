@@ -58,7 +58,7 @@ export function productionRuntime(
           managerRuntimeToolDefinitions,
           managerBrowserToolDefinitions,
           artifactBrowserToolDefinitions,
-          chatSignalIndirectToolDefinitions,
+          ownerChatIndirectToolDefinitions,
           indirectRuntimeToolDefinitions,
           managerIndirectToolDefinitions,
           channelIndirectToolDefinitions,
@@ -174,7 +174,7 @@ export function productionRuntime(
                 // Waiting on and listing delegated work only matters to a chat that delegates.
                 ...(managesWork(thread?.id) ? managerIndirectToolDefinitions : []),
                 // Reacting needs an owner message to react to.
-                ...(!browser && ownerChat(thread?.id) ? chatSignalIndirectToolDefinitions : []),
+                ...(!browser && ownerChat(thread?.id) ? ownerChatIndirectToolDefinitions : []),
                 // Reading a channel only matters to its members; posting rides on team_message.
                 ...(!browser && inChannel(context, thread?.id)
                   ? channelIndirectToolDefinitions
