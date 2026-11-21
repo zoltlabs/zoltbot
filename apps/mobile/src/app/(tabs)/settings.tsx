@@ -5,6 +5,7 @@ import { AppState, StyleSheet, View } from "react-native";
 import { type PhonePref, preferenceKey, readPhonePrefs } from "../../data/preferences";
 import { since, text } from "../../data/view";
 import { useAction } from "../../state/actions";
+import { appIconAvailable, useAppIcon } from "../../state/app-icon";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { type ThemePreference, usePrefs } from "../../state/prefs";
 import { usePush } from "../../state/push";
@@ -18,6 +19,7 @@ import { VoiceSettings } from "../../ui/VoiceSettings";
 
 export default function Settings() {
   const prefs = usePrefs();
+  const appIcon = useAppIcon((state) => state.current);
   const push = usePush();
   const snapshot = useSnapshot();
   const { status, kind } = useClient((state) => state);
@@ -35,6 +37,7 @@ export default function Settings() {
   };
   useEffect(() => {
     void usePush.getState().refresh();
+    void useAppIcon.getState().refresh();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void usePush.getState().refresh();
     });
@@ -79,6 +82,16 @@ export default function Settings() {
         ]}
       />
       <TextSizeSettings />
+      {appIconAvailable ? (
+        <Group>
+          <Row
+            title="App icon"
+            detail={appIcon.name}
+            onPress={() => router.push("/app-icon")}
+            last
+          />
+        </Group>
+      ) : null}
       <VoiceSettings />
       <Section title="Privacy" />
       <LockSettings />

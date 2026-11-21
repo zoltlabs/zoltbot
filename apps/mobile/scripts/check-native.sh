@@ -12,7 +12,7 @@ trap 'rm -rf $work' EXIT
 print 'typealias RCTPromiseResolveBlock = (Any?) -> Void
 typealias RCTPromiseRejectBlock = (String?, String?, Error?) -> Void' > $work/React.swift
 host=()
-for file in $here/{share,lock,activity,intents}/*.swift; do
+for file in $here/{share,lock,activity,intents,icons}/*.swift; do
   [[ $file == */ShareViewController.swift || $file == */ZoltActivityWidget.swift ]] && continue
   sed '/^import React$/d' $file > $work/${file:t}
   host+=($work/${file:t})

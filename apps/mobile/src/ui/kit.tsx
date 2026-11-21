@@ -145,6 +145,7 @@ export function Row({
   label,
   mono,
   checked,
+  selected,
   disabled,
 }: {
   title: string;
@@ -164,6 +165,8 @@ export function Row({
   mono?: boolean;
   /** Set for a row that toggles a switch, so VoiceOver reads it as one. */
   checked?: boolean;
+  /** Set for one choice in a list, so VoiceOver reads which one is chosen. */
+  selected?: boolean;
   disabled?: boolean;
 }) {
   const { c } = useTheme();
@@ -206,6 +209,7 @@ export function Row({
       accessibilityState={{
         disabled: Boolean(disabled),
         ...(checked === undefined ? {} : { checked }),
+        ...(selected === undefined ? {} : { selected }),
       }}
       accessibilityLabel={[label ?? [title, detail].filter(Boolean).join(", "), error]
         .filter(Boolean)
