@@ -26,7 +26,7 @@ import { createBrowserState } from "./conversation/browser-state";
 import { CallHost } from "./conversation/CallBar";
 import { Composer } from "./conversation/Composer";
 import { ConversationHeader } from "./conversation/ConversationHeader";
-import { followCalls } from "./conversation/call";
+import { currentCall, followCalls } from "./conversation/call";
 import {
   ARTIFACT_PANEL_STORAGE_KEY,
   BROWSER_PANEL_STORAGE_KEY,
@@ -40,6 +40,7 @@ import { HideConfirm } from "./conversation/hide-flow";
 import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
 import { PlanChecklist } from "./conversation/PlanChecklist";
+import { followPushToTalk } from "./conversation/push-to-talk";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
 import { followNewReplies } from "./conversation/read-aloud";
 import { createRightPanelState } from "./conversation/right-panel-state";
@@ -272,6 +273,12 @@ export function Conversation(props: ConversationProps) {
     draft: () => currentDraft().text,
     onDraft: (text) => updateCurrentDraft({ text }),
     onError: setComposerError,
+    onIdle: (finished) => pushToTalk.idle(finished),
+  });
+  const pushToTalk = followPushToTalk({
+    dictation,
+    ready: () => Boolean(props.bot) && !currentCall(),
+    onSend: () => void submitMessage(),
   });
 
   const messageActions = createMessageActionsState({

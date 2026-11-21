@@ -15,6 +15,9 @@ export type TextSizePreference = "default" | "large" | "larger";
 export type SendKeyPreference = "enter" | "mod-enter";
 /** O1: who reads replies aloud. */
 export type SpeechEnginePreference = "system" | "elevenlabs";
+/** O3: keys that can be held to talk, by KeyboardEvent.code, or off. */
+export const PUSH_TO_TALK_KEYS = ["Fn", "AltRight", "MetaRight", "off"] as const;
+export type PushToTalkKey = (typeof PUSH_TO_TALK_KEYS)[number];
 
 export interface Preferences {
   theme: ThemePreference;
@@ -36,6 +39,10 @@ export interface Preferences {
   speechRate: number;
   /** O2: the owner has seen that this Mac's speech recognition sends audio to Apple. */
   callNoticeSeen: boolean;
+  /** O3: hold this key to dictate into the composer. */
+  pushToTalkKey: PushToTalkKey;
+  /** O3: letting go of the key also sends the message. */
+  sendOnRelease: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -51,6 +58,8 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   speechVoice: "",
   elevenVoice: "",
   callNoticeSeen: false,
+  pushToTalkKey: "Fn",
+  sendOnRelease: false,
   speechRate: 1,
 });
 
@@ -72,6 +81,9 @@ const VALIDATORS: Validators = {
   sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
   readAloud: (value): value is boolean => typeof value === "boolean",
   callNoticeSeen: (value): value is boolean => typeof value === "boolean",
+  pushToTalkKey: (value): value is PushToTalkKey =>
+    (PUSH_TO_TALK_KEYS as readonly unknown[]).includes(value),
+  sendOnRelease: (value): value is boolean => typeof value === "boolean",
   speechEngine: (value): value is SpeechEnginePreference =>
     value === "system" || value === "elevenlabs",
   speechVoice: (value): value is string => typeof value === "string" && value.length <= 500,

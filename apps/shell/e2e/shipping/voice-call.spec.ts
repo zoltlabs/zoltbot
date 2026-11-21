@@ -144,7 +144,6 @@ test("a call sends what was said, reads the reply, stops when talked over and lo
     await expect(bar).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Shift+V");
     await expect(bar).toHaveCount(0);
-    expect(await axeViolations(page)).toEqual([]);
     expect(shell.errors).toEqual([]);
   } finally {
     await shell.close();

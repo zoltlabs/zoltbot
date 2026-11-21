@@ -8,7 +8,13 @@ import { showToast } from "../../kit";
 
 export type VoicePreferences = Pick<
   Preferences,
-  "readAloud" | "speechEngine" | "speechVoice" | "elevenVoice" | "speechRate"
+  | "readAloud"
+  | "speechEngine"
+  | "speechVoice"
+  | "elevenVoice"
+  | "speechRate"
+  | "pushToTalkKey"
+  | "sendOnRelease"
 >;
 
 const [reading, setReading] = createRoot(() => createSignal<string | undefined>(undefined));

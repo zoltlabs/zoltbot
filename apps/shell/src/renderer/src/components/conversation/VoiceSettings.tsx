@@ -1,8 +1,8 @@
 // O1: Voice settings, opened from the account menu. Engine, voice, speed and whether new replies
-// are read aloud. ElevenLabs needs the owner's key, which goes to the daemon's keychain.
+// are read aloud. O3 adds the push-to-talk key. ElevenLabs needs the owner's key, which goes to the daemon's keychain.
 import { SPEECH_RATES } from "@zoltbot/protocol";
 import { createResource, createRoot, createSignal, onCleanup, onMount, Show } from "solid-js";
-import type { SpeechEnginePreference } from "../../../../shared/preferences";
+import type { PushToTalkKey, SpeechEnginePreference } from "../../../../shared/preferences";
 import type { VoiceOption } from "../../../../shared/voice";
 import { t } from "../../i18n";
 import { Dialog, Field, Select, SettingsRow, Stack } from "../../kit";
@@ -213,6 +213,40 @@ function VoiceSettings(props: { onClose: () => void }) {
             />
           )}
         />
+        <SettingsRow
+          label={t("voice.pushToTalk")}
+          control={() => (
+            <Select
+              label={t("voice.pushToTalk")}
+              value={prefs().pushToTalkKey}
+              options={[
+                { value: "Fn", label: t("voice.ptt.fn") },
+                { value: "AltRight", label: t("voice.ptt.rightOption") },
+                { value: "MetaRight", label: t("voice.ptt.rightCommand") },
+                { value: "off", label: t("voice.ptt.off") },
+              ]}
+              onChange={(value) => setVoicePreferences({ pushToTalkKey: value as PushToTalkKey })}
+            />
+          )}
+        />
+        <Show when={prefs().pushToTalkKey !== "off"}>
+          <SettingsRow
+            label={t("voice.sendOnRelease")}
+            control={(id) => (
+              <input
+                id={id}
+                type="checkbox"
+                role="switch"
+                class="voice-switch"
+                checked={prefs().sendOnRelease}
+                aria-checked={prefs().sendOnRelease}
+                onChange={(event) =>
+                  setVoicePreferences({ sendOnRelease: event.currentTarget.checked })
+                }
+              />
+            )}
+          />
+        </Show>
         <Show when={eleven() && keySet()}>
           <div>
             <button
