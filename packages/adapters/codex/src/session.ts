@@ -60,6 +60,8 @@ export class CodexSession implements AgentSession {
   private limitResetsAt: string | undefined;
   private context: { used?: number; size?: number } | undefined;
   private overrides: { model: string; effort?: string } | undefined;
+  /** A5: a tier for the next turn/start; Codex keeps it for the turns after. */
+  private tier: string | null | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private readonly peer: CodexPeer,
@@ -139,11 +141,13 @@ export class CodexSession implements AgentSession {
           threadId: this.nativeId,
           input: this.input(input),
           ...this.overrides,
+          ...(this.tier !== undefined ? { serviceTier: this.tier } : {}),
         }),
       );
       const turnId = object(response.turn).id;
       if (typeof turnId !== "string") throw new Error("provider_protocol_error");
       this.overrides = undefined;
+      this.tier = undefined;
       if (!this.completed.has(turnId)) this.current = turnId;
       await this.emitStarted(turnId);
       this.armTimer();
@@ -278,6 +282,12 @@ export class CodexSession implements AgentSession {
       },
     });
     this.overrides = overrides;
+  }
+  async setServiceTier(tier: string | null) {
+    if (this.closed || this.dead) throw new Error("session_closed");
+    if (tier !== null && !this.capabilities.serviceTiers?.includes(tier))
+      throw new Error("unsupported_service_tier");
+    this.tier = tier;
   }
   async setMode(_mode: string) {
     throw new Error("unsupported_mode");

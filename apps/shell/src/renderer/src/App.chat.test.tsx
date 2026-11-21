@@ -314,7 +314,7 @@ describe("Zoltbot connected desktop shell", () => {
     expect(screen.getByLabelText("Message Chief")).toHaveAttribute("contenteditable", "false");
   });
 
-  it("locks the header model picker during active work", async () => {
+  it("A10: keeps the header model picker open during active work", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
     const trigger = screen.getByRole("button", { name: "Agent model: Luna" });
@@ -325,19 +325,9 @@ describe("Zoltbot connected desktop shell", () => {
       threadId: "thread-chief",
       turnId: "turn-1",
     });
-    await waitFor(() => expect(trigger).toBeDisabled());
-    expect(trigger).toHaveAccessibleDescription(
-      "Wait for the current work to finish before changing models.",
-    );
-
-    emitAgentEvent?.({
-      type: "turn-completed",
-      botId: "chief",
-      threadId: "thread-chief",
-      turnId: "turn-1",
-      status: "completed",
-    });
-    await waitFor(() => expect(trigger).toBeEnabled());
+    // A change made now waits for the turn to end, so the picker stays usable.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(trigger).toBeEnabled();
   });
 
   it("supports picker keyboard navigation and outside dismissal", async () => {

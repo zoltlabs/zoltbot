@@ -203,6 +203,8 @@ const openbotApi: OpenBotDesktopApi = {
     setOrder: (input) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetOrder, input),
     runningLimit: () => ipcRenderer.invoke(IPC_CHANNELS.modelsRunningLimit),
     setRunningLimit: (limit) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetRunningLimit, limit),
+    starred: () => ipcRenderer.invoke(IPC_CHANNELS.modelsStarred),
+    setStarred: (ids) => ipcRenderer.invoke(IPC_CHANNELS.modelsSetStarred, ids),
   },
   memory: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.memoryList),

@@ -32,6 +32,7 @@ export const scenarios = [
   "frame_log",
   "background",
   "rewind",
+  "service_tier",
 ] as const;
 export type Scenario = (typeof scenarios)[number];
 export interface ConformanceContext {
@@ -432,6 +433,23 @@ export async function runConformance(factory: ConformanceFactory, scenario: Scen
             preview.files.every((file) => typeof file === "string"),
           "rewind preview shape",
         );
+        break;
+      }
+      case "service_tier": {
+        const tiers = session.capabilities.serviceTiers ?? [];
+        if (!tiers.length) break;
+        check(session.setServiceTier, "listed a service tier without setServiceTier");
+        let refused = false;
+        await session.setServiceTier("not-a-listed-tier").catch(() => {
+          refused = true;
+        });
+        check(refused, "accepted an unlisted service tier");
+        await session.setServiceTier(tiers[0] as string);
+        await send(ctx, "normal");
+        await wait(trace, done);
+        await session.setServiceTier(null);
+        await send(ctx, "normal");
+        await wait(trace, (e) => done(e) && trace.filter(done).length >= 2);
         break;
       }
       case "frame_log":

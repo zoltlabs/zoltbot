@@ -64,6 +64,10 @@ export interface BotProfile {
   notifications: boolean;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  /** A5: null when the provider has no faster tier. */
+  fastMode?: boolean | null;
+  /** A10: the model the agent switches to once its turn ends. */
+  pendingModel?: AgentModelId | null;
   threadId: string | null;
   accent: BotAccent;
   avatarShape: BotAvatarShape;

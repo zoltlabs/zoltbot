@@ -2,6 +2,8 @@ import { Value } from "@sinclair/typebox/value";
 import {
   type DomainEvent,
   MUTED_PREFIX,
+  STARRED_MODELS_SETTING,
+  StarredModelsSchema,
   TASK_RUNNING_LIMIT_SETTING,
   TaskRunningLimitSchema,
 } from "@zoltbot/protocol";
@@ -16,8 +18,10 @@ import { relayUrlPattern } from "./relay-link.js";
 function reserved(key: string) {
   return (
     key.startsWith("view.") ||
+    // A9: caps change only through limits.set, which asks for confirmation and audits.
+    key.startsWith("limits.") ||
     key.startsWith("fork.") ||
-    key.startsWith("models.") ||
+    (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||
     key.startsWith("routine.event.health.") ||
     key.startsWith("runtime.private.") ||
@@ -78,6 +82,8 @@ export function settingsApi(options: {
       throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
     if (input.key.startsWith(MUTED_PREFIX) && typeof input.value !== "boolean")
       throw new Error("invalid_setting: use true or false");
+    if (input.key === STARRED_MODELS_SETTING && !Value.Check(StarredModelsSchema, input.value))
+      throw new Error("invalid_setting: use a list of up to 200 model ids");
     const check = store.receipt(commandId)
       ? undefined
       : await options.privacy.prepareData(undefined);

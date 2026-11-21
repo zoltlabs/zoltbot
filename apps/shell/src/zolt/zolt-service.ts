@@ -35,6 +35,7 @@ import { companyTree } from "./company-tree";
 import { contextService } from "./context-service";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
 import { DraftStore } from "./draft-store";
+import { setFastMode } from "./fast-mode";
 import { withHidden } from "./hidden";
 import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
@@ -369,6 +370,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           randomUUID(),
         ),
       );
+    if (input.fastMode !== undefined)
+      calls.push(setFastMode(this.client, text(thread.agentId), session, input.fastMode));
     if (input.role !== undefined)
       calls.push(
         this.client.call(

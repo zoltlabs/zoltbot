@@ -18,5 +18,15 @@ it("lists visible Codex models and the reasoning efforts they accept", () => {
       { id: "mini", name: "mini" },
     ],
     effort: ["low", "high", "minimal"],
+    serviceTiers: [],
   });
+});
+
+it("A5: collects the service tiers models list", () => {
+  expect(
+    codexModelOptions([
+      { id: "a", serviceTiers: [{ id: "priority", name: "Fast" }] },
+      { id: "b", serviceTiers: [{ id: "priority" }, { id: "flex" }] },
+    ]).serviceTiers,
+  ).toEqual(["priority", "flex"]);
 });

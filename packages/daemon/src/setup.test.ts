@@ -19,9 +19,11 @@ it("loads all verified definition data without launching a CLI or choosing a mod
       "qwen",
       "kimi",
       "copilot",
+      "antigravity",
+      "gemini",
+      "vibe",
     ]),
   );
-  expect(builtinDefinitions.some((definition) => definition.id === "gemini")).toBe(false);
   for (const definition of builtinDefinitions)
     expect(parse(AgentDefinitionSchema, definition)).toEqual(definition);
 });

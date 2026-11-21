@@ -244,3 +244,101 @@ it("writes one notice when every backup is at its limit", async () => {
   ]);
   expect(setting<ActiveRecord>(t.state(), activeKey("thread"))?.accountId).toBe(t.work.id);
 });
+
+it("A7: moves to a free model when every paid entry is at its limit", async () => {
+  const t = await fixture("claude-only");
+  // Codex ran once in another chat and listed a free model, so the catalog offers it.
+  t.f.put("thread", { ...t.f.store.record("thread", "thread"), id: "other" });
+  t.f.put("session", {
+    id: "codex-seen",
+    threadId: "other",
+    provider: "codex",
+    cwd: t.f.root,
+    state: "closed",
+    startedAt: iso(-minute),
+    capabilities: {
+      models: {
+        selectable: true,
+        list: [
+          { id: "mini:free", name: "Mini" },
+          { id: "big", name: "Big" },
+        ],
+      },
+    },
+  });
+  const listed = (await t.api("modelAccount.list", {})) as {
+    orders: { employee: { accountId: string; model?: string }[] };
+    free: { accountId: string; model: string }[];
+  };
+  expect(listed.free).toEqual([
+    { accountId: defaultAccountId("codex-tool"), model: "mini:free", name: "Mini" },
+  ]);
+  await t.api("backupOrder.set", {
+    role: "employee",
+    entries: [
+      ...listed.orders.employee,
+      { accountId: listed.free[0]?.accountId, model: "mini:free" },
+    ],
+  });
+  t.limit("session", iso(0), iso(60 * minute));
+  await t.supervisor.tick();
+  t.at(3 * minute);
+  t.limit("session-2", iso(2 * minute), iso(90 * minute), iso(2 * minute));
+  await t.supervisor.tick();
+  expect(t.asked[0]?.title).toBe("Continue on Codex?");
+  const interaction = t.state().interaction?.find((row) => row.id === t.asked[0]?.id);
+  t.f.store.dispatch("answer-free", (state) =>
+    answerInteractions(
+      state,
+      [
+        {
+          id: String(interaction?.id),
+          version: Number(interaction?.version),
+          answer: {
+            action: "accept",
+            answers: { choice: { options: ["continue"] }, remember: { options: ["remember"] } },
+            by: { kind: "human", id: "owner" },
+            at: iso(3 * minute),
+          },
+        },
+      ],
+      { commandId: "answer-free", at: iso(3 * minute), actor: { kind: "human", id: "owner" } },
+    ),
+  );
+  await t.supervisor.tick();
+  expect(setting<ActiveRecord>(t.state(), activeKey("thread"))).toMatchObject({
+    accountId: defaultAccountId("codex-tool"),
+    model: "mini:free",
+  });
+  const launch = backupLaunch(t.state(), "thread", t.profile());
+  expect(launch.definition.adapter).toBe("codex");
+  expect(launch.profile.model).toBe("mini:free");
+});
+
+it("A7: a free model on the same sign-in is not held by the paid limit", async () => {
+  const t = await fixture("claude-only");
+  t.f.put("thread", { ...t.f.store.record("thread", "thread"), id: "other" });
+  t.f.put("session", {
+    id: "claude-seen",
+    threadId: "other",
+    provider: "claude",
+    cwd: t.f.root,
+    state: "closed",
+    startedAt: iso(-minute),
+    capabilities: { models: { selectable: true, list: [{ id: "mini:free", name: "Mini" }] } },
+  });
+  await t.api("backupOrder.set", {
+    role: "employee",
+    entries: [
+      { accountId: defaultAccountId("fake") },
+      { accountId: defaultAccountId("fake"), model: "mini:free" },
+    ],
+  });
+  t.limit("session", iso(0), iso(60 * minute));
+  await t.supervisor.tick();
+  expect(setting<ActiveRecord>(t.state(), activeKey("thread"))).toMatchObject({
+    accountId: defaultAccountId("fake"),
+    model: "mini:free",
+  });
+  expect(t.notes()).toEqual(["Claude hit its limit. Continuing on Claude."]);
+});

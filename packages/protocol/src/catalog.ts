@@ -395,6 +395,8 @@ const rawMethodCatalog = {
     object({ id: Id, effort: Text, cacheWarningAccepted: Type.Boolean() }),
     ok,
   ),
+  /** A5: null returns the session to the provider's standard tier. */
+  "session.setServiceTier": entry(object({ id: Id, tier: Type.Union([Text, Type.Null()]) }), ok),
   "session.setMode": entry(
     object({ id: Id, mode: Text, confirmed: Type.Optional(Type.Boolean()) }),
     ok,

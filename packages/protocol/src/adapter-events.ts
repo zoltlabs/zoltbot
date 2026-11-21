@@ -40,7 +40,16 @@ export const CapabilitiesSchema = object({
   safeModes: Type.Optional(Strings),
   models: object({
     selectable: Type.Boolean(),
-    list: Type.Optional(Type.Array(object({ id: Id, name: Text }))),
+    list: Type.Optional(
+      Type.Array(
+        object({
+          id: Id,
+          name: Text,
+          /** A7: the provider marks the model free to use. */
+          free: Type.Optional(Type.Boolean()),
+        }),
+      ),
+    ),
   }),
   effort: Strings,
   approvals: values(["granular", "coarse", "none"]),
@@ -74,6 +83,11 @@ export const CapabilitiesSchema = object({
   rewind: Type.Optional(Type.Boolean()),
   /** The provider reports background shell or agent tasks and can stop them. */
   backgroundTasks: Type.Optional(Type.Boolean()),
+  /**
+   * Faster, costlier service tiers the installed provider accepts, by the provider's own id (for
+   * example Claude's "fast" or Codex's "priority"). Absent or empty: no Fast mode.
+   */
+  serviceTiers: Type.Optional(Strings),
 });
 export type Capabilities = Static<typeof CapabilitiesSchema>;
 const turn = { turnId: Id };

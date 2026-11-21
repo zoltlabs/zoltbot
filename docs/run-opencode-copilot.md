@@ -13,6 +13,10 @@ To test a specific executable, put its path before `--authenticated`. Each run w
 
 ## Gemini
 
-Antigravity is the supported Gemini path. See [Cursor and Antigravity](run-cursor-antigravity.md). The standalone Gemini CLI is not in the built-in catalog.
+Zoltbot runs Gemini models through Antigravity (see [Cursor and Antigravity](run-cursor-antigravity.md)) or through the Gemini CLI, which it starts with `gemini --acp`. Sign in by running `gemini` once, or set `GEMINI_API_KEY`.
+
+## Mistral Vibe
+
+Zoltbot starts Mistral Vibe with `vibe-acp`. Set `MISTRAL_API_KEY`, or run `vibe --setup` once.
 
 Sources: [OpenCode ACP](https://opencode.ai/docs/acp/), [Copilot ACP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server).

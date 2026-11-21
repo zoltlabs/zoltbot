@@ -46,5 +46,15 @@ export function modelHandlers(service: ZoltService): Record<string, (input: unkn
         throw new Error(`Choose ${RUNNING_LIMIT.min} to ${RUNNING_LIMIT.max} tasks.`);
       return service.accounts.setRunningLimit(input);
     },
+    [IPC_CHANNELS.modelsStarred]: () => service.accounts.starred(),
+    [IPC_CHANNELS.modelsSetStarred]: (input) => {
+      if (
+        !Array.isArray(input) ||
+        input.length > 200 ||
+        !input.every((id) => typeof id === "string" && id.length > 0 && id.length <= 200)
+      )
+        throw new Error("Star up to 200 models.");
+      return service.accounts.setStarred([...new Set(input as string[])]);
+    },
   };
 }

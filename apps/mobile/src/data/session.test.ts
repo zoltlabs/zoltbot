@@ -12,12 +12,16 @@ import {
   modelState,
   modeState,
   modeWidens,
+  offersFastMode,
   planOpen,
   runningBackground,
+  starredFirst,
+  starredModels,
   threadSession,
   toContextUsage,
 } from "./session.js";
 import { childSummary, interactionLine, toolTitle, transcript } from "./timeline.js";
+import type { Snapshot } from "./transport.js";
 
 const snapshot = sampleSnapshot(Date.parse("2026-11-03T12:00:00.000Z"));
 
@@ -79,6 +83,10 @@ describe("models", () => {
       running: true,
     });
     expect(modelState(snapshot, threadSession(snapshot, "thread-rate-limits"))).toBeUndefined();
+    // A10: a change made during a reply is held and named until it applies.
+    const held = { ...session, pendingModel: { model: "sonnet" } };
+    expect(modelState(snapshot, held)?.pending?.id).toBe("sonnet");
+    expect(modelState(snapshot, session)?.pending).toBeUndefined();
   });
   it("marks only sent messages as places a new chat can start from", () => {
     const rows = transcript(snapshot, "thread-meal-search");
@@ -307,5 +315,36 @@ describe("context use", () => {
       },
     };
     expect(compactions(withNotes, "a")).toBe(1);
+  });
+});
+
+describe("A5 fast mode", () => {
+  it("is offered only for a profile whose chats run on a provider with a faster tier", () => {
+    const snapshot = {
+      entities: {
+        thread: [
+          { id: "t1", agentId: "fast" },
+          { id: "t2", agentId: "plain" },
+        ],
+        session: [
+          { id: "s1", threadId: "t1", capabilities: { serviceTiers: ["fast"] } },
+          { id: "s2", threadId: "t2", capabilities: { serviceTiers: [] } },
+        ],
+      },
+    } as unknown as Parameters<typeof offersFastMode>[0];
+    expect(offersFastMode(snapshot, "fast")).toBe(true);
+    expect(offersFastMode(snapshot, "plain")).toBe(false);
+    expect(offersFastMode(snapshot, "missing")).toBe(false);
+  });
+});
+
+describe("A8 starred models", () => {
+  it("lists starred models first and reads the shared setting", () => {
+    const snapshot = {
+      entities: { settings: [{ key: "models.starred", value: ["c", "a", 3] }] },
+    } as unknown as Snapshot;
+    expect(starredModels(snapshot)).toEqual(["c", "a"]);
+    const models = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(starredFirst(models, starredModels(snapshot)).map((m) => m.id)).toEqual(["c", "a", "b"]);
   });
 });

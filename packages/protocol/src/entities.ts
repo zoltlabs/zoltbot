@@ -33,6 +33,8 @@ export const ProfileSchema = object({
   definitionId: Id,
   model: OptionalText,
   effort: OptionalText,
+  /** A5: run on the provider's faster, costlier tier when it offers one. */
+  fastMode: Type.Optional(Type.Boolean()),
   permissionProfile: PermissionProfileSchema,
   instructions: Text,
   roleText: OptionalText,
@@ -151,6 +153,12 @@ export const SessionSchema = object({
   state: SessionStateSchema,
   model: OptionalText,
   effort: OptionalText,
+  /** A5: the faster service tier the session runs on, one of capabilities.serviceTiers. */
+  serviceTier: OptionalText,
+  /** A10: a model change made while a turn ran; it applies when the turn ends. */
+  pendingModel: Type.Optional(
+    object({ model: Text, effort: OptionalText, commandId: OptionalText }),
+  ),
   capabilities: Json,
   providerVersion: OptionalText,
   /** Current native permission mode as last reported by the adapter. */
@@ -255,6 +263,12 @@ export type Task = Static<typeof TaskSchema>;
 export const TASK_RUNNING_LIMIT_SETTING = "tasks.runningLimit";
 export const DEFAULT_TASK_RUNNING_LIMIT = 2;
 export const TaskRunningLimitSchema = Type.Integer({ minimum: 1, maximum: 20 });
+/** A8: settings key for the model ids the owner starred, shared by the Mac and the phone. */
+export const STARRED_MODELS_SETTING = "models.starred";
+export const StarredModelsSchema = Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
+  maxItems: 200,
+  uniqueItems: true,
+});
 /** The hold reason of a queued task whose employee already runs as many tasks as allowed. */
 export const AT_LIMIT_HOLD = "at_limit";
 export const TaskResultSchema = object({

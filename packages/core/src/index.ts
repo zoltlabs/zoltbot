@@ -1,5 +1,6 @@
 export * from "./agent-templates/index.js";
 export * from "./approval-rules.js";
+export * from "./backup-presets.js";
 export * from "./budgets.js";
 export * from "./channel-posts.js";
 export * from "./channel-requests.js";
@@ -23,6 +24,7 @@ export * from "./native-compaction.js";
 export * from "./native-sessions.js";
 export * from "./projectors.js";
 export * from "./queue-order.js";
+export * from "./routine-caps.js";
 export * from "./routine-time.js";
 export * from "./routines.js";
 export * from "./rule-answers.js";

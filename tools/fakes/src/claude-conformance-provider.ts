@@ -31,7 +31,7 @@ let mode = flag("--permission-mode") ?? "default";
 const bypassAvailable =
   mode === "bypassPermissions" || args.includes("--allow-dangerously-skip-permissions");
 let mcpChecks = 0;
-const liveModel: { model?: string; effortLevel?: string | null } = {};
+const liveModel: { model?: string; effortLevel?: string | null; fastMode?: boolean } = {};
 const configPath = flag("--mcp-config");
 const config = configPath ? JSON.parse(readFileSync(configPath, "utf8")) : {};
 const host = config.mcpServers?.zoltbot;
@@ -415,6 +415,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
             ...managedCommands,
           ],
           models: [{ value: "model", displayName: "Model" }],
+          fast_mode_state: "off",
         });
         break;
       case "mcp_status":
@@ -455,6 +456,8 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
       case "apply_flag_settings":
         if (request.settings && "effortLevel" in request.settings)
           liveModel.effortLevel = request.settings.effortLevel;
+        if (request.settings && "fastMode" in request.settings)
+          liveModel.fastMode = request.settings.fastMode;
         writeFileSync(path.join(process.cwd(), "live-model.json"), JSON.stringify(liveModel), {
           mode: 0o600,
         });

@@ -34,8 +34,22 @@ it("uses advertised noninteractive auth methods and never invents a login method
   ).toEqual({ methodId: "cursor_login" });
 });
 
-it("uses Antigravity as the built-in Gemini path", () => {
-  expect(acpDefinitions.some((definition) => definition.id === "gemini")).toBe(false);
-  expect(() => builtinRegistry().get("gemini")).toThrow("unknown_acp_flavor");
-  expect(builtinRegistry().get("antigravity").id).toBe("antigravity");
+it("A6: offers Gemini CLI next to Antigravity, and Mistral Vibe", () => {
+  const registry = builtinRegistry();
+  const gemini = acpDefinitions.find((definition) => definition.id === "gemini");
+  expect(gemini?.launch.args).toEqual(["--acp"]);
+  expect(registry.get("antigravity").id).toBe("antigravity");
+  const methods = [
+    { id: "oauth-personal", name: "Log in with Google" },
+    { id: "gemini-api-key", name: "Gemini API key" },
+  ];
+  expect(registry.get("gemini").chooseAuth?.(methods, { GEMINI_API_KEY: "synthetic" })).toEqual({
+    methodId: "gemini-api-key",
+  });
+  // A saved Google sign-in is used as is; Zoltbot never starts an interactive login.
+  expect(registry.get("gemini").chooseAuth?.(methods, {})).toBeUndefined();
+  const vibe = acpDefinitions.find((definition) => definition.id === "vibe");
+  expect(vibe?.binaryNames).toEqual(["vibe-acp"]);
+  expect(vibe?.launch.command).toBe("{binary}");
+  expect(registry.get("vibe").id).toBe("vibe");
 });

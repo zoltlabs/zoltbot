@@ -1,4 +1,5 @@
 import {
+  answerInteractions,
   type CommandContext,
   createTask,
   type DomainState,
@@ -10,6 +11,8 @@ import {
   ROUTINE_PERMISSION_TIMEOUT_MS,
   requestInteraction,
   routineFromTask,
+  routineRunEstimate,
+  setLimits,
   startTask,
 } from "@zoltbot/core";
 import type { Routine } from "@zoltbot/protocol";
@@ -556,6 +559,92 @@ it("dispatches an explicitly browser-enabled routine as a fresh task with backgr
     expect(task?.browser).toEqual(f.routine.template.inputs.browser);
     expect(task?.threadId).not.toBe(f.store.record("task", "manual")?.threadId);
     expect(f.occurrences()).toHaveLength(1);
+  } finally {
+    f.close();
+  }
+});
+
+it("A9: a run that reaches its routine's cap asks the owner, and Stop ends it", async () => {
+  const f = await fixture();
+  try {
+    const scheduled = f.routine.nextRunAt;
+    f.run((state, ctx) =>
+      fireRoutine(state, f.routine, scheduled, "fire", {
+        ...ctx,
+        actor: { kind: "system", id: "routine" },
+      }),
+    );
+    const occurrence = f.occurrences()[0];
+    const taskId = String(occurrence?.taskId);
+    f.run((state, ctx) => startTask(state, taskId, 1, ctx));
+    f.run((state, ctx) =>
+      setLimits(
+        state,
+        { scopeType: "routine", scopeId: "r", limits: { usdPerRun: 5 }, confirmed: true },
+        ctx,
+      ),
+    );
+    const spend = (id: string, costUsd: number) =>
+      f.run((state, ctx) =>
+        handle(
+          state,
+          {
+            type: "create",
+            kind: "usage",
+            value: {
+              id,
+              sessionId: "session",
+              taskId,
+              costUsd,
+              costKnown: true,
+              injectedTokens: 0,
+              recordedAt: scheduled,
+            },
+          },
+          ctx,
+        ),
+      );
+    const card = () =>
+      (f.store.snapshot(["interaction"]).interaction ?? []).find((row) =>
+        String(row.id).startsWith("routine-cap-"),
+      );
+    spend("u1", 3);
+    await f.runner.schedule();
+    expect(card()).toBeUndefined();
+
+    // The run crosses its cap mid-run: one card asks.
+    spend("u2", 2.5);
+    await f.runner.schedule();
+    await f.runner.schedule();
+    expect(card()).toMatchObject({ title: '"Check" reached its $5 cap', state: "pending" });
+    expect(f.occurrences()[0]).toMatchObject({ outcome: "needs_you" });
+
+    f.run((state, ctx) =>
+      answerInteractions(
+        state,
+        [
+          {
+            id: String(card()?.id),
+            version: Number(card()?.version),
+            answer: {
+              action: "accept",
+              answers: { choice: { options: ["stop"] } },
+              by: ctx.actor,
+              at: ctx.at,
+            },
+          },
+        ],
+        ctx,
+      ),
+    );
+    await f.runner.schedule();
+    expect(f.occurrences()[0]).toMatchObject({
+      status: "expired",
+      reason: "Stopped at its cost cap",
+    });
+    expect(f.store.record("task", taskId)).toMatchObject({ state: "cancelled" });
+    // The estimate reads only finished runs; this one expired.
+    expect(routineRunEstimate(f.store.snapshot(), "r")).toBeUndefined();
   } finally {
     f.close();
   }

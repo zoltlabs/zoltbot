@@ -112,6 +112,10 @@ export function parseUpdateBot(value: unknown): UpdateBotInput {
     if (typeof value.notifications !== "boolean") throw new Error("Invalid notifications value.");
     result.notifications = value.notifications;
   }
+  if (value.fastMode !== undefined) {
+    if (typeof value.fastMode !== "boolean") throw new Error("Invalid fast mode value.");
+    result.fastMode = value.fastMode;
+  }
   if (value.model !== undefined) {
     if (!isAgentModel(value.model)) throw new Error("Invalid agent model.");
     result.model = value.model;

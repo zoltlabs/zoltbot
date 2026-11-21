@@ -1,3 +1,4 @@
+import { readLimits, routineRunEstimate, setLimits } from "@zoltbot/core";
 import { setBudget } from "@zoltbot/core/budgets";
 import { summarizeUsage } from "@zoltbot/core/usage-meter";
 import { type DomainEvent, parse, UsageRecordSchema } from "@zoltbot/protocol";
@@ -5,6 +6,35 @@ import type { Store } from "@zoltbot/store";
 
 export function usageApi(host: { store: Store; publish(events: DomainEvent[]): void }) {
   return (method: string, params: Record<string, unknown>, commandId?: string): unknown => {
+    if (method === "limits.get") {
+      // A9: a routine's caps come with its estimated cost per run, when it has history.
+      const state = host.store.snapshot(["settings", "usage", "routineOccurrence"]);
+      const scopeType = String(params.scopeType);
+      const scopeId = String(params.scopeId);
+      const estimate = scopeType === "routine" ? routineRunEstimate(state, scopeId) : undefined;
+      return {
+        ...readLimits(state, scopeType, scopeId),
+        ...(estimate !== undefined ? { estimateUsdPerRun: estimate } : {}),
+      };
+    }
+    if (method === "limits.set") {
+      if (!commandId) throw new Error("command_id_required");
+      const before = host.store.lastSeq();
+      host.store.dispatch(commandId, (state) =>
+        setLimits(
+          state,
+          {
+            scopeType: String(params.scopeType),
+            scopeId: String(params.scopeId),
+            limits: (params.limits ?? {}) as Record<string, number>,
+            confirmed: params.confirmed === true,
+          },
+          { commandId, at: new Date().toISOString(), actor: { kind: "human", id: "local-owner" } },
+        ),
+      );
+      host.publish(host.store.eventsSince(before));
+      return { ok: true };
+    }
     if (!["usage.query", "overhead.get", "budget.set"].includes(method)) return undefined;
     if (method === "budget.set") {
       if (!commandId) throw new Error("command_id_required");

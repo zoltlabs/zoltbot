@@ -123,7 +123,10 @@ export function claudeOptions(
         }),
     // As T3 Code does: summaries keep thinking text visible on models that omit it by default,
     // without forcing thinking on when the person turned it off.
-    settings: { showThinkingSummaries: true },
+    settings: {
+      showThinkingSummaries: true,
+      ...(options.serviceTier === "fast" ? { fastMode: true } : {}),
+    },
     extraArgs: {
       "mcp-config": mcpFile,
       "replay-user-messages": null,

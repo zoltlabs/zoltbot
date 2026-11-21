@@ -32,9 +32,25 @@ export interface BackupOrdersView {
   ceo: BackupEntryView[] | null;
 }
 
+/** A7: a free model the catalog lists, on its tool's own sign-in. */
+export interface FreeModelView {
+  accountId: string;
+  model: string;
+  name: string;
+}
+
 export interface ModelsOverview {
   accounts: ModelAccountView[];
   orders: BackupOrdersView;
+  free: FreeModelView[];
+}
+
+/** A7: the free models an order doesn't list yet, as entries that fit in its 8 places. */
+export function missingFreeModels(order: BackupEntryView[], free: FreeModelView[]) {
+  return free
+    .filter((item) => !order.some((e) => e.accountId === item.accountId && e.model === item.model))
+    .slice(0, Math.max(0, 8 - order.length))
+    .map((item) => ({ accountId: item.accountId, model: item.model }));
 }
 
 /** The command that signs a tool in to an account's own folder. */
@@ -78,6 +94,9 @@ export interface ModelsDesktopApi {
   /** How many tasks one employee runs at once. */
   runningLimit: () => Promise<number>;
   setRunningLimit: (limit: number) => Promise<number>;
+  /** A8: the model ids the owner starred, shared with the phone. */
+  starred: () => Promise<string[]>;
+  setStarred: (ids: string[]) => Promise<string[]>;
 }
 
 /** The bounds of the per-employee running-task limit; the daemon enforces the same. */
@@ -92,4 +111,6 @@ export const MODEL_CHANNELS = {
   modelsSetOrder: "models:set-order",
   modelsRunningLimit: "models:running-limit",
   modelsSetRunningLimit: "models:set-running-limit",
+  modelsStarred: "models:starred",
+  modelsSetStarred: "models:set-starred",
 } as const;

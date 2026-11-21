@@ -1,4 +1,4 @@
-import type { DomainState } from "@zoltbot/core";
+import { type DomainState, type FreeModel, freeModels } from "@zoltbot/core";
 import {
   type AgentDefinition,
   AgentDefinitionSchema,
@@ -10,6 +10,8 @@ import {
   type Profile,
   parse,
 } from "@zoltbot/protocol";
+
+import { modelCatalog } from "../model-catalog.js";
 
 // Backup model state lives in daemon-only settings rows (see settings-api reserved keys).
 export const accountKey = (id: string) => `models.account.${id}`;
@@ -67,6 +69,22 @@ export function slashCommand(definition: ToolKind): string | undefined {
 export const canAddAccounts = (definition: ToolKind) =>
   accountHomeKey(definition) !== undefined && loginArgs(definition) !== undefined;
 export const defaultAccountId = (definitionId: string) => `default:${definitionId}`;
+/** A7: a free model keeps its own limit, apart from the paid usage of the same sign-in. */
+export const freeLimitId = (accountId: string, model: string) => `${accountId}#free:${model}`;
+/** A7: the free models the catalog lists, on each tool's own sign-in. */
+export function catalogFreeModels(state: DomainState, now = Date.now()): FreeModel[] {
+  const catalog = modelCatalog(state).items.map((row) => ({
+    ...row,
+    definitionId: String(row.definitionId),
+  }));
+  return freeModels(catalog, listAccounts(state, now));
+}
+/** A7: the limit id a session or entry counts against: its free model's own, else the account's. */
+export function limitIdOf(free: FreeModel[], accountId: string, model: string | undefined) {
+  return model && free.some((row) => row.accountId === accountId && row.model === model)
+    ? freeLimitId(accountId, model)
+    : accountId;
+}
 
 export interface StoredAccount {
   id: string;

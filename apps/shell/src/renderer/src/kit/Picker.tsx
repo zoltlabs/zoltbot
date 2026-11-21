@@ -1,4 +1,5 @@
 import {
+  children,
   createEffect,
   createMemo,
   createSignal,
@@ -204,6 +205,8 @@ function OptionRow<T extends string>(props: {
   focusable?: boolean;
   onChoose: () => void;
   onHover?: () => void;
+  /** Mouse only; the keyboard stars through the button by the search field. */
+  star?: { on: boolean; toggle: () => void };
 }) {
   return (
     <div
@@ -241,7 +244,36 @@ function OptionRow<T extends string>(props: {
       <Show when={props.option.detail}>
         <span class="zb-kit-option-detail">{props.option.detail}</span>
       </Show>
+      <Show when={props.star}>
+        {(star) => (
+          <span
+            class="zb-kit-option-star"
+            classList={{ "zb-kit-starred": star().on }}
+            aria-hidden="true"
+            onClick={(event) => {
+              event.stopPropagation();
+              star().toggle();
+            }}
+          >
+            <StarGlyph filled={star().on} />
+          </span>
+        )}
+      </Show>
     </div>
+  );
+}
+
+function StarGlyph(props: { filled: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="m8 1.8 1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6Z"
+        fill={props.filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -252,6 +284,25 @@ export interface ComboboxProps<T extends string> extends PickerProps<T> {
   emptyLabel: string;
   /** Names the open panel when it should differ from `label`, for example "Choose agent model". */
   panelLabel?: string;
+  /**
+   * Controls below the list that change the choice, such as a Fast mode switch. Tab moves from
+   * the search field to them, and from them back out of the panel.
+   */
+  footer?: JSX.Element;
+  /** Scores a match for the search; 0 hides it. While searching, matches list best first. */
+  rank?: (query: string, option: PickerOption<T>) => number;
+  /** Called each time the panel opens. */
+  onOpen?: () => void;
+  /**
+   * Starring. A button beside the search field stars or unstars the active option, so the
+   * keyboard reaches it; each row also shows its star for the mouse.
+   */
+  star?: {
+    isStarred(value: T): boolean;
+    toggle(value: T): void;
+    /** The button's name, such as "Star Opus" or "Unstar Opus". */
+    label(option: PickerOption<T>, starred: boolean): string;
+  };
 }
 
 /** Picks one value from a long list with search, such as the model or agent picker. */
@@ -289,15 +340,34 @@ function ComboboxPanel<T extends string>(props: {
 }) {
   let element: HTMLDivElement | undefined;
   let input: HTMLInputElement | undefined;
+  let footer: HTMLDivElement | undefined;
+  // Resolved once, so the footer's controls aren't rebuilt (and don't lose focus) on each read.
+  const footerContent = children(() => props.picker.footer);
   const listId = createUniqueId();
   const [query, setQuery] = createSignal("");
+  let starButton: HTMLButtonElement | undefined;
   const matches = createMemo(() => {
+    const rank = props.picker.rank;
+    if (rank && query().trim())
+      return (
+        props.picker.options
+          .map((option, index) => ({ option, index, score: rank(query(), option) }))
+          .filter((row) => row.score > 0)
+          .sort((a, b) => b.score - a.score || a.index - b.index)
+          // Ranked results drop their groups; the group name stays on the row as its detail.
+          .map((row) => ({
+            ...row.option,
+            group: undefined,
+            detail: [row.option.group, row.option.detail].filter(Boolean).join(" · ") || undefined,
+          }))
+      );
     const words = query().trim().toLowerCase().split(/\s+/).filter(Boolean);
     return props.picker.options.filter((option) => {
       const text = `${option.label} ${option.group ?? ""}`.toLowerCase();
       return words.every((word) => text.includes(word));
     });
   });
+  const footerFirst = () => footer?.querySelector<HTMLElement>("button:not([disabled]), input");
   const [active, setActive] = createSignal(0);
   /** Options the arrow keys move through: the matches that can be chosen. */
   const choosable = createMemo(() => matches().filter((option) => !option.disabled));
@@ -313,6 +383,7 @@ function ComboboxPanel<T extends string>(props: {
     onDismiss: () => props.onClose(),
   });
   onMount(() => {
+    props.picker.onOpen?.();
     const index = choosable().findIndex((option) => option.value === props.picker.value);
     setActive(Math.max(0, index));
     input?.focus();
@@ -374,10 +445,58 @@ function ComboboxPanel<T extends string>(props: {
                 choose(activeOption());
               } else if (event.key === "Tab") {
                 event.preventDefault();
-                props.onClose();
+                const next = event.shiftKey
+                  ? undefined
+                  : starButton && !starButton.disabled
+                    ? starButton
+                    : footerFirst();
+                if (next) next.focus();
+                else props.onClose();
               }
             }}
           />
+          <Show when={activeOption() && props.picker.star}>
+            {(star) => {
+              const starred = () => {
+                const option = activeOption();
+                return option ? star().isStarred(option.value) : false;
+              };
+              return (
+                <button
+                  ref={starButton}
+                  type="button"
+                  class="zb-kit-star-button"
+                  classList={{ "zb-kit-starred": starred() }}
+                  aria-label={
+                    activeOption() ? star().label(activeOption() as PickerOption<T>, starred()) : ""
+                  }
+                  title={
+                    activeOption() ? star().label(activeOption() as PickerOption<T>, starred()) : ""
+                  }
+                  onClick={() => {
+                    const option = activeOption();
+                    if (!option) return;
+                    star().toggle(option.value);
+                    // The list may reorder; stay on the same option.
+                    const index = choosable().findIndex((row) => row.value === option.value);
+                    if (index >= 0) setActive(index);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Tab") return;
+                    event.preventDefault();
+                    const next = event.shiftKey ? input : footerFirst();
+                    if (next) next.focus();
+                    else {
+                      returnFocus(props.anchor);
+                      props.onClose();
+                    }
+                  }}
+                >
+                  <StarGlyph filled={starred()} />
+                </button>
+              );
+            }}
+          </Show>
         </div>
         <div
           id={listId}
@@ -397,6 +516,14 @@ function ComboboxPanel<T extends string>(props: {
                   {(option) => (
                     <OptionRow
                       id={optionId(option)}
+                      star={
+                        props.picker.star
+                          ? {
+                              on: props.picker.star.isStarred(option.value),
+                              toggle: () => props.picker.star?.toggle(option.value),
+                            }
+                          : undefined
+                      }
                       option={option}
                       selected={option.value === props.picker.value}
                       active={option === activeOption()}
@@ -412,6 +539,25 @@ function ComboboxPanel<T extends string>(props: {
         <Show when={matches().length === 0}>
           <div class="zb-kit-empty-row" role="status">
             {props.picker.emptyLabel}
+          </div>
+        </Show>
+        <Show when={footerContent()}>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: moves Tab out of the footer's own controls. */}
+          <div
+            ref={footer}
+            class="zb-kit-combobox-footer"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              event.preventDefault();
+              if (event.shiftKey)
+                (starButton && !starButton.disabled ? starButton : input)?.focus();
+              else {
+                returnFocus(props.anchor);
+                props.onClose();
+              }
+            }}
+          >
+            {footerContent()}
           </div>
         </Show>
       </div>

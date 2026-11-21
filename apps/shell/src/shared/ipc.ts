@@ -298,6 +298,10 @@ export interface BotSummary {
   notifications: boolean;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  /** A5: Fast mode on or off; null when the agent's provider has no faster tier. */
+  fastMode?: boolean | null;
+  /** A10: the model the agent switches to once its turn ends; null when none is held. */
+  pendingModel?: AgentModelId | null;
   threadId: string | null;
   workspacePath: string;
   preview: string;
@@ -406,6 +410,7 @@ export interface UpdateBotInput {
   notifications?: boolean;
   model?: AgentModelId;
   reasoningEffort?: AgentReasoningEffort;
+  fastMode?: boolean;
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
   contextFull?: ContextFullAction;

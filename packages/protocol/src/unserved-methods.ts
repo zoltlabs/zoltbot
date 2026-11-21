@@ -32,8 +32,6 @@ export const unservedMethods: readonly MethodName[] = [
   "assignment.end",
   "routing.rules.list",
   "routing.rules.set",
-  "limits.get",
-  "limits.set",
   "task.update",
   "task.checkpoints",
   "workflow.list",

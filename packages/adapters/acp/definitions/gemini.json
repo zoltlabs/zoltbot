@@ -1,0 +1,29 @@
+{
+  "id": "gemini",
+  "displayName": "Gemini CLI",
+  "adapter": "acp",
+  "flavor": "gemini",
+  "binaryNames": ["gemini"],
+  "versionCommand": ["--version"],
+  "launch": {
+    "command": "{binary}",
+    "args": ["--acp"],
+    "env": {}
+  },
+  "auth": {
+    "apiKeyEnv": "GEMINI_API_KEY",
+    "loginCommand": []
+  },
+  "install": {
+    "docsUrl": "https://github.com/google-gemini/gemini-cli"
+  },
+  "testedVersions": "0.40.1",
+  "defaults": {
+    "permissionProfile": "workspace_write"
+  },
+  "staticCapabilities": {
+    "readOnly": false
+  },
+  "nativeSessionRoots": [],
+  "experimental": false
+}

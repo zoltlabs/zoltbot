@@ -2173,6 +2173,40 @@ textarea {
   gap: 6px;
 }
 
+/* A10: a model change held until the reply ends. */
+.pending-model {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pending-model-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-model-undo {
+  flex: none;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pending-model-undo:hover {
+  background: rgb(var(--ink) / 0.06);
+}
+
 .computer-button-agent-active {
   border-color: rgba(117, 167, 255, 0.42);
   background: rgba(117, 167, 255, 0.11);
@@ -3973,6 +4007,23 @@ textarea {
   display: grid;
   width: 100%;
   grid-template-columns: 72px minmax(0, 1fr);
+}
+
+/* A5: Fast mode switch in the model picker's footer. */
+.fast-mode-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.fast-mode-switch.settings-switch-on {
+  background: var(--openbot-orange);
+}
+
+.fast-mode-row p {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .provider-model-disabled-reason {

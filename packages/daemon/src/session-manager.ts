@@ -8,6 +8,7 @@ import {
   type Outcome,
   requestTurnInterrupt,
   routineProfile,
+  settleServiceTier,
 } from "@zoltbot/core";
 import {
   type AgentEvent,
@@ -237,6 +238,32 @@ export class SessionManager {
   }
   private commit(produce: (state: DomainState, context: CommandContext) => Outcome) {
     return commitRuntime(this.options, produce);
+  }
+  /**
+   * A5: an agent with Fast mode on starts on the provider's faster tier; a resumed session with it
+   * off is set back to standard, as the provider may keep a tier on the native thread. The
+   * profile is read now, after the slow open, and a refused tier never fails the launch.
+   */
+  private async launchTier(
+    sessionId: string,
+    agentId: string,
+    native: AgentSession,
+    resumed: boolean,
+  ) {
+    const tier = native.capabilities.serviceTiers?.[0];
+    if (!tier || !native.setServiceTier) return;
+    const fast =
+      this.options.store.snapshot(["agent"]).agent?.find((row) => row.id === agentId)?.fastMode ===
+      true;
+    if (!fast && !resumed) return;
+    try {
+      await native.setServiceTier(fast ? tier : null);
+      this.commit((state, context) =>
+        settleServiceTier(state, sessionId, fast ? tier : null, context),
+      );
+    } catch {
+      this.options.onError?.("service_tier_launch_failed");
+    }
   }
   assertMutable(id: string) {
     this.forks.assertMutable(id);
@@ -479,6 +506,7 @@ export class SessionManager {
       checkConfiguration();
       prepared.validateWorkspace?.();
       if (this.stopped) throw new Error("runtime_closed");
+      await this.launchTier(sessionId, profile.id, native, Boolean(previous));
       if (fork && (!native.nativeId || native.nativeId === fork.source.nativeId))
         throw Error("fork_identity_unavailable");
       if (!fork && previous && native.nativeId !== previous.nativeId)

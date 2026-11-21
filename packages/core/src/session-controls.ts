@@ -173,7 +173,42 @@ export function settleSessionModel(
       kind: "session",
       id: sessionId,
       // No effort means the model's default, as at launch; undefined drops the stored one.
-      changes: { model: change.model, effort: change.effort },
+      // A10: an applied change ends any held one.
+      changes: { model: change.model, effort: change.effort, pendingModel: undefined },
+    },
+    context,
+  );
+}
+
+/**
+ * A10: holds a model change until the running turn ends, or drops it when the change is back to
+ * what the session already runs (Undo).
+ */
+export function queueSessionModel(
+  state: DomainState,
+  sessionId: string,
+  change: { model: string; effort?: string; commandId?: string } | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "system") throw new Error("system_model_writer_required");
+  const session = state.session?.find((row) => row.id === sessionId);
+  if (!session) return { events: [], result: { ok: true } };
+  // What the session runs: its own model, else its agent's, as at launch.
+  const thread = state.thread?.find((row) => row.id === session.threadId);
+  const agent = state.agent?.find((row) => row.id === thread?.agentId);
+  const model = session.model ?? agent?.model;
+  const effort = session.effort ?? agent?.effort;
+  const same =
+    change !== null &&
+    change.model === model &&
+    (change.effort === undefined || change.effort === effort);
+  return handle(
+    state,
+    {
+      type: "update",
+      kind: "session",
+      id: sessionId,
+      changes: { pendingModel: change && !same ? change : undefined },
     },
     context,
   );
@@ -245,5 +280,57 @@ export function requestFilesRewind(
     },
     context,
     { kind: "rewind", sessionId: input.sessionId, turnId: input.turnId },
+  );
+}
+
+/**
+ * A5: record a human Fast mode change before the native session is told. A faster tier costs
+ * more, so the change is audited. The tier must be one the session lists; null is standard.
+ */
+export function requestServiceTier(
+  state: DomainState,
+  sessionId: string,
+  tier: string | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "human") throw new Error("human_service_tier_change_required");
+  const { session, capabilities } = liveSession(state, sessionId);
+  const tiers = Array.isArray(capabilities.serviceTiers) ? capabilities.serviceTiers : [];
+  if (!tiers.length || (tier !== null && !tiers.includes(tier)))
+    throw new Error("unsupported_service_tier");
+  return audited(
+    state,
+    "session.setServiceTier",
+    sessionId,
+    {
+      threadId: session.threadId,
+      tier,
+      ...(typeof session.serviceTier === "string" ? { previous: session.serviceTier } : {}),
+    },
+    context,
+    { kind: "set_service_tier", sessionId, tier },
+  );
+}
+
+/** Stores the tier the native session accepted; null drops it. */
+export function settleServiceTier(
+  state: DomainState,
+  sessionId: string,
+  tier: string | null,
+  context: CommandContext,
+): Outcome {
+  if (context.actor.kind !== "system") throw new Error("system_service_tier_writer_required");
+  const session = state.session?.find((row) => row.id === sessionId);
+  if (!session || ["closed", "failed"].includes(String(session.state)))
+    return { events: [], result: { tier } };
+  return handle(
+    state,
+    {
+      type: "update",
+      kind: "session",
+      id: sessionId,
+      changes: { serviceTier: tier ?? undefined },
+    },
+    context,
   );
 }

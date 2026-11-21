@@ -68,7 +68,14 @@ const ok = object({ ok: Type.Boolean() });
 export const backupModelMethods = {
   "modelAccount.list": {
     params: object({}),
-    result: object({ items: Type.Array(ModelAccountSchema), orders: BackupOrdersSchema }),
+    result: object({
+      items: Type.Array(ModelAccountSchema),
+      orders: BackupOrdersSchema,
+      /** A7: free models from the catalog, on each installed tool's own sign-in. */
+      free: Type.Optional(
+        Type.Array(object({ accountId: Id, model: Text, name: Text }), { maxItems: 50 }),
+      ),
+    }),
   },
   /** Creates a config folder for a new sign-in and returns the command that signs in there. */
   "modelAccount.add": {

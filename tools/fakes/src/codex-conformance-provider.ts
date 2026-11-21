@@ -333,6 +333,11 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
           })),
       );
       const id = `turn-${++turn}`;
+      if (params.serviceTier !== undefined)
+        writeFileSync(
+          path.join(process.cwd(), "service-tier.json"),
+          JSON.stringify(params.serviceTier),
+        );
       active.set(params.threadId, id);
       reply(message.id, { turn: { id, items: [], status: "inProgress" } });
       notify("turn/started", {
@@ -381,6 +386,29 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
       break;
     case "config/read":
       reply(message.id, { config: {}, origins: {}, layers: null });
+      break;
+    case "model/list":
+      // Only the service tier scenario lists models, so the others keep Codex's defaults.
+      if (process.env.CODEX_TEST_SCENARIO !== "service_tier") {
+        out({ id: message.id, error: { code: -32601, message: "unsupported_fake_method" } });
+        break;
+      }
+      reply(message.id, {
+        data: [
+          {
+            id: "fake-model",
+            model: "fake-model",
+            displayName: "Fake model",
+            description: "",
+            hidden: false,
+            isDefault: true,
+            defaultReasoningEffort: "medium",
+            supportedReasoningEfforts: [],
+            serviceTiers: [{ id: "priority", name: "Fast", description: "" }],
+          },
+        ],
+        nextCursor: null,
+      });
       break;
     default:
       out({ id: message.id, error: { code: -32601, message: "unsupported_fake_method" } });

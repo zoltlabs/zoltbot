@@ -275,6 +275,8 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         setOrder: call(channels.modelsSetOrder),
         runningLimit: call(channels.modelsRunningLimit),
         setRunningLimit: call(channels.modelsSetRunningLimit),
+        starred: call(channels.modelsStarred),
+        setStarred: call(channels.modelsSetStarred),
       },
       memory: {
         list: call(channels.memoryList),
