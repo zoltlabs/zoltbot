@@ -23,6 +23,7 @@ export type * from "./staff";
 export * from "./thread-actions";
 export type * from "./vault";
 export * from "./views";
+export type * from "./voice";
 
 import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
@@ -63,6 +64,7 @@ import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
 import { VAULT_CHANNELS, type VaultDesktopApi } from "./vault";
 import type { ViewsDesktopApi } from "./views";
+import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -135,6 +137,7 @@ export const IPC_CHANNELS = {
   ...OUTBOX_CHANNELS,
   ...LINK_CHANNELS,
   ...VAULT_CHANNELS,
+  ...VOICE_CHANNELS,
   ...HIDDEN_CHANNELS,
   ...AGENT_TEMPLATE_CHANNELS,
   ...CO_AUTHOR_CHANNELS,
@@ -591,6 +594,8 @@ export interface SendMessageInput {
   text: string;
   attachmentDraftIds?: string[];
   replyToMessageId?: string | null;
+  /** O2: said on a call. Steers a running reply; the first carries the call's guidance. */
+  call?: { first: boolean };
 }
 
 export interface SetMessageReactionInput {
@@ -798,6 +803,7 @@ export interface OpenBotDesktopApi {
   outbox: OutboxDesktopApi;
   links: LinksDesktopApi;
   vault: VaultDesktopApi;
+  voice: VoiceDesktopApi;
   hidden: HiddenDesktopApi;
   templates: AgentTemplatesDesktopApi;
   coAuthor: CoAuthorDesktopApi;

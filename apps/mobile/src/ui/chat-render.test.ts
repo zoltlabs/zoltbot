@@ -46,6 +46,12 @@ beforeAll(async () => {
       "react-native-svg",
       "expo-router",
       "react-native-safe-area-context",
+      "expo",
+      "expo-audio",
+      "expo-file-system",
+      "expo-secure-store",
+      "expo-speech",
+      "expo-speech-recognition",
     ],
     plugins: [
       {
@@ -126,21 +132,27 @@ beforeAll(async () => {
         ? theme
         : id === "chat-link"
           ? link
-          : id === "expo-router"
-            ? { router: { push() {}, replace() {}, back() {} }, useLocalSearchParams: () => params }
-            : id === "react-native-safe-area-context"
-              ? { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }
-              : id === "react-native-svg"
-                ? {
-                    __esModule: true,
-                    default: component("svg"),
-                    Path: component("path"),
-                    Rect: component("rect"),
-                    Defs: component("defs"),
-                    LinearGradient: component("linearGradient"),
-                    Stop: component("stop"),
-                  }
-                : uiRequire(id);
+          : id === "expo"
+            ? // No native modules: no voices, no microphone.
+              { requireOptionalNativeModule: () => null }
+            : id === "expo-router"
+              ? {
+                  router: { push() {}, replace() {}, back() {} },
+                  useLocalSearchParams: () => params,
+                }
+              : id === "react-native-safe-area-context"
+                ? { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }
+                : id === "react-native-svg"
+                  ? {
+                      __esModule: true,
+                      default: component("svg"),
+                      Path: component("path"),
+                      Rect: component("rect"),
+                      Defs: component("defs"),
+                      LinearGradient: component("linearGradient"),
+                      Stop: component("stop"),
+                    }
+                  : uiRequire(id);
   const module = { exports: {} };
   const output = result.outputFiles[0];
   if (!output) throw new Error("Native component bundle missing");

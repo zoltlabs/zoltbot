@@ -19,10 +19,13 @@ import type {
 import type { TaskSummary } from "../../../shared/tasks";
 import type { ThreadAction } from "../../../shared/thread-actions";
 import type { BotProfile } from "../data";
+import { t } from "../i18n";
 import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { requestCall } from "./conversation/call";
 import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
+import { openVoiceSettings, VoiceSettingsHost } from "./conversation/VoiceSettings";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
 import {
@@ -442,6 +445,7 @@ export function Sidebar(props: SidebarProps) {
           checked: linkPreviewsEnabled(),
           run: () => void setLinkPreviewsEnabled(!linkPreviewsEnabled()).catch(() => undefined),
         },
+        { id: "voice", label: t("voice.title"), run: openVoiceSettings },
       ],
       [
         {
@@ -792,6 +796,10 @@ export function Sidebar(props: SidebarProps) {
             onRename={startRename}
             onEdit={props.onEditBot}
             onDelete={setDeleteTargetId}
+            onCall={(id) => {
+              props.onSelectBot(id);
+              requestCall(id);
+            }}
           />
         )}
       </Show>
@@ -808,6 +816,7 @@ export function Sidebar(props: SidebarProps) {
         )}
       </Show>
       {props.children}
+      <VoiceSettingsHost />
     </aside>
   );
 }

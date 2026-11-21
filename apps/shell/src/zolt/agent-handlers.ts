@@ -31,6 +31,7 @@ import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
 import { vaultHandlers } from "./vault-service";
+import { voiceHandlers } from "./voice-service";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;
@@ -93,6 +94,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...outboxHandlers(service.outbox),
     ...linkHandlers(service.client),
     ...vaultHandlers(service.client),
+    ...voiceHandlers(service.client),
     ...hiddenHandlers(service.client),
     ...agentTemplateHandlers(service),
     ...coAuthorHandlers(service.client),

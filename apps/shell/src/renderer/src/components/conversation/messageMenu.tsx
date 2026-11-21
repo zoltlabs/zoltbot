@@ -3,7 +3,17 @@ import type { BotMessage } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import type { MenuItem } from "../../kit";
 import type { BranchMode } from "./Branching";
-import { BranchIcon, CopyIcon, EditIcon, HideIcon, PinIcon, ReplyIcon } from "./icons";
+import {
+  BranchIcon,
+  CopyIcon,
+  EditIcon,
+  HideIcon,
+  PinIcon,
+  ReplyIcon,
+  SpeakerIcon,
+  StopIcon,
+} from "./icons";
+import { readable, readingMessageId, toggleReading } from "./read-aloud";
 
 /** What a message menu item can do. The conversation supplies these. */
 export interface MessageMenuActions {
@@ -54,6 +64,23 @@ export const MESSAGE_MENU: readonly MessageMenuEntry[] = [
     group: 0,
     when: (message) => Boolean(message.body),
     run: (message, actions) => actions.copy(message),
+  },
+  // O1: Stop reading takes Read aloud's place while this message is read.
+  {
+    id: "read-aloud",
+    label: "chat.message.readAloud",
+    icon: () => <MenuIcon icon={<SpeakerIcon />} />,
+    group: 0,
+    when: (message) => readable(message) && readingMessageId() !== message.id,
+    run: (message) => toggleReading(message),
+  },
+  {
+    id: "stop-reading",
+    label: "chat.message.stopReading",
+    icon: () => <MenuIcon icon={<StopIcon />} />,
+    group: 0,
+    when: (message) => readingMessageId() === message.id,
+    run: (message) => toggleReading(message),
   },
   {
     id: "pin",

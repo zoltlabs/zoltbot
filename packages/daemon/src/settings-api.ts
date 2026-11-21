@@ -9,6 +9,7 @@ import {
   StarredModelsSchema,
   TASK_RUNNING_LIMIT_SETTING,
   TaskRunningLimitSchema,
+  VOICE_ELEVENLABS_SETTING,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { reservedChiefKeys } from "./chief/identity.js";
@@ -38,6 +39,9 @@ function reserved(key: string) {
     key.startsWith("chat.progress.") ||
     // I1: bridges change only through bridge.save, which keeps tokens in the keychain.
     key.startsWith(BRIDGE_PREFIX) ||
+    key.startsWith("chat.calls.") ||
+    // O1: points at a keychain item; only voice.key.set may change it.
+    key === VOICE_ELEVENLABS_SETTING ||
     reservedChiefKeys.has(key) ||
     key === identityReferenceKey
   );

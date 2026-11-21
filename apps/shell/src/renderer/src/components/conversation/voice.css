@@ -1,0 +1,56 @@
+/* O1: Voice settings. */
+.voice-settings .zb-kit-trigger {
+  width: 200px;
+}
+
+.voice-switch {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--zb-accent-strong, var(--zb-accent));
+}
+
+.voice-settings .zb-kit-field {
+  width: 100%;
+}
+
+.voice-settings .zb-kit-field-label {
+  font-weight: inherit;
+}
+
+.voice-key {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.voice-key .zb-kit-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Says where messages go; information, not a warning. */
+.voice-note {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Stop reading names itself while a message is read. */
+.message-action-button.message-stop-reading {
+  display: flex;
+  width: auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  color: rgb(var(--ink) / calc(0.78 * var(--ink-text-boost)));
+}
+
+.message-action-button.message-stop-reading svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  stroke: none;
+}

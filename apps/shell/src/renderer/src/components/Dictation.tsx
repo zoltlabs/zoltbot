@@ -64,6 +64,8 @@ export interface DictationOptions {
   draft: Accessor<string>;
   onDraft: (text: string) => void;
   onError: (message: string | null) => void;
+  /** O3: back to idle; `finished` when stop() ended it and its last words are in the draft. */
+  onIdle?: (finished: boolean) => void;
 }
 
 /**
@@ -76,11 +78,16 @@ export function createDictation(options: DictationOptions) {
   let status: DictationStatus | undefined;
   let sessionId: string | undefined;
   let anchor: DictationAnchor | undefined;
+  // O3: let go while it was still starting; stop as soon as it listens.
+  let stopWhenListening = false;
 
-  const reset = () => {
+  const reset = (finished = false) => {
+    stopWhenListening = false;
     sessionId = undefined;
     anchor = undefined;
+    const was = phase();
     setPhase("idle");
+    if (was !== "idle") options.onIdle?.(finished);
   };
 
   onMount(() => {
@@ -105,7 +112,7 @@ export function createDictation(options: DictationOptions) {
         reset();
         return;
       }
-      reset();
+      reset(phase() === "finishing");
     });
     onCleanup(unsubscribe);
   });
@@ -135,6 +142,7 @@ export function createDictation(options: DictationOptions) {
       }
       sessionId = started.sessionId;
       setPhase("listening");
+      if (stopWhenListening) void stop();
     } catch {
       options.onError("Couldn't start dictation. Try again.");
       reset();
@@ -144,6 +152,7 @@ export function createDictation(options: DictationOptions) {
   const stop = async () => {
     const api = bridge();
     const id = sessionId;
+    if (phase() === "starting") stopWhenListening = true;
     if (!api || !id || phase() !== "listening") return;
     setPhase("finishing");
     try {
@@ -195,7 +204,7 @@ export function createDictation(options: DictationOptions) {
     ),
   );
 
-  return { available, phase, active: () => phase() !== "idle", toggle, cancel };
+  return { available, phase, active: () => phase() !== "idle", toggle, start, stop, cancel };
 }
 
 function MicIcon() {

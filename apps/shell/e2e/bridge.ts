@@ -375,6 +375,14 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       hidden: {
         set: call(channels.hiddenSet),
       },
+      voice: {
+        status: call(channels.voiceStatus),
+        setKey: call(channels.voiceSetKey),
+        clearKey: call(channels.voiceClearKey),
+        voices: call(channels.voiceVoices),
+        speak: call(channels.voiceSpeak),
+        logCall: call(channels.voiceCallLog),
+      },
       coAuthor: {
         get: call(channels.coAuthorGet),
         set: call(channels.coAuthorSet),

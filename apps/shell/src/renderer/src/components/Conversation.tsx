@@ -23,8 +23,10 @@ import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
 import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
+import { CallHost } from "./conversation/CallBar";
 import { Composer } from "./conversation/Composer";
 import { ConversationHeader } from "./conversation/ConversationHeader";
+import { currentCall, followCalls } from "./conversation/call";
 import {
   ARTIFACT_PANEL_STORAGE_KEY,
   BROWSER_PANEL_STORAGE_KEY,
@@ -38,7 +40,9 @@ import { HideConfirm } from "./conversation/hide-flow";
 import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
 import { PlanChecklist } from "./conversation/PlanChecklist";
+import { followPushToTalk } from "./conversation/push-to-talk";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
+import { followNewReplies } from "./conversation/read-aloud";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
 import { watchWorkingLine, workingLine } from "./conversation/status-store";
@@ -271,6 +275,12 @@ export function Conversation(props: ConversationProps) {
     draft: () => currentDraft().text,
     onDraft: (text) => updateCurrentDraft({ text }),
     onError: setComposerError,
+    onIdle: (finished) => pushToTalk.idle(finished),
+  });
+  const pushToTalk = followPushToTalk({
+    dictation,
+    ready: () => Boolean(props.bot) && !currentCall(),
+    onSend: () => void submitMessage(),
   });
 
   const messageActions = createMessageActionsState({
@@ -334,6 +344,14 @@ export function Conversation(props: ConversationProps) {
     });
   });
 
+  followNewReplies(
+    () => props.messages,
+    () => props.bot?.id,
+  );
+  followCalls(
+    () => props.messages,
+    () => props.bot?.id,
+  );
   createEffect(() => {
     const request = props.onboardingRequest;
     if (
@@ -727,6 +745,7 @@ export function Conversation(props: ConversationProps) {
         scroller={() => scrollElement}
       />
 
+      <CallHost bot={props.bot} />
       <Composer
         showAttachments={showAttachments()}
         attachmentBusy={attachmentBusy()}

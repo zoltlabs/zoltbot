@@ -1,6 +1,8 @@
 // Desktop-only preferences. Preferences that agents or the phone need live in
 // the daemon's settings instead.
 
+import { SPEECH_RATES } from "@zoltbot/protocol";
+
 export const PREFERENCE_CHANNELS = {
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",
@@ -11,6 +13,11 @@ export type ThemePreference = "system" | "light" | "dark";
 export type TextSizePreference = "default" | "large" | "larger";
 /** C14: which key sends a message; the other adds a new line. */
 export type SendKeyPreference = "enter" | "mod-enter";
+/** O1: who reads replies aloud. */
+export type SpeechEnginePreference = "system" | "elevenlabs";
+/** O3: keys that can be held to talk, by KeyboardEvent.code, or off. */
+export const PUSH_TO_TALK_KEYS = ["Fn", "AltRight", "MetaRight", "off"] as const;
+export type PushToTalkKey = (typeof PUSH_TO_TALK_KEYS)[number];
 
 export interface Preferences {
   theme: ThemePreference;
@@ -22,6 +29,20 @@ export interface Preferences {
   /** C5: the owner has seen that hiding a message doesn't make the agent forget it. */
   hideConfirmed: boolean;
   sendKey: SendKeyPreference;
+  /** O1: read each new reply in the open chat aloud. */
+  readAloud: boolean;
+  speechEngine: SpeechEnginePreference;
+  /** O1: a system voice's URI; empty for the system default. */
+  speechVoice: string;
+  /** O1: an ElevenLabs voice id; empty for the key's first voice. */
+  elevenVoice: string;
+  speechRate: number;
+  /** O2: the owner has seen that this Mac's speech recognition sends audio to Apple. */
+  callNoticeSeen: boolean;
+  /** O3: hold this key to dictate into the composer. */
+  pushToTalkKey: PushToTalkKey;
+  /** O3: letting go of the key also sends the message. */
+  sendOnRelease: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -32,6 +53,14 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   showInDock: true,
   hideConfirmed: false,
   sendKey: "enter",
+  readAloud: false,
+  speechEngine: "system",
+  speechVoice: "",
+  elevenVoice: "",
+  callNoticeSeen: false,
+  pushToTalkKey: "Fn",
+  sendOnRelease: false,
+  speechRate: 1,
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -50,6 +79,18 @@ const VALIDATORS: Validators = {
   showInDock: (value): value is boolean => typeof value === "boolean",
   hideConfirmed: (value): value is boolean => typeof value === "boolean",
   sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
+  readAloud: (value): value is boolean => typeof value === "boolean",
+  callNoticeSeen: (value): value is boolean => typeof value === "boolean",
+  pushToTalkKey: (value): value is PushToTalkKey =>
+    (PUSH_TO_TALK_KEYS as readonly unknown[]).includes(value),
+  sendOnRelease: (value): value is boolean => typeof value === "boolean",
+  speechEngine: (value): value is SpeechEnginePreference =>
+    value === "system" || value === "elevenlabs",
+  speechVoice: (value): value is string => typeof value === "string" && value.length <= 500,
+  elevenVoice: (value): value is string =>
+    typeof value === "string" && /^[A-Za-z0-9]{0,64}$/.test(value),
+  speechRate: (value): value is number =>
+    (SPEECH_RATES as readonly number[]).includes(value as number),
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

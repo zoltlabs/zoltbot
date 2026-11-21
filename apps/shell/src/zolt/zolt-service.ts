@@ -63,6 +63,7 @@ import { type AttachmentSource, sentAttachmentSource } from "./sent-attachments"
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
+import { callParts, sendMode, withCalls } from "./voice-calls";
 import { workingStatus } from "./working-status";
 
 interface Preferences {
@@ -484,7 +485,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const attachments = (input.attachmentDraftIds ?? [])
       .map((id) => this.drafts.get(id))
       .filter((draft): draft is { path: string; summary: DraftAttachment } => Boolean(draft));
-    const parts = messageParts(this.items(input.botId), input.replyToMessageId, words, attachments);
+    const parts = callParts(
+      input.call,
+      messageParts(this.items(input.botId), input.replyToMessageId, words, attachments),
+    );
     if (!parts.length) throw new Error("Write a message first.");
     const conversation = this.conversation(input.botId);
     const pendingId = `pending:${randomUUID()}`;
@@ -508,7 +512,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         throw new Error("Daemon unavailable");
       const result = (await this.client.call(
         "turn.send",
-        { threadId: input.botId, input: parts, mode: "queue", outputMode: "auto" },
+        { threadId: input.botId, input: parts, mode: sendMode(input), outputMode: "auto" },
         commandId,
       )) as { id: string; disposition: string };
       for (const id of input.attachmentDraftIds ?? []) this.drafts.delete(id);
@@ -654,10 +658,14 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     const messages = withHidden(
       snapshot,
       botId,
-      withProgress(
+      withCalls(
         snapshot,
         botId,
-        withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
+        withProgress(
+          snapshot,
+          botId,
+          withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
+        ),
       ),
     );
     withReactions(snapshot, botId, messages, this.preferences.reactions);
