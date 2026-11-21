@@ -17,6 +17,7 @@ import { routineOutcome } from "./routine-policy.js";
 import { taskReady, validateTaskGraph } from "./task-graph.js";
 import { scopeContains } from "./team.js";
 import { transition } from "./transitions.js";
+import { workflowBrief, workflowStep } from "./workflow-briefs.js";
 
 // D122: a task run is a task thread started from a bounded brief, one revision at a time.
 const FEEDBACK = "\n\nReview feedback:\n";
@@ -53,6 +54,8 @@ export interface TaskInput {
   workspaceId?: string;
   routineInputs?: Routine["template"]["inputs"];
   workspace?: { id: string; path: string; repoRoot: string; baseRef: string };
+  /** False only for a workflow step whose gate is "none". */
+  reviewRequired?: boolean;
 }
 function numbered(events: DomainEvent[], context: CommandContext): DomainEvent[] {
   return events.map((event, index) => ({ ...event, eventId: `${context.commandId}:${index}` }));
@@ -147,6 +150,37 @@ export function createDelegatedRoutineTask(
     context,
   );
 }
+/** R7: a workflow's agent step, created by the runner for a run that's still going. */
+export function createWorkflowStepTask(
+  state: DomainState,
+  input: { runId: string; stepId: string; taskId: string },
+  context: CommandContext,
+): Outcome {
+  const step = workflowStep(state, input.runId, input.stepId);
+  if (context.actor.kind !== "system" || !step || step.node.kind !== "agent")
+    throw new Error("workflow_grant_required");
+  const { run, workflow, node } = step;
+  if (!["project", "subproject"].includes(workflow.scope.type))
+    throw new Error("workflow_scope_required");
+  return buildTask(
+    state,
+    {
+      id: input.taskId,
+      title: node.name,
+      brief: workflowBrief(state, run, workflow, node),
+      acceptance: workflow.acceptance,
+      profileId: node.profileId,
+      node: workflow.scope,
+      workflowRunId: run.id,
+      stageId: node.id,
+      permissionCeiling: workflow.permissionProfile,
+      workspaceMode: workflow.workspaceMode,
+      reviewRequired: node.gate !== "none",
+      ...(node.budgetUsd !== undefined ? { budgetUsd: node.budgetUsd } : {}),
+    },
+    context,
+  );
+}
 function buildTask(state: DomainState, input: TaskInput, context: CommandContext): Outcome {
   const title = input.title.trim(),
     brief = input.brief.trim(),
@@ -199,9 +233,9 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
     ...(input.workflowRunId ? { workflowRunId: input.workflowRunId } : {}),
     ...(input.stageId ? { stageId: input.stageId } : {}),
     ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-    ...(input.routineOccurrenceId
+    ...(input.routineOccurrenceId || input.workflowRunId
       ? {
-          routineOccurrenceId: input.routineOccurrenceId,
+          ...(input.routineOccurrenceId ? { routineOccurrenceId: input.routineOccurrenceId } : {}),
           permissionCeiling: input.permissionCeiling,
         }
       : {}),
@@ -245,7 +279,7 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
     revision: 1,
     attempt: 1,
     maxAttempts: 1,
-    reviewRequired: true,
+    reviewRequired: input.reviewRequired ?? true,
     executionLocation: "local_host",
     createdBy: context.actor,
     createdAt: context.at,

@@ -113,6 +113,27 @@ describe("R7 workflows API", () => {
     await expect(
       api("workflow.publish", { value: workflow(stranger), confirmed: true }, "x3"),
     ).rejects.toThrow("profile_unavailable: read");
+    // A writing step fed by another step's output can't skip review.
+    const unchecked = structuredClone(graph);
+    unchecked.nodes.push({
+      id: "act",
+      kind: "agent",
+      name: "Act on it",
+      profileId: "profile",
+      brief: "Do what the news says.",
+      gate: "none",
+    });
+    unchecked.edges.push({ from: "read", to: "act", carry: "summary" });
+    await expect(
+      api(
+        "workflow.publish",
+        {
+          value: { ...workflow(unchecked), permissionProfile: "workspace_write" },
+          confirmed: true,
+        },
+        "x4",
+      ),
+    ).rejects.toThrow("workflow_review_required: act");
     expect(await api("workflow.list", {})).toEqual({ items: [] });
   });
 

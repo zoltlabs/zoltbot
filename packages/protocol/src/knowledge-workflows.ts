@@ -291,3 +291,4 @@ export const WorkflowRunSchema = object({
   /** R7: each step's state, for workflows with a graph. */
   steps: Type.Optional(Type.Array(WorkflowStepStateSchema)),
 });
+export type WorkflowRun = Static<typeof WorkflowRunSchema>;

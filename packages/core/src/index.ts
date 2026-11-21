@@ -44,4 +44,5 @@ export * from "./turn-interrupt.js";
 export * from "./usage-ledger.js";
 export * from "./usage-meter.js";
 export * from "./wakes.js";
+export * from "./workflow-runs.js";
 export * from "./workspace-shape.js";

@@ -68,6 +68,16 @@ function checkGraph(state: DomainState, value: PipelineVersion) {
   for (const node of graph.nodes)
     if ((node.kind === "agent" || node.kind === "media") && !agents.has(node.profileId))
       throw new Error(`profile_unavailable: ${node.id}`);
+  // A step that can change files and reads an earlier step's output needs the owner's review,
+  // so text from one agent never drives a writing agent unchecked.
+  if (value.permissionProfile !== "read_only")
+    for (const node of graph.nodes)
+      if (
+        node.kind === "agent" &&
+        node.gate === "none" &&
+        graph.edges.some((edge) => edge.to === node.id && edge.carry !== "none")
+      )
+        throw new Error(`workflow_review_required: ${node.id}`);
 }
 
 /** A one-step workflow from a finished task: run by hand, the same brief, the same agent. */

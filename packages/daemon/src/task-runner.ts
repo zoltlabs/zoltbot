@@ -43,6 +43,7 @@ import { routineScheduler } from "./routine-scheduler.js";
 import type { Runner } from "./runner/interface.js";
 import { webhookAddressApi } from "./webhook-address-api.js";
 import { webhookEventSource } from "./webhook-event-source.js";
+import { workflowRunner } from "./workflow-runner.js";
 import { workflowsApi } from "./workflows-api.js";
 import { worktreeApi } from "./worktree-api.js";
 import type { worktreeService } from "./worktree-service.js";
@@ -153,7 +154,20 @@ export function taskRunner(options: TaskRunnerOptions) {
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (id, work) => run(id, system, work),
   });
-  const workflows = workflowsApi(options);
+  const runs = workflowRunner({
+    store,
+    run,
+    checkPublic: options.checkPublic,
+    ...(options.onError ? { onError: options.onError } : {}),
+  });
+  const workflows = workflowsApi({
+    ...options,
+    start: async (workflow, inputs, commandId) => {
+      const result = await runs.start(workflow, inputs, commandId);
+      void schedule();
+      return result;
+    },
+  });
   const addresses = webhookAddressApi({
     store,
     hookCloud: options.hookCloud,
@@ -393,6 +407,7 @@ export function taskRunner(options: TaskRunnerOptions) {
             options.onError?.("task_finish_failed");
           }
         }
+        runs.observe(events);
         void schedule();
       });
     },
@@ -414,6 +429,7 @@ export function taskRunner(options: TaskRunnerOptions) {
           options.onError?.("task_resume_failed");
         }
       }
+      runs.resume();
       await schedule();
     },
     async api(
