@@ -4,6 +4,7 @@
 import { constants, createReadStream } from "node:fs";
 import { open } from "node:fs/promises";
 import { Readable } from "node:stream";
+import { readZipListing } from "@zoltbot/protocol";
 import type { AttachmentSource } from "../zolt/sent-attachments";
 import { artifactMarkdownHtml } from "./desktop/artifact-markdown";
 
@@ -77,6 +78,25 @@ async function markdown(path: string): Promise<Response> {
   }
 }
 
+/** C18: a ZIP's file list as JSON, read from its index; nothing is unpacked. */
+async function zipListing(path: string): Promise<Response> {
+  const handle = await open(path, READ_FLAGS);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile()) return notFound();
+    const listing = await readZipListing(async (offset, length) => {
+      const bytes = Buffer.alloc(length);
+      const { bytesRead } = await handle.read(bytes, 0, length, offset);
+      return bytes.subarray(0, bytesRead);
+    }, stat.size);
+    return new Response(JSON.stringify(listing), { headers: headers("application/json") });
+  } catch {
+    return new Response("Unreadable", { status: 422, headers: headers("text/plain") });
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function attachmentResponse(
   request: Request,
   source: AttachmentSource | undefined,
@@ -91,6 +111,8 @@ export async function attachmentResponse(
     const view = new URL(request.url).searchParams.get("view");
     if (view === "markdown" && source.mimeType === "text/markdown")
       return await markdown(source.path);
+    if (view === "zip" && source.mimeType === "application/zip")
+      return await zipListing(source.path);
     const handle = await open(source.path, READ_FLAGS);
     let size: number;
     try {

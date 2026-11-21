@@ -464,7 +464,8 @@ export function Conversation(props: ConversationProps) {
     try {
       addAttachments(await window.openbot.agent.chooseAttachments());
     } catch (error) {
-      setComposerError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setComposerError(message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ""));
     } finally {
       setAttachmentBusy(false);
     }

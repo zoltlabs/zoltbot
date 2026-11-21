@@ -1,13 +1,13 @@
 // C16: loads a sent file or picture from the Mac in link-sized pieces, then shapes it for the
 // screen. The Mac refuses anything over 5 MB; the phone stops there too.
-import { type DelimitedPreview, parseDelimited } from "@zoltbot/protocol";
+import { type DelimitedPreview, parseDelimited, type ZipListing } from "@zoltbot/protocol";
 
 export const PHONE_PREVIEW_BYTES = 5 * 1024 * 1024;
 /** More pieces than a 5 MB file can need, so a misbehaving Mac can't loop the phone. */
 const MAX_PIECES = 80;
 
 interface Piece {
-  kind: "image" | "text" | "csv" | "tsv" | "markdown";
+  kind: "image" | "text" | "csv" | "tsv" | "markdown" | "zip";
   name: string;
   mime: string;
   size: number;
@@ -19,7 +19,8 @@ interface Piece {
 export type AttachmentPreview =
   | { kind: "image"; name: string; uri: string }
   | { kind: "text" | "markdown"; name: string; text: string }
-  | { kind: "table"; name: string; table: DelimitedPreview };
+  | { kind: "table"; name: string; table: DelimitedPreview }
+  | { kind: "zip"; name: string; listing: ZipListing };
 
 type Call = (method: string, params: Record<string, unknown>) => Promise<unknown>;
 
@@ -44,6 +45,11 @@ export async function loadAttachmentPreview(
     if (!/^image\/(png|jpeg|gif|webp)$/.test(first.mime) || !/^[A-Za-z0-9+/=]*$/.test(data))
       throw new Error("attachment_preview_unavailable");
     return { kind: "image", name: first.name, uri: `data:${first.mime};base64,${data}` };
+  }
+  if (first.kind === "zip") {
+    const listing = JSON.parse(data) as ZipListing;
+    if (!Array.isArray(listing.entries)) throw new Error("attachment_preview_unavailable");
+    return { kind: "zip", name: first.name, listing };
   }
   if (first.kind === "csv" || first.kind === "tsv")
     return {

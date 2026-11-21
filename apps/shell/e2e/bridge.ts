@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +60,13 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.browserListTabs]: () => [],
     [IPC_CHANNELS.browserGetControlState]: () => ({ sessions: [] }),
     [IPC_CHANNELS.browserSetVisible]: () => undefined,
-    [IPC_CHANNELS.agentChooseAttachments]: () => [],
+    // The open panel can't run headless; a spec names the files it "picks" with chooseFiles.
+    [IPC_CHANNELS.agentChooseAttachments]: async () => {
+      const paths = chosen.splice(0);
+      return service.addDrafts(
+        await Promise.all(paths.map(async (path) => ({ path, size: (await stat(path)).size }))),
+      );
+    },
     // Main's own attachment actions, with Finder, apps, the save panel and clipboard stubbed.
     [IPC_CHANNELS.agentOpenAttachment]: (input) => {
       const parsed = parseOpenAttachment(input);
@@ -79,6 +85,12 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentCreateProject]: () =>
       service.createProject(mkdtempSync(join(tmpdir(), "launch-"))),
   };
+}
+
+const chosen: string[] = [];
+/** The files the next "Attach a file" picks, as the open panel would return them. */
+export function chooseFiles(paths: string[]): void {
+  chosen.splice(0, chosen.length, ...paths);
 }
 
 /** Serves the built renderer at SHELL_ORIGIN. */

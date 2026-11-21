@@ -10,6 +10,9 @@ import {
 } from "../../../view-api/src/index.js";
 import { checkedAncestors, safeFile } from "../artifacts/intake.js";
 
+/** A view's files stay at 25 MB; artifact files may be 100 MB (C18). */
+const VIEW_FILE_BYTES = 25 * 1024 * 1024;
+
 export const viewHash = (bytes: Uint8Array | string) =>
   createHash("sha256").update(bytes).digest("hex");
 export interface ViewFile {
@@ -109,7 +112,10 @@ async function loadCheckedView(directory: string, allowRootOwned: boolean): Prom
         if (!entry.isFile()) throw Error("view_file_denied");
         if (files.length >= artifactLimits.files) throw Error("view_file_limit");
         if (!extensions.has(path.extname(name).toLowerCase())) throw Error("view_type_denied");
-        const bytes = await safeFile(directory, name, { allowRootOwned });
+        const bytes = await safeFile(directory, name, {
+          allowRootOwned,
+          maxBytes: VIEW_FILE_BYTES,
+        });
         total += bytes.length;
         if (total > artifactLimits.version) throw Error("view_total_limit");
         const mime = verifiedType(name, bytes);
@@ -130,7 +136,11 @@ async function loadCheckedView(directory: string, allowRootOwned: boolean): Prom
   // Fail a mixed read if an editor changed a file while the bundle was being checked.
   for (const file of files) {
     try {
-      if (viewHash(await safeFile(directory, file.path, { allowRootOwned })) !== file.hash)
+      if (
+        viewHash(
+          await safeFile(directory, file.path, { allowRootOwned, maxBytes: VIEW_FILE_BYTES }),
+        ) !== file.hash
+      )
         throw Error("view_file_changed");
     } catch (error) {
       throw new ViewLoadFailure(error, file.path);

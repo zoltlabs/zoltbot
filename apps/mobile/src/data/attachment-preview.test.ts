@@ -4,6 +4,24 @@ import { loadAttachmentPreview, previewProblem } from "./attachment-preview";
 const target = { threadId: "t", itemId: "i", part: 1 };
 
 describe("loadAttachmentPreview", () => {
+  it("reads a ZIP's file list", async () => {
+    const listing = { entries: [{ name: "a.txt", size: 4 }], files: 1, unpacked: 4 };
+    const call = vi.fn(async () => ({
+      kind: "zip",
+      name: "bundle.zip",
+      mime: "application/zip",
+      size: 60,
+      stamp: "s",
+      data: JSON.stringify(listing),
+      next: null,
+    }));
+    expect(await loadAttachmentPreview(call, target)).toEqual({
+      kind: "zip",
+      name: "bundle.zip",
+      listing,
+    });
+  });
+
   it("joins pieces with the first piece's stamp and reads CSV as a table", async () => {
     const text = "a,b\n1,2\n";
     const call = vi.fn(async (_method: string, params: Record<string, unknown>) => {

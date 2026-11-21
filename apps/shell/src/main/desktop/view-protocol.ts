@@ -59,6 +59,8 @@ export function viewProtocol(options: {
           names.has(file.path.toLowerCase())
         )
           throw Error("view_path_invalid");
+        // Artifact files may be 100 MB (C18); a view's files stay at 25 MB.
+        if (file.bytes > 25 * 1024 * 1024) throw Error("view_manifest_invalid");
         names.add(file.path.toLowerCase());
         total += file.bytes;
       }

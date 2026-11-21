@@ -41,8 +41,9 @@ export function artifactOwnerAllowed(uid: number, allowRootOwned = false) {
 export async function safeFile(
   root: string,
   relative: string,
-  options: { allowRootOwned?: boolean } = {},
+  options: { allowRootOwned?: boolean; maxBytes?: number } = {},
 ) {
+  const limit = options.maxBytes ?? artifactLimits.file;
   artifactPath(relative);
   const target = path.join(root, relative);
   const parent = path.dirname(target);
@@ -54,14 +55,14 @@ export async function safeFile(
       !stat.isFile() ||
       stat.nlink !== 1 ||
       !artifactOwnerAllowed(stat.uid, options.allowRootOwned) ||
-      stat.size > artifactLimits.file
+      stat.size > limit
     )
       throw Error("artifact_file_denied");
     const chunks: Buffer[] = [];
     let count = 0;
     for await (const chunk of file.createReadStream({ autoClose: false })) {
       count += chunk.length;
-      if (count > artifactLimits.file) throw Error("artifact_file_too_large");
+      if (count > limit) throw Error("artifact_file_too_large");
       chunks.push(Buffer.from(chunk));
     }
     const after = await file.stat();

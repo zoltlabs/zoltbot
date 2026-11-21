@@ -354,7 +354,7 @@ const rawMethodCatalog = {
       stamp: OptionalText,
     }),
     object({
-      kind: values(["image", "text", "csv", "tsv", "markdown"]),
+      kind: values(["image", "text", "csv", "tsv", "markdown", "zip"]),
       name: Text,
       mime: Text,
       size: Type.Integer({ minimum: 0 }),

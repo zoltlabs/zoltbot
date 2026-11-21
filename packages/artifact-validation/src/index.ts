@@ -2,7 +2,8 @@ import path from "node:path";
 import type { ArtifactManifest } from "@zoltbot/protocol";
 
 export { verifiedType } from "./types.js";
-export const artifactLimits = { file: 25 * 1024 * 1024, version: 100 * 1024 * 1024, files: 500 };
+// C18: one agent file may be as large as a whole version, 100 MB.
+export const artifactLimits = { file: 100 * 1024 * 1024, version: 100 * 1024 * 1024, files: 500 };
 export function artifactPath(value: string) {
   if (
     !value ||

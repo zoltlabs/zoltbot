@@ -10,7 +10,11 @@ export type FilePreviewKind =
   | "tsv"
   | "markdown"
   | "video"
+  | "zip"
   | "none";
+
+/** C18: the largest file the Mac attaches to a message or downloads from an agent. */
+export const ATTACHMENT_MAX_BYTES = 100 * 1024 * 1024;
 
 const KINDS: Record<string, { kind: FilePreviewKind; mime: string }> = {
   png: { kind: "image", mime: "image/png" },
@@ -27,6 +31,7 @@ const KINDS: Record<string, { kind: FilePreviewKind; mime: string }> = {
   mp4: { kind: "video", mime: "video/mp4" },
   m4v: { kind: "video", mime: "video/mp4" },
   webm: { kind: "video", mime: "video/webm" },
+  zip: { kind: "zip", mime: "application/zip" },
 };
 
 const TEXT = new Set(

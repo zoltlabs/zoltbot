@@ -4,6 +4,7 @@ import { t } from "../../i18n";
 import { Dialog, showToast } from "../../kit";
 import type { MediaPreview } from "./constants";
 import { FilePreview } from "./FilePreview";
+import { formatFileSize } from "./file-read";
 import { Gallery, isGalleryImage } from "./Gallery";
 
 export function AttachmentCards(props: {
@@ -62,11 +63,7 @@ export function fileBadge(attachment: AttachmentSummary): string {
   return attachment.name.split(".").at(-1)?.slice(0, 4).toUpperCase() || "FILE";
 }
 
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+export { formatFileSize };
 
 type AttachmentAction = OpenAttachmentInput["action"];
 

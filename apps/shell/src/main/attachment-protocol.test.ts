@@ -99,4 +99,50 @@ describe("attachment protocol", () => {
     });
     expect(missing.status).toBe(404);
   });
+
+  it("streams a large file in pieces instead of reading it whole", async () => {
+    const path = join(dir, "clip.mp4");
+    await writeFile(path, Buffer.alloc(12 * 1024 * 1024, 7));
+    const response = await attachmentResponse(request("openbot-attachment://file/x"), {
+      path,
+      mimeType: "video/mp4",
+    });
+    expect(response.headers.get("Content-Length")).toBe(String(12 * 1024 * 1024));
+    const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+    const first = await reader.read();
+    // The first piece arrives long before the whole file is read.
+    expect(first.value?.byteLength).toBeLessThanOrEqual(64 * 1024);
+    await reader.cancel();
+  });
+
+  it("lists a ZIP's files as JSON and refuses one it can't read", async () => {
+    const name = Buffer.from("a.txt");
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt32LE(4, 24);
+    entry.writeUInt16LE(name.length, 28);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);
+    end.writeUInt16LE(1, 10);
+    end.writeUInt32LE(46 + name.length, 12);
+    const good = join(dir, "bundle.zip");
+    await writeFile(good, Buffer.concat([entry, name, end]));
+    const response = await attachmentResponse(request("openbot-attachment://file/x?view=zip"), {
+      path: good,
+      mimeType: "application/zip",
+    });
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+    expect(await response.json()).toEqual({
+      entries: [{ name: "a.txt", size: 4 }],
+      files: 1,
+      unpacked: 4,
+    });
+    const bad = join(dir, "broken.zip");
+    await writeFile(bad, "not a zip");
+    const refused = await attachmentResponse(request("openbot-attachment://file/x?view=zip"), {
+      path: bad,
+      mimeType: "application/zip",
+    });
+    expect(refused.status).toBe(422);
+  });
 });

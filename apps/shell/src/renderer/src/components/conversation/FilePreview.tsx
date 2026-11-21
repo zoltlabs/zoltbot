@@ -1,4 +1,4 @@
-import type { DelimitedPreview } from "@zoltbot/protocol";
+import type { DelimitedPreview, ZipListing } from "@zoltbot/protocol";
 import {
   createEffect,
   createMemo,
@@ -12,16 +12,24 @@ import {
 } from "solid-js";
 import type { AttachmentSummary } from "../../../../shared/ipc";
 import { t } from "../../i18n";
-import { MissingFileError, parseInWorker, readTextCapped } from "./file-read";
+import {
+  formatFileSize,
+  MissingFileError,
+  parseInWorker,
+  readTextCapped,
+  readZipListing,
+} from "./file-read";
 import "./files.css";
 
 type Loaded =
   | { kind: "text"; text: string; cut: boolean }
-  | { kind: "table"; table: DelimitedPreview; cut: boolean };
+  | { kind: "table"; table: DelimitedPreview; cut: boolean }
+  | { kind: "zip"; listing: ZipListing };
 
 async function load(attachment: AttachmentSummary): Promise<Loaded | undefined> {
   const url = attachment.previewUrl;
   const kind = attachment.previewKind;
+  if (url && kind === "zip") return { kind: "zip", listing: await readZipListing(url) };
   if (!url || (kind !== "text" && kind !== "csv" && kind !== "tsv")) return undefined;
   const { text, cut } = await readTextCapped(url);
   if (kind === "text") return { kind: "text", text, cut };
@@ -105,6 +113,9 @@ export function FilePreview(props: { attachment: AttachmentSummary }) {
             </>
           )}
         </Match>
+        <Match when={loaded()?.kind === "zip" && (loaded() as Loaded & { kind: "zip" })}>
+          {(value) => <ZipList name={props.attachment.name} listing={value().listing} />}
+        </Match>
         <Match when={loaded()?.kind === "table" && (loaded() as Loaded & { kind: "table" })}>
           {(value) => <DelimitedTable name={props.attachment.name} {...value()} />}
         </Match>
@@ -166,6 +177,48 @@ function DelimitedTable(props: { name: string; table: DelimitedPreview; cut: boo
               })}
         </p>
       </Show>
+    </>
+  );
+}
+
+/** C18: what a ZIP holds. It's listed from the archive's index and never unpacked. */
+function ZipList(props: { name: string; listing: ZipListing }) {
+  return (
+    <>
+      <div class="file-preview-table" tabindex="0" role="region" aria-label={props.name}>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{t("chat.files.zipName")}</th>
+              <th scope="col" class="numeric">
+                {t("chat.files.zipSize")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <For each={props.listing.entries}>
+              {(entry) => (
+                <tr>
+                  <td>{entry.name}</td>
+                  <td class="numeric">{formatFileSize(entry.size)}</td>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
+      </div>
+      <p class="file-preview-note">
+        {props.listing.files > props.listing.entries.length
+          ? t("chat.files.zipSomeFiles", {
+              shown: props.listing.entries.length,
+              files: props.listing.files,
+              size: formatFileSize(props.listing.unpacked),
+            })
+          : t("chat.files.zipFiles", {
+              files: props.listing.files,
+              size: formatFileSize(props.listing.unpacked),
+            })}
+      </p>
     </>
   );
 }

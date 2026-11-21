@@ -556,6 +556,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     return this.drafts.add(path, size);
   }
 
+  /** Picked files at once, so one over 100 MB attaches none of them (C18). */
+  addDrafts(files: { path: string; size: number }[]): DraftAttachment[] {
+    return this.drafts.addAll(files);
+  }
+
   addDraftBytes(name: string, bytes: Uint8Array): Promise<DraftAttachment> {
     return this.drafts.addBytes(this.file("attachments"), name, bytes);
   }

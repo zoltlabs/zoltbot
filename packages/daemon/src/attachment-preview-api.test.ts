@@ -180,15 +180,15 @@ it("refuses files outside the chat's workspace or in a hidden folder", async () 
   await mkdir(path.join(dir, ".config"));
   const secret = path.join(dir, ".config", "hosts.yml.txt");
   const outside = path.join(other, "notes.txt");
-  const escape = path.join(dir, "escape.txt");
+  const escaping = path.join(dir, "escape.txt");
   await writeFile(secret, "token");
   await writeFile(outside, "elsewhere");
-  await symlink(outside, escape);
+  await symlink(outside, escaping);
   const f = await fixture(
     [
       { type: "file", path: secret },
       { type: "file", path: outside },
-      { type: "file", path: escape },
+      { type: "file", path: escaping },
     ],
     undefined,
     dir,
@@ -203,5 +203,36 @@ it("refuses files outside the chat's workspace or in a hidden folder", async () 
     await noWorkspace.done();
     await rm(dir, { recursive: true, force: true });
     await rm(other, { recursive: true, force: true });
+  }
+});
+
+it("lists a ZIP of any size from its index, without unpacking it", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "attachment-src-"));
+  const name = Buffer.from("report.pdf");
+  const entry = Buffer.alloc(46);
+  entry.writeUInt32LE(0x02014b50, 0);
+  entry.writeUInt32LE(2048, 24);
+  entry.writeUInt16LE(name.length, 28);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(46 + name.length, 12);
+  // Padding before the index makes the archive bigger than a phone preview may read.
+  const padding = Buffer.alloc(PHONE_PREVIEW_BYTES + 10);
+  end.writeUInt32LE(padding.length, 16);
+  const archive = path.join(dir, "bundle.zip");
+  await writeFile(archive, Buffer.concat([padding, entry, name, end]));
+  const f = await fixture([{ type: "file", path: archive }], undefined, dir);
+  try {
+    const piece = await f.preview(0);
+    expect(piece).toMatchObject({ kind: "zip", name: "bundle.zip", next: null });
+    expect(JSON.parse(piece.data)).toEqual({
+      entries: [{ name: "report.pdf", size: 2048 }],
+      files: 1,
+      unpacked: 2048,
+    });
+  } finally {
+    await f.done();
+    await rm(dir, { recursive: true, force: true });
   }
 });

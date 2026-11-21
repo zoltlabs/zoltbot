@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open, realpath } from "node:fs/promises";
 import path from "node:path";
-import { fileMimeType, filePreviewKind } from "@zoltbot/protocol";
+import { fileMimeType, filePreviewKind, readZipListing } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { inside } from "./workspace-files.js";
 
@@ -17,11 +17,11 @@ export const PHONE_PREVIEW_BYTES = 5 * 1024 * 1024;
 // One link frame carries about 785 KB of JSON. Text can grow when escaped, base64 can't.
 const TEXT_CHUNK = 100_000;
 const BASE64_CHUNK = 512_000;
-const KINDS = new Set(["image", "text", "csv", "tsv", "markdown"]);
+const KINDS = new Set(["image", "text", "csv", "tsv", "markdown", "zip"]);
 
 interface Source {
   name: string;
-  kind: "image" | "text" | "csv" | "tsv" | "markdown";
+  kind: "image" | "text" | "csv" | "tsv" | "markdown" | "zip";
   mime: string;
   bytes: Buffer;
   stamp: string;
@@ -60,7 +60,8 @@ async function inWorkspace(file: string, root: string | undefined): Promise<stri
   return real;
 }
 
-async function readCapped(file: string): Promise<{ bytes: Buffer; stamp: string }> {
+/** The file's bytes, or for a ZIP its file list as JSON, read from its index (C18). */
+async function readCapped(file: string, zip: boolean): Promise<{ bytes: Buffer; stamp: string }> {
   let handle: Awaited<ReturnType<typeof open>>;
   try {
     handle = await open(file, constants.O_RDONLY | constants.O_NONBLOCK);
@@ -70,13 +71,19 @@ async function readCapped(file: string): Promise<{ bytes: Buffer; stamp: string 
   try {
     const stat = await handle.stat();
     if (!stat.isFile()) unavailable();
+    const stamp = `${stat.size}:${Math.trunc(stat.mtimeMs)}:${stat.ino}`;
+    if (zip) {
+      const listing = await readZipListing(async (offset, length) => {
+        const piece = Buffer.alloc(length);
+        const { bytesRead } = await handle.read(piece, 0, length, offset);
+        return piece.subarray(0, bytesRead);
+      }, stat.size).catch(() => unavailable());
+      return { bytes: Buffer.from(JSON.stringify(listing)), stamp };
+    }
     if (stat.size > PHONE_PREVIEW_BYTES) throw new Error("attachment_preview_too_large");
     const bytes = Buffer.alloc(stat.size);
     const { bytesRead } = await handle.read(bytes, 0, stat.size, 0);
-    return {
-      bytes: bytes.subarray(0, bytesRead),
-      stamp: `${stat.size}:${Math.trunc(stat.mtimeMs)}:${stat.ino}`,
-    };
+    return { bytes: bytes.subarray(0, bytesRead), stamp };
   } finally {
     await handle.close();
   }
@@ -94,7 +101,7 @@ async function source(part: Row, root: () => Promise<string | undefined>): Promi
   const file = typeof part.path === "string" ? part.path : "";
   const kind = filePreviewKind(file);
   if (!file || !KINDS.has(kind)) unavailable();
-  const read = await readCapped(await inWorkspace(file, await root()));
+  const read = await readCapped(await inWorkspace(file, await root()), kind === "zip");
   return {
     name: path.basename(file),
     kind: kind as Source["kind"],

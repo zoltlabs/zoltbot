@@ -1,9 +1,24 @@
-import { type DelimitedPreview, parseDelimited } from "@zoltbot/protocol";
+import { type DelimitedPreview, parseDelimited, type ZipListing } from "@zoltbot/protocol";
 
 /** Text read for a preview: at most this much of the file. */
 export const PREVIEW_TEXT_BYTES = 8 * 1024 * 1024;
 
 export class MissingFileError extends Error {}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/** C18: a ZIP's file list, which main reads from the archive's index without unpacking it. */
+export async function readZipListing(url: string): Promise<ZipListing> {
+  const response = await fetch(`${url}?view=zip`);
+  if (response.status === 404) throw new MissingFileError();
+  if (!response.ok) throw new Error("preview_unavailable");
+  return (await response.json()) as ZipListing;
+}
 
 /** Reads the start of a file, up to `limit` bytes, without loading the rest. */
 export async function readTextCapped(

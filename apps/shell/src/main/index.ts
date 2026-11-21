@@ -30,6 +30,7 @@ import {
 import { PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
 import { DaemonClient } from "../zolt/daemon-client";
+import { checkAttachmentSize } from "../zolt/draft-store";
 import {
   isObject,
   parseImportAttachments,
@@ -45,7 +46,7 @@ import { runAttachmentAction } from "./attachment-actions";
 import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
-import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
+import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
 import { cloudAccount } from "./desktop/cloud-account";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
@@ -116,9 +117,31 @@ const artifacts = artifactProtocol({
       },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok || Number(response.headers.get("content-length")) > 25 * 1024 * 1024)
+    if (!response.ok || Number(response.headers.get("content-length")) > ARTIFACT_FILE_BYTES)
       throw new Error("artifact_unavailable");
     return new Uint8Array(await response.arrayBuffer());
+  },
+  // C18: files stream from the daemon to the window, checked on the way.
+  async blob(hash, mime) {
+    const info = await daemonHost.connection();
+    const url = new URL(info.url.replace(/^ws:/, "http:"));
+    if (url.hostname !== "127.0.0.1") throw new Error("invalid_daemon_address");
+    url.pathname = `/artifact-blob/${hash}`;
+    url.search = "";
+    // The timeout covers only the wait for headers; a paused video may read slowly after that.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10_000);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${info.token}`, "X-Zoltbot-Artifact-Mime": mime },
+      signal: abort.signal,
+    }).finally(() => clearTimeout(timer));
+    if (
+      !response.ok ||
+      !response.body ||
+      Number(response.headers.get("content-length")) > ARTIFACT_FILE_BYTES
+    )
+      throw new Error("artifact_unavailable");
+    return response.body;
   },
 });
 const viewServer = desktopViewProtocol(rendererOrigin, paths.root, daemonHost.connection);
@@ -364,16 +387,22 @@ function registerIpcHandlers(setupFile: string): void {
       ? await dialog.showOpenDialog(mainWindow, options)
       : await dialog.showOpenDialog(options);
     if (result.canceled) return [];
-    return Promise.all(
-      result.filePaths.map(async (path) => service.addDraft(path, (await stat(path)).size)),
+    return service.addDrafts(
+      await Promise.all(
+        result.filePaths.map(async (path) => ({ path, size: (await stat(path)).size })),
+      ),
     );
   });
   handleTrusted(IPC_CHANNELS.agentImportAttachments, async (input: unknown) => {
     const parsed = parseImportAttachments(input);
+    const batch = parsed.data.length + parsed.paths.length;
+    for (const item of parsed.data) checkAttachmentSize(item.name, item.bytes.byteLength, batch);
     return [
-      ...(await Promise.all(
-        parsed.paths.map(async (path) => service.addDraft(path, (await stat(path)).size)),
-      )),
+      ...service.addDrafts(
+        await Promise.all(
+          parsed.paths.map(async (path) => ({ path, size: (await stat(path)).size })),
+        ),
+      ),
       ...(await Promise.all(
         parsed.data.map((item) => service.addDraftBytes(item.name, item.bytes)),
       )),
