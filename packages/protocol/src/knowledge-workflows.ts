@@ -14,6 +14,7 @@ import {
   values,
 } from "./common.js";
 import { EventRoutineConfigSchema, RoutineSourceEventSchema } from "./event-routines.js";
+import { WorkflowGraphSchema } from "./workflow-graph.js";
 
 export const SourceRefSchema = object({
   kind: values(["task", "thread", "file", "url", "deliverable"]),
@@ -196,6 +197,8 @@ export const PipelineVersionSchema = object({
       maxRounds: Type.Integer({ minimum: 1 }),
     }),
   ),
+  /** R7: steps linked as a graph. Without it, `stages` run in order as before. */
+  graph: Type.Optional(WorkflowGraphSchema),
 });
 export type PipelineVersion = Static<typeof PipelineVersionSchema>;
 export const RoutineScheduleSchema = object({

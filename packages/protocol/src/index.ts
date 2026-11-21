@@ -54,4 +54,5 @@ export * from "./validation.js";
 export * from "./views.js";
 export * from "./vocabulary.js";
 export * from "./wakes.js";
+export * from "./workflow-graph.js";
 export * from "./zip-listing.js";
