@@ -137,21 +137,31 @@ it("installs curated apps disabled, preserves command retries and rejects forged
   const service = connectionsApi({ store, catalogStatus: async () => [] });
   try {
     const catalog = (await service.api("connection.catalog.list", {})) as {
-      items: { id: string }[];
+      items: { id: string; availability?: string }[];
     };
     expect(catalog.items.map((c) => c.id)).toEqual([
       "linear",
       "sentry",
       "posthog",
+      "notion",
+      "atlassian",
+      "airtable",
       "github",
       "gmail",
       "google_drive",
       "google_docs",
       "slack",
+      "google_calendar",
+      "hubspot",
     ]);
     expect(catalog.items.find((c) => c.id === "github")).toMatchObject({
       availability: "registration_required",
     });
+    // I7: direct sign-in apps need no Zoltbot registration; HubSpot waits for one.
+    expect(catalog.items.find((c) => c.id === "notion")?.availability).toBe("available");
+    expect(catalog.items.find((c) => c.id === "hubspot")?.availability).toBe(
+      "registration_required",
+    );
     const posthog = (await service.api(
       "connection.install",
       { serviceId: "posthog", projectId: "project", serviceProject: "123" },

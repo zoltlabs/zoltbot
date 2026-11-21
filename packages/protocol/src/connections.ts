@@ -118,6 +118,12 @@ export const connectionMethods = {
           "google_drive",
           "google_docs",
           "slack",
+          // I7
+          "notion",
+          "atlassian",
+          "airtable",
+          "hubspot",
+          "google_calendar",
         ].map((id) => Type.Literal(id)),
       ),
       projectId: Id,

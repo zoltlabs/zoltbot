@@ -11,6 +11,9 @@ type Arguments = {
   threadId?: string;
   fileId?: string;
   documentId?: string;
+  eventId?: string;
+  timeMin?: string;
+  timeMax?: string;
 };
 interface MessagePart {
   mimeType?: string;
@@ -24,6 +27,8 @@ const string = { type: "string", maxLength: 1000 };
 const id = { type: "string", pattern: "^[a-zA-Z0-9_-]{1,200}$" };
 const paging = { pageToken: string, limit: { type: "integer", minimum: 1, maximum: 10 } };
 const offset = { type: "integer", minimum: 0, maximum: 1000000 };
+const RFC3339 = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$";
+const time = { type: "string", pattern: RFC3339 };
 const tool = (
   name: string,
   description: string,
@@ -36,6 +41,20 @@ const tool = (
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
 });
 export function googleTools(service: GoogleServiceId) {
+  if (service === "google_calendar")
+    return [
+      tool(
+        "calendar_list_events",
+        "List events on the primary calendar in start order, from timeMin (default now) to timeMax (RFC 3339), optionally matching text. Returns IDs for calendar_read_event.",
+        { query: string, timeMin: time, timeMax: time, ...paging },
+      ),
+      tool(
+        "calendar_read_event",
+        "Read one event: time, place, organizer, attendees and a bounded page of its description.",
+        { eventId: id, offset },
+        ["eventId"],
+      ),
+    ];
   if (service === "gmail")
     return [
       tool(
@@ -206,6 +225,81 @@ export async function callGoogleTool(
       attachmentsOmitted: true,
       ...page(
         messageText((result.payload ?? {}) as MessagePart) || String(result.snippet ?? ""),
+        args.offset,
+      ),
+    });
+  }
+  if (name === "calendar_list_events") {
+    const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
+    const when = (value: unknown) => {
+      if (value === undefined) return undefined;
+      if (typeof value !== "string" || !new RegExp(RFC3339).test(value))
+        throw new Error("google_time_invalid");
+      return value;
+    };
+    // Without a start, Google lists from the calendar's first event; now is what people mean.
+    const timeMin = when(args.timeMin) ?? new Date().toISOString(),
+      timeMax = when(args.timeMax);
+    url.search = new URLSearchParams({
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: String(args.limit ?? 5),
+      fields: "nextPageToken,items(id,summary,start,end,location,status)",
+      ...(args.query ? { q: String(args.query) } : {}),
+      timeMin,
+      ...(timeMax ? { timeMax } : {}),
+      ...(args.pageToken ? { pageToken: args.pageToken } : {}),
+    }).toString();
+    const result = await get(url);
+    const events = ((result.items ?? []) as Json[]).map((event) => ({
+      id: event.id,
+      summary: String(event.summary ?? "").slice(0, 150),
+      start: event.start,
+      end: event.end,
+      ...(event.location ? { location: String(event.location).slice(0, 80) } : {}),
+      status: event.status,
+    }));
+    // Long titles can overflow the bound; drop events from the end and say more are there.
+    let kept = events.length;
+    const shape = () => ({
+      events: events.slice(0, kept),
+      ...(kept < events.length ? { truncated: true, nextTimeMin: events[kept]?.start } : {}),
+      nextPageToken: result.nextPageToken,
+    });
+    while (kept > 1 && JSON.stringify(shape()).length > 3900) kept--;
+    return bounded(shape());
+  }
+  if (name === "calendar_read_event") {
+    const result = await get(
+      new URL(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${identifier(args.eventId)}?fields=id,summary,description,start,end,location,status,organizer(email),attendees(email,responseStatus)`,
+      ),
+    );
+    const everyone = (result.attendees ?? []) as Json[];
+    // Ten attendees keep the result inside the bound with a full page of description.
+    const attendees = everyone.slice(0, 10).map((person) => ({
+      email: String(person.email ?? "").slice(0, 200),
+      response: person.responseStatus,
+    }));
+    return bounded({
+      id: result.id,
+      summary: String(result.summary ?? "").slice(0, 200),
+      start: result.start,
+      end: result.end,
+      ...(result.location ? { location: String(result.location).slice(0, 200) } : {}),
+      organizer: String((result.organizer as Json | undefined)?.email ?? "").slice(0, 200),
+      attendees,
+      attendeeCount: everyone.length,
+      // Descriptions are often HTML; the text is what the agent needs, and it pages smaller.
+      ...page(
+        messageText({
+          mimeType: "text/html",
+          body: {
+            data: Buffer.from(String(result.description ?? "").slice(0, 100_000)).toString(
+              "base64url",
+            ),
+          },
+        }),
         args.offset,
       ),
     });
