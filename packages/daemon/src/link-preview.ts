@@ -35,9 +35,13 @@ for (const [net, prefix] of [
 ] as const)
   blocked.addSubnet(net, prefix, "ipv4");
 for (const [net, prefix] of [
-  ["::", 128],
-  ["::1", 128],
-  ["64:ff9b::", 96],
+  ["::", 96], // unspecified, loopback and IPv4-compatible
+  ["::ffff:0:0:0", 96], // SIIT
+  ["64:ff9b::", 96], // NAT64
+  ["64:ff9b:1::", 48], // local NAT64
+  ["2001::", 32], // Teredo
+  ["2002::", 16], // 6to4
+  ["fec0::", 10], // site-local
   ["100::", 64],
   ["2001:db8::", 32],
   ["fc00::", 7],
@@ -82,11 +86,22 @@ function fail(code: string): never {
   throw new Error(code);
 }
 
+/** DNS lookups ignore timeouts, so stop waiting at the deadline. */
+function withDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("link_timeout")), Math.max(0, deadline - Date.now()));
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
+
 async function resolveChecked(host: string, options: FetchOptions) {
   const literal = host.replace(/^\[|\]$/g, "");
   const addresses = isIP(literal)
     ? [{ address: literal, family: isIP(literal) }]
-    : await options.lookup(host).catch(() => fail("link_unreachable"));
+    : await withDeadline(options.lookup(host), options.deadline).catch((error: Error) =>
+        fail(error.message === "link_timeout" ? "link_timeout" : "link_unreachable"),
+      );
   if (!addresses.length) fail("link_unreachable");
   // Every answer must be public, so a name can't mix a public and a private address.
   if (addresses.some((entry) => !options.allowed(entry.address))) fail("link_private");
@@ -202,20 +217,53 @@ function decode(text: string): string {
 }
 
 function attribute(tag: string, name: string): string | undefined {
-  const match = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
+  const match = new RegExp(`(?:^|\\s)${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(
+    tag,
+  );
   return match ? (match[2] ?? match[3] ?? match[4]) : undefined;
 }
 
-/** Reads Open Graph tags and the page title from the start of an HTML page. */
+/** Only the start of a page is read: the tags a card needs are in its head. */
+const PAGE_HEAD_CHARS = 64 * 1024;
+const MAX_TAG_CHARS = 2000;
+
+/** Each `<meta …>` tag in order. A linear scan: a page of unclosed tags can't stall the daemon. */
+function metaTags(head: string, lower: string): string[] {
+  const tags: string[] = [];
+  let at = 0;
+  while (tags.length < 300) {
+    const start = lower.indexOf("<meta", at);
+    if (start < 0) break;
+    const end = lower.indexOf(">", start);
+    if (end < 0) break;
+    at = end + 1;
+    if (end - start <= MAX_TAG_CHARS && /[\s/>]/.test(lower[start + 5] ?? ""))
+      tags.push(head.slice(start, end + 1));
+  }
+  return tags;
+}
+
+function pageTitle(head: string, lower: string): string {
+  const start = lower.indexOf("<title");
+  const open = start < 0 ? -1 : lower.indexOf(">", start);
+  const close = open < 0 ? -1 : lower.indexOf("</title", open);
+  return close < 0 ? "" : head.slice(open + 1, Math.min(close, open + 1 + MAX_TAG_CHARS));
+}
+
+/**
+ * Reads Open Graph tags and the page title from the start of an HTML page. The site shown is
+ * always the page's own host name, never a name the page claims for itself.
+ */
 export function readPage(html: string, base: URL) {
-  const head = html.slice(0, LINK_PREVIEW_MAX_BYTES);
+  const head = html.slice(0, PAGE_HEAD_CHARS);
+  const lower = head.toLowerCase();
   const meta = new Map<string, string>();
-  for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
+  for (const tag of metaTags(head, lower)) {
     const key = (attribute(tag, "property") ?? attribute(tag, "name"))?.toLowerCase();
     const content = attribute(tag, "content");
     if (key && content !== undefined && !meta.has(key)) meta.set(key, decode(content));
   }
-  const title = decode(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(head)?.[1] ?? "");
+  const title = decode(pageTitle(head, lower));
   const rawImage = meta.get("og:image") ?? meta.get("twitter:image");
   let image: URL | undefined;
   try {
@@ -225,7 +273,7 @@ export function readPage(html: string, base: URL) {
   }
   return {
     title: (meta.get("og:title") ?? title).slice(0, 300),
-    siteName: (meta.get("og:site_name") ?? base.hostname.replace(/^www\./, "")).slice(0, 100),
+    siteName: base.hostname.replace(/^www\./, "").slice(0, 100),
     description: (meta.get("og:description") ?? meta.get("description") ?? "").slice(0, 300),
     image,
   };
@@ -287,14 +335,15 @@ export function linkPreviewApi(options: LinkPreviewOptions) {
       }
     }
     const card: LinkCard = {
-      url: page.url.toString(),
+      // The card opens the link as written in the message, not where a redirect went.
+      url,
       title: read.title || page.url.hostname,
       siteName: read.siteName,
       ...(read.description ? { description: read.description } : {}),
       ...(image ? { image } : {}),
     };
     cache.delete(url);
-    if (cache.size >= 500) cache.delete(cache.keys().next().value as string);
+    if (cache.size >= 100) cache.delete(cache.keys().next().value as string);
     cache.set(url, { at: now(), card });
     return card;
   }

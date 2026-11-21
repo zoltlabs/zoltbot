@@ -78,18 +78,20 @@ it("reads the title, site, description and picture of a page in the message", as
   expect(card).toMatchObject({
     url: `${base}/page`,
     title: "Fish & chips",
-    siteName: "Example",
+    // The host, never the name the page claims.
+    siteName: "site.test",
     description: "A short line",
   });
   expect(card.image).toBe(`data:image/png;base64,${PNG.toString("base64")}`);
   f.close();
 });
 
-it("caches a card, follows a redirect and reports the final address", async () => {
+it("caches a card and keeps the message's link through a redirect", async () => {
   const f = await fixture(`${base}/hop`);
   const before = hits;
   const card = await f.preview(`${base}/hop`);
-  expect(card.url).toBe(`${base}/page`);
+  expect(card.url).toBe(`${base}/hop`);
+  expect(card.title).toBe("Fish & chips");
   const after = hits;
   await f.preview(`${base}/hop`);
   expect(hits).toBe(after);
@@ -140,6 +142,11 @@ it("treats loopback, private, link-local and mapped addresses as not public", ()
     "fd00::1",
     "::ffff:127.0.0.1",
     "::ffff:10.0.0.1",
+    "::7f00:1",
+    "2002:7f00:1::",
+    "2001:0:4136:e378::1",
+    "fec0::1",
+    "64:ff9b:1::a00:1",
     "not an address",
   ])
     expect(publicAddress(address), address).toBe(false);
@@ -150,4 +157,19 @@ it("treats loopback, private, link-local and mapped addresses as not public", ()
 it("falls back to the page title and host", () => {
   const read = readPage("<title> Plain  page </title>", new URL("https://www.example.com/x"));
   expect(read).toMatchObject({ title: "Plain page", siteName: "example.com", description: "" });
+});
+
+it("reads a page of unclosed tags quickly", () => {
+  const started = performance.now();
+  for (const piece of ["<meta ", "<title>", "<meta content="])
+    readPage(piece.repeat(Math.floor(500_000 / piece.length)), new URL("https://example.com"));
+  expect(performance.now() - started).toBeLessThan(500);
+});
+
+it("ignores look-alike attributes", () => {
+  const read = readPage(
+    '<meta data-property="og:title" content="Wrong"><meta property="og:title" data-content="Wrong" content="Right">',
+    new URL("https://example.com"),
+  );
+  expect(read.title).toBe("Right");
 });
