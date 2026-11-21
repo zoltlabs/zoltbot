@@ -51,6 +51,7 @@ import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
+import { chooseSendKey, sendKey } from "./send-key";
 
 export type { SidebarAgentState };
 export { SidebarToggleIcon };
@@ -410,6 +411,23 @@ export function Sidebar(props: SidebarProps) {
           disabled: usageLoading() || props.agentStatus.phase !== "ready",
           keepOpen: true,
           run: () => void refreshUsage(),
+        },
+      ],
+      // C14: which key sends a message.
+      [
+        {
+          id: "send-enter",
+          label: "Send with Enter",
+          radio: true,
+          checked: sendKey() === "enter",
+          run: () => chooseSendKey("enter"),
+        },
+        {
+          id: "send-mod-enter",
+          label: "Send with ⌘ Enter",
+          radio: true,
+          checked: sendKey() === "mod-enter",
+          run: () => chooseSendKey("mod-enter"),
         },
       ],
       [

@@ -3,6 +3,7 @@ import type { BotProfile } from "../data";
 import { Suggestions } from "../kit";
 import { AgentAvatar } from "./AgentAvatar";
 import { attachPastedText, isLongPaste } from "./conversation/long-paste";
+import { enterAction, followSendKey, sendKey } from "./send-key";
 
 interface ComposerEditorProps {
   botId: string | undefined;
@@ -29,6 +30,7 @@ export function expandComposerMentions(value: string): string {
 }
 
 export function ComposerEditor(props: ComposerEditorProps) {
+  followSendKey();
   const [mention, setMention] = createSignal<MentionContext | null>(null);
   const [activeOption, setActiveOption] = createSignal(0);
   const listId = createUniqueId();
@@ -132,7 +134,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
       setMention(null);
       return;
     }
-    if (event.key === "Enter" && event.shiftKey) {
+    const enter = enterAction(event, sendKey());
+    if (enter === "newline") {
       event.preventDefault();
       if (!editor) return;
       insertPlainText(editor, "\n");
@@ -141,7 +144,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
       editor.scrollTop = editor.scrollHeight;
       return;
     }
-    if (event.key === "Enter") {
+    if (enter === "send") {
       event.preventDefault();
       props.onSubmit(event.altKey ? { aside: true } : undefined);
     }
@@ -295,10 +298,12 @@ function serializeNode(node: Node): string {
   const mentionId = node.dataset.mentionId;
   const mentionName = node.dataset.mentionName;
   if (mentionId && mentionName) return `@[${mentionName}](${mentionId})`;
-  if (node.tagName === "BR") return "\n";
+  if (node.tagName === "BR") return node.hasAttribute(END_MARK) ? "" : "\n";
   const content = Array.from(node.childNodes).map(serializeNode).join("");
   return node.tagName === "DIV" || node.tagName === "P" ? `${content}\n` : content;
 }
+
+const END_MARK = "data-composer-end";
 
 function insertPlainText(editor: HTMLDivElement, text: string): void {
   const selection = window.getSelection();
@@ -315,6 +320,17 @@ function insertPlainText(editor: HTMLDivElement, text: string): void {
   range.deleteContents();
   const textNode = document.createTextNode(text);
   range.insertNode(textNode);
+  // Chromium types before a newline that ends the editor, so a new line needs something after it.
+  if (text.endsWith("\n") && !editor.querySelector(`br[${END_MARK}]`)) {
+    const tail = document.createRange();
+    tail.setStartAfter(textNode);
+    tail.setEnd(editor, editor.childNodes.length);
+    if (tail.toString() === "") {
+      const marker = document.createElement("br");
+      marker.setAttribute(END_MARK, "");
+      editor.append(marker);
+    }
+  }
   range.setStart(textNode, textNode.data.length);
   range.collapse(true);
   selection?.removeAllRanges();

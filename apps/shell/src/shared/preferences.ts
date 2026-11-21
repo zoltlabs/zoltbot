@@ -9,6 +9,8 @@ export const PREFERENCE_CHANNELS = {
 
 export type ThemePreference = "system" | "light" | "dark";
 export type TextSizePreference = "default" | "large" | "larger";
+/** C14: which key sends a message; the other adds a new line. */
+export type SendKeyPreference = "enter" | "mod-enter";
 
 export interface Preferences {
   theme: ThemePreference;
@@ -19,6 +21,7 @@ export interface Preferences {
   showInDock: boolean;
   /** C5: the owner has seen that hiding a message doesn't make the agent forget it. */
   hideConfirmed: boolean;
+  sendKey: SendKeyPreference;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -28,6 +31,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   keyBindings: Object.freeze({}) as Record<string, string>,
   showInDock: true,
   hideConfirmed: false,
+  sendKey: "enter",
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -45,6 +49,7 @@ const VALIDATORS: Validators = {
     Object.entries(value).every(([id, keys]) => id.length > 0 && typeof keys === "string"),
   showInDock: (value): value is boolean => typeof value === "boolean",
   hideConfirmed: (value): value is boolean => typeof value === "boolean",
+  sendKey: (value): value is SendKeyPreference => value === "enter" || value === "mod-enter",
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];
