@@ -136,6 +136,16 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
     if (!handler) throw new Error(`No handler for ${channel}`);
     return JSON.parse(JSON.stringify((await handler(input)) ?? null));
   });
+  service.client.onNotice((method, frame) => {
+    if (method !== "browser.frame") return;
+    void page
+      .evaluate(
+        (payload) =>
+          (window as unknown as { __zoltFrame: (f: unknown) => void }).__zoltFrame(payload),
+        frame,
+      )
+      .catch(() => undefined);
+  });
   service.on("event", (event) => {
     void page
       .evaluate((payload) => (window as unknown as ZoltWindow).__zoltEmit(payload), event)
@@ -143,6 +153,10 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
   });
   await page.addInitScript((channels) => {
     const listeners = new Set<(event: unknown) => void>();
+    const frameListeners = new Set<(frame: unknown) => void>();
+    (window as unknown as { __zoltFrame: (frame: unknown) => void }).__zoltFrame = (frame) => {
+      for (const listener of frameListeners) listener(frame);
+    };
     const call =
       (channel: string) =>
       (input?: unknown): Promise<unknown> =>
@@ -319,6 +333,11 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       agentBrowser: {
         profile: call(channels.agentBrowserProfile),
         clearProfile: call(channels.agentBrowserClearProfile),
+        view: call(channels.agentBrowserView),
+        onFrame: (listener: (frame: unknown) => void) => {
+          frameListeners.add(listener);
+          return () => frameListeners.delete(listener);
+        },
       },
       spend: {
         list: call(channels.spendList),

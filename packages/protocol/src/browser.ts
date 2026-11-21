@@ -17,6 +17,8 @@ export const browserMethods = {
     }),
     result: Json,
   },
+  /** B2: opens, renews (every few seconds) or closes this connection's view of a chat's browser. */
+  "browser.view": { params: object({ threadId: Id, open: Type.Boolean() }), result: Json },
   /** B1: the agent's kept browser profile, or null. */
   "browser.profile.get": { params: object({ agentId: Id }), result: Json },
   /** B1: signs the agent out of every site by deleting its profile folder. */
@@ -29,6 +31,7 @@ export const browserMacOnlyMethods = [
   "browser.setup",
   "browser.action",
   "browser.profile.clear",
+  "browser.view",
 ] as const;
 
 /** B1: a profile an agent keeps between browser launches, in the daemon's data folder. */
@@ -58,4 +61,6 @@ export interface BrowserBinding extends BrowserSelection {
   guidanceHash: string;
   /** B1: the agent's kept profile folder; the launcher falls back to isolated when it is gone. */
   profile?: { id: string; dir: string };
+  /** B2: the daemon runs this browser; the launcher attaches to it. */
+  hosted?: true;
 }

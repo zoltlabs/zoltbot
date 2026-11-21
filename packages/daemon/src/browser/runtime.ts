@@ -1,3 +1,4 @@
+import { hostedLauncherSource } from "./hosted-launcher.js";
 import { redactBrowserText } from "./redaction.js";
 
 export { redactBrowserText } from "./redaction.js";
@@ -82,6 +83,7 @@ export function browserBinding(
   cwd: string,
   selection: BrowserSelection,
   profile?: { id: string; dir: string },
+  hosted = false,
 ): BrowserBinding {
   directory = realpathSync(directory);
   cwd = realpathSync(cwd);
@@ -110,6 +112,7 @@ export function browserBinding(
     browsers: path.join(directory, "browser", "browsers"),
     ...selection,
     ...(profile ? { profile } : {}),
+    ...(hosted ? { hosted: true as const } : {}),
   };
   const guidanceText = renderBrowserGuidance(binding);
   return {
@@ -185,7 +188,11 @@ export function materializeBrowser(b: BrowserBinding) {
     ? `const {existsSync}=await import('node:fs');\nconst extra=args[0]==='open'?['--config='+(existsSync(${JSON.stringify(marker)})?${JSON.stringify(profileConfig)}:${JSON.stringify(config)})]:[];`
     : `const extra=args[0]==='open'?[${JSON.stringify(`--config=${config}`)}]:[];`;
   const source = `const {spawn}=await import('node:child_process');\nconst {writeFileSync,renameSync}=await import('node:fs');\nconst {randomUUID}=await import('node:crypto');\nconst args=process.argv.slice(2);\nconst validate=${validateBrowserArgs.toString()};\nconst redact=${redactBrowserText.toString()};\ntry{validate(args)}catch(e){console.error(e.message);process.exit(1)}\nconst env=Object.fromEntries(Object.entries(process.env).filter(([k])=>! /^(PLAYWRIGHT_|PWTEST_|NODE_OPTIONS$|NODE_PATH$|HOME$|TMPDIR$|XDG_)/.test(k)));\nObject.assign(env,${JSON.stringify({ HOME: b.home, TMPDIR: path.join(b.home, "tmp"), XDG_RUNTIME_DIR: socketRoot(b), PLAYWRIGHT_BROWSERS_PATH: b.browsers, NO_UPDATE_NOTIFIER: "1" })});\n${configChoice}\nif(args[0]==='open'){const target=${JSON.stringify(path.join(b.home, "generation.json"))};const temp=target+'.'+randomUUID();writeFileSync(temp,JSON.stringify({nonce:randomUUID(),at:new Date().toISOString()}),{flag:'wx',mode:0o600});renameSync(temp,target); }\nconst child=spawn(${JSON.stringify(process.execPath)},[${JSON.stringify(cliPath())},${JSON.stringify(`-s=${b.session}`)},...args,...extra],{cwd:${JSON.stringify(b.artifactRoot)},env,stdio:['inherit','pipe','pipe']});\nfor(const [input,output] of [[child.stdout,process.stdout],[child.stderr,process.stderr]]){let text='';input.on('data',c=>{text+=c;if(text.length>1048576){child.kill();text='[browser output exceeded limit]'}});input.on('end',()=>output.write(redact(text)))}\nchild.on('error',()=>{console.error('browser_runtime_failed');process.exitCode=1});child.on('exit',code=>{process.exitCode=code??1});\n`;
-  immutable(`${b.launcher}.mjs`, source, 0o400);
+  // B2: a daemon-run browser keeps the same header and swaps the spawn for attach/goto.
+  const launcher = b.hosted
+    ? hostedLauncherSource(b, source.slice(0, source.indexOf("const child=spawn(")), cliPath())
+    : source;
+  immutable(`${b.launcher}.mjs`, launcher, 0o400);
   immutable(
     b.launcher,
     `#!/bin/sh\nexec ${shellQuote(process.execPath)} ${shellQuote(`${b.launcher}.mjs`)} "$@"\n`,

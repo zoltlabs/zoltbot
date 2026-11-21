@@ -1,0 +1,91 @@
+/* B2: the agent's browser, live. */
+.agent-browser-panel {
+  min-width: 0;
+}
+
+.agent-browser-header {
+  display: grid;
+  height: 39px;
+  flex: 0 0 auto;
+  grid-template-columns: 1fr 32px;
+  align-items: center;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 0 10px 0 14px;
+}
+
+.agent-browser-header h2 {
+  margin: 0;
+  color: var(--openbot-white);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-browser-address {
+  margin: 8px 14px 0;
+}
+
+.agent-browser-address-text {
+  display: block;
+  overflow: hidden;
+  color: rgb(var(--ink) / calc(0.72 * var(--ink-text-boost)));
+  font-size: 12px;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  user-select: text;
+  white-space: nowrap;
+}
+
+.agent-browser-empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: rgb(var(--ink) / calc(0.62 * var(--ink-text-boost)));
+  font-size: 13px;
+  line-height: 19px;
+  text-align: center;
+}
+
+.agent-browser-stage {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px 12px 12px;
+}
+
+.agent-browser-screen {
+  position: relative;
+  display: none;
+}
+
+.agent-browser-stage-ready .agent-browser-screen {
+  display: block;
+}
+
+.agent-browser-screen canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--openbot-line);
+  border-radius: 6px;
+}
+
+.agent-browser-pointer {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(63 121 222);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.9),
+    inset 0 0 0 1px rgb(255 255 255 / 0.9);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition:
+    left 120ms ease,
+    top 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-browser-pointer {
+    transition: none;
+  }
+}

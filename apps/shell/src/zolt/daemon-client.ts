@@ -42,8 +42,15 @@ export class DaemonClient {
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >();
   private readonly listeners = new Set<(change: SnapshotChange) => void>();
+  private readonly notices = new Set<(method: string, params: unknown) => void>();
 
   constructor(private readonly connection: () => Promise<DaemonConnectionInfo>) {}
+
+  /** Messages the daemon sends that aren't stored events, such as B2's browser frames. */
+  onNotice(listener: (method: string, params: unknown) => void): () => void {
+    this.notices.add(listener);
+    return () => this.notices.delete(listener);
+  }
 
   onChange(listener: (change: SnapshotChange) => void): () => void {
     this.listeners.add(listener);
@@ -130,6 +137,10 @@ export class DaemonClient {
     }
     if (message.method === "event") {
       this.apply(message.params as DomainEvent);
+      return;
+    }
+    if (typeof message.method === "string" && typeof message.id !== "number") {
+      for (const listener of this.notices) listener(message.method, message.params);
       return;
     }
     if (typeof message.id !== "number") return;

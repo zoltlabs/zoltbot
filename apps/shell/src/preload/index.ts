@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
+  type AgentBrowserFrame,
   type AgentEvent,
   type AttachmentImportEvent,
   type DictationEvent,
@@ -216,6 +217,13 @@ const openbotApi: OpenBotDesktopApi = {
   agentBrowser: {
     profile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserProfile, input),
     clearProfile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserClearProfile, input),
+    view: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserView, input),
+    onFrame: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, frame: AgentBrowserFrame) =>
+        listener(frame);
+      ipcRenderer.on(IPC_CHANNELS.agentBrowserFrame, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.agentBrowserFrame, handler);
+    },
   },
   spend: {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),

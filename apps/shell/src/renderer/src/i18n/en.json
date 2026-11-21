@@ -343,5 +343,10 @@
   "browser.profile.clearBody": "{agent} will be signed out of every site.",
   "browser.profile.clearing": "Clearing…",
   "browser.profile.clearFailed": "Couldn’t clear the profile. Try again.",
-  "browser.profile.inUse": "Its browser is still open. Try again when the task ends."
+  "browser.profile.inUse": "Its browser is still open. Try again when the task ends.",
+  "browser.view.title": "Browser",
+  "browser.view.close": "Close browser",
+  "browser.view.resize": "Resize right panel",
+  "browser.view.empty": "{agent} hasn’t opened a page yet.",
+  "browser.view.screen": "{agent}’s browser"
 }

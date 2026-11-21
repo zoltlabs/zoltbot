@@ -98,6 +98,11 @@ const daemonHost = new DaemonHost(paths, {
 });
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+// B2: browser frames go straight to the window, never through the snapshot.
+client.onNotice((method, frame) => {
+  if (method === "browser.frame" && mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send(IPC_CHANNELS.agentBrowserFrame, frame);
+});
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";

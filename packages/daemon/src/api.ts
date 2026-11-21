@@ -637,7 +637,7 @@ async function startOwnedDaemon(
           (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??
-          (await browser(request.method, params)) ??
+          (await browser(request.method, params, "human", client)) ??
           (await connections.api(request.method, params, commandId)) ??
           (await knowledge(request.method, params, commandId)) ??
           (await skills(request.method, params, commandId)) ??
