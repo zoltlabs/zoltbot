@@ -5,6 +5,7 @@ import type { MethodName } from "./catalog.js";
 import { quickChatMacOnlyMethods } from "./quick-chat.js";
 import { shippingMacOnlyMethods } from "./shipping.js";
 import { skillMacOnlyMethods } from "./skills.js";
+import { vaultMacOnlyMethods } from "./vault.js";
 import { viewMacOnlyMethods } from "./views.js";
 
 const localDesktopOnlyMethods: readonly MethodName[] = [
@@ -16,6 +17,7 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...browserMacOnlyMethods,
   ...quickChatMacOnlyMethods,
   ...backupModelMacOnlyMethods,
+  ...vaultMacOnlyMethods,
   "routine.checkSource",
   "routine.connectionHandoff",
   "routine.prepare",

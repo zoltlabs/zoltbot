@@ -354,6 +354,14 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         enabled: call(channels.linksEnabled),
         setEnabled: call(channels.linksSetEnabled),
       },
+      vault: {
+        list: call(channels.vaultList),
+        save: call(channels.vaultSave),
+        update: call(channels.vaultUpdate),
+        remove: call(channels.vaultRemove),
+        reveal: call(channels.vaultReveal),
+        agents: call(channels.vaultAgents),
+      },
       hidden: {
         set: call(channels.hiddenSet),
       },

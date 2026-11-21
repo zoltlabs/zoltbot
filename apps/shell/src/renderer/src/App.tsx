@@ -49,6 +49,7 @@ import { SidebarChannels } from "./components/SidebarChannels";
 import { createChatActions } from "./components/sidebar/chat-actions";
 import { TasksPage } from "./components/TasksPage";
 import { UsagePage } from "./components/UsagePage";
+import { VaultPage } from "./components/vault/VaultPage";
 import type { BotProfile } from "./data";
 import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
@@ -69,6 +70,7 @@ export function App() {
   }));
   const [modelsOpen, setModelsOpen] = pageFlag(pages, "models");
   const [usageOpen, setUsageOpen] = pageFlag(pages, "usage");
+  const [vaultOpen, setVaultOpen] = pageFlag(pages, "vault");
   const [memoryAgent, setMemoryAgent] = createSignal<string | null>(null);
   const [memoryOpen, setMemoryOpen] = pageFlag(pages, "memory", () => ({
     id: "memory",
@@ -407,6 +409,12 @@ export function App() {
     setMemoryOpen(true);
   }
 
+  function openVault() {
+    closePages();
+    setAgentPickerOpen(false);
+    setVaultOpen(true);
+  }
+
   function openUsage() {
     closePages();
     setAgentPickerOpen(false);
@@ -421,6 +429,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setVaultOpen(false);
   }
 
   function selectBot(botId: string) {
@@ -430,6 +439,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setVaultOpen(false);
     setAgentPickerOpen(false);
     clearReplyIndicators(botId);
     setActiveBotId(botId);
@@ -638,7 +648,13 @@ export function App() {
     bots: botList,
     // Covered by a page or channel, the open chat isn't being read.
     activeBotId: () =>
-      mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || usageOpen() || channelOpen()
+      mapOpen() ||
+      tasksOpen() ||
+      modelsOpen() ||
+      memoryOpen() ||
+      usageOpen() ||
+      vaultOpen() ||
+      channelOpen()
         ? undefined
         : activeBot()?.id,
     clearLocalUnread: clearReplyIndicators,
@@ -736,6 +752,7 @@ export function App() {
                 modelsOpen() ||
                 memoryOpen() ||
                 usageOpen() ||
+                vaultOpen() ||
                 channelOpen()
                   ? ""
                   : (activeBot()?.id ?? "")
@@ -753,6 +770,7 @@ export function App() {
                     setModelsOpen(false);
                     setMemoryOpen(false);
                     setUsageOpen(false);
+                    setVaultOpen(false);
                     setAgentPickerOpen(false);
                     channels.open(channelId);
                   }}
@@ -779,6 +797,8 @@ export function App() {
               onOpenMemory={() => openMemory()}
               usageOpen={usageOpen()}
               onOpenUsage={openUsage}
+              vaultOpen={vaultOpen()}
+              onOpenVault={openVault}
               appInfo={appInfo()}
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
@@ -825,6 +845,7 @@ export function App() {
               modelsOpen() ||
               memoryOpen() ||
               usageOpen() ||
+              vaultOpen() ||
               channelOpen() ||
               undefined
             }
@@ -906,6 +927,12 @@ export function App() {
               onShowSidebar={() => setSidebarCollapsed(false)}
             />
           </Show>
+          <Show when={vaultOpen()}>
+            <VaultPage
+              sidebarCollapsed={leftPanelCollapsed()}
+              onShowSidebar={() => setSidebarCollapsed(false)}
+            />
+          </Show>
           <Show when={memoryOpen()}>
             <MemoryPage
               store={memory}
@@ -940,6 +967,7 @@ export function App() {
                   },
                   openMemory: () => openMemory(),
                   openUsage,
+                  openVault,
                   // The picker lives in the conversation, which a page or channel covers.
                   newChat: () => {
                     closePages();

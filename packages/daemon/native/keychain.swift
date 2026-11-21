@@ -6,6 +6,10 @@ struct Request: Decodable {
     let op: String
     let account: String
     let value: String?
+    let reason: String?
+    /// V1: vault values live under their own service. They are never read by `get`: the owner
+    /// sees one only through `reveal`, and the daemon reads one to type it through `use`.
+    let vault: Bool?
 }
 
 func reply(_ value: [String: Any], status: Int32 = 0) -> Never {
@@ -24,10 +28,26 @@ do {
     let request = try JSONDecoder().decode(Request.self, from: input)
     guard let account = UUID(uuidString: request.account),
           account.uuidString.lowercased() == request.account,
-          ["put", "get", "exists", "remove", "replace"].contains(request.op) else {
+          ["put", "get", "exists", "remove", "replace", "reveal", "use"].contains(request.op) else {
+        reply(["ok": false], status: 1)
+    }
+    let vault = request.vault == true
+    guard vault ? request.op != "get" : !["reveal", "use"].contains(request.op) else {
         reply(["ok": false], status: 1)
     }
     let authentication = LAContext()
+    if request.op == "reveal" {
+        // V1: the owner proves presence with Touch ID or the Mac's password before a value shows.
+        let reason = String((request.reason ?? "show a saved password").prefix(120))
+        let done = DispatchSemaphore(value: 0)
+        var allowed = false
+        authentication.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, _ in
+            allowed = success
+            done.signal()
+        }
+        done.wait()
+        guard allowed else { reply(["ok": false]) }
+    }
     authentication.interactionNotAllowed = true
     // The file based login Keychain also needs its process local UI guard.
     guard SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else {
@@ -35,7 +55,7 @@ do {
     }
     var query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
-        kSecAttrService as String: "com.zoltbot.secrets.v1",
+        kSecAttrService as String: vault ? "com.zoltbot.vault.v1" : "com.zoltbot.secrets.v1",
         kSecAttrAccount as String: request.account,
         kSecUseAuthenticationContext as String: authentication,
     ]
@@ -54,11 +74,11 @@ do {
             reply(["ok": false], status: 1)
         }
         query[kSecValueData as String] = data
-        query[kSecAttrLabel as String] = "Zoltbot private value"
+        query[kSecAttrLabel as String] = vault ? "Zoltbot vault" : "Zoltbot private value"
         reply(["ok": SecItemAdd(query as CFDictionary, nil) == errSecSuccess])
     }
     query[kSecMatchLimit as String] = kSecMatchLimitOne
-    if request.op == "get" { query[kSecReturnData as String] = true }
+    if ["get", "reveal", "use"].contains(request.op) { query[kSecReturnData as String] = true }
     else { query[kSecReturnAttributes as String] = true }
     var result: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &result)

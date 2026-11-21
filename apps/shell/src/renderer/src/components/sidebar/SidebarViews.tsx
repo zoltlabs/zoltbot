@@ -1,4 +1,4 @@
-// The sidebar's page buttons: Map, Tasks, Models, Memory and Usage.
+// The sidebar's page buttons: Map, Tasks, Models, Memory, Usage and Vault.
 import { Show } from "solid-js";
 import { t } from "../../i18n";
 import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
@@ -27,12 +27,22 @@ function UsageIcon() {
   );
 }
 
+function VaultIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <circle cx="7" cy="10" r="3.5" stroke-width="1.4" />
+      <path d="M10.5 10H17M14.5 10v2.5" stroke-width="1.4" stroke-linecap="round" />
+    </svg>
+  );
+}
+
 export function SidebarViews(props: {
   mapOpen: boolean;
   tasksOpen: boolean;
   modelsOpen?: boolean;
   memoryOpen?: boolean;
   usageOpen?: boolean;
+  vaultOpen?: boolean;
   /** Tasks and approvals waiting on the owner. */
   needsYou: number;
   /** What agents proposed to remember, waiting for review. */
@@ -42,6 +52,7 @@ export function SidebarViews(props: {
   onOpenModels?: (() => void) | undefined;
   onOpenMemory?: (() => void) | undefined;
   onOpenUsage?: (() => void) | undefined;
+  onOpenVault?: (() => void) | undefined;
 }) {
   return (
     <div class="sidebar-views">
@@ -122,6 +133,20 @@ export function SidebarViews(props: {
             <UsageIcon />
           </span>
           <span class="bot-row-copy">{t("usage.title")}</span>
+        </button>
+      </Show>
+      <Show when={props.onOpenVault}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.vaultOpen === true }}
+          aria-pressed={props.vaultOpen === true}
+          onClick={() => props.onOpenVault?.()}
+        >
+          <span class="sidebar-map-icon">
+            <VaultIcon />
+          </span>
+          <span class="bot-row-copy">{t("vault.title")}</span>
         </button>
       </Show>
     </div>

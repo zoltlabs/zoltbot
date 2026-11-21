@@ -64,6 +64,7 @@ import { Logger, Redactor } from "./logging.js";
 import { messageApi } from "./message-api.js";
 import { messageHiddenApi } from "./message-hidden-api.js";
 import { messagePinsApi } from "./message-pins-api.js";
+import { vaultApi } from "./vault/api.js";
 import { messageReactionsApi } from "./message-reactions-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
@@ -394,6 +395,14 @@ async function startOwnedDaemon(
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
+  const vault = vaultApi({
+    dataDir: options.dataDir,
+    store,
+    privacy,
+    redactor,
+    publish,
+    ...(options.secrets ? { secrets: options.secrets } : {}),
+  });
   const attachmentPreview = attachmentPreviewApi({ store });
   const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
@@ -630,6 +639,7 @@ async function startOwnedDaemon(
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
+          (await vault.api(request.method, params)) ??
           (await attachmentPreview(request.method, params)) ??
           (await linkPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??

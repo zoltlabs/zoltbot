@@ -1,0 +1,121 @@
+/* The Vault page (V1). Colors are theme tokens. */
+
+.vault-header {
+  gap: 8px;
+}
+
+.vault-header .map-title {
+  flex: 1;
+}
+
+.vault-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vault-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vault-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--openbot-line);
+  padding: 10px 4px;
+}
+
+.vault-kind {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.vault-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.vault-label {
+  color: var(--openbot-white);
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.vault-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.vault-who {
+  white-space: nowrap;
+}
+
+.vault-more svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.vault-form {
+  display: grid;
+  gap: 12px;
+}
+
+.vault-value-row {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  gap: 6px;
+}
+
+.vault-value-row > .zb-kit-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-qr {
+  position: relative;
+  cursor: pointer;
+}
+
+.vault-qr:focus-within {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.vault-agents {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.vault-agents legend {
+  margin-bottom: 4px;
+  padding: 0;
+}
+
+.vault-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--openbot-white);
+  font-size: 13px;
+}
+
+.vault-form-error {
+  margin: 0 auto 0 0;
+  align-self: center;
+}
