@@ -7,6 +7,7 @@ import {
 import {
   type Interaction,
   InteractionSchema,
+  MUTED_PREFIX,
   parse,
   type RoutineOccurrence,
   RoutineOccurrenceSchema,
@@ -30,6 +31,7 @@ export function desktopNotifications(host: {
   let enabled = true;
   let quietHours: unknown;
   let later = new Set<string>();
+  const muted = new Set<string>();
   function tick() {
     const now = Date.now();
     const changes = planner.reconcile(
@@ -42,6 +44,7 @@ export function desktopNotifications(host: {
         enabled,
         quiet: inQuietHours(quietHours, now),
         agentNames: names,
+        muted,
       },
       now,
     );
@@ -53,6 +56,7 @@ export function desktopNotifications(host: {
         enabled,
         quiet: inQuietHours(quietHours, now),
         agentNames: names,
+        muted,
       }),
     );
     changes.push(
@@ -63,6 +67,7 @@ export function desktopNotifications(host: {
         enabled,
         quiet: inQuietHours(quietHours, now),
         agentNames: names,
+        muted,
         chiefName,
       }),
     );
@@ -123,6 +128,11 @@ export function desktopNotifications(host: {
     if (kind === "agent" && typeof value.id === "string" && typeof value.name === "string")
       names.set(value.id, value.name);
     if (kind === "settings" && value.key === "chief.queue") later = laterIds(value.value);
+    if (kind === "settings" && typeof value.key === "string" && value.key.startsWith(MUTED_PREFIX)) {
+      const threadId = value.key.slice(MUTED_PREFIX.length);
+      if (value.value === true) muted.add(threadId);
+      else muted.delete(threadId);
+    }
     if (kind === "settings" && value.key === "chief.name")
       chiefName =
         typeof value.value === "string" && value.value.trim() ? value.value.trim() : "Zolt";
@@ -166,6 +176,7 @@ export function desktopNotifications(host: {
       enabled = true;
       quietHours = undefined;
       later = new Set();
+      muted.clear();
       for (const kind of ["agent", "settings", "interaction", "routineOccurrence"])
         for (const row of entities[kind] ?? []) apply(kind, row);
       tick();

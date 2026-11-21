@@ -69,6 +69,7 @@ export const BOTS: BotSummary[] = [
     projectId: null,
     kind: "main",
     pinned: false,
+    muted: false,
     onboarding: true,
     depth: 0,
     companyRole: "chat",
@@ -94,6 +95,7 @@ export const BOTS: BotSummary[] = [
     projectId: null,
     kind: "main",
     pinned: false,
+    muted: false,
     onboarding: true,
     depth: 0,
     companyRole: "chat",
@@ -294,6 +296,14 @@ export function setUpAppTest() {
       },
       hidden: {
         set: vi.fn().mockResolvedValue(undefined),
+      },
+      coAuthor: {
+        get: vi.fn().mockResolvedValue(null),
+        set: vi.fn().mockResolvedValue(undefined),
+      },
+      templates: {
+        list: vi.fn().mockResolvedValue([]),
+        create: vi.fn(),
       },
       aside: {
         ask: vi.fn().mockResolvedValue({ threadId: "aside-thread" }),

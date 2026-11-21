@@ -1,3 +1,4 @@
+import { mutedKey } from "@zoltbot/protocol";
 import { chiefThreadId } from "@zoltbot/ui/chief/data";
 import { inProgress, type TaskView, taskAge } from "./tasks.js";
 import type { Row, Snapshot } from "./transport.js";
@@ -193,6 +194,8 @@ export interface ChatRow {
   threadId: string;
   title: string;
   age: string;
+  /** A3: the owner muted this chat. */
+  muted: boolean;
 }
 /** The project's own chats, not task or manager chats, newest first. */
 export function drawerChats(
@@ -223,6 +226,9 @@ export function drawerChats(
       threadId: text(thread.id),
       title: text(thread.title).trim() || "Chat",
       age: taskAge(text(thread.lastActivityAt), now),
+      muted:
+        snapshot.entities.settings?.find((row) => row.key === mutedKey(text(thread.id)))?.value ===
+        true,
     }));
 }
 

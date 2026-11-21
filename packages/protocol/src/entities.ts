@@ -22,6 +22,10 @@ import { PhaseExecutionSchema } from "./orchestration.js";
 
 export const ProfileSchema = object({
   template: Type.Optional(Type.Literal("artifact_designer")),
+  /** A1: the agent template this profile was created from. */
+  templateId: Type.Optional(Text),
+  /** A2: how the agent writes to the owner. Absent: the owner's default style. */
+  style: Type.Optional(values(["neutral", "warm", "casual", "direct"])),
   id: Id,
   name: Text,
   avatar: Text,
@@ -60,6 +64,12 @@ export const ProjectSchema = object({
   previewUrl: OptionalText,
   requireCodeReview: Type.Boolean(),
   skipFinalGateWhenReviewed: Type.Boolean(),
+  /** A4: agents' commits name them in a Co-Authored-By line; on unless false. */
+  coAuthorLine: Type.Optional(Type.Boolean()),
+  /** A4: the domain of that line's address; `agents.zoltbot.invalid` when unset. */
+  coAuthorDomain: Type.Optional(
+    Type.String({ pattern: "^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$", maxLength: 100 }),
+  ),
   archived: Type.Boolean(),
   createdAt: At,
 });

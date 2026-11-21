@@ -9,6 +9,7 @@ import {
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import {
+  agentCommitMessage,
   clean,
   commit,
   createReviewCommit,
@@ -137,7 +138,14 @@ export function worktreeApi(options: {
     if (method === "task.reviewCommit") {
       const preview = await previewReview(binding.cwd, binding.baseCommit);
       if (preview.fingerprint !== params.fingerprint) throw new Error("review_preview_stale");
-      const message = typeof params.message === "string" ? params.message : `Review: ${task.title}`;
+      const written = typeof params.message === "string" ? params.message : `Review: ${task.title}`;
+      if (!written.trim() || written.length > 500) throw new Error("invalid_commit_message");
+      // A4: name the agent that did the work, unless the project turned it off.
+      const message = agentCommitMessage(
+        written,
+        agentName(store, task.ownerAgentId),
+        task.projectId ? store.record("project", String(task.projectId)) : undefined,
+      );
       const approvalId = `worktree-commit-${createHash("sha256").update(`${task.id}:${task.revision}:${preview.fingerprint}:${message}`).digest("hex")}`;
       const approval = store.record("interaction", approvalId);
       if (!approval) {
@@ -243,4 +251,10 @@ export function worktreeApi(options: {
     });
     return result;
   };
+}
+
+/** The task owner's name, for the co-author line. */
+function agentName(store: Store, agentId: unknown): string | undefined {
+  const name = typeof agentId === "string" ? store.record("agent", agentId)?.name : undefined;
+  return typeof name === "string" ? name : undefined;
 }

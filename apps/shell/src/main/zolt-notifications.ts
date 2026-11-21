@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { mutedThreads, requestNotifies } from "@zoltbot/protocol";
 import type { DaemonClient } from "../zolt/daemon-client";
 import { desktopNotifications } from "./desktop/notifications";
 
@@ -38,7 +39,11 @@ export function connectNotifications(client: DaemonClient, host: NotificationHos
   });
   let badge = -1;
   const updateBadge = () => {
-    const count = client.rows("interaction").filter((row) => row.state === "pending").length;
+    // A3: a muted chat's requests stay off the badge, except approvals.
+    const muted = mutedThreads(client.rows("settings"));
+    const count = client
+      .rows("interaction")
+      .filter((row) => row.state === "pending" && requestNotifies(row, muted)).length;
     if (count === badge) return;
     badge = count;
     host.setBadge(count);
@@ -51,7 +56,7 @@ export function connectNotifications(client: DaemonClient, host: NotificationHos
     }
     if (change.kind !== "rows" || change.streamed) return;
     for (const row of change.rows) notifications.event(change.aggregateType, row);
-    if (change.aggregateType === "interaction") updateBadge();
+    if (change.aggregateType === "interaction" || change.aggregateType === "settings") updateBadge();
   });
   if (client.status === "online") {
     notifications.snapshot(client.snapshot.entities);

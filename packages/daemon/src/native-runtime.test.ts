@@ -3,6 +3,7 @@ import path from "node:path";
 import type { AgentAdapter, AgentSession, OpenOptions } from "@zoltbot/adapters-sdk";
 import { AsyncQueue } from "@zoltbot/adapters-sdk";
 import type { AgentDefinition, AgentEvent, Profile, Thread } from "@zoltbot/protocol";
+import { talkingStyleLine } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { Redactor } from "./logging.js";
 import { NativeRuntimeHost } from "./native-runtime.js";
@@ -491,6 +492,50 @@ it("throws injection_fixed_budget_exceeded before composeLaunchManifest can misr
         f.redactor,
       ),
     ).rejects.toThrow("injection_fixed_budget_exceeded");
+  } finally {
+    f.clean();
+  }
+});
+it("adds the talking style line once when a session starts, and keeps it on resume", async () => {
+  const f = fixture();
+  try {
+    f.profile.style = "direct";
+    const first = await f.host.prepare(f, f.redactor);
+    const session = await first.open({ sessionId: "styled", mode: "new" });
+    const line = talkingStyleLine("direct") ?? "";
+    const text = String(f.opened()?.appendInstructions);
+    expect(text.split(line).length - 1).toBe(1);
+    expect(text).toBe(`Saved role\n\nSaved instructions\n\n${line}\n\nProject context`);
+    await session.close();
+    // A later change applies to the next chat, not to a resumed one.
+    const saved = structuredClone(first.configuration);
+    f.profile.style = "warm";
+    const resumed = await f.host.prepare(
+      {
+        ...f,
+        previous: { nativeId: "native", provider: "synthetic", cwd: f.root, configuration: saved },
+      },
+      f.redactor,
+    );
+    const again = await resumed.open({ sessionId: "styled-2", mode: "resume", nativeId: "native" });
+    expect(String(f.opened()?.appendInstructions).split(line).length - 1).toBe(1);
+    expect(f.opened()?.appendInstructions).not.toContain(talkingStyleLine("warm"));
+    await again.close();
+  } finally {
+    f.clean();
+  }
+});
+
+it("adds no line for the neutral style", async () => {
+  const f = fixture();
+  try {
+    f.profile.style = "neutral";
+    const prepared = await f.host.prepare(f, f.redactor);
+    const session = await prepared.open({ sessionId: "plain", mode: "new" });
+    expect(f.opened()?.appendInstructions).toBe(
+      "Saved role\n\nSaved instructions\n\nProject context",
+    );
+    await session.close();
   } finally {
     f.clean();
   }

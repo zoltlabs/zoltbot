@@ -25,6 +25,7 @@ import {
 } from "../data/drawer";
 import { needsYouTasks, type TaskView, taskAge, taskViews } from "../data/tasks";
 import type { Row } from "../data/transport";
+import { t } from "../i18n";
 import { useDrawer } from "../state/drawer";
 import { useCall, useClient, useSnapshot } from "../state/link";
 import { sans, touch, useTheme } from "../theme";
@@ -403,10 +404,15 @@ export function Drawer() {
 
           {chats.length ? <Label title="Chats" /> : null}
           {chats.slice(0, chatLimit).map((chat) => (
-            <Item key={chat.threadId} label={chat.title} onPress={() => openThread(chat.threadId)}>
+            <Item
+              key={chat.threadId}
+              label={chat.muted ? `${chat.title}, ${t("chat.muted")}` : chat.title}
+              onPress={() => openThread(chat.threadId)}
+            >
               <Txt lines={1} style={styles.flex}>
                 {chat.title}
               </Txt>
+              {chat.muted ? <Icon name="bellOff" size={14} color={c["text-muted"]} /> : null}
               <Txt v="meta" tone="muted">
                 {chat.age}
               </Txt>

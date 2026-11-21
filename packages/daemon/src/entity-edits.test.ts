@@ -74,6 +74,12 @@ it("edits a profile's name and model and archives a project, once", async () => 
         "model",
       ),
     ).toMatchObject({ id: "profile", model: "gpt-5.5", effort: "high" });
+    expect(
+      await edits("agent.update", { id: "profile", changes: { style: "direct" } }, "style"),
+    ).toMatchObject({ id: "profile", style: "direct" });
+    await expect(
+      edits("agent.update", { id: "profile", changes: { style: "loud" } }, "style-bad"),
+    ).rejects.toThrow();
     await expect(
       edits("agent.update", { id: "profile", changes: { permissionProfile: "full_access" } }, "up"),
     ).rejects.toThrow("field_not_editable");

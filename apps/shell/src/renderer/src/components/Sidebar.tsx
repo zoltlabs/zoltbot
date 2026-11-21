@@ -47,6 +47,7 @@ import {
   chatMenuItems,
   DeleteAgentDialog,
 } from "./sidebar/AgentMenus";
+import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
@@ -600,6 +601,9 @@ export function Sidebar(props: SidebarProps) {
                             <strong>{bot.name}</strong>
                             <Show when={bot.roleLabel}>
                               <em class="bot-row-role">{bot.roleLabel}</em>
+                            </Show>
+                            <Show when={bot.muted}>
+                              <MutedMark />
                             </Show>
                           </span>
                           <span class="bot-row-time">{bot.time}</span>

@@ -9,6 +9,7 @@ import {
   StaffRequestSchema,
   staffAllowanceKey,
 } from "@zoltbot/protocol";
+import { agentTemplate } from "./agent-templates/index.js";
 import { scopeLineage } from "./hierarchy.js";
 import type { DomainState } from "./projectors.js";
 import { managerAbove, scopeContains } from "./team.js";
@@ -148,6 +149,11 @@ function planAdd(
   const templateId = request.profileId ?? text(manager?.agentId);
   const template = state.agent?.find((r) => r.id === templateId && !r.archived && !r.hidden);
   if (!template) throw Error("profile_unavailable");
+  const starter = request.templateId ? agentTemplate(request.templateId) : undefined;
+  if (request.templateId && (!starter || (actor && !starter.managerFriendly)))
+    throw Error("agent_template_unavailable");
+  const role = request.role.trim() || starter?.role || "";
+  const extra = request.instructions ?? starter?.instructions ?? "";
   const employee = name(request.name);
   if (
     state.thread?.some(
@@ -176,7 +182,17 @@ function planAdd(
   return {
     reasons,
     ...(covered && allowance ? { allowance } : {}),
-    resolved: { node, projectId: lineage.project.id, template, model, folders, name: employee },
+    resolved: {
+      node,
+      projectId: lineage.project.id,
+      template,
+      model,
+      folders,
+      name: employee,
+      role,
+      extra,
+      ...(starter ? { templateId: starter.id } : {}),
+    },
     preview: {
       kind: "add",
       projectId: lineage.project.id,
@@ -186,8 +202,9 @@ function planAdd(
         ? { requestedBy: { threadId: String(requester.id), name: String(requester.title) } }
         : {}),
       fields: [
+        ...(starter ? [field("From template", undefined, starter.name)] : []),
         field("Name", undefined, employee),
-        ...(request.role.trim() ? [field("Role", undefined, request.role.trim())] : []),
+        ...(role ? [field("Role", undefined, role)] : []),
         field("Model", undefined, model || "Provider default"),
         field("Can edit", undefined, folders.length ? folders.join(", ") : "Any folder"),
         field("Reports to", undefined, String(manager?.title ?? where)),

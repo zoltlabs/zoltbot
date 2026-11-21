@@ -1,9 +1,11 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
 export type * from "./aside";
+export type * from "./co-author";
 export type * from "./branches";
 export * from "./browser";
 export * from "./company";
@@ -41,7 +43,9 @@ import type {
 } from "./channels";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
+import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
@@ -121,6 +125,8 @@ export const IPC_CHANNELS = {
   ...ASIDE_CHANNELS,
   ...PIN_CHANNELS,
   ...HIDDEN_CHANNELS,
+  ...AGENT_TEMPLATE_CHANNELS,
+  ...CO_AUTHOR_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -280,6 +286,9 @@ export interface AgentStatus {
   fullAccess: boolean;
 }
 
+/** A2: how an agent writes to the owner. */
+export type TalkingStyle = "neutral" | "warm" | "casual" | "direct";
+
 export interface BotSummary {
   id: string;
   name: string;
@@ -299,6 +308,8 @@ export interface BotSummary {
   projectId: string | null;
   kind: string;
   pinned: boolean;
+  /** A3: the owner muted this chat. */
+  muted: boolean;
   /** Ask what the agent should focus on when its chat is empty. */
   onboarding: boolean;
   /** How far below the project's CEO this chat sits in the company. */
@@ -310,6 +321,8 @@ export interface BotSummary {
   projectName: string;
   /** What happens when the chat's context is nearly full; "ask" when unset. */
   contextFull?: ContextFullAction;
+  /** A2: the agent's talking style, or the owner's default when it has none. */
+  talkingStyle?: TalkingStyle;
   /** Set when this chat was branched from another one. */
   branchedFrom?: BranchOrigin;
   /** A reply came after the owner last read the chat, or they marked it unread. */
@@ -395,6 +408,7 @@ export interface UpdateBotInput {
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
   contextFull?: ContextFullAction;
+  talkingStyle?: TalkingStyle;
 }
 
 export type ConversationMessageAuthor = "user" | "assistant" | "agent" | "system";
@@ -756,4 +770,6 @@ export interface OpenBotDesktopApi {
   aside: AsideDesktopApi;
   pins: PinsDesktopApi;
   hidden: HiddenDesktopApi;
+  templates: AgentTemplatesDesktopApi;
+  coAuthor: CoAuthorDesktopApi;
 }

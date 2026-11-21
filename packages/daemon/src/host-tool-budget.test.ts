@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { referenceTokenEstimate } from "@zoltbot/adapters-sdk/tokens";
+import { talkingStyleLine } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { createArtifactBinding } from "./artifacts/binding.js";
 import { browserBinding, browserGuidance } from "./browser/runtime.js";
@@ -34,6 +35,9 @@ it("keeps every direct host tool surface within eight tools and 700 description 
   }
 });
 
+/** A2: the longest talking style line, which every session may carry. */
+const styleTokens = referenceTokenEstimate(talkingStyleLine("direct") ?? "");
+
 it("fits artifact plus browser guidance and the compact frozen schemas inside 1500 tokens", () => {
   mkdirSync(".cache/tests", { recursive: true });
   const root = mkdtempSync(path.resolve(".cache/tests/artifact-budget-"));
@@ -53,6 +57,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
         JSON.stringify([...artifactRuntimeToolDefinitions, ...indirectRuntimeToolDefinitions]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
+        styleTokens +
         32,
     ).toBeLessThanOrEqual(1500);
     expect(
@@ -65,6 +70,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
+        styleTokens +
         32,
     ).toBeLessThanOrEqual(1500);
     // An owner chat also carries the chat_signal hint.
@@ -77,6 +83,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
+        styleTokens +
         32,
     ).toBeLessThanOrEqual(1500);
     const browser = browserBinding(root, root, { mode: "background" });

@@ -232,6 +232,14 @@ const openbotApi: OpenBotDesktopApi = {
   hidden: {
     set: (input) => ipcRenderer.invoke(IPC_CHANNELS.hiddenSet, input),
   },
+  coAuthor: {
+    get: (botId) => ipcRenderer.invoke(IPC_CHANNELS.coAuthorGet, botId),
+    set: (input) => ipcRenderer.invoke(IPC_CHANNELS.coAuthorSet, input),
+  },
+  templates: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
+    create: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesCreate, input),
+  },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),
     setGrants: (viewId, permissions) =>

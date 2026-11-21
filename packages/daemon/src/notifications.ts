@@ -1,4 +1,4 @@
-import type { Interaction, RoutineOccurrence } from "@zoltbot/protocol";
+import { type Interaction, type RoutineOccurrence, requestNotifies } from "@zoltbot/protocol";
 
 /** Requests the main agent ranked `later` never notify. */
 export { laterIds } from "./chief/queue.js";
@@ -21,6 +21,8 @@ export interface NotificationContext {
   enabled: boolean;
   quiet?: boolean;
   agentNames: ReadonlyMap<string, string>;
+  /** A3: chats the owner muted. Only their approvals notify, silently. */
+  muted?: ReadonlySet<string>;
 }
 function reminderSlot(age: number) {
   if (age < 5 * 60000) return 0;
@@ -43,9 +45,12 @@ export class NotificationPlanner {
       requests.filter((row) => row.state === "pending").map((row) => [row.id, row]),
     );
     const changes: NotificationChange[] = [];
+    const muted = context.muted ?? new Set<string>();
+    const silenced = (row: Interaction) => !requestNotifies(row, muted);
     for (const id of this.visible)
       if (
         !pending.has(id) ||
+        silenced(pending.get(id) as Interaction) ||
         !context.enabled ||
         context.quiet === true ||
         pending.get(id)?.threadId === context.focusedThreadId
@@ -59,7 +64,7 @@ export class NotificationPlanner {
       if (!Number.isFinite(created)) continue;
       const slot = reminderSlot(Math.max(0, now - created));
       const previous = this.slots.get(row.id);
-      if (!context.enabled || row.threadId === context.focusedThreadId) {
+      if (!context.enabled || row.threadId === context.focusedThreadId || silenced(row)) {
         this.slots.set(row.id, Math.max(previous ?? -1, slot));
         continue;
       }
@@ -87,7 +92,7 @@ export class NotificationPlanner {
         threadId: row.threadId,
         title: `${context.agentNames.get(row.agentId) ?? "An agent"} ${suffix}`,
         body,
-        silent: row.urgency === "background",
+        silent: row.urgency === "background" || muted.has(row.threadId),
       });
       this.slots.set(row.id, slot);
       this.visible.add(row.id);
@@ -113,7 +118,11 @@ export class NotificationPlanner {
         this.routineVisible.delete(key);
       }
       if (!wanted || this.routineDelivered.has(key)) continue;
-      if (!context.enabled || context.focusedThreadId === threadId) {
+      if (
+        !context.enabled ||
+        context.focusedThreadId === threadId ||
+        context.muted?.has(threadId)
+      ) {
         this.routineDelivered.add(key);
         continue;
       }
@@ -149,7 +158,11 @@ export class NotificationPlanner {
         this.routineVisible.delete(key);
       }
       if (this.routineDelivered.has(key)) continue;
-      if (!context.enabled || context.focusedThreadId === notice.threadId) {
+      if (
+        !context.enabled ||
+        context.focusedThreadId === notice.threadId ||
+        context.muted?.has(notice.threadId)
+      ) {
         this.routineDelivered.add(key);
         continue;
       }

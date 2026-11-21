@@ -104,7 +104,8 @@ export async function createReviewCommit(
   approvedExecutionHash?: string,
 ) {
   if (!confirmed) throw new Error("confirmation_required");
-  if (!message.trim() || message.length > 500) throw new Error("invalid_commit_message");
+  // 500 for the owner's words plus room for an agent's co-author trailer (A4).
+  if (!message.trim() || message.length > 650) throw new Error("invalid_commit_message");
   const repo = await repository(preview.cwd);
   return repositoryLock(repo.commonDir, async () => {
     const current = await previewReview(preview.cwd, preview.base);

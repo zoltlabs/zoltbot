@@ -1,6 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   type DomainEvent,
+  MUTED_PREFIX,
   TASK_RUNNING_LIMIT_SETTING,
   TaskRunningLimitSchema,
 } from "@zoltbot/protocol";
@@ -75,6 +76,8 @@ export function settingsApi(options: {
       !Value.Check(TaskRunningLimitSchema, input.value)
     )
       throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
+    if (input.key.startsWith(MUTED_PREFIX) && typeof input.value !== "boolean")
+      throw new Error("invalid_setting: use true or false");
     const check = store.receipt(commandId)
       ? undefined
       : await options.privacy.prepareData(undefined);

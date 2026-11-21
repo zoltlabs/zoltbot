@@ -6,6 +6,8 @@ export const THREAD_ACTIONS = [
   "markRead",
   "archive",
   "unarchive",
+  "mute",
+  "unmute",
 ] as const;
 
 export type ThreadAction = (typeof THREAD_ACTIONS)[number];

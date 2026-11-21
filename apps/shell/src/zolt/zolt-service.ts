@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { MUTED_PREFIX } from "@zoltbot/protocol";
 import type {
   AccountUsage,
   AgentEvent,
@@ -359,6 +360,14 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           ),
         );
     }
+    if (input.talkingStyle !== undefined)
+      calls.push(
+        this.client.call(
+          "agent.update",
+          { id: thread.agentId, changes: { style: input.talkingStyle } },
+          randomUUID(),
+        ),
+      );
     if (input.role !== undefined)
       calls.push(
         this.client.call(
@@ -665,7 +674,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       if (
         ["thread", "agent", "session", "project", "subproject", "task", "agentDefinition"].includes(
           change.aggregateType,
-        )
+        ) ||
+        (change.aggregateType === "settings" && text(row.key).startsWith(MUTED_PREFIX))
       )
         this.markBots();
       if (COMPANY_ROWS.has(change.aggregateType)) this.markCompany(change.aggregateType, row);

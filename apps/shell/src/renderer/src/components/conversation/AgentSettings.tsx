@@ -25,7 +25,17 @@ import {
   SETTINGS_PANEL_MIN,
 } from "./constants";
 import { BackIcon, CloseIcon } from "./icons";
+import { CoAuthorLine } from "./CoAuthorLine";
 import { RepositoryMode } from "./RepositoryMode";
+import "./talking-style.css";
+
+/** A2: the styles in the order the menu lists them. */
+const talkingStyles = () => [
+  { value: "neutral" as const, label: t("agent.style.neutral") },
+  { value: "warm" as const, label: t("agent.style.warm") },
+  { value: "casual" as const, label: t("agent.style.casual") },
+  { value: "direct" as const, label: t("agent.style.direct") },
+];
 
 /** Editable copies of the agent's profile fields, refreshed when the agent changes. */
 export function createAgentSettingsForm() {
@@ -274,6 +284,19 @@ export function AgentSettings(props: {
             onChange={(value) => void props.save({ contextFull: value })}
           />
         </div>
+        <div class="agent-settings-model-row agent-settings-context-row">
+          <span aria-hidden="true">{t("agent.style.label")}</span>
+          <Select
+            label={t("agent.style.label")}
+            describedBy="agent-style-note"
+            value={props.bot?.talkingStyle ?? "neutral"}
+            options={talkingStyles()}
+            onChange={(value) => void props.save({ talkingStyle: value })}
+          />
+        </div>
+        <p id="agent-style-note" class="agent-settings-note">
+          {t("agent.style.note")}
+        </p>
         <Show when={props.onOpenMemory}>
           <div class="agent-settings-model-row agent-settings-context-row">
             <span id="agent-memory-label">{t("memory.title")}</span>
@@ -290,6 +313,7 @@ export function AgentSettings(props: {
         </Show>
         <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
         <Show when={props.bot?.id}>{(botId) => <RepositoryMode botId={botId()} />}</Show>
+        <Show when={props.bot?.id}>{(botId) => <CoAuthorLine botId={botId()} />}</Show>
       </div>
     </aside>
   );

@@ -1,4 +1,10 @@
-import { queueOrderKey, splitQuote } from "@zoltbot/protocol";
+import {
+  DEFAULT_TALKING_STYLE_KEY,
+  effectiveTalkingStyle,
+  mutedKey,
+  queueOrderKey,
+  splitQuote,
+} from "@zoltbot/protocol";
 import type { BranchOrigin } from "../shared/branches";
 import type {
   AgentPromptQuestion,
@@ -143,6 +149,11 @@ export function toBotSummary(
     description: text(profile?.roleText),
     notifications: preferences.notifications ?? true,
     contextFull: preferences.contextFull ?? "ask",
+    talkingStyle: effectiveTalkingStyle(
+      profile?.style,
+      (snapshot.entities.settings ?? []).find((row) => row.key === DEFAULT_TALKING_STYLE_KEY)
+        ?.value,
+    ),
     ...(branchedFrom ? { branchedFrom } : {}),
     ...(unread ? { unread } : {}),
     model: text(session?.model) || text(profile?.model),
@@ -161,6 +172,9 @@ export function toBotSummary(
     projectId,
     kind: text(thread.kind),
     pinned: thread.pinned === true,
+    muted:
+      (snapshot.entities.settings ?? []).find((row) => row.key === mutedKey(threadId))?.value ===
+      true,
     onboarding: false,
     depth: entry?.depth ?? 0,
     companyRole: entry?.role ?? "chat",
