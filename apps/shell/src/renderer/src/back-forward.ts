@@ -51,19 +51,25 @@ export function createBackForward(options: BackForwardOptions) {
   const { pages } = options;
   let recordQueued = false;
 
+  const placeGone = (place: Route) => isGone(place, options.chatExists, options.channelExists);
+  /** Whether the open chat or channel is in its list yet; recording waits for it. */
+  const placeExists = () => !placeGone(placeRoute(options.chatId(), options.channelId()));
+
   // A sidebar click closes pages and opens a chat in several steps; record once they settle.
   function record() {
     recordQueued = false;
     const at = pages.location();
     if (!isPlace(at)) return;
     const place = placeRoute(options.chatId(), options.channelId());
-    if (isStandIn(place) || routesEqual(at, place)) return;
+    // A chat opened before it reaches the chat list, such as a continued side question, waits
+    // until it's there; recording it sooner lets pruning remove it again, over and over.
+    if (isStandIn(place) || routesEqual(at, place) || placeGone(place)) return;
     if (isStandIn(at)) pages.replace(place);
     else pages.navigate(place);
   }
 
   createEffect(
-    on([pages.location, options.chatId, options.channelId], () => {
+    on([pages.location, options.chatId, options.channelId, placeExists], () => {
       if (recordQueued) return;
       recordQueued = true;
       queueMicrotask(record);
