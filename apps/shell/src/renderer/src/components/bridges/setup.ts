@@ -4,6 +4,7 @@ import type { BridgeKind } from "@zoltbot/protocol";
 import type { JSX } from "solid-js";
 import type { MessageKey } from "../../i18n";
 import { SlackSteps } from "./SlackSteps";
+import { TelegramSteps } from "./TelegramSteps";
 
 export interface SetupField {
   /** The credential's name in the keychain entry. */
@@ -32,5 +33,10 @@ export const BRIDGE_SETUPS: BridgeSetupSpec[] = [
       { key: "appToken", label: "bridges.slack.appToken", placeholder: "xapp-…" },
       { key: "botToken", label: "bridges.slack.botToken", placeholder: "xoxb-…" },
     ],
+  },
+  {
+    kind: "telegram",
+    before: TelegramSteps,
+    fields: [{ key: "token", label: "bridges.telegram.tokenLabel", placeholder: "123456:ABC…" }],
   },
 ];

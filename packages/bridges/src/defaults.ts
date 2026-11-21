@@ -3,6 +3,7 @@ import type { BridgeKind } from "@zoltbot/protocol";
 import type { BridgeAdapter } from "./adapter.js";
 import { BridgeError } from "./adapter.js";
 import { createSlackAdapter } from "./slack.js";
+import { createTelegramAdapter } from "./telegram.js";
 
 export type AdapterFactory = (input: { credentials: Record<string, string> }) => BridgeAdapter;
 
@@ -18,4 +19,5 @@ export const defaultBridgeAdapters: Partial<Record<BridgeKind, AdapterFactory>> 
       appToken: need(credentials, "appToken"),
       botToken: need(credentials, "botToken"),
     }),
+  telegram: ({ credentials }) => createTelegramAdapter({ token: need(credentials, "token") }),
 };

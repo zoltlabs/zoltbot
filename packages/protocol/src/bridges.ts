@@ -101,6 +101,7 @@ export type Bridge = Static<typeof BridgeSchema>;
 export const BridgeProblemSchema = values([
   "not_set_up",
   "token_refused",
+  "token_in_use",
   "keychain_unavailable",
   "needs_account",
   "network",

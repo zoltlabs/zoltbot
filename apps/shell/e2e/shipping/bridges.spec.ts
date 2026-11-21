@@ -170,3 +170,52 @@ test("Adding Slack walks through the manifest and tokens, and keeps the tokens i
     await fixture.close();
   }
 });
+
+test("Telegram shows a pairing code until the owner sends it from their account", async ({
+  page,
+}) => {
+  const fake = new FakeBridgeAdapter("@zolt_bot");
+  const fixture = await compareFixture({
+    secrets: memoryVault(),
+    bridges: { adapters: { telegram: () => fake } },
+  });
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.open(page);
+    await page.getByRole("button", { name: "Open account menu" }).click();
+    await page.getByRole("menuitem", { name: "Bridges" }).click();
+    const dialog = page.getByRole("dialog", { name: "Bridges" });
+    await dialog.getByRole("button", { name: "Add bridge" }).click();
+    await dialog.getByRole("button", { name: "Telegram" }).click();
+    const setup = page.getByRole("dialog", { name: "Add Telegram" });
+    await setup.getByLabel("Bot token").fill("123456:test");
+    await setup.getByRole("button", { name: "Add bridge" }).click();
+
+    const detail = page.getByRole("dialog", { name: "Telegram" });
+    await expect(detail.getByRole("heading", { name: "Pair your account" })).toBeVisible();
+    await expect(detail.getByText("send this to @zolt_bot")).toBeVisible();
+    const command = (await detail.locator(".bridge-code").innerText()).trim();
+    expect(command).toMatch(/^\/start [A-Z2-9]{6}$/);
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/i3-pairing-${scheme}.png` });
+    }
+
+    fake.deliver({
+      id: "1",
+      place: { id: "7", label: "", direct: true },
+      sender: { id: "7", name: "Sam Lee" },
+      text: command,
+      reply: { chat: 7 },
+    });
+    await expect(detail.getByRole("heading", { name: "Pair your account" })).toHaveCount(0);
+    await expect(detail.getByText("1 person")).toBeVisible();
+    expect(fake.sent.at(-1)?.message.text).toMatch(/^Paired/);
+    expect(shell.errors).toEqual([]);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});

@@ -101,7 +101,7 @@ function start() {
       },
     },
     remember: () => {},
-    adapters: { slack: () => fake },
+    adapters: { slack: () => fake, telegram: () => fake },
     initialMs: 5,
     maxMs: 20,
     send: async (method, params, commandId) => {
@@ -352,5 +352,62 @@ describe("bridges", () => {
         problem: "not_set_up",
       }),
     );
+  });
+
+  it("pairs the owner's Telegram account with the code, then forgets the code", async () => {
+    const service = start();
+    const direct = { id: "dm-route", from: { id: "dm", label: "" }, to: route.to, allow: [] };
+    const view = (await service.api(
+      "bridge.save",
+      {
+        bridge: { id: "t1", kind: "telegram", label: "Telegram", enabled: true, routes: [direct] },
+        credentials: { token: "123:secret" },
+      },
+      "save-telegram",
+    )) as BridgeView;
+    const code = (view.bridge.options?.pairing as { code: string }).code;
+    expect(code).toMatch(/^[A-Z2-9]{6}$/);
+    await vi.waitFor(() => expect(fake.started).toBe(1));
+    const dm = (text: string, id: string): InboundMessage => ({
+      id,
+      place: { id: "7", label: "", direct: true },
+      sender: { id: "7", name: "Sam Lee" },
+      text,
+      reply: { chat: 7 },
+    });
+    fake.deliver(dm("/start WRONG1", "1"));
+    fake.deliver(dm(`/start ${code.toLowerCase()}`, "2"));
+    await vi.waitFor(() =>
+      expect(bridgeRows(store).bridges.get("t1")?.routes[0]?.allow).toEqual([
+        { id: "7", name: "Sam Lee" },
+      ]),
+    );
+    expect(bridgeRows(store).bridges.get("t1")?.options?.pairing).toBeUndefined();
+    expect(fake.sent.at(-1)?.message.text).toMatch(/^Paired/);
+    expect(sent).toHaveLength(0);
+    expect(bridgeRows(store).refused.get("t1") ?? []).toHaveLength(0);
+    fake.deliver(dm("hello", "3"));
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+  });
+
+  it("passes photos to a chat as images and names other files", async () => {
+    const service = start();
+    await save(service);
+    await vi.waitFor(() => expect(fake.started).toBe(1));
+    fake.deliver(
+      message({
+        text: "",
+        attachments: [
+          { name: "photo.jpg", mimeType: "image/jpeg", data: new Uint8Array([0xff, 0xd8, 0xff]) },
+          { name: "fake.png", mimeType: "image/png", data: new Uint8Array([1, 2, 3]) },
+          { name: "notes.pdf", mimeType: "application/pdf", data: new Uint8Array([4]) },
+        ],
+      }),
+    );
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    const input = sent[0]?.params.input as { type: string; text?: string; base64?: string }[];
+    expect(input[0]?.text).toContain("2 files not passed on.");
+    expect(input[1]).toEqual({ type: "image", mimeType: "image/jpeg", base64: "/9j/" });
+    expect(input).toHaveLength(2);
   });
 });

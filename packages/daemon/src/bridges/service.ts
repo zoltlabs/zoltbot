@@ -26,6 +26,7 @@ import {
 import type { Store } from "@zoltbot/store";
 import type { PrivateVault } from "../private-context.js";
 import { bridgeApi } from "./api.js";
+import { pairingHook, preparePairing } from "./pairing.js";
 import {
   bridgeRows,
   MAX_PENDING,
@@ -34,6 +35,20 @@ import {
   rowKeys,
   writeRows,
 } from "./records.js";
+
+/** The sender names a file's type; the first bytes say what it really is. */
+const IMAGE_SIGNATURES: [string, number[], number?][] = [
+  ["image/jpeg", [0xff, 0xd8, 0xff]],
+  ["image/png", [0x89, 0x50, 0x4e, 0x47]],
+  ["image/gif", [0x47, 0x49, 0x46, 0x38]],
+  ["image/webp", [0x57, 0x45, 0x42, 0x50], 8],
+];
+const imageType = (data: Uint8Array) =>
+  IMAGE_SIGNATURES.find(([, bytes, at = 0]) =>
+    bytes.every((byte, index) => data[at + index] === byte),
+  )?.[0];
+const MAX_IMAGE = 5 * 1024 * 1024;
+const MAX_IMAGES = 4;
 
 export type BridgeAdapterFactory = (input: {
   bridge: Bridge;
@@ -175,8 +190,19 @@ export function startBridges(
     const route = routeFor(bridge, message);
     if (!route) return;
     if (!allowed(route, message.sender.id)) return refuse(bridge, message, route.id);
-    const body = bridgedText(bridge.kind, message);
-    if (!message.text.trim()) return;
+    // Photos go to a chat as images; other files are named, not passed on.
+    const files = message.attachments ?? [];
+    const images =
+      route.to.kind === "chat"
+        ? files
+            .filter((file) => file.data.byteLength <= MAX_IMAGE && imageType(file.data))
+            .slice(0, MAX_IMAGES)
+        : [];
+    const skipped = files.length - images.length;
+    if (!message.text.trim() && !files.length) return;
+    const body = `${bridgedText(bridge.kind, message)}${
+      skipped ? `\n(${skipped === 1 ? "A file" : `${skipped} files`} not passed on.)` : ""
+    }`;
     const commandId = `bridge:${id}:${hash(message.id)}`;
     const entry: PendingReply = {
       id: message.id,
@@ -187,7 +213,18 @@ export function startBridges(
     if (route.to.kind === "chat") {
       const sent = (await options.send(
         "turn.send",
-        { threadId: route.to.threadId, input: [{ type: "text", text: body }], mode: "queue" },
+        {
+          threadId: route.to.threadId,
+          input: [
+            { type: "text", text: body },
+            ...images.map((file) => ({
+              type: "image",
+              mimeType: imageType(file.data),
+              base64: Buffer.from(file.data).toString("base64"),
+            })),
+          ],
+          mode: "queue",
+        },
         commandId,
       )) as { id?: string };
       if (sent?.id) savePending(id, (rows) => [...rows, { ...entry, itemId: sent.id as string }]);
@@ -305,9 +342,19 @@ export function startBridges(
     }
   };
 
+  hooks.push(
+    pairingHook({
+      store,
+      publish: options.publish,
+      adapter: (id) => supervisor.adapter(id),
+      ...(options.onError ? { onError: options.onError } : {}),
+    }),
+  );
+
   const api = bridgeApi({
     store,
     publish: options.publish,
+    prepare: preparePairing,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     remember: options.remember,
     changed: sync,

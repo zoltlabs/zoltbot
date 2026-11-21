@@ -22,6 +22,7 @@ export function statusLabel(status: BridgeStatus) {
 export function problemText(status: BridgeStatus): string | undefined {
   if (status.state !== "stopped" || !status.problem) return undefined;
   if (status.problem === "token_refused") return t("bridges.problem.tokenRefused");
+  if (status.problem === "token_in_use") return t("bridges.problem.tokenInUse");
   if (status.problem === "keychain_unavailable") return t("bridges.problem.keychain");
   if (status.problem === "needs_account") return t("bridges.problem.needsAccount");
   if (status.problem === "not_set_up") return t("bridges.problem.notSetUp");

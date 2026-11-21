@@ -13,6 +13,7 @@ import {
   statusLabel,
   toInput,
 } from "./bridge-model";
+import { PairingNote } from "./PairingNote";
 import { RouteEditor } from "./RouteEditor";
 import { BRIDGE_SETUPS, type BridgeSetupSpec } from "./setup";
 import "./bridges.css";
@@ -383,7 +384,16 @@ export function BridgesDialog(props: { onClose: () => void }) {
             )}
           </Match>
           <Match when={screen().name === "bridge" && current()}>
-            {(view) => <BridgeDetail view={view()} busy={busy()} error={error()} go={go} allow={allow} />}
+            {(view) => (
+              <BridgeDetail
+                view={view()}
+                busy={busy()}
+                error={error()}
+                go={go}
+                allow={allow}
+                renew={() => void save(view())}
+              />
+            )}
           </Match>
           <Match when={screen().name === "route" && current() && targets()}>
             <RouteEditor
@@ -427,6 +437,7 @@ function BridgeDetail(props: {
   error: string | null;
   go: (screen: Screen) => void;
   allow: AllowPerson;
+  renew: () => void;
 }) {
   const target = (route: BridgeRoute) => {
     const to = route.to;
@@ -453,6 +464,7 @@ function BridgeDetail(props: {
           )}
         </Show>
       </div>
+      <PairingNote view={props.view} busy={props.busy} renew={props.renew} />
       <section aria-labelledby="bridge-routes">
         <div class="bridge-section-head">
           <h3 id="bridge-routes">{t("bridges.routes")}</h3>

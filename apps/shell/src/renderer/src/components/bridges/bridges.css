@@ -223,3 +223,19 @@ section > h3 {
 .bridge-steps li > span:first-child {
   display: block;
 }
+
+.bridge-pairing p {
+  margin: 0 0 var(--zb-space-2);
+  color: var(--text-secondary);
+}
+
+.bridge-code {
+  display: inline-block;
+  padding: var(--zb-space-1) var(--zb-space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--zb-radius-sm);
+  color: var(--text-primary);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-md);
+  user-select: all;
+}
