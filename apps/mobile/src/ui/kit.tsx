@@ -22,6 +22,7 @@ import {
   useTheme,
   useType,
 } from "../theme";
+import { openMenuSheet } from "./menu-sheet-store";
 
 type Variant = keyof typeof typeScale;
 type Tone =
@@ -231,7 +232,8 @@ export type MenuItem = {
 
 /**
  * Opens an action sheet of `items` with a separate Cancel row. iOS shows the native sheet;
- * other platforms get an alert with the same buttons.
+ * elsewhere a short menu is an alert and a longer one a sheet, since Android alerts show at
+ * most three buttons.
  */
 export function showMenu(items: MenuItem[], title?: string) {
   if (!items.length) return;
@@ -251,6 +253,10 @@ export function showMenu(items: MenuItem[], title?: string) {
         if (item && !item.disabled) item.onPress();
       },
     );
+    return;
+  }
+  if (items.filter((item) => !item.disabled).length > 2) {
+    openMenuSheet({ items, ...(title ? { title } : {}) });
     return;
   }
   Alert.alert(title ?? "", undefined, [

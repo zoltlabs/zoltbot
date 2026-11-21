@@ -13,6 +13,7 @@ import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
 import { BotAvatarPalette } from "../ui/BotAvatar";
 import { LockScreen } from "../ui/LockScreen";
+import { MenuSheet } from "../ui/MenuSheet";
 import { SharingLifecycle } from "../ui/SharingLifecycle";
 
 export default function RootLayout() {
@@ -53,6 +54,7 @@ export default function RootLayout() {
       <ThemeProvider value={theme}>
         <SharingLifecycle />
         <LockScreen />
+        <MenuSheet />
         <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           screenOptions={{
