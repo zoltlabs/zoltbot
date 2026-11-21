@@ -90,57 +90,97 @@ export function PromptCard(props: {
     await props.onSubmit(result);
     setSubmitting(false);
   };
+  // One question with one fixed choice: a single button answers it.
+  const single = () => {
+    const [question] = props.questions;
+    return props.questions.length === 1 && question?.choiceOnly && question.options?.length === 1
+      ? { question, option: question.options[0] as { label: string } }
+      : undefined;
+  };
+  const answerSingle = async (id: string, label: string) => {
+    if (submitting()) return;
+    setSubmitting(true);
+    await props.onSubmit({ [id]: [label] });
+    setSubmitting(false);
+  };
   return (
-    <section class="prompt-card" aria-label="Agent question">
-      <For each={props.questions}>
-        {(question) => (
-          <div class="prompt-question">
-            <strong>{question.question}</strong>
-            <Show when={question.options?.length}>
-              <div class="choice-options">
-                <For each={question.options ?? []}>
-                  {(option) => (
-                    <button
-                      type="button"
-                      class="choice-option"
-                      classList={{
-                        "choice-option-selected": answers()[question.id] === option.label,
-                      }}
-                      onClick={() =>
-                        setAnswers((current) => ({ ...current, [question.id]: option.label }))
-                      }
-                    >
-                      <span>{option.label}</span>
-                      <small>{option.description}</small>
-                    </button>
-                  )}
-                </For>
+    <Show
+      when={single()}
+      fallback={
+        <section class="prompt-card" aria-label="Agent question">
+          <For each={props.questions}>
+            {(question) => (
+              <div class="prompt-question">
+                <strong>{question.question}</strong>
+                <Show when={question.options?.length}>
+                  <div class="choice-options">
+                    <For each={question.options ?? []}>
+                      {(option) => (
+                        <button
+                          type="button"
+                          class="choice-option"
+                          classList={{
+                            "choice-option-selected": answers()[question.id] === option.label,
+                          }}
+                          onClick={() =>
+                            setAnswers((current) => ({ ...current, [question.id]: option.label }))
+                          }
+                        >
+                          <span>{option.label}</span>
+                          <small>{option.description}</small>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+                <Show when={!question.choiceOnly}>
+                  <input
+                    class="choice-input"
+                    type={question.isSecret ? "password" : "text"}
+                    value={answers()[question.id] ?? ""}
+                    placeholder="Type your answer"
+                    aria-label={question.header}
+                    onInput={(event) =>
+                      setAnswers((current) => ({
+                        ...current,
+                        [question.id]: event.currentTarget.value,
+                      }))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void submit();
+                    }}
+                  />
+                </Show>
               </div>
-            </Show>
-            <input
-              class="choice-input"
-              type={question.isSecret ? "password" : "text"}
-              value={answers()[question.id] ?? ""}
-              placeholder="Type your answer"
-              aria-label={question.header}
-              onInput={(event) =>
-                setAnswers((current) => ({ ...current, [question.id]: event.currentTarget.value }))
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void submit();
-              }}
-            />
+            )}
+          </For>
+          <button
+            type="button"
+            class="prompt-submit"
+            disabled={submitting()}
+            onClick={() => void submit()}
+          >
+            {submitting() ? "Sending…" : "Send answer"}
+          </button>
+        </section>
+      }
+    >
+      {(only) => (
+        <section class="prompt-card" aria-label={only().question.header}>
+          <div class="prompt-question">
+            <strong>{only().question.header}</strong>
+            <p class="prompt-single-text">{only().question.question}</p>
           </div>
-        )}
-      </For>
-      <button
-        type="button"
-        class="prompt-submit"
-        disabled={submitting()}
-        onClick={() => void submit()}
-      >
-        {submitting() ? "Sending…" : "Send answer"}
-      </button>
-    </section>
+          <button
+            type="button"
+            class="prompt-submit"
+            disabled={submitting()}
+            onClick={() => void answerSingle(only().question.id, only().option.label)}
+          >
+            {only().option.label}
+          </button>
+        </section>
+      )}
+    </Show>
   );
 }

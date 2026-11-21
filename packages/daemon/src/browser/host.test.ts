@@ -98,6 +98,7 @@ describe("browser host", () => {
       expect(host.view("viewer", "thread", true, (f) => seen.push(f))).toEqual({
         running: true,
         url: "https://example.test/",
+        control: false,
       });
       await settle();
       expect(page.starts).toBe(1);
@@ -252,6 +253,20 @@ describe.skipIf(!shell)("hosted launcher with a real browser", () => {
       expect(Buffer.from(frames.at(-1)?.data ?? "", "base64").subarray(0, 2)).toEqual(
         Buffer.from([0xff, 0xd8]),
       );
+      // B3: while the owner has the browser, the agent's command waits, then hears what changed.
+      host.control("thread", "card");
+      let done = false;
+      const waiting = run(b.launcher, ["snapshot"], { cwd: b.cwd, timeout: 60_000 }).finally(() => {
+        done = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(done).toBe(false);
+      host.control("thread", undefined);
+      expect((await waiting).stdout).toContain(
+        `The owner used the browser and handed it back at ${page}.`,
+      );
+      const next = await run(b.launcher, ["snapshot"], { cwd: b.cwd, timeout: 60_000 });
+      expect(next.stdout).not.toContain("handed it back");
       await run(b.launcher, ["close"], { cwd: b.cwd, timeout: 60_000 });
       await host.closeAll();
       // No local tool can find the browser by name.

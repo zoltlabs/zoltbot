@@ -2,20 +2,20 @@ import type { FilePreviewKind } from "@zoltbot/protocol";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export * from "./agent-browser";
 export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
 export type * from "./aside";
-export type * from "./co-author";
 export type * from "./branches";
-export * from "./agent-browser";
 export * from "./browser";
+export type * from "./co-author";
 export * from "./company";
 export * from "./dictation";
 export type * from "./hidden";
+export type * from "./links";
 export type * from "./manager-cards";
 export type * from "./memory";
-export type * from "./links";
 export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
@@ -24,6 +24,8 @@ export type * from "./staff";
 export * from "./thread-actions";
 export * from "./views";
 
+import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
+import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
   ARTIFACT_REPOSITORY_CHANNELS,
   type ArtifactRepositoryDesktopApi,
@@ -37,7 +39,6 @@ import type {
   BranchRequest,
   BranchResult,
 } from "./branches";
-import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
 import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
@@ -46,14 +47,13 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
+import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
-import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
-import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
+import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
-import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
@@ -628,6 +628,8 @@ export interface AgentPromptQuestion {
   question: string;
   isSecret: boolean;
   options: Array<{ label: string; description: string }> | null;
+  /** Only the options answer it (no typed answer), e.g. the browser's Hand back. */
+  choiceOnly?: boolean;
 }
 
 export interface RespondToPromptInput {

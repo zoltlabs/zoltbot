@@ -1,4 +1,4 @@
-/* B2: the agent's browser, live. */
+/* B2: the agent's browser, live. B3: the owner's takeover. */
 .agent-browser-panel {
   min-width: 0;
 }
@@ -7,7 +7,8 @@
   display: grid;
   height: 39px;
   flex: 0 0 auto;
-  grid-template-columns: 1fr 32px;
+  grid-template-columns: 1fr auto 32px;
+  gap: 8px;
   align-items: center;
   border-bottom: 1px solid var(--openbot-line);
   padding: 0 10px 0 14px;
@@ -88,4 +89,50 @@
   .agent-browser-pointer {
     transition: none;
   }
+}
+
+.agent-browser-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-browser-control-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-browser-control-status::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--zb-kit-focus);
+  content: "";
+}
+
+.agent-browser-control-button {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.agent-browser-error {
+  margin: 8px 14px 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.agent-browser-stage-control .agent-browser-screen canvas {
+  border-color: var(--zb-kit-focus);
+  cursor: default;
+}
+
+.agent-browser-stage-control .agent-browser-screen canvas:focus-visible {
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: 2px;
 }

@@ -21,7 +21,24 @@ export function agentBrowserHandlers(
         threadId: requireString(input.threadId, "threadId"),
         open: input.open,
       })) as AgentBrowserViewState | null;
-      return view ?? { running: false, url: null };
+      return { running: false, url: null, control: false, ...view };
+    },
+    [IPC_CHANNELS.agentBrowserTakeover]: async (input) => {
+      if (!isObject(input) || typeof input.control !== "boolean")
+        throw new Error("Invalid takeover.");
+      return client.call(
+        "browser.takeover",
+        { threadId: requireString(input.threadId, "threadId"), control: input.control },
+        randomUUID(),
+      );
+    },
+    // The daemon checks the event's shape; nothing here logs it.
+    [IPC_CHANNELS.agentBrowserInput]: async (input) => {
+      if (!isObject(input) || !isObject(input.event)) throw new Error("Invalid input.");
+      await client.call("browser.input", {
+        threadId: requireString(input.threadId, "threadId"),
+        event: input.event,
+      });
     },
     [IPC_CHANNELS.agentBrowserClearProfile]: async (input) => {
       await client.call(

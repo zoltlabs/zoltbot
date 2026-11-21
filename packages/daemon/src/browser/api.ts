@@ -7,6 +7,7 @@ import { browserGeneration, frozenBrowser } from "./evidence.js";
 import { browserHostFor } from "./host.js";
 import { profileApi } from "./profiles.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
+import { takeoverApi } from "./takeover.js";
 
 const viewers = new WeakMap<object, string>();
 const viewerKey = (client: object) => {
@@ -31,6 +32,11 @@ export function browserApi(
     store,
     dataDir: directory,
     closeBrowsers: async (id) => browserHostFor(directory)?.closeProfile(id),
+    ...(options.publish ? { publish: options.publish } : {}),
+  });
+  const takeover = takeoverApi({
+    store,
+    host: () => browserHostFor(directory),
     ...(options.publish ? { publish: options.publish } : {}),
   });
   const audit = async (
@@ -69,7 +75,7 @@ export function browserApi(
     });
     options.publish?.(store.eventsSince(before));
   };
-  return async (
+  const respond = async (
     method: string,
     p: Record<string, unknown>,
     authority: "human" | "task_policy" = "human",
@@ -86,6 +92,12 @@ export function browserApi(
         client.send(JSON.stringify({ jsonrpc: "2.0", method: "browser.frame", params: frame })),
       );
     }
+    // B3: the owner's takeover. Input is never logged or stored.
+    if (method === "browser.takeover")
+      return p.control === true
+        ? takeover.take(String(p.threadId))
+        : takeover.handBack(String(p.threadId));
+    if (method === "browser.input") return takeover.input(String(p.threadId), p.event);
     if (method === "browser.profile.get") return profiles.get(String(p.agentId));
     if (method === "browser.profile.clear")
       return profiles.clear(String(p.agentId), p.confirmed === true);
@@ -216,4 +228,5 @@ export function browserApi(
       pending.delete(id);
     }
   };
+  return Object.assign(respond, { observe: takeover.observe });
 }

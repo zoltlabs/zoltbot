@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type {
@@ -8,12 +8,14 @@ import type {
 } from "../../../../packages/daemon/src/browser/engine";
 import { browserHostFor, forgetBrowserHost } from "../../../../packages/daemon/src/browser/host";
 import { browserBinding } from "../../../../packages/daemon/src/browser/runtime";
+import { notesFile } from "../../../../packages/daemon/src/browser/takeover-files";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme, shellSession } from "../harness";
 
 /** A page that sends frames on a timer while someone watches. */
 class FramePage implements EnginePage {
   watching = 0;
+  readonly input: unknown[] = [];
   private timer: ReturnType<typeof setInterval> | undefined;
   constructor(
     private readonly jpeg: Buffer,
@@ -30,8 +32,12 @@ class FramePage implements EnginePage {
       clearInterval(this.timer);
     };
   }
-  async mouse() {}
-  async key() {}
+  async mouse(event: unknown) {
+    this.input.push(event);
+  }
+  async key(event: unknown) {
+    this.input.push(event);
+  }
   async evaluate<T>() {
     return undefined as T;
   }
@@ -39,7 +45,7 @@ class FramePage implements EnginePage {
   onLoad() {}
 }
 
-test("the Browser panel shows the agent's browser live and stops streaming when closed", async ({
+test("the Browser panel shows the agent’s browser live, lets the owner take over, and stops streaming when closed", async ({
   page,
 }) => {
   const fixture = await compareFixture();
@@ -90,10 +96,8 @@ test("the Browser panel shows the agent's browser live and stops streaming when 
     const host = browserHostFor(dataDir, () => engine);
     const work = path.join(dataDir, "work");
     mkdirSync(work, { recursive: true });
-    await host?.ensure(
-      browserBinding(dataDir, work, { mode: "background" }, undefined, true),
-      String(bot.threadId),
-    );
+    const binding = browserBinding(dataDir, work, { mode: "background" }, undefined, true);
+    await host?.ensure(binding, String(bot.threadId));
     pointer?.(framePage, { x: 96, y: 150 });
 
     const screen = panel.getByRole("img", { name: "Research’s browser" });
@@ -106,6 +110,61 @@ test("the Browser panel shows the agent's browser live and stops streaming when 
       const shots = process.env.ZOLTBOT_SHOTS;
       if (shots) await page.screenshot({ path: `${shots}/b2-live-${scheme}.png` });
     }
+
+    // B3: Take over. The agent waits on a card; the owner's clicks and keys reach the page.
+    await panel.getByRole("button", { name: "Take over" }).click();
+    await expect(panel.locator(".agent-browser-control-status")).toHaveText("You’re in control");
+    const control = panel.getByRole("application", { name: "Research’s browser" });
+    await expect(control).toBeFocused();
+    const box = await control.boundingBox();
+    if (!box) throw Error("no canvas");
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.keyboard.type("hi");
+    await expect
+      .poll(() => framePage.input.filter((e) => (e as { type?: string }).type !== "move").length)
+      .toBe(6);
+    expect(framePage.input.filter((e) => (e as { type?: string }).type !== "move")).toEqual([
+      expect.objectContaining({ type: "down", button: "left" }),
+      expect.objectContaining({ type: "up", button: "left" }),
+      { type: "down", key: "h" },
+      { type: "up", key: "h" },
+      { type: "down", key: "i" },
+      { type: "up", key: "i" },
+    ]);
+    const card = () =>
+      fixture.daemon.store
+        .snapshot(["interaction"])
+        .interaction?.find((row) => String(row.id).startsWith("browser-takeover:"));
+    expect(card()).toMatchObject({ type: "gate", state: "pending" });
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/b3-control-${scheme}.png` });
+    }
+    // Typed text never reaches the daemon's log.
+    expect(readFileSync(path.join(dataDir, "daemon.log"), "utf8")).not.toContain("browser.input");
+
+    // Esc twice leaves the page for the panel's Hand back; the first Esc reaches the page.
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await expect(panel.getByRole("button", { name: "Hand back" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(panel.getByRole("button", { name: "Take over" })).toBeFocused();
+    await expect(panel.getByText("Research has the browser again.")).toBeAttached();
+    expect(card()).toMatchObject({ state: "answered" });
+    expect(readFileSync(notesFile(binding), "utf8")).toContain(
+      "The owner used the browser and handed it back at https://shop.example.test/orders.",
+    );
+    expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
+
+    // Handing back from the chat's card works too; the panel catches up on its next renewal.
+    await panel.getByRole("button", { name: "Take over" }).click();
+    const prompt = page.getByRole("region", { name: "You’re in control of the browser" });
+    await expect(prompt.getByText("Research waits until you hand it back.")).toBeVisible();
+    await prompt.getByRole("button", { name: "Hand back" }).click();
+    await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible({ timeout: 10_000 });
+    expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
 
     // Closing the panel stops the screencast.
     await panel.getByRole("button", { name: "Close browser" }).click();

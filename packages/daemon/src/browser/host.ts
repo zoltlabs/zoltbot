@@ -1,9 +1,10 @@
 // B2: one daemon-owned browser per browser task chat, watched from the Browser panel.
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
 import type { BrowserBinding } from "./runtime.js";
+import { type BrowserInput, controlFile, notesFile } from "./takeover-files.js";
 
 /** One frame for the panel. Transient: never stored in the event log. */
 export interface BrowserFrame {
@@ -35,6 +36,8 @@ interface Running {
   stop?: Promise<() => Promise<void>> | undefined;
   lastFrame: number;
   generation: number;
+  /** B3: the owner's takeover card while they control the browser. */
+  control?: string | undefined;
 }
 
 interface Viewer {
@@ -50,6 +53,9 @@ export class BrowserHost {
   private readonly viewers = new Map<string, Viewer>();
   private readonly starting = new Map<string, Promise<void>>();
   private readonly cancelled = new Set<string>();
+
+  /** B3: called when a browser closes while the owner controls it, so its card can be withdrawn. */
+  onControlLost: ((interactionId: string) => void) | undefined;
 
   /** Profiles being launched, so two chats of one agent can't both take its kept profile. */
   private readonly claimed = new Set<string>();
@@ -82,6 +88,8 @@ export class BrowserHost {
   private async launch(binding: BrowserBinding, threadId: string) {
     // A file left by an earlier daemon points at a dead browser; the launcher falls back without it.
     rmSync(endpointFile(binding), { force: true });
+    // B3: a control file from before a restart would keep the agent waiting for no one.
+    rmSync(controlFile(binding), { force: true });
     // B1: a kept profile can be open in one browser at a time; a second one runs isolated.
     const kept =
       binding.profile &&
@@ -221,7 +229,56 @@ export class BrowserHost {
         if (run && Boolean(run.stop) !== this.watched(id).length > 0) void this.restream(run);
       }
     const run = this.forThread(threadId);
-    return { running: Boolean(run?.page), url: run?.page?.url() ?? null };
+    return {
+      running: Boolean(run?.page),
+      url: run?.page?.url() ?? null,
+      control: Boolean(run?.control),
+    };
+  }
+
+  /**
+   * B3: gives the owner control (the launcher waits while the control file exists) or hands it
+   * back, leaving the agent a note with where the page is now. Returns the page's address.
+   */
+  control(threadId: string, interactionId: string | undefined) {
+    const run = this.forThread(threadId);
+    if (!run) throw Error("browser_not_running");
+    const url = run.page?.url() ?? "";
+    const file = controlFile(run.binding);
+    if (interactionId) {
+      run.control = interactionId;
+      writeFileSync(file, JSON.stringify({ since: this.now() }), { mode: 0o600 });
+    } else if (run.control) {
+      run.control = undefined;
+      // The note goes first, so the next command the launcher runs already sees it.
+      appendFileSync(
+        notesFile(run.binding),
+        `${JSON.stringify({ text: `The owner used the browser and handed it back at ${url || "a blank page"}.` })}\n`,
+        { mode: 0o600 },
+      );
+      rmSync(file, { force: true });
+    }
+    return url;
+  }
+
+  /** The takeover card of the chat's browser, if the owner controls it. */
+  controller(threadId: string) {
+    return this.forThread(threadId)?.control;
+  }
+
+  /** B3: the owner's mouse or key, only while they control the browser. Never logged. */
+  async input(threadId: string, event: BrowserInput) {
+    const run = this.forThread(threadId);
+    if (!run?.control || !run.page) throw Error("browser_not_in_control");
+    // Engine errors can quote the key; they never leave here.
+    try {
+      if (event.kind === "mouse") {
+        const { kind: _, ...mouse } = event;
+        await run.page.mouse(mouse);
+      } else await run.page.key({ type: event.type, key: event.key });
+    } catch {
+      throw Error("browser_input_failed");
+    }
   }
 
   /** Whether a screencast runs for the chat (tests and diagnostics). */
@@ -240,6 +297,8 @@ export class BrowserHost {
     if (!run) return;
     this.running.delete(bindingId);
     rmSync(endpointFile(run.binding), { force: true });
+    rmSync(controlFile(run.binding), { force: true });
+    if (run.control) this.onControlLost?.(run.control);
     const stop = run.stop;
     run.stop = undefined;
     if (stop) await (await stop.catch(() => async () => {}))();

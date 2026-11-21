@@ -19,6 +19,13 @@ export const browserMethods = {
   },
   /** B2: opens, renews (every few seconds) or closes this connection's view of a chat's browser. */
   "browser.view": { params: object({ threadId: Id, open: Type.Boolean() }), result: Json },
+  /** B3: the owner takes control of a chat's browser (`control: true`) or hands it back. */
+  "browser.takeover": {
+    params: object({ threadId: Id, control: Type.Boolean() }),
+    result: Json,
+  },
+  /** B3: one mouse or key event from the owner while in control. Never logged. */
+  "browser.input": { params: object({ threadId: Id, event: Json }), result: Json },
   /** B1: the agent's kept browser profile, or null. */
   "browser.profile.get": { params: object({ agentId: Id }), result: Json },
   /** B1: signs the agent out of every site by deleting its profile folder. */
@@ -32,6 +39,8 @@ export const browserMacOnlyMethods = [
   "browser.action",
   "browser.profile.clear",
   "browser.view",
+  "browser.takeover",
+  "browser.input",
 ] as const;
 
 /** B1: a profile an agent keeps between browser launches, in the daemon's data folder. */

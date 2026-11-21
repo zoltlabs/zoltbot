@@ -184,3 +184,32 @@ describe("compaction notes", () => {
     ]);
   });
 });
+
+describe("gate prompts", () => {
+  it("offers a gate's own choices, like the browser's Hand back, instead of Approve and Decline", async () => {
+    const { toPrompt, toResolution } = await import("./mapping");
+    const card = {
+      type: "gate",
+      title: "You’re in control of the browser",
+      items: [
+        {
+          id: "choice",
+          prompt: "Research waits until you hand it back.",
+          options: [{ id: "hand-back", label: "Hand back" }],
+        },
+      ],
+    };
+    expect(toPrompt(card).questions[0]?.options).toEqual([{ label: "Hand back", description: "" }]);
+    expect(toResolution(card, { choice: ["Hand back"] }, "2026-01-01T00:00:00.000Z")).toMatchObject(
+      {
+        action: "accept",
+        answers: { choice: { options: ["hand-back"] } },
+      },
+    );
+    const plain = { type: "gate", items: [{ id: "q", prompt: "Ship it?" }] };
+    expect(toPrompt(plain).questions[0]?.options?.map((o) => o.label)).toEqual([
+      "Approve",
+      "Decline",
+    ]);
+  });
+});

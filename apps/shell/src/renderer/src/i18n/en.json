@@ -348,5 +348,11 @@
   "browser.view.close": "Close browser",
   "browser.view.resize": "Resize right panel",
   "browser.view.empty": "{agent} hasn’t opened a page yet.",
-  "browser.view.screen": "{agent}’s browser"
+  "browser.view.screen": "{agent}’s browser",
+  "browser.view.takeOver": "Take over",
+  "browser.view.handBack": "Hand back",
+  "browser.view.inControl": "You’re in control",
+  "browser.view.takeOverFailed": "Couldn’t take over. Try again.",
+  "browser.view.handedBack": "{agent} has the browser again.",
+  "browser.view.leave": "Press Esc twice to leave the page."
 }

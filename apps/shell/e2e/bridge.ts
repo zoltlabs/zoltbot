@@ -334,6 +334,8 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         profile: call(channels.agentBrowserProfile),
         clearProfile: call(channels.agentBrowserClearProfile),
         view: call(channels.agentBrowserView),
+        takeover: call(channels.agentBrowserTakeover),
+        input: call(channels.agentBrowserInput),
         onFrame: (listener: (frame: unknown) => void) => {
           frameListeners.add(listener);
           return () => frameListeners.delete(listener);

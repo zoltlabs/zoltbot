@@ -504,7 +504,7 @@ export function toPrompt(interaction: Row): {
           { label: "Allow", description: "", answer: { action: "accept" } },
           { label: "Deny", description: "", answer: { action: "decline" } },
         ];
-    } else if (type === "plan" || type === "gate") {
+    } else if (type === "plan" || (type === "gate" && !Array.isArray(item.options))) {
       choices = [
         { label: "Approve", description: "", answer: { action: "accept" } },
         { label: "Decline", description: "", answer: { action: "decline" } },
@@ -524,6 +524,7 @@ export function toPrompt(interaction: Row): {
       header: text(item.header) || text(interaction.title) || headerFor(type),
       question: [text(item.prompt), detail].filter(Boolean).join("\n\n"),
       isSecret: item.secret === true,
+      ...(type === "gate" && choices.length ? { choiceOnly: true } : {}),
       options: choices.length
         ? choices.map((choice) => ({ label: choice.label, description: choice.description }))
         : null,
