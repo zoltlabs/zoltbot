@@ -19,6 +19,7 @@ import type { Row, Snapshot } from "./daemon-client";
 import { hiddenIds } from "./hidden";
 import { isZoltbotNotice, noticeFor, withManagerCards } from "./manager-cards";
 import { modelSwitchMessage } from "./models-service";
+import { sentAttachments } from "./sent-attachments";
 
 export const body = (row: Row | undefined): Row =>
   row?.body && typeof row.body === "object" && !Array.isArray(row.body) ? (row.body as Row) : {};
@@ -263,7 +264,8 @@ export function toMessages(
     const value = body(item);
     if (item.kind === "user") {
       const words = userText(item);
-      if (!words.trim()) continue;
+      const attachments = sentAttachments(item);
+      if (!words.trim() && !attachments.length) continue;
       const fromAgent = value.origin === "agent";
       const queueState = text(value.queueState);
       const delivery = QUEUE_STATES[queueState];
@@ -277,6 +279,7 @@ export function toMessages(
         text: words,
         createdAt: text(item.createdAt),
         status: queueState === "failed" ? "failed" : "completed",
+        attachments,
         ...(delivery
           ? {
               delivery: {

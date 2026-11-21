@@ -14,6 +14,7 @@ export * from "./coordination.js";
 export * from "./entities.js";
 export * from "./event-routines.js";
 export * from "./experimental.js";
+export * from "./file-preview.js";
 export * from "./forks.js";
 export * from "./forms.js";
 export * from "./imports.js";

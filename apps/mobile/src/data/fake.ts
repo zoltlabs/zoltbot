@@ -15,6 +15,7 @@ import {
   withMessageReaction,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
+import { answerAttachmentPreview } from "./fake-attachments.js";
 import { answerChannel } from "./fake-channels.js";
 import { addSampleCompany } from "./fake-company.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
@@ -443,6 +444,8 @@ export class FakeTransport implements Transport {
         );
         return { threadId: asideId };
       }
+      case "attachment.preview":
+        return answerAttachmentPreview(this.rows("item"), p);
       case "message.pin":
       case "message.unpin": {
         // As zoltd (message-pins-api): one settings row per chat, newest pin first.

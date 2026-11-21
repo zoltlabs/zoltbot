@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { filePreviewKind } from "@zoltbot/protocol";
 import {
   app,
   BrowserWindow,
@@ -40,6 +41,7 @@ import { viewHandlers, viewMessages } from "../zolt/view-handlers";
 import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
+import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
 import { artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
@@ -69,7 +71,7 @@ protocol.registerSchemesAsPrivileged([
   { scheme: "openbot-app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
   {
     scheme: "openbot-attachment",
-    privileges: { standard: true, secure: true, supportFetchAPI: true },
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
   {
     scheme: "zoltbot-artifact",
@@ -232,6 +234,7 @@ function configureContentSecurityPolicy(): void {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: openbot-attachment: https:",
+    "media-src openbot-attachment:",
     "font-src 'self' data:",
     `connect-src 'self'${developmentSources}`,
     "object-src 'none'",
@@ -242,6 +245,16 @@ function configureContentSecurityPolicy(): void {
     // Artifact responses carry their own sandboxed policy.
     if (details.url.startsWith(artifactScheme)) {
       callback({});
+      return;
+    }
+    // An attachment's own policy is stricter than the shell's (C16); a PDF has none and gets the shell's.
+    if (
+      details.url.startsWith(`${ATTACHMENT_SCHEME}:`) &&
+      Object.keys(details.responseHeaders ?? {}).some(
+        (name) => name.toLowerCase() === "content-security-policy",
+      )
+    ) {
+      callback({ responseHeaders: details.responseHeaders });
       return;
     }
     // A view's own response carries its stricter policy; the shell's must not replace it.
@@ -367,12 +380,16 @@ function registerIpcHandlers(setupFile: string): void {
   });
   handleTrusted(IPC_CHANNELS.agentOpenAttachment, async (input: unknown) => {
     const parsed = parseOpenAttachment(input);
-    const path = service.draftPath(parsed.attachmentId);
+    const source = service.attachmentSource(parsed.attachmentId);
+    const path = source && "path" in source ? source.path : undefined;
     if (!path) throw new Error("Attachment was not found.");
     if (parsed.action === "reveal") {
       shell.showItemInFolder(path);
       return;
     }
+    // A sent message can name any path, so only documents with a preview open in their app.
+    if (parsed.attachmentId.startsWith("item:") && filePreviewKind(path) === "none")
+      throw new Error("Only documents open from a chat.");
     const error = await shell.openPath(path);
     if (error) throw new Error(error);
   });
@@ -514,22 +531,9 @@ function forwardAgentEvent(event: AgentEvent): void {
 }
 
 function configureAttachmentProtocol(): void {
-  session.defaultSession.protocol.handle("openbot-attachment", async (request) => {
-    try {
-      const id = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
-      const path = id ? service.draftPath(id) : undefined;
-      if (!path) return new Response("Not found", { status: 404 });
-      return new Response(await readFile(path), {
-        headers: {
-          "Content-Type": contentType(path),
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Content-Disposition": "inline",
-        },
-      });
-    } catch {
-      return new Response("Not found", { status: 404 });
-    }
+  session.defaultSession.protocol.handle(ATTACHMENT_SCHEME, (request) => {
+    const id = attachmentId(request.url);
+    return attachmentResponse(request, id ? service.attachmentSource(id) : undefined);
   });
 }
 

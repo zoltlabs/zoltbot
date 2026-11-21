@@ -3,7 +3,7 @@ import path from "node:path";
 import type { DomainState } from "@zoltbot/core/projectors";
 
 const excluded = new Set([".git", ".cache", "node_modules", ".next", "dist", "coverage"]);
-function inside(root: string, candidate: string) {
+export function inside(root: string, candidate: string) {
   const relative = path.relative(root, candidate);
   return (
     relative === "" ||

@@ -14,9 +14,6 @@ export interface ComposerDraft {
 
 export interface MediaPreview {
   attachment: AttachmentSummary;
-  text: string | null;
-  loading: boolean;
-  error: string | null;
 }
 
 export type RightPanelMode = "none" | "browser" | "settings" | "organization" | "artifact";

@@ -1,30 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { basename, join } from "node:path";
+import { fileMimeType, filePreviewKind, isProviderImage } from "@zoltbot/protocol";
 import type { DraftAttachment } from "../shared/ipc";
-
-const IMAGE_TYPES: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-};
+import { attachmentUrl } from "./sent-attachments";
 
 /** Files picked or pasted into the composer, kept by id until the message is sent. */
 export class DraftStore {
   private readonly drafts = new Map<string, { path: string; summary: DraftAttachment }>();
 
   add(path: string, size: number): DraftAttachment {
-    const mimeType = IMAGE_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
+    const id = randomUUID();
+    const previewKind = filePreviewKind(path);
     const summary: DraftAttachment = {
-      id: randomUUID(),
+      id,
       name: basename(path),
       size,
-      kind: mimeType.startsWith("image/") ? "image" : "file",
-      mimeType,
-      previewKind: mimeType.startsWith("image/") ? "image" : "none",
-      previewUrl: null,
+      kind: isProviderImage(path) ? "image" : "file",
+      mimeType: fileMimeType(path),
+      previewKind,
+      previewUrl: previewKind === "none" ? null : attachmentUrl(id),
+      actions: ["open", "reveal"],
     };
     this.drafts.set(summary.id, { path, summary });
     return summary;

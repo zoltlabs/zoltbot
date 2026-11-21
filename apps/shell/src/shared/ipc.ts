@@ -1,3 +1,4 @@
+import type { FilePreviewKind } from "@zoltbot/protocol";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
@@ -400,7 +401,8 @@ export interface UpdateBotInput {
 export type ConversationMessageAuthor = "user" | "assistant" | "agent" | "system";
 
 export type AttachmentKind = "image" | "file";
-export type AttachmentPreviewKind = "image" | "pdf" | "text" | "none";
+/** C16: what the preview shows; from the file name (`filePreviewKind`). */
+export type AttachmentPreviewKind = FilePreviewKind;
 
 export interface AttachmentSummary {
   id: string;
@@ -410,6 +412,8 @@ export interface AttachmentSummary {
   mimeType: string;
   previewKind: AttachmentPreviewKind;
   previewUrl: string | null;
+  /** What main will do with it: a sent photo has no file, and only documents open in an app. */
+  actions: ("open" | "reveal")[];
 }
 
 export type DraftAttachment = AttachmentSummary;

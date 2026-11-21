@@ -377,5 +377,6 @@ export function attachment(id: string, name: string, kind: "image" | "pdf") {
     mimeType: kind === "image" ? "image/png" : "application/pdf",
     previewKind: kind,
     previewUrl: `openbot-attachment://file/${id}`,
+    actions: ["open", "reveal"] as ("open" | "reveal")[],
   };
 }

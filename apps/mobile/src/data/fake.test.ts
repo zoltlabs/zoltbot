@@ -358,3 +358,34 @@ it("hides and shows a message in sample mode", async () => {
   expect(await call("message.unhide", params)).toEqual({ hidden: [] });
   client.stop();
 });
+
+it("previews a file sent in sample mode", async () => {
+  const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+  await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+  const call = client.getState().call;
+  const sent = (await call("turn.send", {
+    threadId: "thread-meal-search",
+    input: [
+      { type: "text", text: "see" },
+      { type: "file", path: "/sample/attachments/sales.csv" },
+    ],
+    mode: "queue",
+  })) as { id: string };
+  const item = client
+    .getState()
+    .snapshot.entities.item?.find(
+      (row) => row.threadId === "thread-meal-search" && row.kind === "user" && row.id === sent.id,
+    );
+  expect(item).toBeDefined();
+  const preview = (await call("attachment.preview", {
+    threadId: "thread-meal-search",
+    itemId: sent.id,
+    part: 1,
+  })) as { kind: string; data: string; next: null };
+  expect(preview).toMatchObject({ kind: "csv", name: "sales.csv", next: null });
+  expect(preview.data.split("\n")[0]).toBe("region,units,revenue");
+  await expect(
+    call("attachment.preview", { threadId: "thread-meal-search", itemId: sent.id, part: 0 }),
+  ).rejects.toThrow("attachment_preview_unavailable");
+  client.stop();
+});

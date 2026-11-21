@@ -339,6 +339,30 @@ const rawMethodCatalog = {
     object({ threadId: Id, itemId: Id }),
     object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),
   ),
+  /**
+   * C16: a file or picture the owner sent, read from this Mac for the phone, up to 5 MB. `data` is
+   * text for text kinds and base64 for pictures, in pieces that fit one link frame: call again
+   * with `offset: next` and the same `stamp` until `next` is null. Fails with
+   * attachment_preview_unavailable, attachment_preview_too_large or attachment_changed.
+   */
+  "attachment.preview": entry(
+    object({
+      threadId: Id,
+      itemId: Id,
+      part: Type.Integer({ minimum: 0, maximum: 63 }),
+      offset: Type.Optional(Type.Integer({ minimum: 0 })),
+      stamp: OptionalText,
+    }),
+    object({
+      kind: values(["image", "text", "csv", "tsv", "markdown"]),
+      name: Text,
+      mime: Text,
+      size: Type.Integer({ minimum: 0 }),
+      stamp: Text,
+      data: Text,
+      next: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+    }),
+  ),
   /** C1: `order` lists every queued item id of the thread; fails with queue_changed otherwise. */
   "turn.reorderQueued": entry(
     object({ threadId: Id, order: Type.Array(Id, { maxItems: 200 }) }),
