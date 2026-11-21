@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { writeError } from "../data/manage";
@@ -9,6 +9,7 @@ import { useTheme } from "../theme";
 import { BackBar, OfflineBanner } from "../ui/chrome";
 import { Group, Row, Section, Txt } from "../ui/kit";
 import { pick } from "../ui/SessionControls";
+import { SkillLink } from "../ui/SkillLink";
 import { Toggle } from "../ui/Toggle";
 
 interface Skill {
@@ -27,8 +28,8 @@ const assignments = (profileId: string, scopeId: string) =>
   ).then((value) => ((value ?? {}) as { assignments?: Assignment[] }).assignments ?? []);
 
 /**
- * Which library skills an agent gets in one project. Turning one on pins its current version;
- * installing and updating skills stays on the Mac.
+ * Which library skills an agent gets in one project. Turning one on pins its current version.
+ * A skill can be added from a GitHub link (M5); adding one from a folder stays on the Mac.
  */
 export default function Skills() {
   const { c } = useTheme();
@@ -43,10 +44,10 @@ export default function Skills() {
   const [skills, setSkills] = useState<Skill[]>();
   const [assigned, setAssigned] = useState<Assignment[]>([]);
   const [error, setError] = useState("");
-
-  useEffect(() => {
+  // Read the library on connect, and again after an install.
+  const load = useCallback(() => {
     const client = useLink.getState().client?.getState();
-    if (!client || !online) return;
+    if (!client || !online) return () => {};
     let live = true;
     void client
       .call("skill.list", {})
@@ -56,6 +57,7 @@ export default function Skills() {
       live = false;
     };
   }, [online]);
+  useEffect(load, [load]);
   useEffect(() => {
     if (!online || !agentId || !projectId) return;
     let live = true;
@@ -161,8 +163,14 @@ export default function Skills() {
             })}
           </Group>
         ) : (
-          <Txt tone="muted">No skills yet. Add them on your Mac.</Txt>
+          <Txt tone="muted">No skills yet.</Txt>
         )}
+        <Section title="Add from GitHub" />
+        <SkillLink
+          disabled={!online}
+          run={(method, params) => run(method, params, { quiet: true })}
+          onInstalled={() => void load()}
+        />
       </ScrollView>
     </View>
   );

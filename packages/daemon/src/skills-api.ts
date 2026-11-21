@@ -13,6 +13,7 @@ import {
   type SkillBundle,
   SkillsLibrary,
 } from "../../skills/src/index.js";
+import { fetchGithubSkill, type GithubFetchOptions, isGithubSource } from "./skill-github.js";
 
 // Reserved built-ins are conservative; provider-reported names must be added by the launch resolver.
 export const reservedSkillNames = [
@@ -56,28 +57,56 @@ export function skillsApi(options: {
   checkPublic(value: unknown): Promise<unknown>;
   publish?(events: DomainEvent[]): void;
   onChanged?(): void;
+  github?: GithubFetchOptions;
 }) {
   const library = new SkillsLibrary(options.store.database);
   installBuiltinSkills(library);
   const readSource = (source: string) => builtinSkill(source) ?? readSkillFolder(source);
-  const previews = new Map<string, { bundle: SkillBundle; folder: string; expires: number }>();
+  const previews = new Map<
+    string,
+    { bundle: SkillBundle; folder: string; expires: number; commit?: string }
+  >();
   const string = (p: Record<string, unknown>, key: string) => {
     if (typeof p[key] !== "string") throw new Error("invalid_skill_params");
     return p[key] as string;
   };
-  const preview = (folder: string) => {
-    const bundle = readSource(folder),
-      previewId = randomUUID();
+  const prune = () => {
     for (const [id, value] of previews) if (value.expires < Date.now()) previews.delete(id);
     if (previews.size >= 20) throw new Error("skill_preview_limit");
-    previews.set(previewId, { bundle, folder, expires: Date.now() + 10 * 60 * 1000 });
-    return { previewId, bundle, source: folder };
   };
+  const remember = (bundle: SkillBundle, folder: string, commit?: string) => {
+    const previewId = randomUUID();
+    prune();
+    previews.set(previewId, {
+      bundle,
+      folder,
+      expires: Date.now() + 10 * 60 * 1000,
+      ...(commit ? { commit } : {}),
+    });
+    return { previewId, bundle, source: folder, ...(commit ? { commit } : {}) };
+  };
+  /** M5: a GitHub link is fetched once and pinned to the commit shown in the preview. */
+  // One fetch at a time, and only when there is room for its preview.
+  let fetching = false;
+  const fetchLink = async (url: string) => {
+    prune();
+    if (fetching) throw new Error("skill_link_busy: another link is still being read.");
+    fetching = true;
+    try {
+      const fetched = await fetchGithubSkill(url, options.github);
+      return remember(fetched.bundle, fetched.source, fetched.commit);
+    } finally {
+      fetching = false;
+    }
+  };
+  const preview = async (folder: string) =>
+    isGithubSource(folder) ? fetchLink(folder) : remember(readSource(folder), folder);
   function reviewed(p: Record<string, unknown>) {
     const value = previews.get(string(p, "previewId"));
     if (!value || value.expires < Date.now() || value.bundle.hash !== p.hash)
       throw new Error("skill_preview_expired: choose folder again");
-    if (readSource(value.folder).hash !== value.bundle.hash)
+    // A fetched link is pinned to its commit; the preview is exactly what installs.
+    if (!value.commit && readSource(value.folder).hash !== value.bundle.hash)
       throw new Error("skill_source_changed: review again");
     return value;
   }
@@ -85,6 +114,7 @@ export function skillsApi(options: {
     if (!method.startsWith("skill.")) return undefined;
     const mutate = [
       "skill.import.apply",
+      "skill.import.link.apply",
       "skill.save",
       "skill.remove",
       "skill.access",
@@ -123,14 +153,34 @@ export function skillsApi(options: {
           ]),
         };
       case "skill.import.preview": {
-        const result = preview(string(p, "folder"));
+        const source = p.source as { kind?: unknown; url?: unknown } | undefined;
+        const result = await preview(
+          source?.kind === "github" && typeof source.url === "string"
+            ? source.url
+            : string(p, "folder"),
+        );
         await check(result);
         return result;
       }
-      case "skill.import.apply": {
+      case "skill.import.link": {
+        // Only ever a fetch: a phone must not read folders on the Mac through this method.
+        const result = await fetchLink(string(p, "url"));
+        await check(result);
+        return result;
+      }
+      case "skill.import.apply":
+      case "skill.import.link.apply": {
         const value = reviewed(p);
+        // The phone's install only takes previews fetched from a link.
+        if (method === "skill.import.link.apply" && !value.commit)
+          throw new Error("skill_preview_expired: choose folder again");
         await check(value.bundle);
-        operation = () => library.add(value.bundle, value.folder);
+        const previewId = string(p, "previewId");
+        operation = () => {
+          const added = library.add(value.bundle, value.folder);
+          previews.delete(previewId);
+          return added;
+        };
         break;
       }
       case "skill.save": {
@@ -176,7 +226,7 @@ export function skillsApi(options: {
       case "skill.update.preview": {
         const entry = library.get(string(p, "id"));
         if (!entry.source) throw new Error("skill_has_no_source");
-        const result = preview(entry.source);
+        const result = await preview(entry.source);
         await check(result);
         return result;
       }

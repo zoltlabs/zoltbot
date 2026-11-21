@@ -11,8 +11,20 @@ export const skillMethods = {
   "skill.list": entry(object({})),
   "skill.get": entry(object({ id: Id, revision: Type.Optional(revision) })),
   "skill.detect": entry(object({})),
-  "skill.import.preview": entry(object({ folder: Text })),
+  /** M5: `source` reads a GitHub link instead of a local folder. */
+  "skill.import.preview": entry(
+    object({
+      folder: Type.Optional(Text),
+      source: Type.Optional(
+        object({ kind: Type.Literal("github"), url: Type.String({ maxLength: 2000 }) }),
+      ),
+    }),
+  ),
+  /** M5: previews a skill from a GitHub link. Unlike a folder preview, a paired phone may call it. */
+  "skill.import.link": entry(object({ url: Type.String({ minLength: 1, maxLength: 2000 }) })),
   "skill.import.apply": entry(object({ previewId: Id, hash: Id })),
+  /** M5: installs a preview from `skill.import.link`; it refuses folder previews. */
+  "skill.import.link.apply": entry(object({ previewId: Id, hash: Id })),
   "skill.save": entry(
     object({ id: Type.Optional(Id), expectedRevision: Type.Optional(revision), files }),
   ),
