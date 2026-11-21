@@ -64,7 +64,6 @@ import { Logger, Redactor } from "./logging.js";
 import { messageApi } from "./message-api.js";
 import { messageHiddenApi } from "./message-hidden-api.js";
 import { messagePinsApi } from "./message-pins-api.js";
-import { vaultApi } from "./vault/api.js";
 import { messageReactionsApi } from "./message-reactions-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
@@ -83,6 +82,7 @@ import { staffApi } from "./staff-tools.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
+import { vaultApi } from "./vault/api.js";
 import { createViewRegistry, type ViewRegistry } from "./views/registry.js";
 import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
@@ -403,6 +403,7 @@ async function startOwnedDaemon(
     publish,
     ...(options.secrets ? { secrets: options.secrets } : {}),
   });
+  runtimeContext.vault = vault.runtime;
   const attachmentPreview = attachmentPreviewApi({ store });
   const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });

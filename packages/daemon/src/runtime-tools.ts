@@ -20,6 +20,7 @@ import {
   teamTools,
 } from "./team-tools.js";
 import { teamWaitToolDefinitions, teamWaitToolNames, teamWaitTools } from "./team-wait-tools.js";
+import { vaultCompactSchema, vaultToolDefinition, vaultTools } from "./vault/tools.js";
 import { viewToolDefinition, viewToolHint, viewTools } from "./views/tools.js";
 import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 
@@ -74,6 +75,7 @@ export function runtimeTools(
   const channel = channelTools(context);
   const chief = chiefTools(context);
   const company = companyTools(context);
+  const vault = vaultTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
     if (!active(actor)) return false;
     if (name === "company_work") return company.authorize(actor);
@@ -118,6 +120,7 @@ export function runtimeTools(
     if (name === "team_view") return views.authorize(actor, args);
     if (artifactBinding && ["workspace_create", "workspace_update"].includes(name)) return false;
     if (name === "team_browser_evidence") return browser.authorize(actor);
+    if (name === "vault") return vault.authorize(actor);
     // Writing shares the read tool's authorization; the write policy decides the outcome.
     if (name === "team_get_knowledge" || name === "team_write_knowledge")
       return knowledge.authorize(actor);
@@ -139,6 +142,7 @@ export function runtimeTools(
       ["team_artifact", artifacts.call],
       ["team_view", views.call],
       ["team_browser_evidence", browser.register],
+      ["vault", vault.call],
       ["team_get_knowledge", knowledge.read],
       ["team_write_knowledge", knowledgeWrite.call],
       ...team.tools,
@@ -218,6 +222,7 @@ export function runtimeTools(
 export const browserRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter((tool) => tool.name !== "native_app"),
   browserToolDefinition,
+  vaultToolDefinition,
 ];
 
 const artifactDescriptions: Record<string, string> = {
@@ -227,6 +232,8 @@ const artifactDescriptions: Record<string, string> = {
     "Save, read or list versioned offline artifacts (save|read|list). Reuse key; stage in frozen staging or inline <=48KB.",
   team_browser_evidence:
     "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
+  vault:
+    "Saved logins. list; fill(id, password ref, username ref, submit). You never see the password.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
   chat_signal: "emoji react, not filler; status: doing-now line; progress: milestone note",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
@@ -252,6 +259,7 @@ const artifactDescriptions: Record<string, string> = {
 // Artifact sessions write knowledge with team_write_knowledge; the server still accepts `learned`.
 const artifactOmittedFields: Record<string, string[]> = { team_message: ["learned"] };
 const compactSchemas: Record<string, Record<string, unknown>> = {
+  vault: vaultCompactSchema,
   company_work: {
     type: "object",
     properties: {
@@ -409,6 +417,7 @@ export const artifactRuntimeToolDefinitions = [
 export const artifactBrowserToolDefinitions = [
   ...artifactRuntimeToolDefinitions.filter((tool) => tool.name !== "native_app"),
   compactTool(browserToolDefinition),
+  compactTool(vaultToolDefinition),
 ];
 /** Managers use the organization facade instead of a second workspace writer. */
 export const managerArtifactToolDefinitions = [

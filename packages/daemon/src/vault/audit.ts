@@ -12,6 +12,8 @@ export interface VaultAuditHost {
 export function writeVaultAudit(
   host: VaultAuditHost,
   input: {
+    /** A fixed id, when the audit row also records that something was used up. */
+    id?: string;
     action: string;
     entryId: string;
     actor: { kind: "human" | "agent"; id: string };
@@ -19,7 +21,7 @@ export function writeVaultAudit(
     detail?: Record<string, string>;
   },
 ) {
-  const commandId = `vault-audit:${randomUUID()}`;
+  const commandId = input.id ?? `vault-audit:${randomUUID()}`;
   const at = new Date().toISOString();
   const before = host.store.lastSeq();
   host.store.dispatch(commandId, (state) =>

@@ -24,11 +24,11 @@ export const VaultEntrySchema = object({
   id: Id,
   kind: VaultKindSchema,
   label: Label,
-  /** Hosts the entry may be filled on; a subdomain of a listed host matches too. */
+  /** Hosts the entry may be filled on: each host itself, or its www. form. */
   sites: Type.Array(Host, { minItems: 1, maxItems: MAX_VAULT_SITES }),
   username: Type.Optional(Type.String({ maxLength: 500 })),
   agents: VaultAgentsSchema,
-  /** V2: agents the owner allowed to use the entry without asking again. */
+  /** Reserved for "Always allow": agents that may use the entry without asking. Not set yet. */
   trusted: Type.Optional(Type.Array(Id, { maxItems: 200 })),
   createdAt: At,
   lastUsedAt: Type.Optional(At),
@@ -112,10 +112,13 @@ export function vaultHost(input: string): string | undefined {
   }
 }
 
-/** Whether a page on `pageHost` may be filled from an entry listing `site`. */
+/**
+ * Whether a page on `pageHost` may be filled from an entry listing `site`: the same host, or its
+ * www. form. Other subdomains don't match, since many serve pages anyone can write.
+ */
 export function vaultSiteMatches(site: string, pageHost: string): boolean {
   const host = pageHost.toLowerCase().replace(/\.$/, "");
-  return host === site || host.endsWith(`.${site}`);
+  return host === site || host === `www.${site}` || `www.${host}` === site;
 }
 
 export interface TotpSetup {

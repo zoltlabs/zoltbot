@@ -1,6 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { Redactor } from "../../../../packages/daemon/src/logging";
+import { PrivateInputGuard } from "../../../../packages/daemon/src/private-input";
+import { vaultApi } from "../../../../packages/daemon/src/vault/api";
+import { vaultTools } from "../../../../packages/daemon/src/vault/tools";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { memoryKeychain } from "../../../../tools/fakes/src/memory-keychain";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme, shellSession } from "../harness";
@@ -87,6 +91,100 @@ test("the vault saves logins and codes without keeping a value outside the keych
     expect(files).toContain("vault.save");
     expect(files).not.toContain(PASSWORD);
     expect(files).not.toContain(SETUP_KEY);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});
+
+/** V2: an agent asks to sign in with a saved login; the owner allows it once in the chat. */
+test("the owner allows an agent's sign-in from its chat, and the page gets the password", async ({
+  page,
+}) => {
+  const keychain = memoryKeychain();
+  const fixture = await compareFixture({ secrets: keychain.secrets });
+  const store = fixture.daemon.store;
+  const privacy = new PrivateInputGuard({ store, publish() {} });
+  const vault = vaultApi({
+    dataDir: fixture.daemon.dataDir,
+    store,
+    secrets: keychain.secrets,
+    privacy,
+    redactor: new Redactor(),
+    publish() {},
+  });
+  const typed: string[] = [];
+  const login = "https://github.com/login";
+  const fields: Record<string, { type: string; url: string }> = {
+    e1: { type: "email", url: login },
+    e2: { type: "password", url: login },
+  };
+  // The daemon broadcasts the stored card; here the test hands it to the Mac's client itself.
+  let deliver: (event: unknown) => void = () => {};
+  const tools = vaultTools(
+    {
+      store,
+      privacy,
+      publish: (events) => {
+        for (const event of events) deliver(event);
+      },
+      async wake() {},
+      vault: vault.runtime,
+    },
+    {
+      page: () => ({
+        field: async (target) => fields[target] ?? { type: "div", url: login },
+        fill: async (list) => {
+          for (const { value } of list) typed.push(value);
+        },
+      }),
+    },
+  );
+  const actor = { agentId: "profile", threadId: "thread", sessionId: "session", turnId: "turn" };
+  const fill = () =>
+    tools.call({
+      actor,
+      arguments: { action: "fill", id, password: "e2", username: "e1", submit: true },
+      idempotencyKey: "fill",
+    });
+  const { entry } = (await vault.api("vault.save", {
+    kind: "login",
+    sites: ["github.com"],
+    username: "octo-sample",
+    agents: "all",
+    value: PASSWORD,
+  })) as { entry: { id: string } };
+  const id = entry.id;
+
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.open(page);
+    const client = shell.service.client as unknown as { apply(event: unknown): void };
+    deliver = (event) => client.apply(event);
+    await page
+      .getByRole("button", { name: /^Fixture/ })
+      .first()
+      .click();
+    expect(await fill()).toEqual({ status: "waiting_for_owner" });
+    // The card waits in the chat that asked.
+    const chat = page.getByRole("main", { name: "Conversation" });
+    await expect(chat.getByText("Sign in to github.com")).toBeVisible();
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      await page.screenshot({ path: test.info().outputPath(`vault-card-${scheme}.png`) });
+    }
+    await chat.getByRole("button", { name: "Allow once" }).click();
+    await chat.getByRole("button", { name: "Send answer" }).click();
+    await expect
+      .poll(() => store.record("interaction", `vault-fill:session:${id}:1`)?.resolution)
+      .toBeTruthy();
+    expect(await fill()).toEqual({ filled: ["username", "password"], submitted: true });
+    expect(typed).toEqual(["octo-sample", PASSWORD]);
+    // Once means once: the next sign-in asks again.
+    expect(await fill()).toEqual({ status: "waiting_for_owner" });
+    expect(shell.errors).toEqual([]);
+    expect(written(fixture.daemon.dataDir)).not.toContain(PASSWORD);
   } finally {
     await shell.close();
     await fixture.close();

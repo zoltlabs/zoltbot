@@ -244,7 +244,9 @@ export class NativeRuntimeHost implements RuntimeHost {
     const hostTools = (browser: boolean) =>
       saved?.launchManifest?.hostTools ??
       this.options.artifactTools?.(!!artifact, browser, stable.thread);
-    const baseTools = hostTools(false)?.filter((t) => t.name !== "team_browser_evidence");
+    const baseTools = hostTools(false)?.filter(
+      (t) => t.name !== "team_browser_evidence" && t.name !== "vault",
+    );
     const instructions = [
       stable.profile.roleText,
       stable.profile.instructions,

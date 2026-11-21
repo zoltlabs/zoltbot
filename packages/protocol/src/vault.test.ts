@@ -13,7 +13,9 @@ describe("vault sites", () => {
 
   it("matches the listed host and its subdomains only", () => {
     expect(vaultSiteMatches("github.com", "github.com")).toBe(true);
-    expect(vaultSiteMatches("github.com", "gist.github.com")).toBe(true);
+    expect(vaultSiteMatches("github.com", "gist.github.com")).toBe(false);
+    expect(vaultSiteMatches("github.com", "www.github.com")).toBe(true);
+    expect(vaultSiteMatches("www.github.com", "github.com")).toBe(true);
     expect(vaultSiteMatches("github.com", "evilgithub.com")).toBe(false);
     expect(vaultSiteMatches("github.com", "github.com.example.net")).toBe(false);
   });
@@ -39,7 +41,12 @@ describe("two-step setup keys", () => {
   });
 
   it("refuses what isn't a setup key", () => {
-    for (const bad of ["123456", "JBSW", "otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP", "hello world!"])
+    for (const bad of [
+      "123456",
+      "JBSW",
+      "otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP",
+      "hello world!",
+    ])
       expect(parseTotpSetup(bad)).toBeUndefined();
   });
 });

@@ -16,6 +16,8 @@ export interface SetupContext {
 }
 export interface RuntimeContext {
   views?: import("./views/registry.js").ViewRegistry;
+  /** V2: saved logins the agents' `vault` tool types into pages. */
+  vault?: import("./vault/api.js").VaultRuntime;
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;

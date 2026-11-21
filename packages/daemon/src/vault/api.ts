@@ -91,6 +91,25 @@ export function vaultApi(host: VaultHost) {
 
   return {
     records,
+    /** What the agents' `vault` tool uses. Values stay in the daemon (V2). */
+    runtime: {
+      records,
+      available: () => !!secrets,
+      async read(record: VaultRecord): Promise<VaultValue> {
+        const value = readVaultValue(await keychain().read(record.reference));
+        guard(value);
+        return value;
+      },
+      markUsed(id: string) {
+        return records.change((list) => ({
+          records: list.map((record) =>
+            record.id === id ? { ...record, lastUsedAt: new Date().toISOString() } : record,
+          ),
+          result: undefined,
+        }));
+      },
+      audit: (input: Parameters<typeof writeVaultAudit>[1]) => writeVaultAudit(host, input),
+    },
     async api(method: string, params: Record<string, unknown>): Promise<unknown> {
       if (!method.startsWith("vault.")) return undefined;
       switch (method) {
@@ -214,4 +233,5 @@ export function vaultApi(host: VaultHost) {
 }
 
 export type VaultApi = ReturnType<typeof vaultApi>;
+export type VaultRuntime = VaultApi["runtime"];
 export type { VaultEntry };
