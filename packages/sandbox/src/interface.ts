@@ -85,6 +85,11 @@ export interface SandboxCapabilities {
   sleepKeepsProcesses: boolean;
   /** "declared": only ports listed in the spec at create can be exposed. */
   ports: "any" | "declared";
+  /**
+   * B8: exposed ports are plain TCP reachable only from the daemon's machine, as a desktop's VNC
+   * needs. Targets that expose through a public proxy say false.
+   */
+  privatePorts: boolean;
   /** "template": size comes from the template and `spec.size` is rejected. */
   sizing: "per_sandbox" | "template";
 }

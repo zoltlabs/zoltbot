@@ -184,6 +184,7 @@ export function createE2bTarget(options: E2bTargetOptions): ExecutionTarget {
     ssh: false,
     gpu: false,
     sleepKeepsProcesses: true,
+    privatePorts: false,
     ports: "any",
     sizing: "template",
   };

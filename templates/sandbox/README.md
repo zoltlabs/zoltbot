@@ -45,3 +45,22 @@ The private orchestrator wiring and its live verification are still pending.
 The production-dependency install sets `CI=true` for that command only, so pnpm
 can replace the build-time modules without a TTY. The agent runtime does not
 inherit that build-only setting.
+
+## The agent's desktop (B8)
+
+The image also ships Xvfb, Openbox and x11vnc. `zolt-desktop` starts a virtual screen, the
+window manager and a VNC server on `ZOLTBOT_DESKTOP_PORT` (default 5900). Nothing starts it at
+boot; the worker runs it when an agent asks for a desktop.
+
+`ZOLTBOT_VNC_PASSWORD` is required, letters and digits only. Classic VNC auth uses just its
+first 8 characters and is weak against anyone who can watch the traffic, so the password is a
+second lock; the first is that the port is reachable only from the daemon's machine. The
+password reaches x11vnc through a file x11vnc deletes once read, never through argv.
+
+Only targets whose capabilities say `privatePorts: true` may expose that port. Docker
+publishes it on 127.0.0.1 and puts sandboxes on a bridge with container-to-container traffic
+off, so one sandbox can't reach another's desktop. E2B exposes ports through a public proxy,
+so it says false until a private route exists. The conformance scenario `private_port` checks
+the address handed out is loopback and that raw TCP reaches the sandbox; it doesn't probe the
+target's isolation. The Mac's Desktop view needs a bundled noVNC (MPL-2.0, unmodified, with
+its notice), which is not added yet.

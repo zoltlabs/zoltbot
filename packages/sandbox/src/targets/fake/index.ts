@@ -54,6 +54,7 @@ const capabilities: SandboxCapabilities = {
   ssh: false,
   gpu: false,
   sleepKeepsProcesses: true,
+  privatePorts: true,
   ports: "any",
   sizing: "per_sandbox",
 };
