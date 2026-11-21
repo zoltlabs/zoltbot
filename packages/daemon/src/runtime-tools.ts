@@ -8,11 +8,22 @@ import { channelToolDefinitions, channelToolNames, channelTools } from "./channe
 import { chatSignalToolDefinition, chatSignalTools } from "./chat-signal-tools.js";
 import { chiefToolDefinitions, chiefToolNames, chiefTools } from "./chief/tools.js";
 import { companyToolDefinition, companyTools } from "./company-tools.js";
+import {
+  connectionProposalToolDefinition,
+  connectionProposalTools,
+} from "./connection-proposal.js";
 import { cuaToolDefinition } from "./cua/policy.js";
 import type { CuaRuntime } from "./cua/runtime.js";
 import { eventRoutineToolDefinition, eventRoutineTools } from "./event-routine-tools.js";
 import { knowledgeToolDefinition, knowledgeTools } from "./knowledge-tools.js";
 import { knowledgeWrites, knowledgeWriteToolDefinition } from "./knowledge-writes.js";
+import {
+  projectDbExecDefinition,
+  projectDbQueryDefinition,
+  projectDbToolNames,
+  projectDbTools,
+} from "./project-data/tools.js";
+import { skillProposals, skillProposalToolDefinition } from "./skill-proposals.js";
 import {
   currentTeamToolDefinitions,
   legacyTeamToolDefinitions,
@@ -20,6 +31,7 @@ import {
   teamTools,
 } from "./team-tools.js";
 import { teamWaitToolDefinitions, teamWaitToolNames, teamWaitTools } from "./team-wait-tools.js";
+import { vaultCompactSchema, vaultToolDefinition, vaultTools } from "./vault/tools.js";
 import { viewToolDefinition, viewToolHint, viewTools } from "./views/tools.js";
 import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 
@@ -66,6 +78,7 @@ export function runtimeTools(
   const workspace = workspaceTools(context);
   const knowledge = knowledgeTools(context);
   const knowledgeWrite = knowledgeWrites(context);
+  const skillProposal = skillProposals(context);
   const browser = browserTools(context);
   const artifacts = artifactTools(context);
   const views = viewTools(context);
@@ -74,6 +87,8 @@ export function runtimeTools(
   const channel = channelTools(context);
   const chief = chiefTools(context);
   const company = companyTools(context);
+  const vault = vaultTools(context);
+  const projectDb = projectDbTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
     if (!active(actor)) return false;
     if (name === "company_work") return company.authorize(actor);
@@ -93,7 +108,14 @@ export function runtimeTools(
     const thread = context.store.record("thread", actor.threadId);
     if (thread?.fork && name !== "team_get_knowledge") return false;
     if (name === "chat_wake") return !thread?.fork;
+    // Offered only where the owner talks (production-runtime ownerChat), never in browser sessions.
+    if (name === "connection_propose") {
+      const frozen = context.store.record("settings", `runtime.configuration.${actor.sessionId}`)
+        ?.value as { launchManifest?: { browser?: unknown } } | undefined;
+      return !thread?.taskId && !frozen?.launchManifest?.browser;
+    }
     if (name === "chat_signal") return !thread?.fork && !thread?.taskId;
+    if (name === "team_propose_skill") return skillProposal.authorize(actor);
     if (name === "routine_draft") return eventRoutine.authorize(actor);
     if (name === "native_app") {
       const frozen = context.store.record("settings", `runtime.configuration.${actor.sessionId}`)
@@ -118,6 +140,8 @@ export function runtimeTools(
     if (name === "team_view") return views.authorize(actor, args);
     if (artifactBinding && ["workspace_create", "workspace_update"].includes(name)) return false;
     if (name === "team_browser_evidence") return browser.authorize(actor);
+    if (name === "vault") return vault.authorize(actor);
+    if (projectDbToolNames.has(name)) return projectDb.authorize(actor, name);
     // Writing shares the read tool's authorization; the write policy decides the outcome.
     if (name === "team_get_knowledge" || name === "team_write_knowledge")
       return knowledge.authorize(actor);
@@ -134,13 +158,16 @@ export function runtimeTools(
         (call) => options.cua?.call(call) ?? Promise.resolve({ error: "cua_unavailable" }),
       ],
       ["chat_wake", chatWake],
+      ["connection_propose", connectionProposalTools(context)],
       ["chat_signal", chatSignal],
       ["routine_draft", eventRoutine.call],
       ["team_artifact", artifacts.call],
       ["team_view", views.call],
       ["team_browser_evidence", browser.register],
+      ["vault", vault.call],
       ["team_get_knowledge", knowledge.read],
       ["team_write_knowledge", knowledgeWrite.call],
+      ["team_propose_skill", skillProposal.call],
       ...team.tools,
       ...teamWait.tools,
       ...channel.tools,
@@ -162,6 +189,7 @@ export function runtimeTools(
       ...workspace.tools,
       ...chief.tools,
       ["company_work", company.call],
+      ...projectDb.tools,
     ]),
     authorize,
     checkLimits(actor: ToolActor, name?: string) {
@@ -172,7 +200,8 @@ export function runtimeTools(
         name === "chief_triage" ||
         name === "team_read_thread" ||
         name === "workspace_read" ||
-        name === "team_knowledge_read";
+        name === "team_knowledge_read" ||
+        name === "project_db_query";
       const now = Date.now(),
         key = `${actor.sessionId}:${readOnly ? "r" : "w"}`;
       const previous = limits.get(key);
@@ -218,6 +247,7 @@ export function runtimeTools(
 export const browserRuntimeToolDefinitions = [
   ...runtimeToolDefinitions.filter((tool) => tool.name !== "native_app"),
   browserToolDefinition,
+  vaultToolDefinition,
 ];
 
 const artifactDescriptions: Record<string, string> = {
@@ -227,10 +257,18 @@ const artifactDescriptions: Record<string, string> = {
     "Save, read or list versioned offline artifacts (save|read|list). Reuse key; stage in frozen staging or inline <=48KB.",
   team_browser_evidence:
     "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
+  vault:
+    "Saved logins and two-step codes. list; fill(id, password ref, username ref, submit) or fill(id, code ref). You never see them.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
+  connection_propose:
+    "Ask to add a registry app for you: search(query), propose(registryId, reason).",
   chat_signal: "emoji react, not filler; status: doing-now line; progress: milestone note",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
+  team_propose_skill:
+    "After retries or an owner correction: propose a SKILL.md (basedOn: skill id) for review.",
+  project_db_query: "One SELECT on the project's shared SQLite.",
+  project_db_exec: "One write there.",
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
@@ -252,6 +290,7 @@ const artifactDescriptions: Record<string, string> = {
 // Artifact sessions write knowledge with team_write_knowledge; the server still accepts `learned`.
 const artifactOmittedFields: Record<string, string[]> = { team_message: ["learned"] };
 const compactSchemas: Record<string, Record<string, unknown>> = {
+  vault: vaultCompactSchema,
   company_work: {
     type: "object",
     properties: {
@@ -262,6 +301,11 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
     required: ["action"],
   },
   chat_signal: { type: "object", properties: { emoji: {}, status: {}, progress: {} } },
+  connection_propose: {
+    type: "object",
+    properties: { action: {}, query: {}, registryId: {}, reason: {} },
+    required: ["action"],
+  },
   chat_wake: {
     type: "object",
     properties: {
@@ -315,6 +359,18 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
       reason: { type: "string" },
     },
     required: ["op", "evidence", "reason"],
+  },
+  project_db_query: { type: "object", properties: { sql: { type: "string" } }, required: ["sql"] },
+  project_db_exec: { type: "object", properties: { sql: { type: "string" } }, required: ["sql"] },
+  team_propose_skill: {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      body: { type: "string" },
+      basedOn: { type: "string" },
+      description: { type: "string" },
+    },
+    required: ["name", "body"],
   },
   workspace_write: {
     type: "object",
@@ -393,10 +449,23 @@ export const indirectRuntimeToolDefinitions = [
   compactTool(wakeToolDefinition),
   viewToolHint,
 ];
-/** A compact hint for chats the owner talks in directly; task and fork chats have no owner turns. */
-export const chatSignalIndirectToolDefinitions = [compactTool(chatSignalToolDefinition)];
+/**
+ * Compact hints for chats the owner talks in directly; task and fork chats have no owner turns.
+ * M6: proposing a skill lives here, where the owner can correct the agent. I6: asking for an app
+ * only makes sense where the owner can answer the card.
+ */
+export const ownerChatIndirectToolDefinitions = [
+  compactTool(chatSignalToolDefinition),
+  compactTool(skillProposalToolDefinition),
+  compactTool(connectionProposalToolDefinition),
+];
 /** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
 export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
+/** M8: hints for chats in a project, which share the project's database. */
+export const projectDbIndirectToolDefinitions = [
+  compactTool(projectDbQueryDefinition),
+  compactTool(projectDbExecDefinition),
+].map(compactTool);
 /** A compact hint for chats that belong to a team channel. */
 export const channelIndirectToolDefinitions = channelToolDefinitions.map(compactTool);
 export const artifactRuntimeToolDefinitions = [
@@ -409,6 +478,7 @@ export const artifactRuntimeToolDefinitions = [
 export const artifactBrowserToolDefinitions = [
   ...artifactRuntimeToolDefinitions.filter((tool) => tool.name !== "native_app"),
   compactTool(browserToolDefinition),
+  compactTool(vaultToolDefinition),
 ];
 /** Managers use the organization facade instead of a second workspace writer. */
 export const managerArtifactToolDefinitions = [
@@ -448,11 +518,15 @@ export const allRuntimeToolDefinitions = [
   ...chiefToolDefinitions,
   eventRoutineToolDefinition,
   wakeToolDefinition,
+  connectionProposalToolDefinition,
   chatSignalToolDefinition,
   ...teamWaitToolDefinitions,
   ...channelToolDefinitions,
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,
+  skillProposalToolDefinition,
   artifactToolDefinition,
+  projectDbQueryDefinition,
+  projectDbExecDefinition,
 ];

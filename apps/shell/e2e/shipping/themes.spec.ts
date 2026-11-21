@@ -31,7 +31,7 @@ test("main screens pass axe in the dark and light themes", async ({ page }) => {
     const sidebar = page.getByRole("complementary", { name: "Bot navigation" });
 
     // Conversation with a reply and an open question.
-    await sidebar.getByRole("button", { name: /Release notes/ }).click();
+    await sidebar.getByRole("button", { name: /^Release notes/ }).click();
     const composer = page.getByRole("textbox", { name: "Message Release notes" });
     await expect(composer).toBeVisible();
     await checkScreen(page, "chat-empty");
@@ -62,7 +62,7 @@ test("main screens pass axe in the dark and light themes", async ({ page }) => {
     await page.getByRole("button", { name: "View agent settings" }).click();
 
     // Agent context menu and delete confirmation.
-    await sidebar.getByRole("button", { name: /Research/ }).click({ button: "right" });
+    await sidebar.getByRole("button", { name: /^Research/ }).click({ button: "right" });
     const menu = page.getByRole("menu", { name: "Agent actions" });
     await expect(menu).toBeVisible();
     await checkScreen(page, "context-menu");

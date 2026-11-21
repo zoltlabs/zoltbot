@@ -1,5 +1,10 @@
 // S5: filtering what agents remember, for the Memory page. Pure, so it's tested without a renderer.
-import type { MemoryEntry, MemoryProposal, MemoryView } from "../../shared/memory";
+import type {
+  MemoryEntry,
+  MemoryProposal,
+  MemorySkillProposal,
+  MemoryView,
+} from "../../shared/memory";
 
 /** Filter value for entries that apply everywhere rather than to one project. */
 export const EVERYWHERE = "everywhere";
@@ -12,7 +17,7 @@ export interface MemoryFilter {
   query: string;
 }
 
-type Item = MemoryEntry | MemoryProposal;
+type Item = MemoryEntry | MemoryProposal | MemorySkillProposal;
 
 function matches(item: Item, filter: MemoryFilter): boolean {
   if (filter.agentId && item.agent?.id !== filter.agentId) return false;
@@ -38,7 +43,7 @@ export interface MemoryOption {
 /** The agents entries and proposals belong to, by name. */
 export function agentOptions(view: MemoryView, unnamed: string): MemoryOption[] {
   const seen = new Map<string, string>();
-  for (const item of [...view.entries, ...view.proposals])
+  for (const item of [...view.entries, ...view.proposals, ...view.skills])
     if (item.agent) seen.set(item.agent.id, item.agent.name || unnamed);
   return [...seen]
     .map(([value, label]) => ({ value, label }))

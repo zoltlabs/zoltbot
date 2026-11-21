@@ -13,6 +13,7 @@ import {
   RoutineOccurrenceSchema,
 } from "@zoltbot/protocol";
 import { Notification, powerMonitor } from "electron";
+import { bridgeRefusalNotice } from "./bridge-notices";
 
 export function desktopNotifications(host: {
   focusedThread(): string | undefined;
@@ -128,7 +129,11 @@ export function desktopNotifications(host: {
     if (kind === "agent" && typeof value.id === "string" && typeof value.name === "string")
       names.set(value.id, value.name);
     if (kind === "settings" && value.key === "chief.queue") later = laterIds(value.value);
-    if (kind === "settings" && typeof value.key === "string" && value.key.startsWith(MUTED_PREFIX)) {
+    if (
+      kind === "settings" &&
+      typeof value.key === "string" &&
+      value.key.startsWith(MUTED_PREFIX)
+    ) {
       const threadId = value.key.slice(MUTED_PREFIX.length);
       if (value.value === true) muted.add(threadId);
       else muted.delete(threadId);
@@ -182,6 +187,8 @@ export function desktopNotifications(host: {
       tick();
     },
     event(kind: string, payload: Record<string, unknown>) {
+      const refused = kind === "settings" ? bridgeRefusalNotice(payload) : undefined;
+      if (refused) notices.set(refused.id, refused);
       apply(kind, payload);
       tick();
     },

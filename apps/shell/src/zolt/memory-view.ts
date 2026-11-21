@@ -1,8 +1,10 @@
 // S5: the Memory page's entries and proposals, read from the daemon snapshot.
+import { MEMORY_TIDY_SETTING, memoryTidyOn } from "@zoltbot/protocol";
 import type {
   MemoryAgent,
   MemoryEntry,
   MemoryProposal,
+  MemorySkillProposal,
   MemoryView,
   MemoryWriter,
 } from "../shared/memory";
@@ -59,7 +61,9 @@ export function toMemoryEntry(entities: Entities, row: Row): MemoryEntry {
     verification: pick(row.verification, VERIFICATIONS, "unverified"),
     status: pick(row.status, STATUSES, "active"),
     revision: Number(row.revision) || 1,
+    createdAt: text(row.createdAt),
     updatedAt: text(row.updatedAt),
+    validUntil: text(row.validUntil) || null,
   };
 }
 
@@ -70,10 +74,12 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
     .filter((row) => row.status !== "archived")
     .map((row) => toMemoryEntry(entities, row))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const knowledge = new Map((entities.knowledge ?? []).map((row) => [text(row.id), row]));
   const proposals = (entities.knowledgeProposal ?? [])
     .filter((row) => row.state === "pending")
     .map((row): MemoryProposal => {
       const project = projectOf(entities, row.scope);
+      const merged = (row.merges ?? null) as Row | null;
       return {
         id: text(row.id),
         op: pick(row.op, OPS, "create"),
@@ -86,9 +92,39 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
         writer: writerOf(entities, row.writer),
         agent: agentOf(writerOf(entities, row.writer)),
         reason: text(row.reason),
+        forget: text(row.forget) || null,
+        merges: merged
+          ? {
+              keep: text(knowledge.get(text(row.itemId))?.body),
+              drop: text(knowledge.get(text(merged.id))?.body),
+            }
+          : null,
         createdAt: text(row.createdAt),
       };
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return { entries, proposals };
+  const tidy = memoryTidyOn(
+    (entities.settings ?? []).find((row) => row.key === MEMORY_TIDY_SETTING)?.value,
+  );
+  return { entries, proposals, skills: [], tidy };
+}
+
+/** M6: the daemon's pending skill proposals, newest first, with the agent that proposed each. */
+export function toSkillProposals(entities: Entities, rows: Row[]): MemorySkillProposal[] {
+  return rows
+    .map((row): MemorySkillProposal => {
+      const writer = writerOf(entities, { kind: "agent", id: row.agentId });
+      return {
+        id: text(row.id),
+        title: text(row.name),
+        body: text(row.content),
+        base: typeof row.base === "string" ? row.base : null,
+        projectId: null,
+        projectName: "",
+        writer,
+        agent: agentOf(writer),
+        createdAt: text(row.createdAt),
+      };
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

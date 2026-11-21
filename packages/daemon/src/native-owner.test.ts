@@ -78,3 +78,20 @@ it("distinguishes an empty successful query from unavailable or malformed inspec
     recommendation: "fork",
   });
 });
+it("uses Linux's lsof on a Linux server, and stays unknown elsewhere (D10)", async () => {
+  const commands: string[] = [];
+  const runner = async (command: string) => {
+    commands.push(command);
+    return { code: 1, stdout: "", stderr: "" };
+  };
+  expect(await inspectNativeOwner("/fixture/s.jsonl", { platform: "linux", runner })).toEqual({
+    state: "clear",
+    pids: [],
+  });
+  expect(await inspectNativeOwner("/fixture/s.jsonl", { platform: "win32", runner })).toEqual({
+    state: "unknown",
+    pids: [],
+    recommendation: "fork",
+  });
+  expect(commands).toEqual(["/usr/bin/lsof"]);
+});

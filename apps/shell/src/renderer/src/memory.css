@@ -232,3 +232,159 @@
   justify-content: space-between;
   gap: 8px;
 }
+
+/* M2: when an entry was learned and until when it applies. */
+.memory-text {
+  display: grid;
+  gap: 6px;
+}
+
+.memory-dates {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* M2: picking the sentence to forget. */
+.memory-forget-pick {
+  display: grid;
+  gap: 8px;
+}
+
+.memory-merge {
+  display: grid;
+  gap: 4px;
+}
+
+.memory-merge-label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-merge ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--openbot-line);
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-import-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-tidy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-forget-prompt {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.memory-sentences {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-sentence {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--openbot-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--openbot-white);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.memory-sentence:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.memory-sentence:hover:not(:disabled) {
+  background: var(--openbot-hover);
+}
+
+.memory-sentence:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+/* M6: a skill an agent proposed. Marks and screen-reader labels carry the change, not color. */
+.skill-scroll {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--openbot-line);
+  border-radius: var(--zb-radius-sm);
+  color: var(--openbot-white);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.skill-scroll:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+.skill-text {
+  margin: 0;
+  padding: 8px 10px;
+  font: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.skill-diff {
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+}
+
+.skill-diff-line {
+  display: grid;
+  grid-template-columns: 2ch 1fr;
+  padding: 0 10px 0 6px;
+}
+
+.skill-diff-added {
+  background: var(--zb-diff-add);
+}
+
+.skill-diff-removed {
+  background: var(--zb-diff-del);
+}
+
+.skill-diff-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.skill-diff-skip {
+  padding: 2px 10px 2px calc(2ch + 6px);
+  color: var(--text-secondary);
+  font-family: var(--zb-font-sans, inherit);
+}

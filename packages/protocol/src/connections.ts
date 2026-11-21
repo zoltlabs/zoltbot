@@ -48,7 +48,44 @@ const authConfig = object({
   scopes: Type.Array(Text),
   origins: Type.Array(Text),
 });
+/** I6: one server from the official MCP registry. */
+export const RegistryItemSchema = object({
+  id: Text,
+  title: Text,
+  description: Text,
+  version: Text,
+  publisher: object({
+    kind: Type.Union([Type.Literal("domain"), Type.Literal("github")]),
+    name: Text,
+  }),
+  repository: Type.Optional(Text),
+  install: Type.Union([
+    Type.Literal("remote"),
+    Type.Literal("package"),
+    Type.Literal("unsupported"),
+  ]),
+  runs: Type.Optional(Text),
+  url: Type.Optional(Text),
+  needs: Type.Array(Text, { maxItems: 50 }),
+});
+export type RegistryItem = Static<typeof RegistryItemSchema>;
 export const connectionMethods = {
+  "connection.registry.search": {
+    params: object({ query: Type.String({ maxLength: 100 }) }),
+    result: object({ items: Type.Array(RegistryItemSchema) }),
+  },
+  "connection.registry.add": {
+    params: object({
+      projectId: Id,
+      registryId: Type.String({ minLength: 3, maxLength: 200 }),
+      /** What the owner saw; the add is refused if the registry changed since. */
+      version: Type.String({ maxLength: 50 }),
+      runs: Type.Optional(Type.String({ maxLength: 1000 })),
+      url: Type.Optional(Type.String({ maxLength: 2000 })),
+      executionConfirmed: Type.Optional(Type.Boolean()),
+    }),
+    result: ConnectionSchema,
+  },
   "connection.catalog.list": {
     params: object({}),
     result: object({
@@ -81,6 +118,12 @@ export const connectionMethods = {
           "google_drive",
           "google_docs",
           "slack",
+          // I7
+          "notion",
+          "atlassian",
+          "airtable",
+          "hubspot",
+          "google_calendar",
         ].map((id) => Type.Literal(id)),
       ),
       projectId: Id,

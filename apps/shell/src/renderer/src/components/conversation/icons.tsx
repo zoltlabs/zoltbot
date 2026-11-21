@@ -206,3 +206,21 @@ export function HideIcon() {
     </svg>
   );
 }
+
+/** O1: Read aloud. */
+export function SpeakerIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M4 8h2.5L10 5v10l-3.5-3H4z" />
+      <path d="M13 7.5a3.5 3.5 0 0 1 0 5M15 5.5a6.5 6.5 0 0 1 0 9" />
+    </svg>
+  );
+}
+
+export function PhoneIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20">
+      <path d="M6.2 3.5 8 7.2 6.7 8.6a9 9 0 0 0 4.7 4.7l1.4-1.3 3.7 1.8-.6 2.6a1.5 1.5 0 0 1-1.6 1.1A13 13 0 0 1 2.5 5.7a1.5 1.5 0 0 1 1.1-1.6z" />
+    </svg>
+  );
+}

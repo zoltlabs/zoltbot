@@ -1,14 +1,23 @@
 // A1: list agent templates and create an agent from one. The new profile copies the provider and
 // permissions of the agent a blank chat would use, and maps the template's tier to an effort.
 import { templateEffort } from "@zoltbot/protocol";
-import { AGENT_TEMPLATE_CHANNELS as C, type CreateFromTemplateInput } from "../shared/agent-templates";
+import {
+  AGENT_TEMPLATE_CHANNELS as C,
+  type CreateFromTemplateInput,
+} from "../shared/agent-templates";
 import { chooseAgent } from "./agent-choice";
 import type { Row } from "./daemon-client";
 import { isObject, requireString } from "./parsers";
 import type { ZoltService } from "./zolt-service";
 
 type Service = Pick<ZoltService, "client" | "createBot">;
-type Template = { id: string; name: string; role: string; instructions: string; modelTier: "fast" | "balanced" | "best" };
+type Template = {
+  id: string;
+  name: string;
+  role: string;
+  instructions: string;
+  modelTier: "fast" | "balanced" | "best";
+};
 
 const limited = (value: unknown, field: string, max: number, required = true) => {
   if (typeof value !== "string" || value.length > max) throw new Error(`${field} is invalid.`);
@@ -38,7 +47,9 @@ async function templates(service: Service): Promise<Template[]> {
   return result.items;
 }
 
-export function agentTemplateHandlers(service: Service): Record<string, (input: unknown) => unknown> {
+export function agentTemplateHandlers(
+  service: Service,
+): Record<string, (input: unknown) => unknown> {
   return {
     [C.agentTemplatesList]: async () =>
       (await templates(service)).map(({ id, name, role, instructions }) => ({
@@ -61,14 +72,24 @@ export function agentTemplateHandlers(service: Service): Record<string, (input: 
       const id = request.requestId;
       // A retry after the profile was made only starts the chat.
       if (service.client.rows("agent").some((row) => row.id === id))
-        return service.createBot({ profileId: id, projectId: request.projectId, title: request.name });
-      const base: Row | undefined = chooseAgent(profiles, { defaultAgentId: project?.defaultAgentId });
+        return service.createBot({
+          profileId: id,
+          projectId: request.projectId,
+          title: request.name,
+        });
+      const base: Row | undefined = chooseAgent(profiles, {
+        defaultAgentId: project?.defaultAgentId,
+      });
       if (!base) throw new Error("Add an agent in Zoltbot first.");
-      const catalog = (await service.client.call("model.catalog", {}).catch(() => ({ items: [] }))) as {
+      const catalog = (await service.client
+        .call("model.catalog", {})
+        .catch(() => ({ items: [] }))) as {
         items: { definitionId: string; effort: string[] }[];
       };
-      const efforts = catalog.items.find((row) => row.definitionId === base.definitionId)?.effort ?? [];
-      const effort = templateEffort(template.modelTier, efforts) ?? (base.effort as string | undefined);
+      const efforts =
+        catalog.items.find((row) => row.definitionId === base.definitionId)?.effort ?? [];
+      const effort =
+        templateEffort(template.modelTier, efforts) ?? (base.effort as string | undefined);
       const now = new Date().toISOString();
       await service.client.call(
         "agent.create",
@@ -93,7 +114,11 @@ export function agentTemplateHandlers(service: Service): Record<string, (input: 
         },
         `shell:agent:${id}`,
       );
-      return service.createBot({ profileId: id, projectId: request.projectId, title: request.name });
+      return service.createBot({
+        profileId: id,
+        projectId: request.projectId,
+        title: request.name,
+      });
     },
   };
 }

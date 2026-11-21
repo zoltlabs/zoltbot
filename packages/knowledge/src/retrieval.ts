@@ -13,10 +13,36 @@ export const estimateKnowledgeTokens = (text: string) =>
   Math.max(referenceTokenEstimate(text), Math.ceil(Buffer.byteLength(text, "utf8") / 3));
 export const queryTerms = (query: string) =>
   [...new Set(query.toLocaleLowerCase("en-US").match(/[\p{L}\p{N}_]+/gu) ?? [])].slice(0, 32);
-export const matchQuery = (query: string) =>
-  queryTerms(query)
-    .map((term) => `"${term}"`)
-    .join(" OR ");
+// "Q3" and "third quarter" name the same thing; FTS gets both spellings.
+const QUARTERS = ["first", "second", "third", "fourth"];
+function synonyms(term: string) {
+  const quarter = /^q([1-4])$/.exec(term);
+  return quarter ? [`${QUARTERS[Number(quarter[1]) - 1]} quarter`] : [];
+}
+export const matchQuery = (query: string) => {
+  const terms = queryTerms(query);
+  const words = terms.map((term) => `"${term}"`);
+  terms.forEach((term, index) => {
+    for (const phrase of synonyms(term)) words.push(`"${phrase}"`);
+    const word = QUARTERS.indexOf(term);
+    if (word >= 0 && terms[index + 1] === "quarter") words.push(`"q${word + 1}"`);
+  });
+  return [...new Set(words)].join(" OR ");
+};
+/** Matches across plural and simple verb endings, like the FTS porter stemmer does for search. */
+export const stem = (word: string) =>
+  word.length > 4
+    ? word.replace(/(?:ies|es|s|ing|ed)$/, (end) => (end === "ies" ? "y" : ""))
+    : word;
+/** Relevance from full-text search: id to a score in 0–1, higher is better. */
+export type KnowledgeMatches = ReadonlyMap<string, number>;
+const DAY = 86_400_000;
+/** 1 for a fact written or confirmed today, halving about every 90 days. */
+export function freshness(item: KnowledgeItem, now: string) {
+  const at = Date.parse(item.lastVerifiedAt ?? item.updatedAt);
+  const age = Math.max(0, (Date.parse(now) - at) / DAY);
+  return Number.isFinite(age) ? 1 / (1 + age / 90) : 0;
+}
 const kindOrder = [
   "constraint",
   "requirement",
@@ -42,7 +68,7 @@ export function rankKnowledge(
   scope: Scope,
   query: string,
   now: string,
-  matchedIds?: ReadonlySet<string>,
+  matchedIds?: ReadonlySet<string> | KnowledgeMatches,
   requiredIds: ReadonlySet<string> = new Set(),
 ) {
   const scopes = authorizedScopes(state, scope);
@@ -54,6 +80,11 @@ export function rankKnowledge(
   }[] = [];
   const active = candidates.filter((item) => {
     if (item.status === "archived" || item.status === "superseded") return false;
+    // M2: a dated fact is left out before it starts and after it ends, even when pinned.
+    if ((item.validUntil && item.validUntil < now) || (item.validFrom && item.validFrom > now)) {
+      excluded.push({ id: item.id, reason: "stale" });
+      return false;
+    }
     if (item.status === "stale" || (item.reviewBy && item.reviewBy < now)) {
       // Pinned constraints require an explicit decision even when due for review.
       if (!item.pinned) {
@@ -73,19 +104,33 @@ export function rankKnowledge(
       target = candidates.find((row) => row.id === target)?.supersedes;
     }
   }
-  const terms = queryTerms(query);
-  const score = (item: KnowledgeItem) =>
-    terms.reduce((sum, term) => {
-      const title = queryTerms(item.title),
-        body = queryTerms(item.body),
-        tags = queryTerms(item.tags.join(" "));
-      return (
+  const terms = queryTerms(query).map(stem);
+  const words = (text: string) => queryTerms(text).map(stem);
+  const relevance = matchedIds instanceof Map ? matchedIds : undefined;
+  // Matching words (title 5, tags 3, body 1) plus full-text BM25 (up to 6), rounded so that
+  // verification and kind still decide between equally relevant entries. Freshness breaks the
+  // remaining ties, so a newer fact comes before an older one only when nothing else differs.
+  const scores = new Map<string, { matched: number; total: number }>();
+  const scored = (item: KnowledgeItem) => {
+    const known = scores.get(item.id);
+    if (known) return known;
+    const title = words(item.title),
+      body = words(item.body),
+      tags = words(item.tags.join(" "));
+    const matched = terms.reduce(
+      (sum, term) =>
         sum +
         Number(title.includes(term)) * 5 +
         Number(tags.includes(term)) * 3 +
-        Number(body.includes(term))
-      );
-    }, 0);
+        Number(body.includes(term)),
+      0,
+    );
+    const total = terms.length ? Math.round(matched + (relevance?.get(item.id) ?? 0) * 6) : 0;
+    const value = { matched, total };
+    scores.set(item.id, value);
+    return value;
+  };
+  const score = (item: KnowledgeItem) => scored(item).total;
   const items = active.filter((item) => {
     const override =
       superseded.has(item.id) ||
@@ -98,7 +143,7 @@ export function rankKnowledge(
       terms.length &&
       !item.pinned &&
       !requiredIds.has(item.id) &&
-      (matchedIds ? !matchedIds.has(item.id) : score(item) === 0)
+      (matchedIds ? !matchedIds.has(item.id) : scored(item).matched === 0)
     ) {
       excluded.push({ id: item.id, reason: "low_score" });
       return false;
@@ -113,6 +158,7 @@ export function rankKnowledge(
       verificationRank(a) - verificationRank(b) ||
       kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind) ||
       depth(b) - depth(a) ||
+      freshness(b, now) - freshness(a, now) ||
       compareText(b.updatedAt, a.updatedAt) ||
       compareText(a.id, b.id),
   );
@@ -142,7 +188,7 @@ export function renderKnowledge(item: KnowledgeItem) {
 export function buildKnowledgePack(
   state: DomainState,
   input: PackInput,
-  matchedIds?: ReadonlySet<string>,
+  matchedIds?: ReadonlySet<string> | KnowledgeMatches,
 ) {
   if (
     !Number.isSafeInteger(input.remainingTokens) ||
@@ -198,8 +244,15 @@ export function buildKnowledgePack(
     tokenEstimate: estimateKnowledgeTokens(text),
     createdAt: input.at,
   });
+  // A required entry past its dates is left out on purpose, so it doesn't hold the task.
+  const expired = new Set(
+    ranked.excluded.filter((row) => row.reason === "stale").map((row) => row.id),
+  );
   const requiredOverflow = [...required].filter(
-    (id) => !input.excludedIds?.includes(id) && !included.some((item) => item.id === id),
+    (id) =>
+      !input.excludedIds?.includes(id) &&
+      !expired.has(id) &&
+      !included.some((item) => item.id === id),
   );
   return {
     pack,

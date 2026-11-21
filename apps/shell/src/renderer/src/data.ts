@@ -10,10 +10,10 @@ import {
   type BotAvatarColor,
   type BotAvatarShape,
   type ContextFullAction,
-  type TalkingStyle,
   type ConversationNotice,
   type ManagerCard,
   type MessageReaction,
+  type TalkingStyle,
 } from "../../shared/ipc";
 
 export type BotAccent = "teal" | "orange" | "purple" | "blue" | "violet" | "coral" | "neutral";

@@ -1,5 +1,5 @@
 import { quoteText, withQuote } from "@zoltbot/protocol";
-import { For, onCleanup, Show } from "solid-js";
+import { For, type JSX, onCleanup, Show } from "solid-js";
 import type { DraftAttachment, QueueSnapshot } from "../../../../shared/ipc";
 import type { BotMessage, BotProfile } from "../../data";
 import { t } from "../../i18n";
@@ -45,6 +45,8 @@ export function Composer(props: {
   dictation: ReturnType<typeof createDictation>;
   activeTurnId: string | null | undefined;
   onStop: () => void;
+  /** V4: the bar that holds a message that looks like a secret. */
+  notice?: JSX.Element;
 }) {
   let attachButton: HTMLButtonElement | undefined;
   // C13: learn which pasted.txt attachments hold a long paste, so they can go back inline.
@@ -157,6 +159,7 @@ export function Composer(props: {
           {props.error ?? aside.error()}
         </div>
       </Show>
+      {props.notice}
       <QueueList
         botId={props.bot?.id}
         queue={props.queue}

@@ -1,4 +1,4 @@
-import { type FilePreviewKind, filePreviewKind } from "@zoltbot/protocol";
+import { type FilePreviewKind, filePreviewKind, isCallGuidance } from "@zoltbot/protocol";
 import { body, text } from "@zoltbot/ui/chat/types";
 import { chiefWakePrefix } from "@zoltbot/ui/chief/data";
 import { type ArtifactCard, artifactOccurrences, artifactReference } from "./artifacts.js";
@@ -156,7 +156,8 @@ function diffCounts(value: Row) {
 function userText(value: Row) {
   const parts = Array.isArray(value.input) ? (value.input as Row[]) : [];
   return parts
-    .filter((part) => part.type === "text")
+    // O2: a call's guidance goes to the agent but isn't the owner's words.
+    .filter((part) => part.type === "text" && !isCallGuidance(part.text))
     .map((part) => text(part.text))
     .join("\n");
 }

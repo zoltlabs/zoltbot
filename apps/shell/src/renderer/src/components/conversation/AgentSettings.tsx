@@ -17,6 +17,7 @@ import { PanelResizer } from "../PanelResizer";
 import { ProviderModelPicker } from "../ProviderModelPicker";
 import { AgentBrowserProfile } from "./AgentBrowserProfile";
 import { AgentUsage } from "./AgentUsage";
+import { CoAuthorLine } from "./CoAuthorLine";
 import {
   AVATAR_COLOR_LABELS,
   AVATAR_SHAPE_LABELS,
@@ -26,7 +27,6 @@ import {
   SETTINGS_PANEL_MIN,
 } from "./constants";
 import { BackIcon, CloseIcon } from "./icons";
-import { CoAuthorLine } from "./CoAuthorLine";
 import { RepositoryMode } from "./RepositoryMode";
 import "./talking-style.css";
 

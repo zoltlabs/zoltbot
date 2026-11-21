@@ -82,7 +82,7 @@ export function AskAboutThis(props: {
     // Selecting words doesn't move focus, so this listens everywhere and only acts on a
     // selection inside the transcript.
     when: "global",
-    label: t("chat.askAbout"),
+    label: () => t("chat.askAbout"),
     run: () => {
       const words = selectedWords(props.root());
       if (!words) return false;

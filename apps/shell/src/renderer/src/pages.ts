@@ -34,6 +34,8 @@ export const PAGES: Readonly<Record<RouteId, PageInfo>> = {
   models: { id: "models", label: "Models", inSidebar: true },
   memory: { id: "memory", label: "Memory", inSidebar: true },
   usage: { id: "usage", label: "Usage", inSidebar: true },
+  vault: { id: "vault", label: "Vault", inSidebar: true },
+  data: { id: "data", label: "Data", inSidebar: true },
 };
 
 export type Pages = ReturnType<typeof createPages>;

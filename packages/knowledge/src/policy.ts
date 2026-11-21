@@ -23,6 +23,10 @@ export interface KnowledgeWriteInput {
   key?: string;
   evidence: KnowledgeItem["sources"];
   reason: string;
+  /** M2: the fact stops applying after this time. */
+  validUntil?: string;
+  /** M2: the sentence being forgotten; such writes always go to the owner first. */
+  forget?: string;
 }
 export interface KnowledgeWriteSession {
   sessionId: string;

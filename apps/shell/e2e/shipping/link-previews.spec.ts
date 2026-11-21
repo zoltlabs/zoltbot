@@ -33,7 +33,13 @@ test("a link in a message gets a card, and the owner can turn cards off", async 
       links.preview = async (input) => {
         const { url } = input as { url: string };
         return url.includes("guide")
-          ? { url, title: "Field guide to owls", siteName: "example.com", description: "Where they nest and what they eat.", image: picture }
+          ? {
+              url,
+              title: "Field guide to owls",
+              siteName: "example.com",
+              description: "Where they nest and what they eat.",
+              image: picture,
+            }
           : null;
       };
     }, PICTURE);
@@ -61,7 +67,9 @@ test("a link in a message gets a card, and the owner can turn cards off", async 
     }
 
     await page.getByRole("button", { name: "Open account menu" }).click();
-    const item = page.getByRole("menu").getByRole("menuitemcheckbox", { name: "Show link previews" });
+    const item = page
+      .getByRole("menu")
+      .getByRole("menuitemcheckbox", { name: "Show link previews" });
     await expect(item).toBeChecked();
     await item.click();
     await expect(card).toBeHidden();

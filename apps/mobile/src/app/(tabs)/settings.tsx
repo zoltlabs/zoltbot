@@ -11,6 +11,7 @@ import { usePush } from "../../state/push";
 import { TabScreen } from "../../ui/chrome";
 import { Button, Chip, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
 import { Toggle } from "../../ui/Toggle";
+import { VoiceSettings } from "../../ui/VoiceSettings";
 
 export default function Settings() {
   const prefs = usePrefs();
@@ -81,6 +82,7 @@ export default function Settings() {
           { value: "dark", label: "Dark" },
         ]}
       />
+      <VoiceSettings />
 
       {fake ? (
         <>

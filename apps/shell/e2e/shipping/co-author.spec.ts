@@ -30,7 +30,11 @@ test("A project's agents are named in commits until the owner turns it off", asy
       },
       "create-web",
     );
-    await shell.service.createBot({ profileId: "profile", title: "Release notes", projectId: "web" });
+    await shell.service.createBot({
+      profileId: "profile",
+      title: "Release notes",
+      projectId: "web",
+    });
     await shell.open(page);
     const sidebar = page.getByRole("complementary", { name: "Bot navigation" });
     await sidebar.getByRole("button", { name: /^Release notes/ }).click();
@@ -38,9 +42,7 @@ test("A project's agents are named in commits until the owner turns it off", asy
 
     const toggle = page.getByRole("switch", { name: "Credit agents in commits" });
     await expect(toggle).toBeChecked();
-    await expect(toggle).toHaveAccessibleDescription(
-      "Applies to every agent in this project",
-    );
+    await expect(toggle).toHaveAccessibleDescription("Applies to every agent in this project");
     await toggle.scrollIntoViewIfNeeded();
     for (const scheme of COLOR_SCHEMES) {
       await settleColorScheme(page, scheme);
@@ -55,9 +57,7 @@ test("A project's agents are named in commits until the owner turns it off", asy
       .poll(() => fixture.daemon.store.record("project", "web")?.coAuthorLine)
       .toBe(false);
     await toggle.click();
-    await expect
-      .poll(() => fixture.daemon.store.record("project", "web")?.coAuthorLine)
-      .toBe(true);
+    await expect.poll(() => fixture.daemon.store.record("project", "web")?.coAuthorLine).toBe(true);
     expect(shell.errors).toEqual([]);
   } finally {
     await shell.close();

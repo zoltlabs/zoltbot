@@ -27,7 +27,11 @@ export interface MemoryEntry {
   verification: "human" | "unverified" | "confirmed";
   status: "active" | "stale" | "superseded" | "archived";
   revision: number;
+  /** When it was first learned. */
+  createdAt: string;
   updatedAt: string;
+  /** M2: the fact stops being used after this time; null when it has no end. */
+  validUntil: string | null;
 }
 
 export interface MemoryProposal {
@@ -43,6 +47,27 @@ export interface MemoryProposal {
   agent: MemoryAgent | null;
   /** The agent's one-line reason. */
   reason: string;
+  /** M2: the exact text an agent asked to forget; null for other proposals. */
+  forget: string | null;
+  /** M3: a nightly merge of two entries; the text of each before the merge. Null otherwise. */
+  merges: { keep: string; drop: string } | null;
+  createdAt: string;
+}
+
+/** M6: a skill an agent proposed to save or update. */
+export interface MemorySkillProposal {
+  id: string;
+  /** The skill's name. */
+  title: string;
+  /** The SKILL.md the agent proposed. */
+  body: string;
+  /** The SKILL.md it replaces; null for a new skill. */
+  base: string | null;
+  /** Skills apply everywhere. */
+  projectId: null;
+  projectName: "";
+  writer: MemoryWriter;
+  agent: MemoryAgent | null;
   createdAt: string;
 }
 
@@ -50,6 +75,10 @@ export interface MemoryView {
   entries: MemoryEntry[];
   /** Agent proposals waiting for the owner. */
   proposals: MemoryProposal[];
+  /** M6: skills agents proposed, waiting for the owner. */
+  skills: MemorySkillProposal[];
+  /** M3: whether the nightly tidy-up looks for entries that repeat each other. */
+  tidy: boolean;
 }
 
 export interface MemorySaveInput {
@@ -60,9 +89,43 @@ export interface MemorySaveInput {
   revision: number;
 }
 
+export interface MemoryForgetInput {
+  id: string;
+  /** The exact text to take out of the entry. */
+  quote: string;
+  revision: number;
+}
+
 export interface MemoryDecideInput {
   id: string;
   decision: "accept" | "reject";
+}
+
+export interface MemorySkillDecideInput {
+  id: string;
+  decision: "save" | "discard";
+}
+
+/** M4: where an imported export came from. */
+export type MemoryImportSource = "chatgpt" | "claude" | "gemini";
+
+/** M4: the export the owner picked, before anything is imported. */
+export interface MemoryImportChoice {
+  source: MemoryImportSource;
+  path: string;
+  /** The file name, shown in the preview. */
+  name: string;
+  memories: number;
+  conversations: number;
+}
+
+export interface MemoryImportStatus {
+  id: string;
+  state: "reading" | "done" | "failed";
+  conversations: number;
+  read: number;
+  proposed: number;
+  error?: string;
 }
 
 export const MEMORY_CHANNELS = {
@@ -71,6 +134,12 @@ export const MEMORY_CHANNELS = {
   memorySave: "memory:save",
   memoryArchive: "memory:archive",
   memoryDecide: "memory:decide",
+  memoryDecideSkill: "memory:decide-skill",
+  memoryForget: "memory:forget",
+  memorySetTidy: "memory:set-tidy",
+  memoryImportChoose: "memory:import-choose",
+  memoryImportStart: "memory:import-start",
+  memoryImportStatus: "memory:import-status",
 } as const;
 
 export interface MemoryDesktopApi {
@@ -81,4 +150,17 @@ export interface MemoryDesktopApi {
   archive: (input: { id: string; revision: number }) => Promise<void>;
   /** Keeps or discards what an agent proposed to remember. */
   decide: (input: MemoryDecideInput) => Promise<void>;
+  /** M6: saves or discards a skill an agent proposed. */
+  decideSkill: (input: MemorySkillDecideInput) => Promise<void>;
+  /** M2: removes one passage from an entry as a new revision. */
+  forget: (input: MemoryForgetInput) => Promise<void>;
+  /** M3: turns the nightly tidy-up on or off. */
+  setTidy: (on: boolean) => Promise<void>;
+  /** M4: asks for an export file and reads what it holds; null when the owner cancels. */
+  importChoose: (source: MemoryImportSource) => Promise<MemoryImportChoice | null>;
+  importStart: (choice: {
+    source: MemoryImportSource;
+    path: string;
+  }) => Promise<MemoryImportStatus>;
+  importStatus: (id: string) => Promise<MemoryImportStatus>;
 }

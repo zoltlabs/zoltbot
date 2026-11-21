@@ -58,6 +58,9 @@ export const KnowledgeItemSchema = object({
   reviewBy: Type.Optional(At),
   supersedes: Type.Optional(Id),
   pinned: Type.Optional(Type.Boolean()),
+  /** M2: a fact that holds only for a time. Retrieval skips it outside these dates. */
+  validFrom: Type.Optional(At),
+  validUntil: Type.Optional(At),
 });
 export type KnowledgeItem = Static<typeof KnowledgeItemSchema>;
 export const ContextPackSchema = object({

@@ -71,10 +71,11 @@ export function productionRuntime(
           managerRuntimeToolDefinitions,
           managerBrowserToolDefinitions,
           artifactBrowserToolDefinitions,
-          chatSignalIndirectToolDefinitions,
+          ownerChatIndirectToolDefinitions,
           indirectRuntimeToolDefinitions,
           managerIndirectToolDefinitions,
           channelIndirectToolDefinitions,
+          projectDbIndirectToolDefinitions,
           chiefProviderToolDefinitions,
           runtimeTools,
         },
@@ -163,7 +164,7 @@ export function productionRuntime(
       const skills = skillsRuntime(context.store, path.join(directory, "runtime", "skills"));
       const native = new NativeRuntimeHost({
         adapters,
-        artifactTools: (artifact, browser, thread) =>
+        artifactTools: (artifact, browser, thread, readOnly) =>
           // The chief coordinates other chats; it has its own tools and makes no artifacts.
           thread && isChief(context.store, thread.id)
             ? structuredClone(chiefProviderToolDefinitions)
@@ -187,7 +188,20 @@ export function productionRuntime(
                 // Waiting on and listing delegated work only matters to a chat that delegates.
                 ...(managesWork(thread?.id) ? managerIndirectToolDefinitions : []),
                 // Reacting needs an owner message to react to.
-                ...(!browser && ownerChat(thread?.id) ? chatSignalIndirectToolDefinitions : []),
+                // Managers keep only the reaction hint: with the delegation and channel hints, the
+                // skill and app hints would pass the fixed budget (I9). They can still call them.
+                ...(!browser && ownerChat(thread?.id)
+                  ? ownerChatIndirectToolDefinitions.filter(
+                      (tool) => !managesWork(thread?.id) || tool.name === "chat_signal",
+                    )
+                  : []),
+                // M8: chats in a project share its database. Managers aren't shown the hints, to stay
+                // within the fixed budget (I9); their workers do the record keeping.
+                ...(!browser && thread?.projectId && !managesWork(thread?.id)
+                  ? projectDbIndirectToolDefinitions.filter(
+                      (tool) => !readOnly || tool.name !== "project_db_exec",
+                    )
+                  : []),
                 // Reading a channel only matters to its members; posting rides on team_message.
                 ...(!browser && inChannel(context, thread?.id)
                   ? channelIndirectToolDefinitions

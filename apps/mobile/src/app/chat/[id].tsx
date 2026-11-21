@@ -1,4 +1,11 @@
-import { type ArtifactTarget, isStopPhrase, quoteText, withQuote } from "@zoltbot/protocol";
+import {
+  type ArtifactTarget,
+  findSecret,
+  isStopPhrase,
+  quoteText,
+  type SecretMatch,
+  withQuote,
+} from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
@@ -40,6 +47,7 @@ import {
   text,
   transcript,
 } from "../../data/view";
+import { withCalls } from "../../data/voice";
 import { newId, useAction } from "../../state/actions";
 import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useSnapshot } from "../../state/link";
@@ -59,8 +67,11 @@ import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
 import { ReplyBar } from "../../ui/ReplyBar";
+import { useReadNewReplies } from "../../ui/read-aloud";
 import { useRowPositions } from "../../ui/row-positions";
+import { SecretBar } from "../../ui/SecretBar";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
+import { useCanListen, useDictation } from "../../ui/speech";
 import { TaskContext } from "../../ui/TaskContext";
 import { Message, type QueueActions } from "../../ui/Transcript";
 import { WaitingMessages } from "../../ui/WaitingMessages";
@@ -92,16 +103,20 @@ export default function Chat() {
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
-  const rows = withReactions(
+  const rows = withCalls(
     snapshot,
     id,
-    withHidden(
+    withReactions(
       snapshot,
       id,
-      withProgress(
+      withHidden(
         snapshot,
         id,
-        withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+        withProgress(
+          snapshot,
+          id,
+          withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+        ),
       ),
     ),
   );
@@ -123,6 +138,10 @@ export default function Chat() {
   // C6: the message being replied to; its quote goes ahead of the words when sent.
   const [replyTo, setReplyTo] = useState<TranscriptRow>();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
+  // O4: the composer's microphone and voice mode, in builds that can listen.
+  const canListen = useCanListen();
+  const dictation = useDictation(draft, setDraft, id);
+  useReadNewReplies(id, rows);
   const marks = online
     ? messageMarks(id, pinnedIds, run, (row) => {
         setReplyTo(row);
@@ -147,14 +166,37 @@ export default function Chat() {
   useEffect(() => {
     if (!turn) setDelivery("steer");
   }, [turn]);
+  // V4: a message that looks like a secret waits until the owner saves it or sends it anyway.
+  const [secret, setSecret] = useState<{ text: string; match: SecretMatch }>();
+  const sendAnyway = useRef<string | null>(null);
+  const saveSecret = async (label: string) => {
+    if (!secret) return;
+    const { text: held, match } = secret;
+    const result = (await run("vault.saveSecret", {
+      label,
+      value: held.slice(match.start, match.end),
+    })) as { reference?: unknown } | undefined;
+    if (typeof result?.reference !== "string") return;
+    setSecret(undefined);
+    const replaced = held.slice(0, match.start) + result.reference + held.slice(match.end);
+    // A save that ends after the owner edited the draft leaves it alone.
+    setDraft((current) => (current === held ? replaced : current));
+  };
   const send = async () => {
     const message = draft.trim();
     const words = replyTo ? withQuote(quoteText(replyTo.text), message) : message;
     if (!message && !attachments.length) return;
+    const match = sendAnyway.current === draft ? undefined : findSecret(draft);
+    sendAnyway.current = null;
+    if (match) {
+      setSecret({ text: draft, match });
+      return;
+    }
     // A bare "stop" while the agent works stops the turn instead of queueing a message.
     if (turn && !attachments.length && !replyTo && isStopPhrase(message)) {
       const stopped = await run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
       if (stopped) {
+        dictation.cancel();
         setDraft("");
         AccessibilityInfo.announceForAccessibility("Stopped");
       }
@@ -169,6 +211,7 @@ export default function Chat() {
       if (asked) {
         followLatest.current = true;
         setFollowing(true);
+        dictation.cancel();
         setDraft("");
         setReplyTo(undefined);
         AccessibilityInfo.announceForAccessibility("Asked aside");
@@ -195,6 +238,7 @@ export default function Chat() {
       }
       followLatest.current = true;
       setFollowing(true);
+      dictation.cancel();
       setDraft("");
       setReplyTo(undefined);
       if (online) void outbox.flush();
@@ -210,6 +254,7 @@ export default function Chat() {
       followLatest.current = true;
       setFollowing(true);
       void donateBotConversation(id).catch(() => undefined);
+      dictation.cancel();
       setDraft("");
       setAttachments([]);
       setArtifactTarget(undefined);
@@ -269,6 +314,16 @@ export default function Chat() {
           turnId={turn ? text(turn.id) : undefined}
           compactions={compactions(snapshot, id)}
         />
+        {canListen && thread && online ? (
+          <Pressable
+            onPress={() => router.push(`/chat/voice?id=${encodeURIComponent(id)}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Start call"
+            style={styles.bell}
+          >
+            <Icon name="call" color={c["text-secondary"]} size={22} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => router.push(`/chat/options?id=${encodeURIComponent(id)}`)}
           accessibilityRole="button"
@@ -447,6 +502,19 @@ export default function Chat() {
         ]}
         accessibilityLabel={`Message ${title}`}
       >
+        {secret && secret.text === draft ? (
+          <SecretBar
+            match={secret.match}
+            busy={busy}
+            online={online}
+            onSave={(label) => void saveSecret(label)}
+            onSendAnyway={() => {
+              sendAnyway.current = secret.text;
+              setSecret(undefined);
+              void send();
+            }}
+          />
+        ) : null}
         {replyTo ? (
           <ReplyBar row={replyTo} name={who} onCancel={() => setReplyTo(undefined)} />
         ) : null}
@@ -486,6 +554,7 @@ export default function Chat() {
             ref={input}
             value={draft}
             onChangeText={(next) => {
+              dictation.cancel();
               // C13: a paste over 2,000 characters becomes an attachment.
               const { draft: kept, pasted } = takeLongPaste(draft, next);
               setDraft(kept);
@@ -502,6 +571,28 @@ export default function Chat() {
               { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-raised"] },
             ]}
           />
+          {canListen && thread ? (
+            <Pressable
+              onPress={() =>
+                dictation.listening
+                  ? dictation.stop()
+                  : void dictation.start().then((problem) => problem && Alert.alert(problem))
+              }
+              accessibilityRole="button"
+              accessibilityLabel={dictation.listening ? "Stop dictation" : "Dictate"}
+              accessibilityState={{ selected: dictation.listening }}
+              style={[
+                styles.round,
+                { backgroundColor: dictation.listening ? c.primary : c["bg-raised"] },
+              ]}
+            >
+              <Icon
+                name="mic"
+                color={dictation.listening ? c["text-on-primary"] : c["text-secondary"]}
+                size={20}
+              />
+            </Pressable>
+          ) : null}
           {turn && !draft.trim() && !attachments.length ? (
             <Pressable
               onPress={stop}

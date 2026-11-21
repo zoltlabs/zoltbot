@@ -2,11 +2,12 @@ import type { Connection } from "@zoltbot/protocol";
 import { terms } from "@zoltbot/protocol";
 import { useCallback, useEffect, useId, useState } from "react";
 import type { Row } from "../chat/types.js";
-import { Button, Chip, Dialog, Field, Input } from "../components/primitives.js";
+import { Button, Chip, Dialog, Field, Input, Tabs } from "../components/primitives.js";
 
 import { AppCatalog } from "./AppCatalog.js";
 import { ConnectionSignIn } from "./ConnectionSignIn.js";
 import { serviceName } from "./catalog-data.js";
+import { RegistryBrowse } from "./RegistryBrowse.js";
 import "./connections.css";
 
 type Call = (method: string, params: unknown, commandId?: string) => Promise<unknown>;
@@ -42,6 +43,7 @@ export function Connections({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogTab, setCatalogTab] = useState("apps");
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -121,12 +123,37 @@ export function Connections({
       ) : null}
       <Dialog open={catalogOpen} title="Add app" onClose={() => setCatalogOpen(false)}>
         {catalogOpen ? (
-          <AppCatalog
-            call={call}
-            projects={projects}
-            profiles={profiles}
-            online={online}
-            onChanged={reload}
+          <Tabs
+            label="Where to find apps"
+            value={catalogTab}
+            onChange={setCatalogTab}
+            tabs={[
+              {
+                id: "apps",
+                label: "Featured",
+                content: (
+                  <AppCatalog
+                    call={call}
+                    projects={projects}
+                    profiles={profiles}
+                    online={online}
+                    onChanged={reload}
+                  />
+                ),
+              },
+              {
+                id: "browse",
+                label: "Browse",
+                content: (
+                  <RegistryBrowse
+                    call={call}
+                    projects={projects}
+                    online={online}
+                    onChanged={reload}
+                  />
+                ),
+              },
+            ]}
           />
         ) : null}
       </Dialog>

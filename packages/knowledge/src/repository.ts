@@ -11,6 +11,7 @@ import type { Store } from "@zoltbot/store";
 import {
   eligibleKnowledge,
   estimateKnowledgeTokens,
+  type KnowledgeMatches,
   matchQuery,
   rankKnowledge,
 } from "./retrieval.js";
@@ -24,15 +25,29 @@ export function knowledgeHistory(store: Store, id: string) {
       .all(id) as { body: string }[]
   ).map((row) => parse(KnowledgeItemSchema, JSON.parse(row.body)));
 }
-/** FTS performs boolean matching only. All scoring uses the authorized lineage alone. */
-export function knowledgeMatches(store: Store, state: DomainState, scope: Scope, query: string) {
+/**
+ * Entries the query matches, each with its BM25 relevance scaled to 0–1 (1 is the best match).
+ * Only entries the scope may read are returned or used for scaling.
+ */
+export function knowledgeMatches(
+  store: Store,
+  state: DomainState,
+  scope: Scope,
+  query: string,
+): KnowledgeMatches {
   const eligible = new Set(eligibleKnowledge(state, scope).map((row) => row.id));
   const expression = matchQuery(query);
-  if (!expression) return eligible;
-  const rows = store.database
-    .prepare("SELECT id FROM knowledge_fts WHERE knowledge_fts MATCH ?")
-    .all(expression) as { id: string }[];
-  return new Set(rows.filter((row) => eligible.has(row.id)).map((row) => row.id));
+  if (!expression) return new Map([...eligible].map((id) => [id, 0]));
+  // bm25 is lower for better matches; weights are id, title, body, tags.
+  const rows = (
+    store.database
+      .prepare(
+        "SELECT id, bm25(knowledge_fts, 0, 5, 1, 3) AS rank FROM knowledge_fts WHERE knowledge_fts MATCH ?",
+      )
+      .all(expression) as { id: string; rank: number }[]
+  ).filter((row) => eligible.has(row.id));
+  const best = rows.reduce((least, row) => Math.min(least, row.rank), 0);
+  return new Map(rows.map((row) => [row.id, best < 0 ? row.rank / best : 0]));
 }
 export function freezeKnowledgePack(store: Store, commandId: string, value: unknown) {
   const pack = parse(ContextPackSchema, value);

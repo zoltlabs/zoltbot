@@ -22,9 +22,7 @@ describe("co-author line setting", () => {
     const off = {
       ...client,
       rows: (kind: string) =>
-        kind === "project"
-          ? [{ ...rows.project?.[0], coAuthorLine: false }]
-          : (rows[kind] ?? []),
+        kind === "project" ? [{ ...rows.project?.[0], coAuthorLine: false }] : (rows[kind] ?? []),
     };
     expect(projectCoAuthor(off, "chat")).toEqual({ projectId: "web", enabled: false });
   });
@@ -39,7 +37,9 @@ describe("co-author line setting", () => {
       expect.any(String),
     );
     await expect(
-      Promise.resolve().then(() => handlers[CO_AUTHOR_CHANNELS.coAuthorSet]?.({ projectId: "web" })),
+      Promise.resolve().then(() =>
+        handlers[CO_AUTHOR_CHANNELS.coAuthorSet]?.({ projectId: "web" }),
+      ),
     ).rejects.toThrow();
   });
 });

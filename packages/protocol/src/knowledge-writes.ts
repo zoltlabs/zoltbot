@@ -32,6 +32,12 @@ export const KnowledgeWriteReasonSchema = values([
   "granted",
   "confirmed",
   "not_found",
+  /** M2: the owner asked to forget a sentence; they confirm the exact text first. */
+  "forget_request",
+  /** M3: the nightly tidy-up found two entries that say the same thing. */
+  "tidy_merge",
+  /** M4: a fact read from another assistant's export. */
+  "imported",
 ]);
 export type KnowledgeWriteReason = Static<typeof KnowledgeWriteReasonSchema>;
 export const KnowledgeKindSchema = KnowledgeItemSchema.properties.kind;
@@ -50,6 +56,12 @@ export const KnowledgeProposalSchema = object({
   evidence: Type.Array(SourceRefSchema),
   /** The agent's one-line reason. */
   reason: Type.String({ maxLength: 300 }),
+  /** M2: the end date the agent gave; kept when the proposal is accepted. */
+  validUntil: Type.Optional(At),
+  /** M2: the sentence an agent asked to forget, shown in the review. */
+  forget: Type.Optional(Type.String({ minLength: 1, maxLength: 1200 })),
+  /** M3: the entry this merge replaces; it is archived when the merge is accepted. */
+  merges: Type.Optional(object({ id: Id, revision: Type.Integer({ minimum: 1 }) })),
   /** Why the policy routed this write to review. */
   why: KnowledgeWriteReasonSchema,
   writer: ActorSchema,
@@ -105,6 +117,20 @@ export const SessionTaintSchema = object({
 });
 export type SessionTaint = Static<typeof SessionTaintSchema>;
 
+export const MemoryImportSourceSchema = values(["chatgpt", "claude", "gemini"]);
+export const MemoryImportStatusSchema = object({
+  id: Id,
+  state: values(["reading", "done", "failed"]),
+  /** Conversations the import reads. */
+  conversations: Type.Integer({ minimum: 0 }),
+  /** Conversations read so far. */
+  read: Type.Integer({ minimum: 0 }),
+  /** Proposals waiting in Needs review from this import. */
+  proposed: Type.Integer({ minimum: 0 }),
+  error: OptionalText,
+});
+export type MemoryImportStatus = Static<typeof MemoryImportStatusSchema>;
+
 const entry = <P extends TSchema, R extends TSchema>(params: P, result: R) => ({ params, result });
 const ok = object({ ok: Type.Boolean() });
 export const knowledgeWriteMethods = {
@@ -140,6 +166,32 @@ export const knowledgeWriteMethods = {
     object({ id: Id, expectedRevision: Type.Integer({ minimum: 1 }) }),
     KnowledgeItemSchema,
   ),
+  /** M2: removes one quoted sentence from an entry as a new revision, so it can be restored. */
+  "knowledge.forget": entry(
+    object({
+      id: Id,
+      quote: Type.String({ minLength: 1, maxLength: 1200 }),
+      expectedRevision: Type.Integer({ minimum: 1 }),
+    }),
+    KnowledgeItemSchema,
+  ),
+  /** M4: what an export from another assistant holds, before anything is imported. */
+  "memory.import.preview": entry(
+    object({
+      source: MemoryImportSourceSchema,
+      path: Type.String({ minLength: 1, maxLength: 4096 }),
+    }),
+    object({ memories: Type.Integer({ minimum: 0 }), conversations: Type.Integer({ minimum: 0 }) }),
+  ),
+  /** M4: saved memories become proposals now; conversations are read in the background. */
+  "memory.import.start": entry(
+    object({
+      source: MemoryImportSourceSchema,
+      path: Type.String({ minLength: 1, maxLength: 4096 }),
+    }),
+    MemoryImportStatusSchema,
+  ),
+  "memory.import.status": entry(object({ id: Id }), MemoryImportStatusSchema),
   "knowledge.revert": entry(
     object({ id: Id, expectedRevision: Type.Integer({ minimum: 1 }), confirmed: Type.Boolean() }),
     KnowledgeItemSchema,
@@ -152,3 +204,7 @@ export const knowledgeWriteMethods = {
     }),
   ),
 };
+
+/** M3: the daemon setting that turns the nightly memory tidy-up off when it is false. */
+export const MEMORY_TIDY_SETTING = "memory.tidy";
+export const memoryTidyOn = (value: unknown): boolean => value !== false;

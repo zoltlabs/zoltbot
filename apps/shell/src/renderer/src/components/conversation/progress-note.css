@@ -47,9 +47,7 @@
 }
 
 /* On a light page the dark theme's tint all but disappears; give it more colour. */
-@media (prefers-color-scheme: light) {
-  .progress-note {
-    border: 1px solid color-mix(in srgb, var(--note-accent) 45%, transparent);
-    background: color-mix(in srgb, var(--note-accent) 14%, transparent);
-  }
+:root[data-theme="light"] .progress-note {
+  border: 1px solid color-mix(in srgb, var(--note-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--note-accent) 14%, transparent);
 }

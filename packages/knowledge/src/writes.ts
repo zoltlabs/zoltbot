@@ -52,7 +52,7 @@ export function knowledgeEvent(
     payload: parse(KnowledgeItemSchema, item),
   });
 }
-function proposalEvent(
+export function proposalEvent(
   proposal: KnowledgeProposal,
   created: boolean,
   context: CommandContext,
@@ -93,6 +93,8 @@ export function applyWriteDecision(
       tags: input.tags ?? [],
       evidence: input.evidence,
       reason: input.reason,
+      ...(input.validUntil ? { validUntil: input.validUntil } : {}),
+      ...(input.forget ? { forget: input.forget } : {}),
       why: decision.reason,
       writer,
       sessionId: session.sessionId,
@@ -119,6 +121,7 @@ export function applyWriteDecision(
       title: input.title,
       body: input.body,
       tags: input.tags ?? [],
+      ...(input.validUntil ? { validUntil: input.validUntil } : {}),
       owner: writer,
       verification: "unverified",
       writer,
@@ -147,6 +150,7 @@ export function applyWriteDecision(
       title: input.title,
       body: input.body,
       ...(input.tags ? { tags: input.tags } : {}),
+      ...(input.validUntil ? { validUntil: input.validUntil } : {}),
       verification: "unverified",
       writer,
       sources,
@@ -187,6 +191,56 @@ export function confirmKnowledge(
     revision: item.revision + 1,
     updatedAt: context.at,
     lastVerifiedAt: context.at,
+  };
+  return { result: next, events: [knowledgeEvent(next, false, context)] };
+}
+
+const wordChar = /[\p{L}\p{N}_]/u;
+/** The first place the quote stands on its own: it never starts or ends inside a word. */
+function quoteAt(body: string, quote: string) {
+  const startsWord = wordChar.test(quote[0] ?? "");
+  const endsWord = wordChar.test(quote.at(-1) ?? "");
+  for (let at = body.indexOf(quote); at >= 0; at = body.indexOf(quote, at + 1)) {
+    const before = body[at - 1] ?? "";
+    const after = body[at + quote.length] ?? "";
+    if ((!startsWord || !wordChar.test(before)) && (!endsWord || !wordChar.test(after))) return at;
+  }
+  return -1;
+}
+
+/** The body with one quoted passage taken out, or undefined when the quote isn't in it. */
+export function withoutQuote(body: string, quote: string) {
+  const target = quote.trim();
+  const at = target ? quoteAt(body, target) : -1;
+  if (at < 0) return undefined;
+  const left = body.slice(0, at).replace(/[ \t]+$/, "");
+  const right = body.slice(at + target.length).replace(/^[ \t]+/, "");
+  const gap = left && right && !left.endsWith("\n") && !right.startsWith("\n") ? " " : "";
+  return `${left}${gap}${right}`.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * M2: a person removes one sentence. It is a new revision, so the entry's history can restore it.
+ * Forgetting the whole text archives the entry.
+ */
+export function forgetKnowledge(
+  state: DomainState,
+  id: string,
+  quote: string,
+  expectedRevision: number,
+  context: CommandContext,
+): Outcome {
+  human(context);
+  const item = current(state, id, expectedRevision);
+  const body = withoutQuote(item.body, quote);
+  if (body === undefined) throw new Error("knowledge_quote_not_found");
+  const next: KnowledgeItem = {
+    ...item,
+    body,
+    ...(body ? {} : { status: "archived" as const }),
+    writer: context.actor,
+    revision: item.revision + 1,
+    updatedAt: context.at,
   };
   return { result: next, events: [knowledgeEvent(next, false, context)] };
 }
@@ -268,6 +322,39 @@ export function decideProposal(
     : undefined;
   if (existing && existing.revision !== proposal.expectedRevision)
     throw new Error("knowledge_revision_conflict");
+  // M3: a tidy-up merge also archives the entry it folds in, at the revision it read.
+  const merged = proposal.merges
+    ? parse(
+        KnowledgeItemSchema,
+        state.knowledge?.find((entry) => entry.id === proposal.merges?.id) ??
+          (() => {
+            throw new Error("knowledge_not_found");
+          })(),
+      )
+    : undefined;
+  if (merged && (merged.revision !== proposal.merges?.revision || merged.status !== "active"))
+    throw new Error("knowledge_revision_conflict");
+  if (proposal.forget) {
+    if (!existing) throw new Error("knowledge_not_found");
+    const body = withoutQuote(existing.body, proposal.forget);
+    if (body === undefined) throw new Error("knowledge_quote_not_found");
+    const item: KnowledgeItem = {
+      ...existing,
+      body,
+      ...(body ? {} : { status: "archived" as const }),
+      writer: context.actor,
+      revision: existing.revision + 1,
+      updatedAt: context.at,
+    };
+    const next: KnowledgeProposal = { ...decided, state: "accepted", resultItemId: existing.id };
+    return {
+      result: next,
+      events: [
+        knowledgeEvent(item, false, { ...context, commandId: `${context.commandId}:item` }),
+        proposalEvent(next, false, context, 1),
+      ],
+    };
+  }
   const value = {
     ...(existing ?? {
       id: stableId("knowledge", context.commandId),
@@ -285,14 +372,36 @@ export function decideProposal(
     ).slice(0, 200),
     body: params.body ?? (proposal.op === "confirm" && existing ? existing.body : proposal.body),
     tags: existing && proposal.op === "confirm" ? existing.tags : proposal.tags,
-    sources: mergeSources(existing?.sources ?? [], proposal.evidence),
+    ...(proposal.validUntil ? { validUntil: proposal.validUntil } : {}),
+    sources: mergeSources(existing?.sources ?? [], merged?.sources ?? [], proposal.evidence),
   };
-  const saved = upsertKnowledge(state, value, existing?.revision ?? 0, {
+  // The folded-in entry is archived first, so a key the two entries share doesn't count as taken.
+  const target = merged
+    ? {
+        ...state,
+        knowledge: (state.knowledge ?? []).map((row) =>
+          row.id === merged.id ? { ...row, status: "archived" } : row,
+        ),
+      }
+    : state;
+  const saved = upsertKnowledge(target, value, existing?.revision ?? 0, {
     ...context,
     commandId: `${context.commandId}:item`,
   });
   const item = parse(KnowledgeItemSchema, saved.result);
   const next: KnowledgeProposal = { ...decided, state: "accepted", resultItemId: item.id };
   const events = [...saved.events, proposalEvent(next, false, context, 1)];
+  if (merged) {
+    const archived: KnowledgeItem = {
+      ...merged,
+      status: "archived",
+      writer: context.actor,
+      revision: merged.revision + 1,
+      updatedAt: context.at,
+    };
+    events.push(
+      knowledgeEvent(archived, false, { ...context, commandId: `${context.commandId}:merged` }),
+    );
+  }
   return { result: next, events };
 }

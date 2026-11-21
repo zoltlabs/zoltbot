@@ -5,6 +5,29 @@ import { Logger, Redactor } from "@zoltbot/daemon/logging";
 import { Supervisor } from "@zoltbot/daemon/supervisor";
 import WebSocket from "ws";
 import type { DaemonConnectionInfo } from "../zolt/daemon-client";
+import { newerVersion } from "./updater";
+
+/** The protocol this app speaks. */
+export const PROTOCOL_VERSION = 1;
+
+/**
+ * D3: whether to attach to a running daemon or replace it. After an update the app is newer
+ * than the daemon the old app left running: an older protocol, or an older app version, means
+ * the daemon must restart into the bundled one. A daemon that refuses the hello is left alone.
+ */
+export function attachDecision(
+  reply: { result?: { protocolVersion?: unknown; version?: unknown }; error?: unknown },
+  app: { protocolVersion: number; version: string | undefined },
+): "attach" | "replace" | "refused" {
+  if (reply.error || !reply.result) return "refused";
+  const { protocolVersion, version } = reply.result;
+  if (typeof protocolVersion !== "number" || protocolVersion < app.protocolVersion)
+    return "replace";
+  // A daemon with no version came from a dev build or another launcher: leave it be.
+  if (app.version && typeof version === "string" && version && newerVersion(app.version, version))
+    return "replace";
+  return "attach";
+}
 
 export interface DaemonPaths {
   root: string;
@@ -35,10 +58,14 @@ export class DaemonHost {
   private readonly supervisor: Supervisor;
   private attachedPid: number | undefined;
 
-  /** `env` adds settings for a daemon this window starts, such as the hosted service origins. */
+  /**
+   * `env` adds settings for a daemon this window starts, such as the hosted service origins.
+   * `appVersion` is passed to the daemon and compared with a running one's (D3).
+   */
   constructor(
     private readonly paths: DaemonPaths,
     env: Record<string, string> = {},
+    private readonly appVersion?: string,
   ) {
     mkdirSync(paths.dataDir, { recursive: true, mode: 0o700 });
     const logger = new Logger(join(paths.dataDir, "shell.log"), new Redactor());
@@ -53,6 +80,7 @@ export class DaemonHost {
         cwd: paths.root,
         env: {
           ...env,
+          ...(appVersion ? { ZOLTBOT_APP_VERSION: appVersion } : {}),
           ZOLTBOT_DATA_DIR: resolve(paths.dataDir),
           ...(process.env.ZOLTBOT_KEYCHAIN_HELPER
             ? { ZOLTBOT_KEYCHAIN_HELPER: process.env.ZOLTBOT_KEYCHAIN_HELPER }
@@ -78,8 +106,14 @@ export class DaemonHost {
   };
 
   async start(): Promise<void> {
-    this.attachedPid = await this.findRunning();
-    if (this.attachedPid) return;
+    const running = await this.findRunning();
+    if (running?.decision === "attach") {
+      this.attachedPid = running.pid;
+      return;
+    }
+    // An older daemon from before an update: stop it so the bundled one takes over the data.
+    // Its running turns end as interrupted, as after any daemon restart.
+    if (running?.decision === "replace") await stopProcess(running.pid);
     if (!existsSync(this.paths.entry))
       throw new Error(
         `Zoltbot's background service isn't built. Run "pnpm build:desktop" first (${this.paths.entry}).`,
@@ -88,8 +122,12 @@ export class DaemonHost {
   }
 
   /** Stops only a daemon this window started; one another app started keeps running. */
-  async stop(): Promise<void> {
-    if (this.attachedPid) return;
+  async stop(force = false): Promise<void> {
+    // D6: Start fresh stops a daemon another window started too.
+    if (this.attachedPid) {
+      if (force) await stopProcess(this.attachedPid);
+      return;
+    }
     await this.supervisor.close();
   }
 
@@ -101,7 +139,9 @@ export class DaemonHost {
     }
   }
 
-  private async findRunning(): Promise<number | undefined> {
+  private async findRunning(): Promise<
+    { pid: number; decision: "attach" | "replace" | "refused" } | undefined
+  > {
     const info = this.read();
     if (!info || !alive(info.pid) || new URL(info.url).hostname !== "127.0.0.1") return undefined;
     return new Promise((done) => {
@@ -116,7 +156,7 @@ export class DaemonHost {
             jsonrpc: "2.0",
             id: 1,
             method: "hello",
-            params: { token: info.token, protocolVersion: 1 },
+            params: { token: info.token, protocolVersion: PROTOCOL_VERSION },
           }),
         ),
       );
@@ -124,7 +164,11 @@ export class DaemonHost {
         clearTimeout(timer);
         const reply = JSON.parse(String(data));
         socket.close();
-        done(reply.error ? undefined : info.pid);
+        const decision = attachDecision(reply, {
+          protocolVersion: PROTOCOL_VERSION,
+          version: this.appVersion,
+        });
+        done(decision === "refused" ? undefined : { pid: info.pid, decision });
       });
       socket.on("error", () => {
         clearTimeout(timer);
@@ -132,6 +176,27 @@ export class DaemonHost {
       });
     });
   }
+}
+
+/** Asks a process to stop, waits up to 5 seconds, then ends it, so two never share the data. */
+async function stopProcess(pid: number): Promise<void> {
+  const gone = async (tries: number) => {
+    for (let attempt = 0; attempt < tries && alive(pid); attempt++)
+      await new Promise((done) => setTimeout(done, 100));
+    return !alive(pid);
+  };
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    return;
+  }
+  if (await gone(50)) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {
+    return;
+  }
+  if (!(await gone(20))) throw new Error("Zoltbot's old background service didn't stop.");
 }
 
 function alive(pid: number): boolean {

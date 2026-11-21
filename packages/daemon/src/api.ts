@@ -1,6 +1,8 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { companyApi } from "./company-api.js";
 import { startCompanySupervisor } from "./company-supervisor.js";
+import { bundleApi, bundleSkills } from "./bundle.js";
+import { finishFreshStart, prepareFreshStart } from "./start-fresh.js";
 
 export type {
   Daemon,
@@ -10,7 +12,7 @@ export type {
   SetupContext,
 } from "./api-types.js";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, rmSync } from "node:fs";
 import path from "node:path";
 import { type Command, handle } from "@zoltbot/core/commands";
@@ -37,6 +39,7 @@ import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
 import { asideApi } from "./aside-api.js";
 import { attachmentPreviewApi } from "./attachment-preview-api.js";
+import { startBridges } from "./bridges/service.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
 import { TAKEOVER_PREFIX } from "./browser/takeover.js";
@@ -51,6 +54,7 @@ import { type Cleanup, withDaemonResources } from "./daemon-resources.js";
 import { deviceBook } from "./devices.js";
 import { finishCheck } from "./finish-check.js";
 import { forkApi } from "./fork-api.js";
+import { githubAccountTokens } from "./github/bot.js";
 import { shippingService } from "./github/service.js";
 import { respondHostApproval } from "./host-approvals.js";
 import { inboxApi } from "./inbox-api.js";
@@ -68,6 +72,7 @@ import { messagePinsApi } from "./message-pins-api.js";
 import { messageReactionsApi } from "./message-reactions-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
+import { ProjectDatabases } from "./project-data/databases.js";
 import { projectFilesApi } from "./project-files.js";
 import { pushNotifier } from "./push.js";
 import { recover } from "./recovery.js";
@@ -83,7 +88,9 @@ import { staffApi } from "./staff-tools.js";
 import { taskRunner } from "./task-runner.js";
 import { TerminalRuntime } from "./terminal-runtime.js";
 import { usageApi } from "./usage-api.js";
+import { vaultApi } from "./vault/api.js";
 import { createViewRegistry, type ViewRegistry } from "./views/registry.js";
+import { voiceApi } from "./voice-api.js";
 import { wakeService } from "./wakes.js";
 import { listThreadFiles } from "./workspace-files.js";
 import { worktreeService } from "./worktree-service.js";
@@ -101,14 +108,19 @@ async function startOwnedDaemon(
   const token = randomBytes(32).toString("hex");
   const redactor = options.redactor ?? new Redactor();
   redactor.register(token);
+  // D6: a Start fresh asked for last time empties the data folder before anything opens.
+  await finishFreshStart(options.dataDir);
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  let botTokens: ReturnType<typeof githubAccountTokens> | undefined;
   if (options.nativeAccount) {
     const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
       logger.write("warn", "native_account_unavailable"),
     );
     if (account) resources.push(() => account.close());
+    if (account)
+      botTokens = githubAccountTokens(account.location(), options.nativeAccount.origin, logger);
   }
   if (options.cloudRunner) {
     try {
@@ -201,8 +213,11 @@ async function startOwnedDaemon(
   let runner: Runner | undefined;
   let interactions: InteractionEngine | undefined;
   let loadingInteractions: Promise<InteractionEngine> | undefined;
+  const projectData = new ProjectDatabases(path.join(options.dataDir, "project-data"));
+  resources.push(() => projectData.close());
   const runtimeContext: RuntimeContext = {
     store,
+    projectData,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     privacy,
     publish,
@@ -340,6 +355,7 @@ async function startOwnedDaemon(
     publish,
     worktrees: worktreeService(options.dataDir, store),
     ...(options.githubClient ? { client: options.githubClient } : {}),
+    ...(botTokens ? { botTokens } : {}),
     ...(options.githubPublishing ? { publishing: options.githubPublishing } : {}),
     checkPublic: (value) => privacy.prepareData(value),
     wake: () => ownedTasks.schedule(),
@@ -398,6 +414,23 @@ async function startOwnedDaemon(
     ...(runtime ? { send: (method, params, id) => runtime(method, params, id) } : {}),
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
+  const vault = vaultApi({
+    dataDir: options.dataDir,
+    store,
+    privacy,
+    redactor,
+    publish,
+    ...(options.secrets ? { secrets: options.secrets } : {}),
+    ...(options.vaultProviders ? { providers: options.vaultProviders } : {}),
+  });
+  runtimeContext.vault = vault.runtime;
+  const voice = voiceApi({
+    store,
+    publish,
+    ...(options.secrets ? { vault: options.secrets } : {}),
+    register: (value) => redactor.register(value),
+    containsSecret: (text) => privacy.containsSecret(text),
+  });
   const attachmentPreview = attachmentPreviewApi({ store });
   const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
@@ -548,6 +581,48 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => finish.close());
+  const bridges = startBridges({
+    ...options.bridges,
+    store,
+    publish,
+    ...(options.secrets ? { secrets: options.secrets } : {}),
+    remember: (value) => redactor.register(value),
+    send: async (method, params, id) =>
+      (method === "channel.post"
+        ? await channelApi(runtimeContext, ownedTasks)(method, params, id)
+        : await runtime?.(method, params, id)) ?? Promise.reject(new Error("runtime_unavailable")),
+    onError: (code) => logger.write("warn", code),
+  });
+  resources.push(() => bridges.close());
+  // D7: move to another computer.
+  const bundles = bundleApi({
+    snapshot: () => store.snapshot() as Record<string, unknown[] | undefined>,
+    skills: bundleSkills(store.database),
+    connections: async () => {
+      const list = (await connections.api("connection.list", {}, undefined)) as {
+        items?: { name?: string; id?: string }[];
+      };
+      return (list?.items ?? []).map((item) => String(item.name ?? item.id ?? "")).filter(Boolean);
+    },
+    write: (commandId, events, inside) => {
+      const before = store.lastSeq();
+      store.dispatch(commandId, () => {
+        inside();
+        // Clients reload the skills list when this changes, as after skills.add.
+        const eventId = randomUUID();
+        const revision = {
+          eventId,
+          aggregateType: "settings",
+          aggregateId: "skills.libraryRevision",
+          type: "settings.updated",
+          occurredAt: new Date().toISOString(),
+          payload: { key: "skills.libraryRevision", value: eventId },
+        };
+        return { events: [...events, revision] as DomainEvent[], result: { ok: true } };
+      });
+      publish(store.eventsSince(before));
+    },
+  });
   const call = async (
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
@@ -580,7 +655,9 @@ async function startOwnedDaemon(
       );
     switch (request.method) {
       case "hello":
-        return { protocolVersion, version: "0.1.0" };
+        // D3: the app that started this daemon names its version, so a newer app can tell the
+        // daemon is older and replace it.
+        return { protocolVersion, version: process.env.ZOLTBOT_APP_VERSION || null };
       case "snapshot.get": {
         const entities = store.snapshot();
         const partial = new Map(manager?.streamItems().map((item) => [item.id, item]) ?? []);
@@ -617,6 +694,22 @@ async function startOwnedDaemon(
           String(params.query),
           typeof params.limit === "number" ? params.limit : 20,
         );
+      case "maintenance.startFresh":
+        return prepareFreshStart({
+          dataDir: options.dataDir,
+          snapshot: () => store.snapshot(),
+          // Turns stop when the app restarts the daemon next.
+          interruptAll: async () => undefined,
+          removeSecret: async (reference: string) => {
+            await options.secrets?.remove?.(reference);
+          },
+          repositoryRoots: () =>
+            (store.snapshot(["project"]).project ?? []).flatMap((project) =>
+              (project.roots as { path: string; repoRoot?: string | null }[]).map(
+                (root) => root.repoRoot || root.path,
+              ),
+            ),
+        });
       case "diagnostics.export":
         return {
           versions: { daemon: "0.1.0", node: process.version },
@@ -625,6 +718,7 @@ async function startOwnedDaemon(
         };
       default: {
         const result =
+          (await bundles(request.method, params)) ??
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
           (await channelApi(runtimeContext, ownedTasks)(request.method, params, commandId)) ??
@@ -634,6 +728,8 @@ async function startOwnedDaemon(
           (await forks(request.method, params, commandId)) ??
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
+          (await vault.api(request.method, params)) ??
+          (await voice(request.method, params, commandId)) ??
           (await attachmentPreview(request.method, params)) ??
           (await linkPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??
@@ -643,6 +739,7 @@ async function startOwnedDaemon(
           (await artifacts(request.method, params, commandId)) ??
           (await browser(request.method, params, "human", client)) ??
           (await connections.api(request.method, params, commandId)) ??
+          (await bridges.api(request.method, params, commandId)) ??
           (await knowledge(request.method, params, commandId)) ??
           (await skills(request.method, params, commandId)) ??
           (await devices.api(request.method, params, commandId)) ??
@@ -783,6 +880,7 @@ async function startOwnedDaemon(
   observers = (events) => {
     companyWatch.observe();
     finish.observe(events);
+    bridges.observe(events);
     push.observe(events);
     taint(events);
     browser.observe(events);

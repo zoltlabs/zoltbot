@@ -8,7 +8,7 @@ import { protectedCredentialReferences, readRuntimeCredential } from "./runtime-
 import type { KeychainSecrets } from "./secrets.js";
 
 export type PrivateVault = Pick<KeychainSecrets, "put" | "read"> &
-  Partial<Pick<KeychainSecrets, "remove" | "replace">>;
+  Partial<Pick<KeychainSecrets, "remove" | "replace" | "reveal" | "forVault">>;
 export class PrivateContexts {
   private readonly pending = new Map<string, Promise<void>>();
   private cached: { stamp: string; values: ReadonlySet<string> } | undefined;

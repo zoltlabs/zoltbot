@@ -1,6 +1,8 @@
 import {
+  chatCallsThread,
   chatProgressThread,
   chatStatusThread,
+  isCallGuidance,
   messageHiddenThread,
   messagePinsThread,
   messageReactionsThread,
@@ -130,7 +132,10 @@ const WAKE_PREFIX = "chief-wake:";
 /** The first text part of a person-side input. */
 function firstInputText(item: Row): string {
   const input = body(item).input;
-  const first = Array.isArray(input) ? (input as Row[])[0] : undefined;
+  // O2: a call's guidance comes before the owner's words.
+  const first = Array.isArray(input)
+    ? (input as Row[]).find((part) => !isCallGuidance(part.text))
+    : undefined;
   return first?.type === "text" ? text(first.text) : "";
 }
 
@@ -402,7 +407,8 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
         messageHiddenThread(row.key) ??
         messageReactionsThread(row.key) ??
         chatStatusThread(row.key) ??
-        chatProgressThread(row.key))
+        chatProgressThread(row.key) ??
+        chatCallsThread(row.key))
       : undefined;
   if (marked) return [marked];
   return [];

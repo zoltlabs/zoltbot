@@ -157,3 +157,62 @@ it("reads HTML-only messages as inert text and omits named text attachments", as
   expect(JSON.stringify(read)).toContain("Safe & readable");
   expect(JSON.stringify(read)).not.toMatch(/PRIVATE_|<script>/);
 });
+
+it("reads the primary calendar only, in order, with bounded events (I7)", async () => {
+  const request = vi.fn<typeof requestJson>().mockResolvedValueOnce({
+    items: [
+      {
+        id: "ev1",
+        summary: "Planning",
+        start: { dateTime: "2026-11-23T10:00:00Z" },
+        end: { dateTime: "2026-11-23T11:00:00Z" },
+        status: "confirmed",
+        description: "PRIVATE_NOT_LISTED",
+      },
+    ],
+  });
+  const listed = await callGoogleTool(
+    "google_calendar",
+    "calendar_list_events",
+    { timeMin: "2026-11-23T00:00:00Z", query: "plan" },
+    "secret",
+    request,
+  );
+  expect(listed).toMatchObject({ events: [{ id: "ev1", summary: "Planning" }] });
+  expect(JSON.stringify(listed)).not.toContain("PRIVATE_NOT_LISTED");
+  const url = new URL(String(request.mock.calls[0]?.[0]));
+  expect(url.pathname).toBe("/calendar/v3/calendars/primary/events");
+  expect(url.searchParams.get("singleEvents")).toBe("true");
+  expect(url.searchParams.get("timeMin")).toBe("2026-11-23T00:00:00Z");
+  await expect(
+    callGoogleTool(
+      "google_calendar",
+      "calendar_list_events",
+      { timeMin: "tomorrow" },
+      "secret",
+      request,
+    ),
+  ).rejects.toThrow("google_time_invalid");
+  request.mockResolvedValueOnce({
+    id: "ev1",
+    summary: "Planning",
+    description: "d".repeat(2000),
+    attendees: Array.from({ length: 30 }, (_, n) => ({
+      email: `person${n}@example.com`,
+      responseStatus: "accepted",
+    })),
+  });
+  const event = await callGoogleTool(
+    "google_calendar",
+    "calendar_read_event",
+    { eventId: "ev1" },
+    "secret",
+    request,
+  );
+  expect(event).toMatchObject({ attendeeCount: 30, nextOffset: 1500 });
+  expect((event as { attendees: unknown[] }).attendees).toHaveLength(10);
+  // Calendar connections get calendar tools only.
+  await expect(
+    callGoogleTool("google_calendar", "gmail_search", {}, "secret", request),
+  ).rejects.toThrow("google_tool_denied");
+});

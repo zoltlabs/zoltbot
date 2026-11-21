@@ -16,9 +16,13 @@ export interface SetupContext {
 }
 export interface RuntimeContext {
   views?: import("./views/registry.js").ViewRegistry;
+  /** V2: saved logins the agents' `vault` tool types into pages. */
+  vault?: import("./vault/api.js").VaultRuntime;
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;
+  /** M8: each project's shared database. */
+  projectData?: import("./project-data/databases.js").ProjectDatabases;
   publish(events: DomainEvent[]): void;
   wake(threadId: string): Promise<void>;
   /** Stops a running turn, for host tools acting on another chat after approval. */
@@ -64,8 +68,12 @@ export interface DaemonOptions {
   runtimeHost?: RuntimeHost;
   runtime?: (context: RuntimeContext) => OwnedRuntime;
   secrets?: PrivateVault;
+  /** V3: fake password-manager CLIs for tests; the real ones when absent. */
+  vaultProviders?: import("./vault/providers.js").ProviderHost;
   /** Quick Chat inference. ChatGPT plan usage stays off unless this build is eligible. */
   quickChat?: QuickChatHostOptions;
+  /** I1: chat app bridges. Tests pass fake adapters; the default build adds the real apps. */
+  bridges?: import("./bridges/service.js").BridgeHostOptions;
   /** Relay link (D124). Tuning is for tests; defaultUrl is the build's relay (ZOLTBOT_RELAY_URL). */
   relay?: {
     retry?: { baseMs: number; maxMs: number };

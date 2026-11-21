@@ -83,7 +83,10 @@ it("keeps a refused message, holds that chat's later ones, and sends other chats
 it("ignores a damaged file", async () => {
   dir = await mkdtemp(join(tmpdir(), "outbox-"));
   const { writeFile } = await import("node:fs/promises");
-  await writeFile(join(dir, "outbox.json"), '[{"id":1},"x",{"id":"ok","botId":"chat","parts":[],"text":"","attachments":[],"createdAt":"now"}]');
+  await writeFile(
+    join(dir, "outbox.json"),
+    '[{"id":1},"x",{"id":"ok","botId":"chat","parts":[],"text":"","attachments":[],"createdAt":"now"}]',
+  );
   const { box } = await outbox(async () => undefined);
   expect(box.list("chat").map((row) => row.id)).toEqual(["ok"]);
 });

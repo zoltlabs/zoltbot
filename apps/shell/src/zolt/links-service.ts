@@ -48,11 +48,17 @@ export function linkHandlers(client: Client): Record<string, (input: unknown) =>
       }
     },
     [C.linksEnabled]: () =>
-      linkPreviewsOn(client.rows("settings").find((row) => row.key === LINK_PREVIEW_SETTING)?.value),
+      linkPreviewsOn(
+        client.rows("settings").find((row) => row.key === LINK_PREVIEW_SETTING)?.value,
+      ),
     [C.linksSetEnabled]: async (input) => {
       if (typeof input !== "boolean") throw new Error("Invalid setting.");
       try {
-        await client.call("settings.set", { key: LINK_PREVIEW_SETTING, value: input }, randomUUID());
+        await client.call(
+          "settings.set",
+          { key: LINK_PREVIEW_SETTING, value: input },
+          randomUUID(),
+        );
       } catch {
         throw new Error("Couldn’t change link previews. Try again.");
       }

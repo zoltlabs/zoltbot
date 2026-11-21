@@ -10,7 +10,14 @@ export type GitHubTransport = (
   signal?: AbortSignal,
 ) => Promise<unknown>;
 /** No shell, interactive login, token extraction, inherited host, or raw stderr in errors. */
-export const ghTransport: GitHubTransport = async (endpoint, method = "GET", body, signal) => {
+export const ghTransport = async (
+  endpoint: string,
+  method = "GET",
+  body?: unknown,
+  signal?: AbortSignal,
+  /** An installation token to act as the Zoltbot app (I8); the owner's gh login otherwise. */
+  token?: string,
+): Promise<unknown> => {
   if (signal?.aborted) throw new Error("github_request_cancelled");
   if (
     !(
@@ -57,7 +64,14 @@ export const ghTransport: GitHubTransport = async (endpoint, method = "GET", bod
         endpoint,
       ],
       {
-        env: { ...env, GH_PROMPT_DISABLED: "1", GH_PAGER: "cat", NO_COLOR: "1" },
+        env: {
+          ...env,
+          // GH_TOKEN takes precedence over the owner's stored login and GITHUB_TOKEN.
+          ...(token ? { GH_TOKEN: token } : {}),
+          GH_PROMPT_DISABLED: "1",
+          GH_PAGER: "cat",
+          NO_COLOR: "1",
+        },
         stdio: ["pipe", "pipe", "pipe"],
         detached: process.platform !== "win32",
       },

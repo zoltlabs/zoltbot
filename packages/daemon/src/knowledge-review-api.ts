@@ -2,6 +2,7 @@ import type { DomainState } from "@zoltbot/core";
 import {
   confirmKnowledge,
   decideProposal,
+  forgetKnowledge,
   knowledgeHistory,
   revertKnowledge,
 } from "@zoltbot/knowledge";
@@ -21,6 +22,7 @@ const methods = new Set([
   "proposal.decide",
   "knowledge.agentWrites",
   "knowledge.confirm",
+  "knowledge.forget",
   "knowledge.revert",
   "knowledge.writes",
 ]);
@@ -154,6 +156,11 @@ export function knowledgeReviewApi(options: {
     if (method === "knowledge.confirm")
       return command(commandId, params, (snapshot, context) => {
         const outcome = confirmKnowledge(snapshot, id, expected, context);
+        return { result: outcome.result, events: outcome.events };
+      });
+    if (method === "knowledge.forget")
+      return command(commandId, params, (snapshot, context) => {
+        const outcome = forgetKnowledge(snapshot, id, String(params.quote), expected, context);
         return { result: outcome.result, events: outcome.events };
       });
     if (params.confirmed !== true) throw new Error("confirmation_required");

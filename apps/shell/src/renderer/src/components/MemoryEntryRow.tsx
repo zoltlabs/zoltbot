@@ -1,10 +1,11 @@
 // S5: one remembered entry on the Memory page. Opens in place to show the text, Edit, Archive
 // and its history with Revert to this.
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import type { MemoryEntry, MemoryWriter } from "../../../shared/memory";
 import { formatDate, t } from "../i18n";
 import { ConfirmDialog } from "../kit";
 import type { MemoryChange, MemoryStore } from "../memory-store";
+import { MemorySentencePicker, selectedQuote } from "./MemoryForget";
 
 export const memoryWhen = (at: string) => {
   const date = new Date(at);
@@ -41,6 +42,18 @@ export function MemoryEntryRow(props: {
   const [error, setError] = createSignal<string | null>(null);
   const [busy, setBusy] = createSignal(false);
   const [confirming, setConfirming] = createSignal(false);
+  const [picking, setPicking] = createSignal(false);
+  const [forgetting, setForgetting] = createSignal<string | null>(null);
+  // Read on pointer down, before the click can clear the selection.
+  let selected: string | null = null;
+  let bodyText: HTMLParagraphElement | undefined;
+  let forgetButton: HTMLButtonElement | undefined;
+  // The button says "Forget selection" while text in this entry is selected.
+  const [hasSelection, setHasSelection] = createSignal(false);
+  const onSelection = () => setHasSelection(!!selectedQuote(bodyText, props.entry.body));
+  document.addEventListener("selectionchange", onSelection);
+  onCleanup(() => document.removeEventListener("selectionchange", onSelection));
+  const backToForget = () => queueMicrotask(() => (forgetButton ?? toggle)?.focus());
   const regionId = () => `memory-entry-${props.entry.id.replace(/[^\w-]/g, "-")}`;
   // Re-read when the entry gets a new revision.
   const [history] = createResource(
@@ -88,6 +101,24 @@ export function MemoryEntryRow(props: {
     }
   }
 
+  function startForget(event: MouseEvent) {
+    setError(null);
+    // A pointer click uses what was selected when it pressed; a key press reads it now.
+    const quote =
+      event.detail > 0 && selected !== null ? selected : selectedQuote(bodyText, props.entry.body);
+    selected = null;
+    if (quote) setForgetting(quote);
+    else setPicking(true);
+  }
+
+  const dates = () =>
+    props.entry.validUntil
+      ? t("memory.entry.datesUntil", {
+          learned: memoryWhen(props.entry.createdAt),
+          until: memoryWhen(props.entry.validUntil),
+        })
+      : t("memory.entry.dates", { learned: memoryWhen(props.entry.createdAt) });
+
   return (
     <li class="memory-row" data-entry-id={props.entry.id}>
       <button
@@ -106,8 +137,29 @@ export function MemoryEntryRow(props: {
           <Show
             when={editing()}
             fallback={
-              <>
-                <p class="memory-body">{props.entry.body}</p>
+              <Show
+                when={!picking()}
+                fallback={
+                  <MemorySentencePicker
+                    body={props.entry.body}
+                    busy={busy()}
+                    onPick={(sentence) => {
+                      setPicking(false);
+                      setForgetting(sentence);
+                    }}
+                    onCancel={() => {
+                      setPicking(false);
+                      backToForget();
+                    }}
+                  />
+                }
+              >
+                <div class="memory-text">
+                  <p ref={bodyText} class="memory-body">
+                    {props.entry.body}
+                  </p>
+                  <p class="memory-dates">{dates()}</p>
+                </div>
                 <div class="memory-actions">
                   <button type="button" class="zb-kit-button" disabled={busy()} onClick={startEdit}>
                     {t("memory.entry.edit")}
@@ -123,8 +175,20 @@ export function MemoryEntryRow(props: {
                   >
                     {t("memory.entry.archive")}
                   </button>
+                  <button
+                    ref={forgetButton}
+                    type="button"
+                    class="zb-kit-button"
+                    disabled={busy() || !props.entry.body.trim()}
+                    onPointerDown={() => {
+                      selected = selectedQuote(bodyText, props.entry.body);
+                    }}
+                    onClick={startForget}
+                  >
+                    {t(hasSelection() ? "memory.entry.forgetSelection" : "memory.entry.forget")}
+                  </button>
                 </div>
-              </>
+              </Show>
             }
           >
             <form class="memory-edit" onSubmit={save}>
@@ -166,7 +230,7 @@ export function MemoryEntryRow(props: {
               </div>
             </form>
           </Show>
-          <Show when={error() && !confirming()}>
+          <Show when={error() && !confirming() && !forgetting()}>
             <p id={errorId()} class="memory-error" role="alert">
               {error()}
             </p>
@@ -238,6 +302,41 @@ export function MemoryEntryRow(props: {
             ).then((ok) => ok && setConfirming(false));
           }}
         />
+      </Show>
+      <Show when={forgetting()}>
+        {(quote) => (
+          <ConfirmDialog
+            title={t("memory.entry.forgetTitle")}
+            body={
+              quote().trim() === props.entry.body.trim()
+                ? t("memory.entry.forgetAllBody", { quote: quote() })
+                : quote()
+            }
+            confirmLabel={t("memory.entry.forgetConfirm")}
+            busy={busy()}
+            error={error()}
+            onCancel={() => {
+              setForgetting(null);
+              setError(null);
+              backToForget();
+            }}
+            onConfirm={() => {
+              // Forgetting all of the text archives the entry, so its row goes away.
+              const all = quote().trim() === props.entry.body.trim();
+              if (all) props.onRemoving();
+              void run(
+                () => props.store.forget(props.entry, quote()),
+                t(all ? "memory.entry.forgotAll" : "memory.entry.forgot", {
+                  title: props.entry.title,
+                }),
+              ).then((ok) => {
+                if (!ok) return;
+                setForgetting(null);
+                toggle?.focus();
+              });
+            }}
+          />
+        )}
       </Show>
     </li>
   );

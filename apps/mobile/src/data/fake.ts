@@ -1,5 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
 import {
+  chatCallsKey,
   type DomainEvent,
   isReactionEmoji,
   type MethodName,
@@ -10,6 +11,7 @@ import {
   methodCatalog,
   queueOrderKey,
   unservedMethods,
+  withCall,
   withHiddenMessage,
   withMessagePin,
   withMessageReaction,
@@ -447,6 +449,25 @@ export class FakeTransport implements Transport {
       }
       case "attachment.preview":
         return answerAttachmentPreview(this.rows("item"), p);
+      case "voice.call.log": {
+        // As zoltd (voice-api): one settings row per chat, oldest call first.
+        this.find("thread", p.threadId);
+        const key = chatCallsKey(String(p.threadId));
+        const prior = this.rows("settings").find((row) => row.key === key)?.value;
+        const calls = withCall(prior, {
+          id: `call-${Date.now().toString(36)}`,
+          startedAt: String(p.startedAt),
+          endedAt: String(p.endedAt),
+        });
+        this.put("settings", { key, value: calls });
+        return {};
+      }
+      // Sample mode has no ElevenLabs key; replies are read with the phone's own voice.
+      case "voice.status":
+        return { elevenlabs: false };
+      case "voice.voices":
+      case "voice.speak":
+        throw new Error("voice_not_set_up");
       case "message.pin":
       case "message.unpin": {
         // As zoltd (message-pins-api): one settings row per chat, newest pin first.

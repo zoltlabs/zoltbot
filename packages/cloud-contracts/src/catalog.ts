@@ -77,6 +77,33 @@ export const brokerServices = {
     description: "Search conversations and read channel threads.",
     documentation: "https://docs.slack.dev/ai/slack-mcp-server/",
   },
+  // I7: the existing Google registration, with a scope that needs Google's verification.
+  google_calendar: {
+    name: "Google Calendar",
+    origin: "https://www.googleapis.com",
+    resource: "https://www.googleapis.com/calendar/v3",
+    authorization: "https://accounts.google.com/o/oauth2/v2/auth",
+    token: "https://oauth2.googleapis.com/token",
+    scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    registration: "google",
+    permissions: "Read your calendars and events",
+    description: "Find meetings and read event details.",
+    documentation: "https://developers.google.com/workspace/calendar/api/guides/overview",
+  },
+  // I7: HubSpot's MCP server needs a registered app with a client secret; its scopes are set on
+  // that app, not requested here.
+  hubspot: {
+    name: "HubSpot",
+    origin: "https://mcp.hubspot.com",
+    resource: "https://mcp.hubspot.com",
+    authorization: "https://mcp.hubspot.com/oauth/authorize/user",
+    token: "https://mcp.hubspot.com/oauth/v3/token",
+    scopes: [],
+    registration: "hubspot",
+    permissions: "Read CRM records the app is allowed to see",
+    description: "Contacts, companies, deals and tickets from your CRM.",
+    documentation: "https://developers.hubspot.com/mcp",
+  },
 } as const;
 export type BrokerServiceId = keyof typeof brokerServices;
 export function isBrokerService(value: string): value is BrokerServiceId {
@@ -85,11 +112,15 @@ export function isBrokerService(value: string): value is BrokerServiceId {
 export const integrationPath = "/api/account/integrations";
 export const desktopClientId = "zoltbot-desktop";
 
-export type GoogleServiceId = "gmail" | "google_drive" | "google_docs";
+export const googleServiceIds = [
+  "gmail",
+  "google_drive",
+  "google_docs",
+  "google_calendar",
+] as const;
+export type GoogleServiceId = (typeof googleServiceIds)[number];
 export function googleServiceForResource(resource: string): GoogleServiceId | undefined {
-  return (["gmail", "google_drive", "google_docs"] as const).find(
-    (id) => brokerServices[id].resource === resource,
-  );
+  return googleServiceIds.find((id) => brokerServices[id].resource === resource);
 }
 
 /** Unverified Google services are visible only to an operator-started test daemon. */
@@ -103,7 +134,7 @@ export function availableBrokerServices(
   if (googleTesting && Array.isArray(value.testServices))
     services.push(
       ...value.testServices.filter((id): id is string =>
-        ["gmail", "google_drive", "google_docs"].includes(String(id)),
+        (googleServiceIds as readonly string[]).includes(String(id)),
       ),
     );
   return services;

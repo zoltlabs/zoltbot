@@ -3,6 +3,7 @@ import type { ThreadAction } from "../../../../shared/thread-actions";
 import type { BotProfile } from "../../data";
 import { type MessageKey, t } from "../../i18n";
 import { type Anchor, ConfirmDialog, Menu, type MenuItem } from "../../kit";
+import { PhoneIcon } from "../conversation/icons";
 import { DeleteIcon, EditIcon, RenameIcon } from "../SidebarIcons";
 import { ArchiveIcon, MutedIcon, PinIcon, UnreadIcon } from "./ChatIcons";
 
@@ -53,8 +54,10 @@ export function AgentContextMenu(props: {
   onRename: (botId: string) => void;
   onEdit: (botId: string) => void;
   onDelete: (botId: string) => void;
+  onCall?: (botId: string) => void;
 }) {
   const botId = props.menu.botId;
+  const call = props.onCall;
   return (
     <Menu
       anchor={props.menu.anchor}
@@ -64,6 +67,9 @@ export function AgentContextMenu(props: {
         [
           { id: "rename", label: "Rename", icon: <RenameIcon />, run: () => props.onRename(botId) },
           { id: "edit", label: "Edit agent", icon: <EditIcon />, run: () => props.onEdit(botId) },
+          ...(call
+            ? [{ id: "call", label: t("call.start"), icon: <PhoneIcon />, run: () => call(botId) }]
+            : []),
         ],
         props.chatItems ?? [],
         [

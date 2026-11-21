@@ -11,6 +11,7 @@ export type * from "./branches";
 export * from "./browser";
 export type * from "./co-author";
 export * from "./company";
+export type * from "./data";
 export * from "./dictation";
 export type * from "./hidden";
 export type * from "./links";
@@ -22,7 +23,9 @@ export type * from "./queue-order";
 export type * from "./spend";
 export type * from "./staff";
 export * from "./thread-actions";
+export type * from "./vault";
 export * from "./views";
+export type * from "./voice";
 
 import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
 import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
@@ -50,8 +53,10 @@ import type {
 import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
+import { DATA_CHANNELS, type DataDesktopApi } from "./data";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
@@ -61,7 +66,9 @@ import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
+import { VAULT_CHANNELS, type VaultDesktopApi } from "./vault";
 import type { ViewsDesktopApi } from "./views";
+import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -126,6 +133,7 @@ export const IPC_CHANNELS = {
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
+  ...DATA_CHANNELS,
   ...AGENT_BROWSER_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
@@ -134,9 +142,12 @@ export const IPC_CHANNELS = {
   ...PIN_CHANNELS,
   ...OUTBOX_CHANNELS,
   ...LINK_CHANNELS,
+  ...VAULT_CHANNELS,
+  ...VOICE_CHANNELS,
   ...HIDDEN_CHANNELS,
   ...AGENT_TEMPLATE_CHANNELS,
   ...CO_AUTHOR_CHANNELS,
+  ...BRIDGE_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -189,6 +200,8 @@ export interface UpdateStatus {
   progress: number | null;
   checkedAt: string | null;
   message: string | null;
+  /** D3: the release's notes as plain text, for "What's new". */
+  releaseNotes?: string | null;
 }
 
 export interface ExportResult {
@@ -589,6 +602,8 @@ export interface SendMessageInput {
   text: string;
   attachmentDraftIds?: string[];
   replyToMessageId?: string | null;
+  /** O2: said on a call. Steers a running reply; the first carries the call's guidance. */
+  call?: { first: boolean };
 }
 
 export interface SetMessageReactionInput {
@@ -782,6 +797,12 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** D7: move to another computer. Optional so test pages without it still load. */
+  bundle?: import("./bundle").BundleDesktopApi;
+  /** D6: Start fresh. Optional so test pages without it still load. */
+  fresh?: import("./start-fresh").StartFreshDesktopApi;
+  /** D4: the agent dock. Optional so test pages without it still load. */
+  dock?: import("./dock").DockDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
   views: ViewsDesktopApi;
@@ -790,6 +811,7 @@ export interface OpenBotDesktopApi {
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
+  data: DataDesktopApi;
   agentBrowser: AgentBrowserDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
@@ -798,7 +820,10 @@ export interface OpenBotDesktopApi {
   pins: PinsDesktopApi;
   outbox: OutboxDesktopApi;
   links: LinksDesktopApi;
+  vault: VaultDesktopApi;
+  voice: VoiceDesktopApi;
   hidden: HiddenDesktopApi;
   templates: AgentTemplatesDesktopApi;
   coAuthor: CoAuthorDesktopApi;
+  bridges: BridgesDesktopApi;
 }

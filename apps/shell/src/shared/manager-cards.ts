@@ -4,7 +4,7 @@ import type { StaffCard } from "./staff";
 
 /** One compact centered line: a message between agents, a supervision notice or a wait. */
 export interface ConversationNotice {
-  kind: "team" | "supervision" | "wait" | "continue" | "waiting" | "zoltbot";
+  kind: "team" | "supervision" | "wait" | "continue" | "waiting" | "zoltbot" | "call";
   /** Who it's from and, for messages, who it's to. `botId` opens that chat. */
   from?: { name: string; botId: string | null };
   to?: { name: string; botId: string | null };

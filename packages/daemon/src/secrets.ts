@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 export interface KeychainRequest {
-  op: "put" | "get" | "exists" | "remove" | "replace";
+  op: "put" | "get" | "exists" | "remove" | "replace" | "reveal" | "use";
+  /** V1: the vault's own keychain service, which `get` can't read. */
+  vault?: boolean;
+  /** reveal: the reason the Mac shows in its Touch ID or password prompt. */
+  reason?: string;
   account: string;
   value?: string;
 }
@@ -49,12 +53,24 @@ function result(value: unknown): Record<string, unknown> {
 }
 /** Only opaque references leave this boundary. The transport must never log its payload. */
 export class KeychainSecrets {
-  constructor(private readonly transport: KeychainTransport) {}
+  /** `presence` runs reveal, which waits for the owner, so it gets a longer timeout. */
+  constructor(
+    private readonly transport: KeychainTransport,
+    private readonly presence?: KeychainTransport,
+    private readonly vault = false,
+  ) {}
+  /** V1: the same keychain, under the vault's service. `read` types a value for the daemon. */
+  forVault(): KeychainSecrets {
+    return new KeychainSecrets(this.transport, this.presence, true);
+  }
+  private send(request: KeychainRequest, transport = this.transport) {
+    return transport(this.vault ? { ...request, vault: true } : request);
+  }
   async put(value: unknown): Promise<{ reference: string }> {
     const serialized = encode(value),
       id = randomUUID();
     try {
-      result(await this.transport({ op: "put", account: id, value: serialized }));
+      result(await this.send({ op: "put", account: id, value: serialized }));
     } catch {
       throw new Error("keychain_unavailable");
     }
@@ -63,7 +79,23 @@ export class KeychainSecrets {
   async read(reference: string): Promise<unknown> {
     const id = account(reference);
     try {
-      const response = result(await this.transport({ op: "get", account: id }));
+      const response = result(await this.send({ op: this.vault ? "use" : "get", account: id }));
+      if (typeof response.value !== "string" || Buffer.byteLength(response.value) > limit)
+        throw new Error("keychain_unavailable");
+      const value: unknown = JSON.parse(response.value);
+      encode(value);
+      return value;
+    } catch {
+      throw new Error("keychain_unavailable");
+    }
+  }
+  /** V1: reads a value only after the Mac's Touch ID or password prompt succeeds. */
+  async reveal(reference: string, reason = "show a saved value"): Promise<unknown> {
+    const id = account(reference);
+    try {
+      const response = result(
+        await this.send({ op: "reveal", account: id, reason }, this.presence ?? this.transport),
+      );
       if (typeof response.value !== "string" || Buffer.byteLength(response.value) > limit)
         throw new Error("keychain_unavailable");
       const value: unknown = JSON.parse(response.value);
@@ -77,7 +109,7 @@ export class KeychainSecrets {
     const id = account(reference),
       serialized = encode(value);
     try {
-      result(await this.transport({ op: "replace", account: id, value: serialized }));
+      result(await this.send({ op: "replace", account: id, value: serialized }));
     } catch {
       throw new Error("keychain_unavailable");
     }
@@ -85,7 +117,7 @@ export class KeychainSecrets {
   async remove(reference: string): Promise<void> {
     const id = account(reference);
     try {
-      result(await this.transport({ op: "remove", account: id }));
+      result(await this.send({ op: "remove", account: id }));
     } catch {
       throw new Error("keychain_unavailable");
     }
@@ -93,7 +125,7 @@ export class KeychainSecrets {
   async exists(reference: string): Promise<boolean> {
     const id = account(reference);
     try {
-      const response = result(await this.transport({ op: "exists", account: id }));
+      const response = result(await this.send({ op: "exists", account: id }));
       if (typeof response.found !== "boolean") throw new Error("keychain_unavailable");
       return response.found;
     } catch {

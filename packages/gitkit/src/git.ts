@@ -2,7 +2,12 @@ import { spawn } from "node:child_process";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 
-export async function git(cwd: string, args: readonly string[], write = false): Promise<string> {
+export async function git(
+  cwd: string,
+  args: readonly string[],
+  write = false,
+  extraEnv: Record<string, string> = {},
+): Promise<string> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
   );
@@ -12,7 +17,7 @@ export async function git(cwd: string, args: readonly string[], write = false): 
       [...(write ? [] : ["--no-optional-locks", "-c", "core.fsmonitor=false"]), ...args],
       {
         cwd,
-        env: { ...env, GIT_TERMINAL_PROMPT: "0" },
+        env: { ...env, GIT_TERMINAL_PROMPT: "0", ...extraEnv },
         detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
       },
