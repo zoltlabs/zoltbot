@@ -295,6 +295,10 @@ export function setUpAppTest() {
       hidden: {
         set: vi.fn().mockResolvedValue(undefined),
       },
+      templates: {
+        list: vi.fn().mockResolvedValue([]),
+        create: vi.fn(),
+      },
       aside: {
         ask: vi.fn().mockResolvedValue({ threadId: "aside-thread" }),
         continue: vi.fn().mockResolvedValue(undefined),

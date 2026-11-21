@@ -358,3 +358,36 @@ it("hides and shows a message in sample mode", async () => {
   expect(await call("message.unhide", params)).toEqual({ hidden: [] });
   client.stop();
 });
+
+describe("agent templates in sample mode", () => {
+  it("lists templates and creates a profile from one", async () => {
+    const fake = new FakeTransport({ replyDelayMs: 1 });
+    const client = createClient(fake);
+    await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+    const listed = (await client.getState().call("agent.templates.list", {})) as {
+      items: { id: string }[];
+    };
+    expect(listed.items.map((row) => row.id)).toContain("code-reviewer");
+    const value = {
+      id: "reviewer",
+      templateId: "code-reviewer",
+      name: "Rita",
+      avatar: "R",
+      kind: "profile",
+      definitionId: "claude",
+      permissionProfile: "workspace_write",
+      instructions: "Review.",
+      hidden: false,
+      archived: false,
+    };
+    await client.getState().call("agent.create", { value });
+    await vi.waitFor(() =>
+      expect(
+        client.getState().snapshot.entities.agent?.find((row) => row.id === "reviewer"),
+      ).toMatchObject({ templateId: "code-reviewer" }),
+    );
+    await expect(
+      client.getState().call("agent.create", { value: { ...value, templateId: "nope" } }),
+    ).rejects.toThrow("agent_template_unavailable");
+  });
+});

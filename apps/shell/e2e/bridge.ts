@@ -286,6 +286,10 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       hidden: {
         set: call(channels.hiddenSet),
       },
+      templates: {
+        list: call(channels.agentTemplatesList),
+        create: call(channels.agentTemplatesCreate),
+      },
       // The headless page has no view scheme, so it reports no installed map.
       views: {
         getMap: async () => null,

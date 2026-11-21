@@ -1,9 +1,10 @@
 import { terms } from "@zoltbot/protocol";
 import { chiefDefaultProfile, chiefKeys, chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { readTemplates, type TemplateRow, templateProfile } from "../data/agent-templates";
 import { type Attachment, composeInput } from "../data/attachments";
 import {
   type DispatchPlace,
@@ -21,6 +22,7 @@ import { Attachments } from "../ui/Attachments";
 import { OfflineBanner } from "../ui/chrome";
 import { Icon } from "../ui/icons";
 import { Avatar, Button, Row, Segmented, Txt } from "../ui/kit";
+import { type TemplateDraft, TemplatePicker } from "../ui/TemplatePicker";
 
 type Mode = "chat" | "task";
 
@@ -48,6 +50,30 @@ export default function NewWork() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showDoneWhen, setShowDoneWhen] = useState(false);
   const [doneWhen, setDoneWhen] = useState("");
+  const [templates, setTemplates] = useState<TemplateRow[]>([]);
+  const [template, setTemplate] = useState<TemplateRow>();
+  const [draft, setDraft] = useState<TemplateDraft>({ role: "", instructions: "" });
+  // The profile a template makes: its id is kept for retries, and once created it is reused.
+  const templateProfileId = useRef<string | undefined>(undefined);
+  const templateProfileCreated = useRef(false);
+  const forgetTemplateProfile = () => {
+    templateProfileId.current = undefined;
+    templateProfileCreated.current = false;
+  };
+
+  useEffect(() => {
+    if (!online) return;
+    let live = true;
+    useLink
+      .getState()
+      .client?.getState()
+      .call("agent.templates.list", {})
+      .then((result) => live && setTemplates(readTemplates(result)))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [online]);
 
   const chief = params.mode === "zolt";
   const employee = params.mode === "employee";
@@ -124,6 +150,34 @@ export default function NewWork() {
       return;
     }
     const at = new Date().toISOString();
+    let agentId = who;
+    const base = people.find((profile) => text(profile.id) === who);
+    if (template && templateProfileCreated.current && templateProfileId.current)
+      agentId = templateProfileId.current;
+    else if (template && base && !createdThreadId) {
+      templateProfileId.current ??= newId("profile");
+      const catalog = (await useLink
+        .getState()
+        .client?.getState()
+        .call("model.catalog", {})
+        .catch(() => undefined)) as
+        | { items?: { definitionId: string; effort: string[] }[] }
+        | undefined;
+      const efforts =
+        catalog?.items?.find((row) => row.definitionId === base.definitionId)?.effort ?? [];
+      const value = templateProfile(
+        template,
+        base,
+        { name: employee ? message.trim() : template.name, ...draft },
+        templateProfileId.current,
+        at,
+        efforts,
+      );
+      const profile = await run("agent.create", { value }, { key: templateProfileId.current });
+      if (!profile) return;
+      templateProfileCreated.current = true;
+      agentId = templateProfileId.current;
+    }
     const id = createdThreadId ?? newId("thread");
     const created =
       createdThreadId ||
@@ -132,7 +186,7 @@ export default function NewWork() {
         {
           value: {
             id,
-            agentId: who,
+            agentId,
             ...(chief ? {} : { projectId, node }),
             kind: chief ? "main" : "side",
             title: chief ? name : employee ? message.trim() : derivedTitle || "New chat",
@@ -147,7 +201,7 @@ export default function NewWork() {
           key: JSON.stringify([
             "create-chat",
             params.mode,
-            who,
+            agentId,
             node,
             message,
             attachments.map((attachment) => attachment.id),
@@ -358,6 +412,7 @@ export default function NewWork() {
                     onPress={() => {
                       userPickedProfile.current = true;
                       setPickedProfileId(id);
+                      forgetTemplateProfile();
                     }}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: on, disabled: locked }}
@@ -379,6 +434,24 @@ export default function NewWork() {
             </View>
           </View>
         </View>
+
+        {!chief && !task ? (
+          <TemplatePicker
+            templates={templates}
+            picked={template}
+            draft={draft}
+            disabled={locked}
+            onPick={(next) => {
+              forgetTemplateProfile();
+              setTemplate(next);
+              setDraft({ role: next?.role ?? "", instructions: next?.instructions ?? "" });
+            }}
+            onDraft={(next) => {
+              forgetTemplateProfile();
+              setDraft(next);
+            }}
+          />
+        ) : null}
 
         {!chief && !employee && (!task || kind === "fake") ? (
           <Attachments value={attachments} onChange={setAttachments} disabled={busy} />

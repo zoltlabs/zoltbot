@@ -141,6 +141,11 @@ export function applyStaffChange(
       model: string;
       folders: string[];
     };
+    const { role, extra, templateId } = plan.resolved as {
+      role: string;
+      extra: string;
+      templateId?: string;
+    };
     const profileId = `${id}-profile`;
     const employee = String(plan.resolved.name);
     run.add(
@@ -158,8 +163,9 @@ export function applyStaffChange(
             ...(model ? { model } : {}),
             ...(text(template.effort) ? { effort: template.effort } : {}),
             permissionProfile: template.permissionProfile,
-            instructions: employeeInstructions(request.role, folders, request.instructions ?? ""),
-            ...(request.role.trim() ? { roleText: request.role.trim() } : {}),
+            instructions: employeeInstructions(role, folders, extra),
+            ...(role ? { roleText: role } : {}),
+            ...(templateId ? { templateId } : {}),
             hidden: false,
             archived: false,
             createdAt: context.at,

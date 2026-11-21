@@ -399,3 +399,41 @@ describe("changing an employee", () => {
     });
   });
 });
+
+describe("hiring from a template", () => {
+  it("fills the role and instructions and shows the template on the card", () => {
+    const state = company();
+    const request = add({ role: "", templateId: "qa-tester" });
+    const plan = planStaffChange(state, manager, request);
+    expect(plan.preview.fields[0]).toEqual({ label: "From template", after: "QA tester" });
+    expect(plan.preview.fields).toContainEqual({
+      label: "Role",
+      after: "Finds bugs before people do",
+    });
+    const next = run(
+      state,
+      applyStaffChange(state, manager, request, "quinn", ctx("approve", "human"), {
+        interactionId: "i-1",
+      }),
+    );
+    const hired = next.agent?.find((r) => r.id === "quinn-profile");
+    expect(hired).toMatchObject({
+      templateId: "qa-tester",
+      roleText: "Finds bugs before people do",
+    });
+    expect(hired?.instructions).toContain("You test the product");
+  });
+
+  it("refuses unknown templates, and templates not meant for managers", () => {
+    const state = company();
+    expect(() => planStaffChange(state, manager, add({ templateId: "nope" }))).toThrow(
+      "agent_template_unavailable",
+    );
+    expect(() => planStaffChange(state, manager, add({ templateId: "bookkeeper" }))).toThrow(
+      "agent_template_unavailable",
+    );
+    expect(() =>
+      planStaffChange(state, undefined, add({ templateId: "bookkeeper", teamId: "pay" })),
+    ).not.toThrow();
+  });
+});

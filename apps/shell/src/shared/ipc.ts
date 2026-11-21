@@ -1,6 +1,7 @@
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
 export type * from "./aside";
@@ -42,6 +43,7 @@ import type {
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
+import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
@@ -121,6 +123,7 @@ export const IPC_CHANNELS = {
   ...ASIDE_CHANNELS,
   ...PIN_CHANNELS,
   ...HIDDEN_CHANNELS,
+  ...AGENT_TEMPLATE_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -752,4 +755,5 @@ export interface OpenBotDesktopApi {
   aside: AsideDesktopApi;
   pins: PinsDesktopApi;
   hidden: HiddenDesktopApi;
+  templates: AgentTemplatesDesktopApi;
 }

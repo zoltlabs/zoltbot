@@ -1,5 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import {
+  agentTemplate,
+  agentTemplates,
   applyEvents,
   createDirection,
   createScopedChat,
@@ -33,6 +35,7 @@ export function creationApi(host: {
     params: Record<string, unknown>,
     commandId?: string,
   ): Promise<unknown> => {
+    if (method === "agent.templates.list") return { items: agentTemplates };
     const creations = {
       "agent.create": { kind: "agent", schema: ProfileSchema },
       "thread.create": { kind: "thread", schema: ThreadSchema },
@@ -73,6 +76,12 @@ export function creationApi(host: {
       return replay.result;
     }
     let definition: AgentDefinition | undefined;
+    if (
+      kind === "agent" &&
+      value.templateId !== undefined &&
+      !agentTemplate(String(value.templateId))
+    )
+      throw Error("agent_template_unavailable");
     if (kind === "agent") {
       const stored = host.store
         .snapshot(["agentDefinition"])

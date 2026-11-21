@@ -292,3 +292,29 @@ it("checks project availability inside the thread transaction after asynchronous
     test.close();
   }
 });
+it("lists agent templates and records the template a profile came from", async () => {
+  const test = await fixture();
+  try {
+    const listed = (await test.api("agent.templates.list", {})) as {
+      items: { id: string; name: string; role: string }[];
+    };
+    expect(listed.items).toHaveLength(16);
+    expect(listed.items[0]).toMatchObject({ id: "frontend-engineer", name: "Frontend engineer" });
+    const fromTemplate = { ...profile, id: "reviewer", templateId: "code-reviewer" };
+    expect(await test.api("agent.create", { value: fromTemplate }, "template-command")).toEqual(
+      fromTemplate,
+    );
+    expect(test.store.snapshot().agent?.find((row) => row.id === "reviewer")?.templateId).toBe(
+      "code-reviewer",
+    );
+    await expect(
+      test.api(
+        "agent.create",
+        { value: { ...profile, id: "ghost", templateId: "no-such-template" } },
+        "ghost-command",
+      ),
+    ).rejects.toThrow("agent_template_unavailable");
+  } finally {
+    test.close();
+  }
+});

@@ -1,5 +1,6 @@
 import { type TSchema, Type } from "@sinclair/typebox";
 import { AgentEventSchema } from "./adapter-events.js";
+import { agentTemplateMethods } from "./agent-templates.js";
 import {
   ArtifactCommentSchema,
   ArtifactSchema,
@@ -210,6 +211,7 @@ const rawMethodCatalog = {
   ...quickChatMethods,
   ...backupModelMethods,
   ...staffMethods,
+  ...agentTemplateMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
     object({ protocolVersion: Type.Integer(), version: Text }),

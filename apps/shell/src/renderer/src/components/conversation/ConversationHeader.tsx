@@ -1,8 +1,14 @@
 import { createMemo, createSignal, createUniqueId, For, onMount, Show } from "solid-js";
-import type { AgentModelId, AgentModelOption, AgentStatus } from "../../../../shared/ipc";
+import type {
+  AgentModelId,
+  AgentModelOption,
+  AgentStatus,
+  BotSummary,
+} from "../../../../shared/ipc";
 import type { BotProfile } from "../../data";
 import { Suggestions } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
+import { NewAgentDialog } from "../NewAgentDialog";
 import { OrganizationIcon } from "../OrganizationPanel";
 import { ProviderModelPicker } from "../ProviderModelPicker";
 import { SidebarToggleIcon } from "../Sidebar";
@@ -17,7 +23,8 @@ export function ConversationHeader(props: {
   bot: BotProfile | undefined;
   bots: BotProfile[];
   creatingAgent: boolean;
-  onCreateAgent: () => void;
+  /** Without a bot: start a blank agent. With one: show the agent a template just created. */
+  onCreateAgent: (created?: BotSummary) => void;
   onSelectAgent: (botId: string) => void;
   onCloseAgentPicker: () => void;
   onOpenSettings: () => void;
@@ -35,8 +42,26 @@ export function ConversationHeader(props: {
   onToggleScreen: () => void;
 }) {
   const context = createContextUsage(() => props.bot?.id);
+  const [newAgentOpen, setNewAgentOpen] = createSignal(false);
   return (
     <>
+      <Show when={newAgentOpen()}>
+        <NewAgentDialog
+          projectId={null}
+          onStartBlank={() => {
+            setNewAgentOpen(false);
+            props.onCreateAgent();
+          }}
+          onCreated={(bot) => {
+            setNewAgentOpen(false);
+            props.onCreateAgent(bot);
+          }}
+          onClose={() => {
+            setNewAgentOpen(false);
+            props.onCloseAgentPicker();
+          }}
+        />
+      </Show>
       <header class="window-drag conversation-header">
         <Show when={props.leftSidebarCollapsed}>
           <button
@@ -124,7 +149,8 @@ export function ConversationHeader(props: {
           <AgentPicker
             bots={props.bots}
             creatingAgent={props.creatingAgent}
-            onCreateAgent={props.onCreateAgent}
+            onCreateAgent={() => setNewAgentOpen(true)}
+            listHidden={newAgentOpen()}
             onSelectAgent={props.onSelectAgent}
             onClose={props.onCloseAgentPicker}
           />
@@ -138,6 +164,8 @@ export function ConversationHeader(props: {
 }
 
 function AgentPicker(props: {
+  /** True while the New agent dialog covers the picker. */
+  listHidden: boolean;
   bots: BotProfile[];
   creatingAgent: boolean;
   onCreateAgent: () => void;
@@ -196,7 +224,7 @@ function AgentPicker(props: {
           onKeyDown={handleKeyDown}
         />
       </label>
-      <Show when={field()}>
+      <Show when={props.listHidden ? undefined : field()}>
         {(anchor) => (
           <Suggestions anchor={anchor()} placement="bottom-start" matchWidth>
             <div id={listId} class="agent-picker-menu" role="listbox" aria-label="Agents">
@@ -209,7 +237,7 @@ function AgentPicker(props: {
                 class="agent-picker-option agent-picker-create"
                 disabled={props.creatingAgent}
                 onPointerDown={(event) => event.preventDefault()}
-                onClick={props.onCreateAgent}
+                onClick={() => props.onCreateAgent()}
               >
                 <span class="agent-picker-plus">
                   <PlusIcon />

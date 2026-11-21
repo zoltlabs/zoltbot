@@ -825,7 +825,11 @@ export function App() {
               settingsRequest={settingsRequest()}
               onboardingRequest={onboardingRequest()}
               onCloseAgentPicker={() => setAgentPickerOpen(false)}
-              onCreateAgent={() => void createAgent()}
+              onCreateAgent={(created) => {
+                if (!created) return void createAgent();
+                showCreatedAgent(created);
+                setAgentPickerOpen(false);
+              }}
               onSelectAgent={selectBot}
               onUpdateBot={updateBot}
               onSendMessage={sendMessage}

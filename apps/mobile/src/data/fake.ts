@@ -15,6 +15,7 @@ import {
   withMessageReaction,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
+import { answerAgentTemplates } from "./fake-agent-templates.js";
 import { answerChannel } from "./fake-channels.js";
 import { addSampleCompany } from "./fake-company.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
@@ -528,7 +529,8 @@ export class FakeTransport implements Transport {
         const managed =
           this.manage.answer(method, p) ??
           answerChannel(this.manage.store, method, p) ??
-          answerManager(method, p, this.manage.store);
+          answerManager(method, p, this.manage.store) ??
+          answerAgentTemplates(method, p, (row) => this.put("agent", row, "created"));
         if (managed === undefined)
           throw new Error(`The sample data does not answer ${method} yet.`);
         return managed;

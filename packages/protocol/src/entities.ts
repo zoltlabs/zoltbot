@@ -22,6 +22,8 @@ import { PhaseExecutionSchema } from "./orchestration.js";
 
 export const ProfileSchema = object({
   template: Type.Optional(Type.Literal("artifact_designer")),
+  /** A1: the agent template this profile was created from. */
+  templateId: Type.Optional(Text),
   id: Id,
   name: Text,
   avatar: Text,

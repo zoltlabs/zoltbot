@@ -188,6 +188,7 @@ describe("Zoltbot connected desktop shell", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "New agent" }));
     await fireEvent.click(screen.getByRole("option", { name: "Create new agent" }));
+    await fireEvent.click(await screen.findByRole("button", { name: "Start blank" }));
 
     expect(await screen.findByRole("heading", { name: "New agent" })).toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Agent settings" })).not.toBeInTheDocument();

@@ -23,6 +23,8 @@ export const StaffRequestSchema = Type.Union([
     teamId: Type.Optional(Id),
     /** The profile to copy the provider from. Defaults to the requesting manager's profile. */
     profileId: Type.Optional(Id),
+    /** A1: an agent template to fill the role and instructions from. */
+    templateId: Type.Optional(Type.String({ pattern: "^[a-z0-9-]{1,60}$" })),
     model: Type.Optional(Model),
     instructions: Type.Optional(Instructions),
     /** Folders the employee may edit, relative to the project. Empty means no folder limit. */

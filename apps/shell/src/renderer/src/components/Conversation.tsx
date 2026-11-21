@@ -5,6 +5,7 @@ import type {
   AgentModelOption,
   AgentReasoningEffort,
   AgentStatus,
+  BotSummary,
   BrowserControlState,
   BrowserTab,
   DraftAttachment,
@@ -66,7 +67,7 @@ interface ConversationProps {
   leftSidebarCollapsed: boolean;
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
   onCloseAgentPicker: () => void;
-  onCreateAgent: () => void;
+  onCreateAgent: (created?: BotSummary) => void;
   onSelectAgent: (botId: string) => void;
   onUpdateBot: (botId: string, updates: Omit<UpdateBotInput, "botId">) => Promise<void>;
   onSendMessage: (

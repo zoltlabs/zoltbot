@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import {
+  agentTemplates,
   applyEvents,
   applyStaffChange,
   planStaffChange,
@@ -25,8 +26,12 @@ import {
 import type { RuntimeContext } from "./api-types.js";
 
 /** What `company_work` describe says about action `staff`. */
-export const staffToolContract =
-  "request {kind:'add',name,role,teamId?,profileId?,model?,instructions?,folders?:[path],firstTask?:{title,brief}} | {kind:'change',threadId,name?,role?,model?,instructions?} | {kind:'archive',threadId,moveTo?:chatId}. Stable key. The owner approves unless your standing allowance covers an add; the outcome arrives as a message. Archive moves queued tasks to moveTo or your manager; running work finishes first.";
+export const staffToolContract = `request {kind:'add',name,role,teamId?,profileId?,templateId?,model?,instructions?,folders?:[path],firstTask?:{title,brief}} | {kind:'change',threadId,name?,role?,model?,instructions?} | {kind:'archive',threadId,moveTo?:chatId}. templateId fills role and instructions: ${agentTemplates
+  .filter((row) => row.managerFriendly)
+  .map((row) => row.id)
+  .join(
+    ", ",
+  )}. Stable key. The owner approves unless your standing allowance covers an add; the outcome arrives as a message. Archive moves queued tasks to moveTo or your manager; running work finishes first.`;
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const title = (preview: StaffPreview) =>
