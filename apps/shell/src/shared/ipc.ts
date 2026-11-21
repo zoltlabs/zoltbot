@@ -447,7 +447,8 @@ export type AttachmentImportEvent =
 
 export interface OpenAttachmentInput {
   attachmentId: string;
-  action: "open" | "reveal";
+  /** "save" asks where to save a copy; "copy" puts a picture on the clipboard (C17). */
+  action: "open" | "reveal" | "save" | "copy";
 }
 
 export type QueueDeliveryStatus =

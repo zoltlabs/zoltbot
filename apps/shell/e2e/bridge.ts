@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
+import { runAttachmentAction } from "../src/main/attachment-actions";
 import { preferenceHandlers } from "../src/main/desktop/preferences-handlers";
 import { IPC_CHANNELS } from "../src/shared/ipc";
 import { normalizePreferences, parsePreferencesPatch } from "../src/shared/preferences";
 import { agentHandlers, type Handler } from "../src/zolt/agent-handlers";
+import { parseOpenAttachment } from "../src/zolt/parsers";
 import type { ZoltService } from "../src/zolt/zolt-service";
 
 export const SHELL_ORIGIN = "http://shell.test";
@@ -59,6 +61,21 @@ export function shellHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.browserGetControlState]: () => ({ sessions: [] }),
     [IPC_CHANNELS.browserSetVisible]: () => undefined,
     [IPC_CHANNELS.agentChooseAttachments]: () => [],
+    // Main's own attachment actions, with Finder, apps, the save panel and clipboard stubbed.
+    [IPC_CHANNELS.agentOpenAttachment]: (input) => {
+      const parsed = parseOpenAttachment(input);
+      return runAttachmentAction(
+        {
+          window: () => null,
+          showItemInFolder: () => undefined,
+          openPath: async () => "",
+          showSaveDialog: async () => ({ canceled: true }),
+          writeImage: (bytes) => bytes.length > 0,
+        },
+        parsed,
+        service.attachmentSource(parsed.attachmentId),
+      );
+    },
     [IPC_CHANNELS.agentCreateProject]: () =>
       service.createProject(mkdtempSync(join(tmpdir(), "launch-"))),
   };

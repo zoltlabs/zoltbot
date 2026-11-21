@@ -25,11 +25,15 @@ export function SentFiles({
           label={file.name}
           a11y={`Preview ${file.name}`}
           icon={<Icon name="attach" color={c["text-secondary"]} size={c["space-5"]} />}
-          onPress={() =>
+          onPress={() => {
+            const where = `id=${encodeURIComponent(threadId)}&item=${encodeURIComponent(itemId)}&part=${file.part}`;
+            // A picture opens the chat's gallery (C17); any other file its own preview.
             router.push(
-              `/chat/attachment?id=${encodeURIComponent(threadId)}&item=${encodeURIComponent(itemId)}&part=${file.part}&name=${encodeURIComponent(file.name)}`,
-            )
-          }
+              file.kind === "image"
+                ? `/chat/gallery?${where}`
+                : `/chat/attachment?${where}&name=${encodeURIComponent(file.name)}`,
+            );
+          }}
         />
       ))}
     </View>

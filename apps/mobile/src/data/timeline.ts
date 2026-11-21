@@ -174,6 +174,21 @@ function sentFiles(value: Row): SentFile[] {
   return files;
 }
 
+/** C17: every picture the owner sent in a chat, oldest first, for the phone's gallery. */
+export function chatPictures(
+  snapshot: Snapshot,
+  threadId: string,
+): { itemId: string; part: number; name: string }[] {
+  return (snapshot.entities.item ?? [])
+    .filter((item) => item.threadId === threadId && item.kind === "user")
+    .sort((a, b) => Number(a.seq) - Number(b.seq))
+    .flatMap((item) =>
+      sentFiles(body(item))
+        .filter((file) => file.kind === "image")
+        .map((file) => ({ itemId: text(item.id), part: file.part, name: file.name })),
+    );
+}
+
 export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[] {
   const items = (snapshot.entities.item ?? [])
     .filter((item) => item.threadId === threadId)

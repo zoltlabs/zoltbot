@@ -1,9 +1,10 @@
 import { createSignal, For, Show } from "solid-js";
-import type { AttachmentSummary } from "../../../../shared/ipc";
+import type { AttachmentSummary, OpenAttachmentInput } from "../../../../shared/ipc";
 import { t } from "../../i18n";
-import { Dialog } from "../../kit";
+import { Dialog, showToast } from "../../kit";
 import type { MediaPreview } from "./constants";
 import { FilePreview } from "./FilePreview";
+import { Gallery, isGalleryImage } from "./Gallery";
 
 export function AttachmentCards(props: {
   attachments: AttachmentSummary[];
@@ -67,12 +68,37 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+type AttachmentAction = OpenAttachmentInput["action"];
+
 export function MediaPreviewDialog(props: {
   preview: MediaPreview;
   onClose: () => void;
-  onAction: (attachment: AttachmentSummary, action: "open" | "reveal") => void;
+  onAction: (attachment: AttachmentSummary, action: AttachmentAction) => void;
 }) {
   const attachment = () => props.preview.attachment;
+  return (
+    <Show
+      when={!props.preview.images}
+      fallback={
+        <Gallery
+          images={props.preview.images ?? []}
+          start={(props.preview.images ?? []).findIndex((image) => image.id === attachment().id)}
+          onClose={props.onClose}
+          onAction={props.onAction}
+        />
+      }
+    >
+      <FileDialog attachment={attachment()} onClose={props.onClose} onAction={props.onAction} />
+    </Show>
+  );
+}
+
+function FileDialog(props: {
+  attachment: AttachmentSummary;
+  onClose: () => void;
+  onAction: (attachment: AttachmentSummary, action: AttachmentAction) => void;
+}) {
+  const attachment = () => props.attachment;
   return (
     <Dialog
       title={attachment().name}
@@ -110,19 +136,40 @@ export function MediaPreviewDialog(props: {
   );
 }
 
-/** The attachment preview dialog's state, and opening an attachment in Finder or its app. */
-export function createMediaPreview(onError: (message: string) => void) {
+/**
+ * The attachment preview dialog's state, and acting on an attachment. A picture from the chat
+ * opens the gallery of every picture in it (C17).
+ */
+export function createMediaPreview(
+  onError: (message: string) => void,
+  messages: () => readonly { attachments?: AttachmentSummary[] }[] = () => [],
+) {
   const [mediaPreview, setMediaPreview] = createSignal<MediaPreview | null>(null);
 
   function previewAttachment(attachment: AttachmentSummary) {
     if (!attachment.previewUrl || attachment.previewKind === "none") return;
-    setMediaPreview({ attachment });
+    const images = isGalleryImage(attachment)
+      ? messages()
+          .flatMap((message) => message.attachments ?? [])
+          .filter(isGalleryImage)
+      : [];
+    const inChat = images.some((image) => image.id === attachment.id);
+    setMediaPreview({ attachment, images: inChat ? images : null });
   }
 
-  function attachmentAction(attachment: AttachmentSummary, action: "open" | "reveal") {
+  function attachmentAction(attachment: AttachmentSummary, action: AttachmentAction) {
+    const failed = (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      // The gallery covers the composer, so its errors show as a toast.
+      if (action === "copy" || action === "save") showToast({ message });
+      else onError(message);
+    };
     void window.openbot.agent
       .openAttachment({ attachmentId: attachment.id, action })
-      .catch((error) => onError(error instanceof Error ? error.message : String(error)));
+      .then(() => {
+        if (action === "copy") showToast({ message: t("chat.gallery.copied") });
+      })
+      .catch(failed);
   }
 
   return { mediaPreview, setMediaPreview, previewAttachment, attachmentAction };

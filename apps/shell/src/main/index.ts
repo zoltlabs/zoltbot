@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
-import { filePreviewKind } from "@zoltbot/protocol";
 import {
   app,
   BrowserWindow,
@@ -11,6 +10,7 @@ import {
   ipcMain,
   Menu,
   Notification,
+  nativeImage,
   nativeTheme,
   type OpenDialogOptions,
   protocol,
@@ -41,6 +41,7 @@ import { viewHandlers, viewMessages } from "../zolt/view-handlers";
 import { ViewHost } from "../zolt/view-host";
 import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
+import { runAttachmentAction } from "./attachment-actions";
 import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
@@ -380,18 +381,23 @@ function registerIpcHandlers(setupFile: string): void {
   });
   handleTrusted(IPC_CHANNELS.agentOpenAttachment, async (input: unknown) => {
     const parsed = parseOpenAttachment(input);
-    const source = service.attachmentSource(parsed.attachmentId);
-    const path = source && "path" in source ? source.path : undefined;
-    if (!path) throw new Error("Attachment was not found.");
-    if (parsed.action === "reveal") {
-      shell.showItemInFolder(path);
-      return;
-    }
-    // A sent message can name any path, so only documents with a preview open in their app.
-    if (parsed.attachmentId.startsWith("item:") && filePreviewKind(path) === "none")
-      throw new Error("Only documents open from a chat.");
-    const error = await shell.openPath(path);
-    if (error) throw new Error(error);
+    await runAttachmentAction(
+      {
+        window: () => mainWindow,
+        showItemInFolder: (path) => shell.showItemInFolder(path),
+        openPath: (path) => shell.openPath(path),
+        showSaveDialog: (window, options) =>
+          window ? dialog.showSaveDialog(window, options) : dialog.showSaveDialog(options),
+        writeImage: (bytes) => {
+          const image = nativeImage.createFromBuffer(bytes);
+          if (image.isEmpty()) return false;
+          clipboard.writeImage(image);
+          return true;
+        },
+      },
+      parsed,
+      service.attachmentSource(parsed.attachmentId),
+    );
   });
 
   handleTrusted(IPC_CHANNELS.dictationStatus, (params: unknown) =>

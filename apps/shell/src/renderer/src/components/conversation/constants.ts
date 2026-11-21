@@ -14,6 +14,8 @@ export interface ComposerDraft {
 
 export interface MediaPreview {
   attachment: AttachmentSummary;
+  /** Every picture in the chat when the attachment is one (C17), else null. */
+  images: AttachmentSummary[] | null;
 }
 
 export type RightPanelMode = "none" | "browser" | "settings" | "organization" | "artifact";

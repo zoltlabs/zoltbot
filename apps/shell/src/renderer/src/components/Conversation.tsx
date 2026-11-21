@@ -116,8 +116,10 @@ export function Conversation(props: ConversationProps) {
   const [showAttachments, setShowAttachments] = createSignal(false);
   const [attachmentBusy, setAttachmentBusy] = createSignal(false);
   const [composerError, setComposerError] = createSignal<string | null>(null);
-  const { mediaPreview, setMediaPreview, previewAttachment, attachmentAction } =
-    createMediaPreview(setComposerError);
+  const { mediaPreview, setMediaPreview, previewAttachment, attachmentAction } = createMediaPreview(
+    setComposerError,
+    () => props.messages,
+  );
   const [settingsSaveError, setSettingsSaveError] = createSignal<string | null>(null);
   const [submitting, setSubmitting] = createSignal(false);
   const [dropActive, setDropActive] = createSignal(false);
