@@ -27,6 +27,7 @@ import type {
 import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
+import { type Outbox, turnOutbox, unreachable, waitingMessage } from "../main/outbox";
 import { chooseAgent } from "./agent-choice";
 import { asideSource, asideThreads, withAsides } from "./asides";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
@@ -117,6 +118,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   /** Coding tool sign-ins and backup orders. */
   readonly accounts: ReturnType<typeof modelsService>;
+  /** C12: messages waiting until the daemon is reachable. */
+  readonly outbox: Outbox;
   /** How full each chat's context is, and compaction. */
   readonly context: ReturnType<typeof contextService>;
 
@@ -129,6 +132,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     this.context = contextService(client, (botId) => this.preferences.bots[botId]?.contextFull);
     this.context.attach(this);
     client.onChange((change) => this.changed(change));
+    this.outbox = turnOutbox(client, this.file("outbox.json"), (id) => this.emitConversation(id));
   }
 
   async initialize(): Promise<void> {
@@ -136,6 +140,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       const raw = JSON.parse(await readFile(this.file("preferences.json"), "utf8"));
       this.preferences = { bots: raw.bots ?? {}, reactions: raw.reactions ?? {} };
     } catch {}
+    await this.outbox.load();
     await this.client.start();
   }
 
@@ -483,6 +488,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     if (!parts.length) throw new Error("Write a message first.");
     const conversation = this.conversation(input.botId);
     const pendingId = `pending:${randomUUID()}`;
+    const commandId = randomUUID();
     const running = Boolean(runningTurn(this.client.snapshot, input.botId));
     conversation.pending.push({
       id: pendingId,
@@ -500,7 +506,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       const result = (await this.client.call(
         "turn.send",
         { threadId: input.botId, input: parts, mode: "queue", outputMode: "auto" },
-        randomUUID(),
+        commandId,
       )) as { id: string; disposition: string };
       for (const id of input.attachmentDraftIds ?? []) this.drafts.delete(id);
       return {
@@ -514,6 +520,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           },
         ],
       };
+    } catch (error) {
+      if (!unreachable(error)) throw error;
+      // C12: the daemon is unreachable; the message waits and sends with this commandId later.
+      for (const id of input.attachmentDraftIds ?? []) this.drafts.delete(id);
+      return this.outbox.keep(commandId, input, parts, words, attachments);
     } finally {
       conversation.pending = conversation.pending.filter((message) => message.id !== pendingId);
       this.dirty.add(input.botId);
@@ -650,7 +661,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       threadId: botId,
       activeTurnId: text(runningTurn(this.client.snapshot, botId)?.id) || null,
       revision: conversation.revision,
-      messages: [...messages, ...conversation.pending],
+      messages: [...messages, ...conversation.pending, ...this.outbox.list(botId).map(waitingMessage)],
       plan: latestPlan(items),
       pins: pinnedMessages(this.client.snapshot, botId, messages),
       workingStatus: workingStatus(this.client.snapshot, botId, items),
@@ -667,6 +678,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       this.emit("event", { type: "status", status: this.getStatus() });
       if (this.client.status === "online" && this.agentChecks === undefined)
         void this.refreshAgents(false);
+      if (this.client.status === "online") void this.outbox.flush();
       this.markBots();
       this.companyDirty.add(null);
       this.pagesDirty.add("memory-changed").add("spend-changed");

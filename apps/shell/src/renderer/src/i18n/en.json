@@ -331,5 +331,8 @@
   "models.pendingUndo": "Undo",
   "models.pendingUndoLabel": "Undo switch to {name}",
   "agent.continue.label": "Continue unfinished replies",
-  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”"
+  "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”",
+  "chat.waiting.label": "Waiting to send",
+  "chat.waiting.sendNow": "Send now",
+  "chat.waiting.delete": "Delete"
 }

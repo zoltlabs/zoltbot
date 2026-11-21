@@ -23,6 +23,7 @@ import { LinkIcon } from "./icons";
 import { LinkCards } from "./link-cards";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
 import { ProgressNote } from "./ProgressNote";
+import { WaitingToSend } from "./WaitingToSend";
 import { ThinkingDisclosure } from "./WorkingLine";
 
 export function ExchangeAgentAvatar(props: { bot: BotProfile | undefined }) {
@@ -183,7 +184,13 @@ export function MessageBody(props: {
           />
         </p>
       </Show>
-      <Show when={props.botId && !props.message.streaming ? props.botId : undefined}>
+      <Show
+        when={
+          props.botId && !props.message.streaming && !props.message.waiting
+            ? props.botId
+            : undefined
+        }
+      >
         {(botId) => (
           <LinkCards
             botId={botId()}
@@ -193,7 +200,10 @@ export function MessageBody(props: {
           />
         )}
       </Show>
-      <Show when={props.message.status}>
+      <Show when={props.message.waiting && props.botId ? props.botId : undefined}>
+        {(botId) => <WaitingToSend botId={botId()} messageId={props.message.id} />}
+      </Show>
+      <Show when={!props.message.waiting && props.message.status}>
         <div class="message-status">
           <span />
           {props.message.status}
@@ -444,7 +454,9 @@ export function TranscriptEntry(props: {
                       onOpenArtifact={props.onOpenArtifact}
                     />
                   </div>
-                  <MessageActions message={props.message} actions={props.actions} />
+                  <Show when={!props.message.waiting}>
+                    <MessageActions message={props.message} actions={props.actions} />
+                  </Show>
                 </div>
                 <Show when={props.message.reaction}>
                   {(reaction) => (

@@ -127,6 +127,7 @@ export function toBotMessage(message: ConversationMessage): BotMessage {
     ...(message.aside ? { aside: { threadId: message.aside.threadId } } : {}),
     hidden: message.hidden === true,
     progress: message.progress === true,
+    ...(message.waiting ? { waiting: true } : {}),
     status: message.exchange
       ? undefined
       : message.delivery?.status === "queued"

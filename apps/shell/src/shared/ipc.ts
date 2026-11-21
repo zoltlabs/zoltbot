@@ -15,6 +15,7 @@ export type * from "./hidden";
 export type * from "./manager-cards";
 export type * from "./memory";
 export type * from "./links";
+export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
 export type * from "./spend";
@@ -51,6 +52,7 @@ import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
+import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
 import { PIN_CHANNELS, type PinnedMessage, type PinsDesktopApi } from "./pins";
 import { QUEUE_ORDER_CHANNELS, type QueueOrderDesktopApi } from "./queue-order";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
@@ -127,6 +129,7 @@ export const IPC_CHANNELS = {
   ...QUEUE_ORDER_CHANNELS,
   ...ASIDE_CHANNELS,
   ...PIN_CHANNELS,
+  ...OUTBOX_CHANNELS,
   ...LINK_CHANNELS,
   ...HIDDEN_CHANNELS,
   ...AGENT_TEMPLATE_CHANNELS,
@@ -534,6 +537,8 @@ export interface ConversationMessage {
   hidden?: boolean;
   /** C10: a progress note the agent posted during a long task. */
   progress?: boolean;
+  /** C12: written while Zoltbot was unreachable; sends once it is back. */
+  waiting?: boolean;
 }
 
 export const MESSAGE_REACTIONS = ["👍", "👎", "❤️", "😂", "🎉", "😮"] as const;
@@ -785,6 +790,7 @@ export interface OpenBotDesktopApi {
   queue: QueueOrderDesktopApi;
   aside: AsideDesktopApi;
   pins: PinsDesktopApi;
+  outbox: OutboxDesktopApi;
   links: LinksDesktopApi;
   hidden: HiddenDesktopApi;
   templates: AgentTemplatesDesktopApi;

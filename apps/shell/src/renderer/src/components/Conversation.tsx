@@ -739,7 +739,12 @@ export function Conversation(props: ConversationProps) {
         onResumeQueue={props.onResumeQueue}
         onCancelQueuedMessage={props.onCancelQueuedMessage}
         agentPickerOpen={props.agentPickerOpen}
-        agentReady={agentReady()}
+        // C12: with Zoltbot unreachable, messages to an open chat wait in the outbox.
+        agentReady={
+          agentReady() ||
+          (Boolean(props.bot) &&
+            (props.agentStatus.phase === "starting" || props.agentStatus.phase === "stopped"))
+        }
         onboardingModelRequired={onboardingModelRequired()}
         submitting={submitting()}
         bot={props.bot}

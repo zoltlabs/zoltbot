@@ -37,6 +37,8 @@ export interface BotMessage {
   itemType?: string;
   kind?: MessageKind;
   status?: string;
+  /** C12: written while Zoltbot was unreachable; sends once it is back. */
+  waiting?: boolean;
   senderBotId?: string;
   replyToMessageId?: string | null;
   attachments?: AttachmentSummary[];

@@ -1,0 +1,45 @@
+/* C12: a message waiting to send. Inherits .message-status colors, so it reads in the bubble. */
+.message-status.message-waiting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.message-waiting-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.message-waiting-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.message-waiting-actions button {
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message-waiting-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.message-waiting-actions button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.message-waiting-actions button:disabled {
+  opacity: 0.6;
+}
+
+.message-waiting-error {
+  flex-basis: 100%;
+}

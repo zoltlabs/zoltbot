@@ -23,6 +23,7 @@ import {
   requireString,
 } from "./parsers";
 import { linkHandlers } from "./links-service";
+import { outboxHandlers } from "./outbox-service";
 import { pinHandlers } from "./pins-service";
 import { queueOrderHandlers } from "./queue-order-service";
 import { spendHandlers } from "./spend-service";
@@ -87,6 +88,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...queueOrderHandlers(service.client),
     ...asideHandlers(service.client),
     ...pinHandlers(service.client),
+    ...outboxHandlers(service.outbox),
     ...linkHandlers(service.client),
     ...hiddenHandlers(service.client),
     ...agentTemplateHandlers(service),
