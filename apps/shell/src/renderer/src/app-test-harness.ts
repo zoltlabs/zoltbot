@@ -294,6 +294,11 @@ export function setUpAppTest() {
       pins: {
         set: vi.fn().mockResolvedValue(undefined),
       },
+      links: {
+        preview: vi.fn().mockResolvedValue(null),
+        enabled: vi.fn().mockResolvedValue(true),
+        setEnabled: vi.fn().mockResolvedValue(undefined),
+      },
       hidden: {
         set: vi.fn().mockResolvedValue(undefined),
       },

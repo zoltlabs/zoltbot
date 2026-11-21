@@ -1,0 +1,61 @@
+/* C15: link cards under a message. Colors follow the bubble's text so they read in both bubbles. */
+.link-cards {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-card:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.link-card:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.link-card img {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.link-card-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.link-card-copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-card-site,
+.link-card-description {
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 16px;
+  opacity: 0.72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -51,6 +51,7 @@ import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
+import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
 import { chooseSendKey, sendKey } from "./send-key";
 
 export type { SidebarAgentState };
@@ -428,6 +429,13 @@ export function Sidebar(props: SidebarProps) {
           radio: true,
           checked: sendKey() === "mod-enter",
           run: () => chooseSendKey("mod-enter"),
+        },
+        // C15: cards under messages with links. The Mac fetches the pages.
+        {
+          id: "link-previews",
+          label: "Show link previews",
+          checked: linkPreviewsEnabled(),
+          run: () => void setLinkPreviewsEnabled(!linkPreviewsEnabled()).catch(() => undefined),
         },
       ],
       [

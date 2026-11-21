@@ -20,6 +20,7 @@ import { BranchList } from "./Branching";
 import { ONBOARDING_CHOICES } from "./constants";
 import { HiddenMessage } from "./HiddenMessage";
 import { LinkIcon } from "./icons";
+import { LinkCards } from "./link-cards";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
 import { ProgressNote } from "./ProgressNote";
 import { ThinkingDisclosure } from "./WorkingLine";
@@ -137,6 +138,8 @@ export function ExchangeSystemRow(props: {
 
 export function MessageBody(props: {
   message: BotMessage;
+  /** C15: the chat, for link cards. */
+  botId?: string | undefined;
   referencedMessage?: BotMessage;
   bots: BotProfile[];
   onSelectAgent: (botId: string) => void;
@@ -179,6 +182,16 @@ export function MessageBody(props: {
             onOpenLink={props.onOpenLink}
           />
         </p>
+      </Show>
+      <Show when={props.botId && !props.message.streaming ? props.botId : undefined}>
+        {(botId) => (
+          <LinkCards
+            botId={botId()}
+            messageId={props.message.id}
+            body={words()}
+            onOpenLink={props.onOpenLink}
+          />
+        )}
       </Show>
       <Show when={props.message.status}>
         <div class="message-status">
@@ -418,6 +431,7 @@ export function TranscriptEntry(props: {
                   >
                     <MessageBody
                       message={props.message}
+                      botId={props.agent?.id}
                       referencedMessage={props.messages.find(
                         (candidate) => candidate.id === props.message.replyToMessageId,
                       )}

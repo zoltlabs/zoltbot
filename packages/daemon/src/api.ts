@@ -59,6 +59,7 @@ import { knowledgeApi } from "./knowledge-api.js";
 import { knowledgeHygieneTimer } from "./knowledge-hygiene.js";
 import { taintObserver } from "./knowledge-taint.js";
 import { macIdentity } from "./link-identity.js";
+import { linkPreviewApi } from "./link-preview.js";
 import { Logger, Redactor } from "./logging.js";
 import { messageApi } from "./message-api.js";
 import { messageHiddenApi } from "./message-hidden-api.js";
@@ -394,6 +395,7 @@ async function startOwnedDaemon(
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
   const attachmentPreview = attachmentPreviewApi({ store });
+  const linkPreview = linkPreviewApi({ store });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
   const reactions = messageReactionsApi({ store, privacy, redactor, publish });
   const compare = compareApi({
@@ -629,6 +631,7 @@ async function startOwnedDaemon(
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
           (await attachmentPreview(request.method, params)) ??
+          (await linkPreview(request.method, params)) ??
           (await hiddenMessages(request.method, params, commandId)) ??
           (await reactions(request.method, params, commandId)) ??
           (await chats.api(request.method, params, commandId)) ??

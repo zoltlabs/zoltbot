@@ -10,6 +10,7 @@ const CAPTION = /[a-z0-9-]*(?:hint|caption|subtitle|description|helper)[a-z0-9-]
 const ALLOWED: Record<string, string> = {
   "agent-settings-description": "the field that edits the agent's description",
   "media-caption": "the file name and actions bar under a media preview",
+  "link-card-description": "the linked page's own summary, shown on its card",
 };
 
 const SOURCES = import.meta.glob<string>(["./**/*.{tsx,css}", "!./**/*.test.tsx"], {

@@ -345,6 +345,11 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       pins: {
         set: call(channels.pinsSet),
       },
+      links: {
+        preview: call(channels.linksPreview),
+        enabled: call(channels.linksEnabled),
+        setEnabled: call(channels.linksSetEnabled),
+      },
       hidden: {
         set: call(channels.hiddenSet),
       },

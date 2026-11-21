@@ -365,6 +365,22 @@ const rawMethodCatalog = {
       next: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
     }),
   ),
+  /**
+   * C15: a card for a link in a message: the page's title, site name, a line of description and a
+   * picture under 200 KB as a data URL. The Mac fetches it from public addresses only. Fails with
+   * link_not_in_message, link_previews_off, link_private, link_unreachable, link_timeout,
+   * link_too_large, link_redirects, link_unsupported or link_not_page.
+   */
+  "link.preview": entry(
+    object({ threadId: Id, itemId: Id, url: Type.String({ minLength: 1, maxLength: 2048 }) }),
+    object({
+      url: Text,
+      title: Text,
+      siteName: Text,
+      description: OptionalText,
+      image: Type.Optional(Type.String({ maxLength: 280_000 })),
+    }),
+  ),
   /** C1: `order` lists every queued item id of the thread; fails with queue_changed otherwise. */
   "turn.reorderQueued": entry(
     object({ threadId: Id, order: Type.Array(Id, { maxItems: 200 }) }),

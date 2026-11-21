@@ -26,6 +26,7 @@ export * from "./input-queue.js";
 export * from "./interactions.js";
 export * from "./knowledge-workflows.js";
 export * from "./knowledge-writes.js";
+export * from "./link-preview.js";
 export * from "./mac-approval.js";
 export * from "./mac-prefix.js";
 export * from "./message-hidden.js";
