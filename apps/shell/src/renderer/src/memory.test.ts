@@ -38,6 +38,7 @@ const view: MemoryView = {
     }),
   ],
   proposals: [],
+  skills: [],
   tidy: true,
 };
 

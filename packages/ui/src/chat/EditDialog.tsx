@@ -1,3 +1,4 @@
+import { isCallGuidance } from "@zoltbot/protocol";
 import { useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "../components/primitives.js";
 import { useShell } from "../state.js";
@@ -11,7 +12,7 @@ export function messageText(item: Row) {
   const input = body(item).input;
   return Array.isArray(input)
     ? (input as Row[])
-        .filter((part) => part.type === "text")
+        .filter((part) => part.type === "text" && !isCallGuidance(part.text))
         .map((part) => text(part.text))
         .join("\n")
     : "";

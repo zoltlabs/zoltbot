@@ -80,6 +80,15 @@ it("edits a profile's name and model and archives a project, once", async () => 
     await expect(
       edits("agent.update", { id: "profile", changes: { style: "loud" } }, "style-bad"),
     ).rejects.toThrow();
+    expect(
+      await edits("agent.update", { id: "profile", changes: { roleText: "Reviews PRs" } }, "role"),
+    ).toMatchObject({ id: "profile", roleText: "Reviews PRs" });
+    expect(
+      await edits("agent.update", { id: "profile", changes: { roleText: "" } }, "role-clear"),
+    ).toMatchObject({ id: "profile", roleText: "" });
+    await expect(
+      edits("agent.update", { id: "profile", changes: { roleText: "x".repeat(301) } }, "role-long"),
+    ).rejects.toThrow("invalid_params");
     await expect(
       edits("agent.update", { id: "profile", changes: { permissionProfile: "full_access" } }, "up"),
     ).rejects.toThrow("field_not_editable");

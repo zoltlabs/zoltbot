@@ -145,13 +145,27 @@ export async function openKitGallery(page: Page): Promise<void> {
  * Loads the built renderer in a headless page and gives it the same `window.openbot` API the
  * preload script exposes, with each call routed to `handlers` and service events pushed back.
  */
-export async function openShell(page: Page, service: ZoltService): Promise<void> {
+export async function openShell(
+  page: Page,
+  service: ZoltService,
+  path = "index.html",
+): Promise<void> {
   const handlers = shellHandlers(service);
   await serveRenderer(page);
   await page.exposeFunction("__zoltInvoke", async (channel: string, input: unknown) => {
     const handler = handlers[channel];
     if (!handler) throw new Error(`No handler for ${channel}`);
     return JSON.parse(JSON.stringify((await handler(input)) ?? null));
+  });
+  service.client.onNotice((method, frame) => {
+    if (method !== "browser.frame") return;
+    void page
+      .evaluate(
+        (payload) =>
+          (window as unknown as { __zoltFrame: (f: unknown) => void }).__zoltFrame(payload),
+        frame,
+      )
+      .catch(() => undefined);
   });
   service.on("event", (event) => {
     void page
@@ -160,6 +174,10 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
   });
   await page.addInitScript((channels) => {
     const listeners = new Set<(event: unknown) => void>();
+    const frameListeners = new Set<(frame: unknown) => void>();
+    (window as unknown as { __zoltFrame: (frame: unknown) => void }).__zoltFrame = (frame) => {
+      for (const listener of frameListeners) listener(frame);
+    };
     const call =
       (channel: string) =>
       (input?: unknown): Promise<unknown> =>
@@ -332,15 +350,35 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         save: call(channels.memorySave),
         archive: call(channels.memoryArchive),
         decide: call(channels.memoryDecide),
+        decideSkill: call(channels.memoryDecideSkill),
         forget: call(channels.memoryForget),
         setTidy: call(channels.memorySetTidy),
         importChoose: call(channels.memoryImportChoose),
         importStart: call(channels.memoryImportStart),
         importStatus: call(channels.memoryImportStatus),
       },
+      agentBrowser: {
+        profile: call(channels.agentBrowserProfile),
+        clearProfile: call(channels.agentBrowserClearProfile),
+        view: call(channels.agentBrowserView),
+        takeover: call(channels.agentBrowserTakeover),
+        input: call(channels.agentBrowserInput),
+        cookies: call(channels.agentBrowserCookies),
+        teach: call(channels.agentBrowserTeach),
+        onFrame: (listener: (frame: unknown) => void) => {
+          frameListeners.add(listener);
+          return () => frameListeners.delete(listener);
+        },
+      },
       spend: {
         list: call(channels.spendList),
         setBudget: call(channels.spendSetBudget),
+      },
+      data: {
+        projects: call(channels.dataProjects),
+        tables: call(channels.dataTables),
+        rows: call(channels.dataRows),
+        csv: call(channels.dataCsv),
       },
       share: {
         status: call(channels.artifactShareStatus),
@@ -376,8 +414,29 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         enabled: call(channels.linksEnabled),
         setEnabled: call(channels.linksSetEnabled),
       },
+      vault: {
+        list: call(channels.vaultList),
+        save: call(channels.vaultSave),
+        update: call(channels.vaultUpdate),
+        remove: call(channels.vaultRemove),
+        reveal: call(channels.vaultReveal),
+        agents: call(channels.vaultAgents),
+        providers: call(channels.vaultProviders),
+        providerItems: call(channels.vaultProviderItems),
+        providerUnlock: call(channels.vaultProviderUnlock),
+        providerForget: call(channels.vaultProviderForget),
+        saveSecret: call(channels.vaultSaveSecret),
+      },
       hidden: {
         set: call(channels.hiddenSet),
+      },
+      voice: {
+        status: call(channels.voiceStatus),
+        setKey: call(channels.voiceSetKey),
+        clearKey: call(channels.voiceClearKey),
+        voices: call(channels.voiceVoices),
+        speak: call(channels.voiceSpeak),
+        logCall: call(channels.voiceCallLog),
       },
       coAuthor: {
         get: call(channels.coAuthorGet),
@@ -429,7 +488,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
       },
     };
   }, IPC_CHANNELS);
-  await page.goto(`${SHELL_ORIGIN}/index.html`);
+  await page.goto(`${SHELL_ORIGIN}/${path}`);
 }
 
 interface ZoltWindow {

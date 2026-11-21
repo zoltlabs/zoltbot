@@ -184,3 +184,88 @@ describe("compaction notes", () => {
     ]);
   });
 });
+
+describe("gate prompts", () => {
+  it("offers a gate's own choices, like the browser's Hand back, instead of Approve and Decline", async () => {
+    const { toPrompt, toResolution } = await import("./mapping");
+    const card = {
+      type: "gate",
+      title: "You’re in control of the browser",
+      items: [
+        {
+          id: "choice",
+          prompt: "Research waits until you hand it back.",
+          options: [{ id: "hand-back", label: "Hand back" }],
+        },
+      ],
+    };
+    expect(toPrompt(card).questions[0]?.options).toEqual([{ label: "Hand back", description: "" }]);
+    expect(toResolution(card, { choice: ["Hand back"] }, "2026-01-01T00:00:00.000Z")).toMatchObject(
+      {
+        action: "accept",
+        answers: { choice: { options: ["hand-back"] } },
+      },
+    );
+    const plain = { type: "gate", items: [{ id: "q", prompt: "Ship it?" }] };
+    expect(toPrompt(plain).questions[0]?.options?.map((o) => o.label)).toEqual([
+      "Approve",
+      "Decline",
+    ]);
+  });
+});
+
+describe("purchase approvals", () => {
+  it("shows the purchase card's own buttons and answers with the offered choice", async () => {
+    const { toPrompt, toResolution } = await import("./mapping");
+    const card = {
+      id: "browser-takeover:thread:buy-1",
+      type: "approval",
+      title: "Confirm purchase on shop.example.test",
+      items: [
+        {
+          id: "choice",
+          prompt: "Research wants to click “Place order”.",
+          options: [
+            { id: "cancel", label: "Cancel" },
+            { id: "allow-click", label: "Allow click" },
+          ],
+          choices: [{ id: "allow_once" }, { id: "reject_once" }],
+        },
+      ],
+    };
+    expect(toPrompt(card).questions[0]?.options?.map((o) => o.label)).toEqual([
+      "Cancel",
+      "Allow click",
+    ]);
+    const at = "2026-01-01T00:00:00.000Z";
+    expect(toResolution(card, { choice: ["Allow click"] }, at)).toMatchObject({
+      action: "accept",
+      choice: "allow_once",
+    });
+    expect(toResolution(card, { choice: ["Cancel"] }, at)).toMatchObject({ action: "decline" });
+  });
+
+  it("leaves other approvals with options, like a tool permission, as they were", async () => {
+    const { toPrompt, toResolution } = await import("./mapping");
+    const card = {
+      id: "acp-permission-1",
+      type: "approval",
+      items: [
+        {
+          id: "q",
+          prompt: "Run tests?",
+          options: [
+            { id: "allow", label: "Allow" },
+            { id: "reject", label: "Reject" },
+          ],
+          choices: [{ id: "allow_once" }, { id: "reject_once" }],
+        },
+      ],
+    };
+    const [question] = toPrompt(card).questions;
+    expect(question?.choiceOnly).toBeUndefined();
+    expect(toResolution(card, { q: ["Deny"] }, "2026-01-01T00:00:00.000Z")).toMatchObject({
+      action: "decline",
+    });
+  });
+});

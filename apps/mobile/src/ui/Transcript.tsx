@@ -1,11 +1,12 @@
 import { splitQuote } from "@zoltbot/protocol";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
+import { type ReactNode, useState } from "react";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { pinnable } from "../data/pins";
+import { scaleText } from "../data/text-size";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { useSnapshot } from "../state/link";
-import { mono, useTheme } from "../theme";
+import { mono, useTextScale, useTheme } from "../theme";
 import { AsideRow } from "./AsideRow";
 import { Icon } from "./icons";
 import { StaffCard } from "./interactions/StaffCard";
@@ -13,89 +14,25 @@ import { Button, Txt } from "./kit";
 import { LinkCards } from "./LinkCards";
 import { ManagerCardView, NoticeRow, SwitchNotice } from "./ManagerCards";
 import { Markdown } from "./Markdown";
+import { type MessageMenu, type QueueActions, useMessageMenu } from "./MessageMenu";
 import type { MarkActions } from "./message-marks";
 import { ProgressRow } from "./ProgressRow";
 import { SentFiles } from "./SentFiles";
-import { pick } from "./SessionControls";
 import { SwipeReply } from "./SwipeReply";
 
-/** C1: what the owner can do with a queued message. Move up / down only where there is room. */
-export interface QueueActions {
-  sendNow: () => void;
-  remove: () => void;
-  moveUp?: () => void;
-  moveDown?: () => void;
-}
+export type { QueueActions } from "./MessageMenu";
 
-type Option = { label: string; run: () => void };
-
-function queuedOptions(edit: (() => void) | undefined, queue: QueueActions): Option[] {
-  return [
-    { label: "Send now", run: queue.sendNow },
-    ...(edit ? [{ label: "Edit", run: edit }] : []),
-    ...(queue.moveUp ? [{ label: "Move up", run: queue.moveUp }] : []),
-    ...(queue.moveDown ? [{ label: "Move down", run: queue.moveDown }] : []),
-    { label: "Remove", run: queue.remove },
-  ];
-}
-
-function showActions(title: string, options: Option[]) {
-  pick(
-    title,
-    undefined,
-    options.map((option) => option.label),
-    (index) => options[index]?.run(),
-  );
-}
-
+/** The visible way into the message menu, for anyone who doesn't touch and hold. */
 function MessageActions({
-  row,
-  edit,
-  forward,
-  queue,
-  marks,
+  menu,
+  align = "flex-start",
 }: {
-  row: TranscriptRow;
-  edit?: () => void;
-  forward?: () => void;
-  queue?: QueueActions;
-  marks?: MarkActions;
+  menu: MessageMenu;
+  align?: "flex-start" | "flex-end";
 }) {
-  const pinned = marks?.isPinned(row.id) ?? false;
-  const [error, setError] = useState("");
-  const options = [
-    ...(queue
-      ? queuedOptions(edit, queue)
-      : edit
-        ? [{ label: row.queued ? "Edit" : "Edit and send again", run: edit }]
-        : []),
-    ...(marks?.reply && pinnable(row) ? [{ label: "Reply", run: () => marks.reply?.(row) }] : []),
-    ...(forward ? [{ label: "Send to another chat", run: forward }] : []),
-    ...(marks && (pinned || pinnable(row))
-      ? [{ label: pinned ? "Unpin" : "Pin", run: () => marks.set(row, !pinned) }]
-      : []),
-    ...(marks && pinnable(row) ? [{ label: "Hide", run: () => marks.hide(row, true) }] : []),
-    {
-      label: "Share message",
-      run: () => {
-        void Share.share({ message: row.text }).catch(() =>
-          setError("Could not open sharing. Try again."),
-        );
-      },
-    },
-  ];
   return (
-    <View style={{ alignSelf: "flex-start" }}>
-      <Button
-        kind="plain"
-        label="Message actions"
-        onPress={() => showActions("Message actions", options)}
-      />
-      {error ? (
-        <Txt v="meta" tone="danger">
-          {error}
-        </Txt>
-      ) : null}
+    <View style={{ alignSelf: align }}>
+      <Button kind="plain" label="Message actions" onPress={menu.open} />
     </View>
   );
 }
@@ -264,6 +201,7 @@ export function Message({
   threadId,
   edits,
   queue,
+  canBranch,
   marks,
 }: {
   row: TranscriptRow;
@@ -280,8 +218,11 @@ export function Message({
   onForward?: (row: TranscriptRow) => void;
   /** For a queued message: send it now, move it or remove it. */
   queue?: QueueActions;
+  /** P5: the chat is idle and writable, so a reply can start a branch. */
+  canBranch?: boolean;
 }) {
   const { c } = useTheme();
+  const proseStyle = scaleText(styles.prose, useTextScale());
   if (row.aside) return <AsideRow row={row} />;
   if (row.progress) return <ProgressRow row={row} />;
   if (row.hidden) return <HiddenRow {...(marks ? { onShow: () => marks.hide(row, false) } : {})} />;
@@ -321,7 +262,7 @@ export function Message({
             Morning brief
           </Txt>
         </View>
-        <Txt style={styles.prose}>{row.text}</Txt>
+        <Txt style={proseStyle}>{row.text}</Txt>
         <Button kind="plain" label="Open Needs you" onPress={() => router.navigate("/")} />
       </View>
     );
@@ -397,109 +338,29 @@ export function Message({
         </Txt>
       </View>
     );
-  const reply = marks?.reply && pinnable(row) ? () => marks.reply?.(row) : undefined;
-  if (row.kind === "user") {
-    // C6: a sent reply starts with its quote; show the quote above the words.
-    const quoted = splitQuote(row.text);
-    const words = quoted ? quoted.rest : row.text;
+  if (row.kind === "user")
     return (
-      <View style={styles.mine}>
-        <SwipeReply {...(reply ? { onReply: reply } : {})}>
-          <Pressable
-            disabled={!(row.turnId && onEditSent) && !queue}
-            onLongPress={() =>
-              queue
-                ? showActions(
-                    "Message actions",
-                    queuedOptions(onEdit ? () => onEdit(row) : undefined, queue),
-                  )
-                : onEditSent?.(row)
-            }
-            accessibilityLabel={`You${quoted ? `, replying to “${quoted.quote}”` : ""}: ${words}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
-            {...(queue
-              ? {
-                  accessibilityHint: "Touch and hold for more actions",
-                  accessibilityActions: queuedOptions(
-                    onEdit ? () => onEdit(row) : undefined,
-                    queue,
-                  ).map((option) => ({ name: option.label, label: option.label })),
-                  onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) =>
-                    queuedOptions(onEdit ? () => onEdit(row) : undefined, queue)
-                      .find((option) => option.label === event.nativeEvent.actionName)
-                      ?.run(),
-                }
-              : {})}
-            {...(row.turnId && onEditSent
-              ? {
-                  accessibilityHint: "Touch and hold to edit and send again",
-                  accessibilityActions: [{ name: "edit", label: "Edit and send again" }],
-                  onAccessibilityAction: () => onEditSent(row),
-                }
-              : {})}
-            style={[styles.bubble, { backgroundColor: c["bg-popover"] }]}
-          >
-            {row.artifactReference ? (
-              <Txt v="meta" tone="secondary">
-                Artifact reference: {row.artifactReference}
-              </Txt>
-            ) : null}
-            {quoted ? (
-              <View style={[styles.quote, { borderLeftColor: c["border-strong"] }]}>
-                <Txt v="meta" tone="secondary" lines={3}>
-                  {quoted.quote}
-                </Txt>
-              </View>
-            ) : null}
-            {words ? <Txt selectable>{words}</Txt> : null}
-          </Pressable>
-        </SwipeReply>
-        {row.files?.length ? (
-          <SentFiles files={row.files} threadId={threadId} itemId={row.id} />
-        ) : null}
-        {words ? (
-          <LinkCards threadId={threadId} itemId={row.id} text={words} align="flex-end" />
-        ) : null}
-        <Reactions row={row} align="flex-end" />
-        {edits?.count ? (
-          <Button
-            kind="plain"
-            label={`${edits.count} ${edits.count === 1 ? "edit" : "edits"}`}
-            a11y={`Open the newest of ${edits.count} edited copies`}
-            onPress={edits.open}
-            style={styles.edit}
-          />
-        ) : null}
-        <MessageActions
-          row={row}
-          {...(marks ? { marks } : {})}
-          {...(queue ? { queue } : {})}
-          {...(row.queued && onEdit
-            ? { edit: () => onEdit(row) }
-            : row.turnId && onEditSent
-              ? { edit: () => onEditSent(row) }
-              : {})}
-        />
-        {row.delivery ? (
-          <View style={styles.delivery}>
-            <Txt v="meta" tone="muted">
-              {row.delivery}
-            </Txt>
-          </View>
-        ) : null}
-      </View>
+      <UserMessage
+        row={row}
+        marks={marks}
+        threadId={threadId}
+        onEdit={onEdit}
+        onEditSent={onEditSent}
+        edits={edits}
+        queue={queue}
+      />
     );
-  }
   const prose =
     row.kind === "message" && !compact ? (
       <View style={{ gap: 4 }}>
-        <Markdown value={row.text} />
+        <Markdown value={row.text} selectable={false} />
         {row.streaming ? <Txt tone="secondary">▍</Txt> : null}
       </View>
     ) : (
       <Txt
         v={compact ? "meta" : "body"}
         tone={row.kind === "thought" || compact ? "muted" : "text"}
-        style={compact ? undefined : styles.prose}
+        style={compact ? undefined : proseStyle}
       >
         {row.kind === "thought" ? `Thinking: ${row.text}` : row.text}
         {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}
@@ -507,26 +368,133 @@ export function Message({
     );
   if (row.kind !== "message" || row.streaming || compact) return prose;
   return (
+    <AgentMessage
+      row={row}
+      marks={marks}
+      threadId={threadId}
+      onForward={onForward}
+      canBranch={canBranch}
+    >
+      {prose}
+    </AgentMessage>
+  );
+}
+
+function AgentMessage({
+  row,
+  marks,
+  threadId,
+  onForward,
+  canBranch,
+  children,
+}: {
+  row: TranscriptRow;
+  marks?: MarkActions | undefined;
+  threadId?: string | undefined;
+  onForward?: ((row: TranscriptRow) => void) | undefined;
+  canBranch?: boolean | undefined;
+  children: ReactNode;
+}) {
+  const menu = useMessageMenu({
+    row,
+    words: row.text,
+    marks,
+    threadId: canBranch ? threadId : undefined,
+    forward: onForward ? () => onForward(row) : undefined,
+  });
+  const reply = marks?.reply && pinnable(row) ? () => marks.reply?.(row) : undefined;
+  return (
     <View style={{ gap: 4 }}>
-      <SwipeReply {...(reply ? { onReply: reply } : {})}>
-        <Pressable
-          onLongPress={() => onForward?.(row)}
-          accessibilityHint={onForward ? "Touch and hold to send to another chat" : undefined}
-          accessibilityActions={
-            onForward ? [{ name: "forward", label: "Send to another chat" }] : undefined
-          }
-          onAccessibilityAction={() => onForward?.(row)}
-        >
-          {prose}
+      <SwipeReply onReply={reply} time={menu.time}>
+        <Pressable onLongPress={menu.open} {...menu.a11y}>
+          {children}
         </Pressable>
       </SwipeReply>
       <LinkCards threadId={threadId} itemId={row.id} text={row.text} />
       <Reactions row={row} align="flex-start" />
-      <MessageActions
-        row={row}
-        {...(marks ? { marks } : {})}
-        {...(onForward ? { forward: () => onForward(row) } : {})}
-      />
+      <MessageActions menu={menu} />
+    </View>
+  );
+}
+
+function UserMessage({
+  row,
+  marks,
+  threadId,
+  onEdit,
+  onEditSent,
+  edits,
+  queue,
+}: {
+  row: TranscriptRow;
+  marks?: MarkActions | undefined;
+  threadId?: string | undefined;
+  onEdit?: ((row: TranscriptRow) => void) | undefined;
+  onEditSent?: ((row: TranscriptRow) => void) | undefined;
+  edits?: { count: number; open: () => void } | undefined;
+  queue?: QueueActions | undefined;
+}) {
+  const { c } = useTheme();
+  // C6: a sent reply starts with its quote; show the quote above the words.
+  const quoted = splitQuote(row.text);
+  const words = quoted ? quoted.rest : row.text;
+  const edit =
+    row.queued && onEdit
+      ? { kind: "queued" as const, run: () => onEdit(row) }
+      : row.turnId && onEditSent
+        ? { kind: "sent" as const, run: () => onEditSent(row) }
+        : undefined;
+  const menu = useMessageMenu({ row, words, marks, threadId, edit, queue });
+  const reply = marks?.reply && pinnable(row) ? () => marks.reply?.(row) : undefined;
+  return (
+    <View style={styles.mine}>
+      <SwipeReply onReply={reply} time={menu.time}>
+        <Pressable
+          onLongPress={menu.open}
+          accessibilityLabel={`You${quoted ? `, replying to “${quoted.quote}”` : ""}: ${words}${row.artifactReference ? `. Artifact reference: ${row.artifactReference}` : ""}${row.delivery ? `. ${row.delivery}` : ""}`}
+          {...menu.a11y}
+          style={[styles.bubble, { backgroundColor: c["bg-popover"] }]}
+        >
+          {row.artifactReference ? (
+            <Txt v="meta" tone="secondary">
+              Artifact reference: {row.artifactReference}
+            </Txt>
+          ) : null}
+          {quoted ? (
+            <View style={[styles.quote, { borderLeftColor: c["border-strong"] }]}>
+              <Txt v="meta" tone="secondary" lines={3}>
+                {quoted.quote}
+              </Txt>
+            </View>
+          ) : null}
+          {/* Touch and hold opens the menu, which has Copy; selection would fight it. */}
+          {words ? <Txt>{words}</Txt> : null}
+        </Pressable>
+      </SwipeReply>
+      {row.files?.length ? (
+        <SentFiles files={row.files} threadId={threadId} itemId={row.id} />
+      ) : null}
+      {words ? (
+        <LinkCards threadId={threadId} itemId={row.id} text={words} align="flex-end" />
+      ) : null}
+      <Reactions row={row} align="flex-end" />
+      {edits?.count ? (
+        <Button
+          kind="plain"
+          label={`${edits.count} ${edits.count === 1 ? "edit" : "edits"}`}
+          a11y={`Open the newest of ${edits.count} edited copies`}
+          onPress={edits.open}
+          style={styles.edit}
+        />
+      ) : null}
+      <MessageActions menu={menu} align="flex-end" />
+      {row.delivery ? (
+        <View style={styles.delivery}>
+          <Txt v="meta" tone="muted">
+            {row.delivery}
+          </Txt>
+        </View>
+      ) : null}
     </View>
   );
 }

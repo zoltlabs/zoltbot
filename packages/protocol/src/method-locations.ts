@@ -3,9 +3,11 @@ import { backupModelMacOnlyMethods } from "./backup-models.js";
 import { bridgeMacOnlyMethods } from "./bridges.js";
 import { browserMacOnlyMethods } from "./browser.js";
 import type { MethodName } from "./catalog.js";
+import { projectDataMacOnlyMethods } from "./project-data.js";
 import { quickChatMacOnlyMethods } from "./quick-chat.js";
 import { shippingMacOnlyMethods } from "./shipping.js";
 import { skillMacOnlyMethods } from "./skills.js";
+import { vaultMacOnlyMethods } from "./vault.js";
 import { viewMacOnlyMethods } from "./views.js";
 
 const localDesktopOnlyMethods: readonly MethodName[] = [
@@ -17,7 +19,9 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...browserMacOnlyMethods,
   ...quickChatMacOnlyMethods,
   ...backupModelMacOnlyMethods,
+  ...projectDataMacOnlyMethods,
   ...bridgeMacOnlyMethods,
+  ...vaultMacOnlyMethods,
   "routine.checkSource",
   "routine.webhookAddress",
   "routine.webhookTest",
@@ -31,10 +35,11 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "routine.retrySource",
   "routine.archiveHistory",
   "routine.create",
-  "connection.install",
+  // I6: the registry is searched and its packages run from the Mac.
+  "connection.registry.search",
+  "connection.registry.add",
+  // P10: the phone signs in with startForPhone, which accepts no OAuth settings.
   "connection.auth.start",
-  "connection.auth.status",
-  "connection.auth.cancel",
   "connection.import",
   "connection.save",
   "device.pair.start",
@@ -42,6 +47,11 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "detect.startLogin",
   "native.openCommand",
   "diagnostics.export",
+  // D7: read and write files on the Mac by path.
+  "export.bundle",
+  "import.bundle",
+  // D6: deletes this Mac's data.
+  "maintenance.startFresh",
   // M4: these read files on the Mac by path.
   "memory.import.preview",
   "memory.import.start",

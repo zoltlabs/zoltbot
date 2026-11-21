@@ -2,7 +2,7 @@
 import { createSignal, onCleanup } from "solid-js";
 import type { MemoryEntry, MemoryView } from "../../shared/memory";
 
-const EMPTY: MemoryView = { entries: [], proposals: [], tidy: true };
+const EMPTY: MemoryView = { entries: [], proposals: [], skills: [], tidy: true };
 
 /** An IPC error's own message, without Electron's prefix. */
 export const memoryError = (error: unknown) =>
@@ -28,6 +28,7 @@ function keepUnchanged(previous: MemoryView, next: MemoryView): MemoryView {
   return {
     entries: reuse(previous.entries, next.entries),
     proposals: reuse(previous.proposals, next.proposals),
+    skills: reuse(previous.skills, next.skills),
     tidy: next.tidy,
   };
 }
@@ -98,5 +99,8 @@ export function createMemoryStore() {
     setTidy: (on: boolean) => change(() => api().setTidy(on)),
     decide: (id: string, decision: "accept" | "reject") =>
       change(() => api().decide({ id, decision })),
+    /** M6: saves or discards a skill an agent proposed. */
+    decideSkill: (id: string, decision: "save" | "discard") =>
+      change(() => api().decideSkill({ id, decision })),
   };
 }

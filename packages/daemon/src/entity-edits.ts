@@ -14,7 +14,10 @@ const profileFields = [
   "style",
   // A5: Fast mode per agent.
   "fastMode",
+  // P10: the role the phone edits, like the desktop's staff editor.
+  "roleText",
 ] as const;
+const ROLE_MAX = 300;
 
 /** `agent.update` for the profile editor and `project.archive`, both used by the phone. */
 export function entityEditsApi(host: {
@@ -40,6 +43,11 @@ export function entityEditsApi(host: {
         throw new Error("invalid_params");
       if (Object.keys(changes).some((key) => !(profileFields as readonly string[]).includes(key)))
         throw new Error("field_not_editable");
+      if (
+        "roleText" in changes &&
+        (typeof changes.roleText !== "string" || changes.roleText.length > ROLE_MAX)
+      )
+        throw new Error("invalid_params");
       const parts: UserInput = Object.values(changes)
         .filter((value): value is string => typeof value === "string")
         .map((text) => ({ type: "text", text }));

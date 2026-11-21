@@ -6,24 +6,24 @@ import {
   type TalkingStyle,
 } from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import {
-  ActionSheetIOS,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  TextInput,
-  View,
-} from "react-native";
+  agentChanges,
+  type CatalogModel,
+  catalogModels,
+  modelAfterToolChange,
+  modelLabel,
+  ROLE_MAX,
+} from "../../data/agent-edit";
 import { offersFastMode } from "../../data/session";
 import { definitionName, text } from "../../data/view";
 import { t } from "../../i18n";
 import { useAction } from "../../state/actions";
-import { useClient, useSnapshot } from "../../state/link";
+import { useClient, useLink, useSnapshot } from "../../state/link";
 import { touch, useTheme } from "../../theme";
 import { Icon } from "../../ui/icons";
-import { Avatar, Button, Segmented, Txt } from "../../ui/kit";
+import { Avatar, Button, Segmented, showMenu, Txt } from "../../ui/kit";
 
 /** The profile editor sheet, opened from Projects › Profiles. */
 export default function ProfileSheet() {
@@ -36,7 +36,13 @@ export default function ProfileSheet() {
   const definitions = snapshot.entities.agentDefinition ?? [];
   const [name, setName] = useState(text(profile?.name));
   const [definitionId, setDefinitionId] = useState(text(profile?.definitionId));
-  const [model, setModel] = useState(text(profile?.model));
+  const [initialModel] = useState(() => text(profile?.model));
+  const [model, setModel] = useState(initialModel);
+  const [initialRole] = useState(() => text(profile?.roleText));
+  const [role, setRole] = useState(initialRole);
+  // What the Mac has seen each tool offer; typing stays available for anything else.
+  const [catalog, setCatalog] = useState<unknown>();
+  const [typingModel, setTypingModel] = useState(false);
   const [instructions, setInstructions] = useState(text(profile?.instructions));
   // The owner's default applies until they pick a style for this agent.
   const [initialStyle] = useState<TalkingStyle>(() =>
@@ -54,19 +60,49 @@ export default function ProfileSheet() {
     ),
   );
   const [continueTurns, setContinueTurns] = useState(initialContinue);
+  useEffect(() => {
+    if (!online) return;
+    let live = true;
+    useLink
+      .getState()
+      .client?.getState()
+      .call("model.catalog", {})
+      .then((value) => live && setCatalog(value))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [online]);
   if (!profile) return null;
   const fastOffered = offersFastMode(snapshot, id);
+  const models: CatalogModel[] = catalogModels(catalog, definitionId);
+  const listed = !model.trim() || models.some((row) => row.id === model.trim());
+  const choosing = models.length > 0 && listed && !typingModel;
 
-  const pickTool = () => {
-    const labels = definitions.map((row) => text(row.displayName));
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: [...labels, "Cancel"], cancelButtonIndex: labels.length, title: "Coding tool" },
-      (index) => {
-        const row = definitions[index];
-        if (row) setDefinitionId(text(row.id));
-      },
+  const pickTool = () =>
+    showMenu(
+      definitions.map((row) => ({
+        label: text(row.displayName),
+        onPress: () => {
+          const next = text(row.id);
+          if (next === definitionId) return;
+          setDefinitionId(next);
+          // A model typed by hand stays; a picked one goes if the new tool doesn't list it.
+          if (!typingModel)
+            setModel((now) => modelAfterToolChange(catalogModels(catalog, next), now));
+        },
+      })),
+      "Coding tool",
     );
-  };
+  const pickModel = () =>
+    showMenu(
+      [
+        { label: "Tool default", onPress: () => setModel("") },
+        ...models.map((row) => ({ label: row.name, onPress: () => setModel(row.id) })),
+        { label: "Other model…", onPress: () => setTypingModel(true) },
+      ],
+      "Model",
+    );
   const save = async () => {
     if (
       continueTurns !== initialContinue &&
@@ -75,14 +111,11 @@ export default function ProfileSheet() {
       return;
     const saved = await run("agent.update", {
       id,
-      changes: {
-        name: name.trim(),
-        definitionId,
-        instructions,
-        ...(style !== initialStyle ? { style } : {}),
-        ...(model.trim() ? { model: model.trim() } : {}),
-        ...(fastOffered ? { fastMode } : {}),
-      },
+      changes: agentChanges(
+        { name, definitionId, model, role, instructions, style, fastMode },
+        { role: initialRole, model: initialModel, style: initialStyle },
+        fastOffered,
+      ),
     });
     if (saved) router.back();
   };
@@ -124,6 +157,18 @@ export default function ProfileSheet() {
         </Txt>
         <TextInput value={name} onChangeText={setName} accessibilityLabel="Name" style={field} />
       </View>
+      <View style={styles.labelled}>
+        <Txt v="meta" tone="secondary">
+          Role
+        </Txt>
+        <TextInput
+          value={role}
+          onChangeText={setRole}
+          maxLength={ROLE_MAX}
+          accessibilityLabel="Role"
+          style={field}
+        />
+      </View>
       <View style={[styles.group, { backgroundColor: c["bg-raised"], borderColor: c.border }]}>
         <Pressable
           onPress={pickTool}
@@ -152,14 +197,35 @@ export default function ProfileSheet() {
           <Txt tone="muted" style={styles.flex}>
             Model
           </Txt>
-          <TextInput
-            value={model}
-            onChangeText={setModel}
-            placeholder="Tool default"
-            placeholderTextColor={c["text-dim"]}
-            accessibilityLabel="Model"
-            style={[styles.inline, { color: c.text }]}
-          />
+          {choosing ? (
+            <Pressable
+              onPress={pickModel}
+              accessibilityRole="button"
+              accessibilityLabel={`Model: ${modelLabel(models, model)}`}
+              style={styles.choice}
+            >
+              <Txt>{modelLabel(models, model)}</Txt>
+              <Icon name="down" size={14} stroke={2} color={c["text-muted"]} />
+            </Pressable>
+          ) : (
+            <TextInput
+              value={model}
+              // Once edited, the field stays a field even if the text matches a listed model.
+              onChangeText={(value) => {
+                setTypingModel(true);
+                setModel(value);
+              }}
+              onFocus={() => setTypingModel(true)}
+              autoFocus={typingModel}
+              selectTextOnFocus={typingModel}
+              placeholder="Tool default"
+              placeholderTextColor={c["text-dim"]}
+              accessibilityLabel="Model"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[styles.inline, { color: c.text }]}
+            />
+          )}
         </View>
         {fastOffered ? (
           <View style={styles.fast}>
@@ -265,5 +331,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   fast: { paddingBottom: 4 },
   cost: { paddingHorizontal: 16, paddingBottom: 10, marginTop: -6 },
+  choice: { minHeight: touch, flexDirection: "row", alignItems: "center", gap: 8 },
   inline: { minWidth: 120, minHeight: touch, textAlign: "right", fontSize: 15 },
 });

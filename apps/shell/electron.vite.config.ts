@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import solidPlugin from "vite-plugin-solid";
@@ -33,5 +34,14 @@ export default defineConfig({
   },
   renderer: {
     plugins: [solidPlugin(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        // D4: the agent dock is its own page in its own window.
+        input: {
+          index: resolve(__dirname, "src/renderer/index.html"),
+          dock: resolve(__dirname, "src/renderer/dock.html"),
+        },
+      },
+    },
   },
 });

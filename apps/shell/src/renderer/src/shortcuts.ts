@@ -9,7 +9,8 @@ export interface Shortcut {
   /** For example "Mod+Shift+T". Mod is ⌘ on the Mac and Ctrl elsewhere. */
   keys: string;
   when: ShortcutContext;
-  label: string;
+  /** A function when the label is interface text, so it follows the language (D9). */
+  label: string | (() => string);
   /** Return false to let the event continue to the next match. */
   run: (event: KeyboardEvent) => undefined | boolean;
 }
@@ -108,7 +109,8 @@ export interface ShortcutRegistry {
   /** Owner rebinds from preferences (F6): shortcut id → keys. */
   setBindings: (bindings: Readonly<Record<string, string>>) => void;
   keysFor: (id: string) => string | undefined;
-  list: () => readonly (Shortcut & { keys: string })[];
+  /** Each shortcut with the keys it answers to now and the keys it shipped with. */
+  list: () => readonly (Shortcut & { keys: string; defaultKeys: string; label: string })[];
   handle: (event: KeyboardEvent) => boolean;
 }
 
@@ -126,8 +128,10 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
       if (shortcuts.has(shortcut.id))
         throw new Error(`Shortcut already registered: ${shortcut.id}`);
       const keys = normalizeKeys(shortcut.keys);
+      // Two shipped defaults must not clash. An owner's binding can still take a default that
+      // isn't registered yet; the Keyboard page refuses the clashes it can see.
       for (const other of shortcuts.values()) {
-        if (other.when === shortcut.when && normalizeKeys(keysFor(other.id) ?? "") === keys)
+        if (other.when === shortcut.when && normalizeKeys(other.keys) === keys)
           throw new Error(`${shortcut.id} and ${other.id} both use ${keys} in ${shortcut.when}`);
       }
       shortcuts.set(shortcut.id, shortcut);
@@ -142,6 +146,8 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
     list: () =>
       [...shortcuts.values()].map((shortcut) => ({
         ...shortcut,
+        label: typeof shortcut.label === "function" ? shortcut.label() : shortcut.label,
+        defaultKeys: shortcut.keys,
         keys: keysFor(shortcut.id) ?? shortcut.keys,
       })),
     handle(event) {
@@ -160,7 +166,8 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
   };
 }
 
-function eventKey(event: KeyboardEvent): string {
+/** The key a press names, as shortcuts store it: what the matcher and the recorder both read. */
+export function eventKey(event: Pick<KeyboardEvent, "key" | "code" | "altKey">): string {
   // With Alt held, macOS reports a symbol as `key`; `code` keeps the physical letter.
   if (event.altKey && /^Key[A-Z]$/.test(event.code)) return event.code.slice(3).toLowerCase();
   if (event.altKey && event.code === "Space") return "space";

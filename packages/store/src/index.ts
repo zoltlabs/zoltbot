@@ -5,7 +5,7 @@ import { SqliteDriver } from "./sqlite-driver.js";
 import { Store } from "./store.js";
 
 export type { SqlDriver, SqlStatement, SqlTransaction } from "./driver.js";
-export { SqliteDriver } from "./sqlite-driver.js";
+export { SqliteDriver, sqliteModulePath } from "./sqlite-driver.js";
 export * from "./store.js";
 export async function openStore(
   file: string,

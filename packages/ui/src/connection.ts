@@ -103,6 +103,8 @@ export interface ConnectionState {
   status: "connecting" | "online" | "offline";
   snapshot: Snapshot;
   error?: string;
+  /** I8: the cloud page that installs the GitHub App, when the daemon has a cloud account. */
+  githubInstallUrl?: string;
 }
 export function applyStreamEvent(snapshot: Snapshot, event: DomainEvent): Snapshot {
   if (event.seq || event.type !== "item.stream") return snapshot;
@@ -157,9 +159,14 @@ export class DaemonClient {
       this.eventListeners.delete(listener);
     };
   }
+  /** From the daemon's hello; kept across reconnects and snapshots. */
+  private githubInstallUrl: string | undefined;
   private publish(next: ConnectionState) {
-    this.state = next;
-    for (const listener of this.listeners) listener(next);
+    const { githubInstallUrl: _previous, ...rest } = next;
+    this.state = this.githubInstallUrl
+      ? { ...rest, githubInstallUrl: this.githubInstallUrl }
+      : rest;
+    for (const listener of this.listeners) listener(this.state);
   }
   async start() {
     if (this.stopped) return;
@@ -197,7 +204,11 @@ export class DaemonClient {
           once: true,
         });
       });
-      await this.call("hello", { token: connection.token, protocolVersion: 1 });
+      const hello = (await this.call("hello", { token: connection.token, protocolVersion: 1 })) as {
+        githubInstallUrl?: unknown;
+      };
+      this.githubInstallUrl =
+        typeof hello?.githubInstallUrl === "string" ? hello.githubInstallUrl : undefined;
       const replay = (await this.call("events.subscribe", {
         fromSeq: this.state.snapshot.seq,
       })) as { seq: number; resync: boolean; events: DomainEvent[] };

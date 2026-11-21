@@ -18,10 +18,20 @@ import type {
 } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { ThreadAction } from "../../../shared/thread-actions";
+import { createAppearanceEntry } from "../appearance/AppearanceEntry";
 import type { BotProfile } from "../data";
+import { t } from "../i18n";
 import { Menu, type MenuItem } from "../kit";
+import { createDockEntry } from "../dock/DockEntry";
+import { createStartFreshEntry } from "../fresh/StartFreshEntry";
+import { createMoveEntry } from "../bundle/MoveEntry";
+import { createKeyboardEntry } from "../keyboard/KeyboardEntry";
+import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { requestCall } from "./conversation/call";
+import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
+import { openVoiceSettings, VoiceSettingsHost } from "./conversation/VoiceSettings";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
 import { createCliEntry } from "./cli/CliEntry";
@@ -38,6 +48,7 @@ import {
   UpdateIcon,
   UsageIcon,
 } from "./SidebarIcons";
+import { chooseSendKey, sendKey } from "./send-key";
 import {
   SidebarAgentIndicator,
   type SidebarAgentState,
@@ -53,8 +64,6 @@ import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
-import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
-import { chooseSendKey, sendKey } from "./send-key";
 
 export type { SidebarAgentState };
 export { SidebarToggleIcon };
@@ -90,6 +99,11 @@ interface SidebarProps {
   onOpenUsage?: () => void;
   routinesOpen?: boolean;
   onOpenRoutines?: () => void;
+  /** V1: the Vault page. */
+  vaultOpen?: boolean;
+  onOpenVault?: () => void;
+  dataOpen?: boolean;
+  onOpenData?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -356,6 +370,12 @@ export function Sidebar(props: SidebarProps) {
 
   const bridges = createBridgesEntry();
   const cli = createCliEntry();
+  const appearanceEntry = createAppearanceEntry();
+  const soundsEntry = createSoundsEntry();
+  const dockEntry = createDockEntry();
+  const freshEntry = createStartFreshEntry();
+  const moveEntry = createMoveEntry();
+  const keyboardEntry = createKeyboardEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -443,6 +463,7 @@ export function Sidebar(props: SidebarProps) {
           checked: linkPreviewsEnabled(),
           run: () => void setLinkPreviewsEnabled(!linkPreviewsEnabled()).catch(() => undefined),
         },
+        { id: "voice", label: t("voice.title"), run: openVoiceSettings },
       ],
       [
         {
@@ -452,6 +473,11 @@ export function Sidebar(props: SidebarProps) {
           run: props.onOpenPermissions,
         },
         bridges.item(),
+        appearanceEntry.item(),
+        soundsEntry.item(),
+        dockEntry.item(),
+        keyboardEntry.item(),
+        moveEntry.item(),
         ...[cli.item()].filter((item) => item !== undefined),
       ],
       [
@@ -470,6 +496,7 @@ export function Sidebar(props: SidebarProps) {
           run: () => openExternal("message"),
         },
       ],
+      [freshEntry.item()],
     ];
   }
 
@@ -512,6 +539,10 @@ export function Sidebar(props: SidebarProps) {
         onOpenUsage={props.onOpenUsage}
         routinesOpen={props.routinesOpen}
         onOpenRoutines={props.onOpenRoutines}
+        vaultOpen={props.vaultOpen}
+        onOpenVault={props.onOpenVault}
+        dataOpen={props.dataOpen}
+        onOpenData={props.onOpenData}
       />
 
       <div class="sidebar-search-wrap">
@@ -785,6 +816,12 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       <bridges.Dialog />
+      <appearanceEntry.Dialog />
+      <soundsEntry.Dialog />
+      <dockEntry.Dialog />
+      <freshEntry.Dialog />
+      <moveEntry.Dialog />
+      <keyboardEntry.Dialog />
       <cli.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
@@ -795,6 +832,10 @@ export function Sidebar(props: SidebarProps) {
             onRename={startRename}
             onEdit={props.onEditBot}
             onDelete={setDeleteTargetId}
+            onCall={(id) => {
+              props.onSelectBot(id);
+              requestCall(id);
+            }}
           />
         )}
       </Show>
@@ -811,6 +852,7 @@ export function Sidebar(props: SidebarProps) {
         )}
       </Show>
       {props.children}
+      <VoiceSettingsHost />
     </aside>
   );
 }

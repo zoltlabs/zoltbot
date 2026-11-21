@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import Intents
 import UIKit
 
@@ -71,6 +72,22 @@ enum ShareStore {
       throw failure("Your shared drafts inbox is full. Send or discard drafts in Zoltbot first.")
     }
     try write(draft, to: draftURL(draft.id))
+  }
+  /// A photo shrunk to fit a draft: at most 1024 px and 60 KB of JPEG.
+  static func photo(_ source: CGImageSource) throws -> SharePhoto {
+    guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceThumbnailMaxPixelSize: 1024
+      ] as CFDictionary)
+    else { throw failure("Could not decode this photo.") }
+    let image = UIImage(cgImage: thumb)
+    for quality in stride(from: 0.7, through: 0.1, by: -0.1) {
+      if let data = image.jpegData(compressionQuality: quality), data.count <= 60_000 {
+        return SharePhoto(base64: data.base64EncodedString(), mimeType: "image/jpeg")
+      }
+    }
+    throw failure("This photo is too detailed to send. Try a smaller image.")
   }
   static func sync(_ next: [ShareRecipient]) throws {
     let old = try recipients()

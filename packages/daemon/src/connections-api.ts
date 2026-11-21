@@ -18,6 +18,7 @@ import {
   isBrokerService,
 } from "../../connections/src/service-catalog.js";
 import { connectionsAuth } from "./connections-auth.js";
+import { type RegistryConnections, sharedRegistryConnections } from "./connections-registry.js";
 import { connectionWrite } from "./connections-write.js";
 import { startGoogleAdapter } from "./google-adapter.js";
 import type { PrivateVault } from "./private-context.js";
@@ -32,8 +33,10 @@ export function connectionsApi(options: {
   onChanged?(): void;
   stopSession?(sessionId: string): Promise<void>;
   catalogStatus?(): Promise<string[]>;
+  mcpRegistry?: RegistryConnections;
 }) {
   const { store } = options;
+  const mcpRegistry = options.mcpRegistry ?? sharedRegistryConnections();
   const registry = new ConnectionRegistry(store.database);
   const mutate = <T>(
     commandId: string | undefined,
@@ -102,6 +105,7 @@ export function connectionsApi(options: {
         return {
           items: connectionRecipes.map((recipe) => ({
             ...recipe,
+            phoneSignIn: isBrokerService(recipe.id),
             availability:
               !isBrokerService(recipe.id) || configured.includes(recipe.id)
                 ? "available"
@@ -111,6 +115,8 @@ export function connectionsApi(options: {
           })),
         };
       }
+      if (method === "connection.registry.search")
+        return { items: await mcpRegistry.search(String(params.query ?? "")) };
       if (method === "connection.list")
         return { items: registry.list(params.projectId as string | undefined) };
       if (method === "connection.affectedSessions")
@@ -121,6 +127,26 @@ export function connectionsApi(options: {
           commandCheck?.(state);
           return produce(state);
         });
+      if (method === "connection.registry.add") {
+        const projectId = String(params.projectId);
+        const { item, transport } = await mcpRegistry.prepare(String(params.registryId), {
+          version: String(params.version ?? ""),
+          ...(typeof params.runs === "string" ? { runs: params.runs } : {}),
+          ...(typeof params.url === "string" ? { url: params.url } : {}),
+        });
+        const value = mcpRegistry.record({
+          id: randomUUID(),
+          projectId,
+          item,
+          transport,
+          executionApproved: params.executionConfirmed === true,
+        });
+        return write((state) => {
+          if (!state.project?.some((p) => p.id === projectId && !p.archived))
+            throw new Error("connection_scope_denied");
+          return registry.save(value, 0);
+        });
+      }
       if (method === "connection.install") {
         const projectId = String(params.projectId);
         const serviceId = params.serviceId as ServiceId;

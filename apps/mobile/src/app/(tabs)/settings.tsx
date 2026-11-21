@@ -5,18 +5,24 @@ import { AppState, StyleSheet, View } from "react-native";
 import { type PhonePref, preferenceKey, readPhonePrefs } from "../../data/preferences";
 import { since, text } from "../../data/view";
 import { useAction } from "../../state/actions";
+import { appIconAvailable, useAppIcon } from "../../state/app-icon";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { type ThemePreference, usePrefs } from "../../state/prefs";
 import { usePush } from "../../state/push";
 import { TabScreen } from "../../ui/chrome";
-import { Button, Chip, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
+import { Button, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
+import { LockSettings } from "../../ui/LockSettings";
+import { MacSettings } from "../../ui/MacList";
+import { TextSizeSettings } from "../../ui/TextSizeSettings";
 import { Toggle } from "../../ui/Toggle";
+import { VoiceSettings } from "../../ui/VoiceSettings";
 
 export default function Settings() {
   const prefs = usePrefs();
+  const appIcon = useAppIcon((state) => state.current);
   const push = usePush();
   const snapshot = useSnapshot();
-  const { status, kind, lastSeenAt } = useClient((state) => state);
+  const { status, kind } = useClient((state) => state);
   const { macName, fake, deviceId } = useLink();
   const { run, busy } = useAction();
   const [logins, setLogins] = useState<Record<string, string>>({});
@@ -31,6 +37,7 @@ export default function Settings() {
   };
   useEffect(() => {
     void usePush.getState().refresh();
+    void useAppIcon.getState().refresh();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void usePush.getState().refresh();
     });
@@ -60,13 +67,6 @@ export default function Settings() {
       confirmLabel: "Remove device",
       onConfirm: () => void run("device.revoke", { id, confirmed: true }),
     });
-  const unpair = () =>
-    showConfirmSheet({
-      title: "Unpair this iPhone?",
-      body: "It forgets your Mac. You can scan a new code to pair again.",
-      confirmLabel: "Unpair iPhone",
-      onConfirm: () => void useLink.getState().disconnect(),
-    });
 
   return (
     <TabScreen title="Settings">
@@ -81,6 +81,20 @@ export default function Settings() {
           { value: "dark", label: "Dark" },
         ]}
       />
+      <TextSizeSettings />
+      {appIconAvailable ? (
+        <Group>
+          <Row
+            title="App icon"
+            detail={appIcon.name}
+            onPress={() => router.push("/app-icon")}
+            last
+          />
+        </Group>
+      ) : null}
+      <VoiceSettings />
+      <Section title="Privacy" />
+      <LockSettings />
 
       {fake ? (
         <>
@@ -96,7 +110,7 @@ export default function Settings() {
           <View style={styles.row}>
             <Button
               label="Pair a real Mac"
-              onPress={() => void useLink.getState().disconnect()}
+              onPress={() => useLink.getState().leaveSample()}
               style={styles.flex}
             />
           </View>
@@ -157,41 +171,39 @@ export default function Settings() {
         <Row title="Connections" onPress={() => router.push("/connections")} last />
       </Group>
 
-      <Section title="Devices" />
-      <Group>
-        <Row
-          title={macName || "Your Mac"}
-          detail={!online && lastSeenAt ? `Last seen ${since(lastSeenAt)}` : undefined}
-          right={
-            <Chip label={online ? "Connected" : "Offline"} tone={online ? "ok" : "neutral"} dot />
-          }
-        />
-        {devices.map((device, index) => {
-          const self = device.id === deviceId;
-          const name = text(device.name);
-          return (
-            <Row
-              key={text(device.id)}
-              title={name}
-              detail={
-                self ? `Paired ${since(device.pairedAt)}` : `Last seen ${since(device.lastSeenAt)}`
-              }
-              right={
-                self ? undefined : (
-                  <Button
-                    label="Remove"
-                    disabled={!online}
-                    onPress={() => remove(text(device.id), name)}
-                    a11y={`Remove ${name}`}
-                  />
-                )
-              }
-              last={index === devices.length - 1}
-            />
-          );
-        })}
-      </Group>
-      {kind === "relay" ? <Button label="Unpair this iPhone" onPress={unpair} /> : null}
+      <MacSettings />
+
+      {devices.length ? <Section title={`Devices on ${macName || "your Mac"}`} /> : null}
+      {devices.length ? (
+        <Group>
+          {devices.map((device, index) => {
+            const self = device.id === deviceId;
+            const name = text(device.name);
+            return (
+              <Row
+                key={text(device.id)}
+                title={name}
+                detail={
+                  self
+                    ? `Paired ${since(device.pairedAt)}`
+                    : `Last seen ${since(device.lastSeenAt)}`
+                }
+                right={
+                  self ? undefined : (
+                    <Button
+                      label="Remove"
+                      disabled={!online}
+                      onPress={() => remove(text(device.id), name)}
+                      a11y={`Remove ${name}`}
+                    />
+                  )
+                }
+                last={index === devices.length - 1}
+              />
+            );
+          })}
+        </Group>
+      ) : null}
 
       <Section title="Coding tools" />
       <Group>

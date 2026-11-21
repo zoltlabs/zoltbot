@@ -1,6 +1,6 @@
 import type { ChannelPost, ChannelRead, ChannelRequestAction } from "@zoltbot/protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, Alert } from "react-native";
+import { Alert } from "react-native";
 import {
   type ChannelPostView,
   type ChannelRequestView,
@@ -17,6 +17,7 @@ import {
   toChannelView,
   toPostView,
 } from "../data/channels";
+import { showMenu } from "../ui/kit";
 import { attempts } from "./actions";
 import { useClient, useLink, useSnapshot } from "./link";
 
@@ -215,16 +216,12 @@ export function useChannel(id: string) {
     (request: ChannelRequestView) => {
       const choices = leadChoices(view?.members ?? [], request);
       if (!choices.length) return;
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: "New lead",
-          options: [...choices.map((member) => member.name), "Cancel"],
-          cancelButtonIndex: choices.length,
-        },
-        (index) => {
-          const member = choices[index];
-          if (member) void act(request, "reassign", member.threadId);
-        },
+      showMenu(
+        choices.map((member) => ({
+          label: member.name,
+          onPress: () => void act(request, "reassign", member.threadId),
+        })),
+        "New lead",
       );
     },
     [act, view?.members],

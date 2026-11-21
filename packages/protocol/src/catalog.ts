@@ -89,6 +89,7 @@ import { KnowledgeProposalSchema, knowledgeWriteMethods } from "./knowledge-writ
 import { MacOutputSnapshotSchema } from "./mac-approval.js";
 import { withMethodLocations } from "./method-locations.js";
 import { OrchestrationSchema, orchestrationMethods } from "./orchestration.js";
+import { projectDataMethods } from "./project-data.js";
 import { quickChatEvents, quickChatMethods } from "./quick-chat.js";
 import {
   ShippingFeedbackSchema,
@@ -96,9 +97,10 @@ import {
   ShippingSchema,
   shippingMethods,
 } from "./shipping.js";
-import { skillMethods } from "./skills.js";
+import { SkillProposalSchema, skillMethods } from "./skills.js";
 import { staffMethods } from "./staff.js";
 import { terminalMethods } from "./terminal.js";
+import { vaultMethods } from "./vault.js";
 
 import { ViewRecordSchema, viewMethods } from "./views.js";
 import { WakeSchema, wakeMethods } from "./wakes.js";
@@ -148,6 +150,7 @@ export const entitySchemas = {
   knowledge: KnowledgeItemSchema,
   contextPack: ContextPackSchema,
   knowledgeProposal: KnowledgeProposalSchema,
+  skillProposal: SkillProposalSchema,
   deliverable: DeliverableSchema,
   workflow: PipelineVersionSchema,
   workflowRun: WorkflowRunSchema,
@@ -165,6 +168,7 @@ const page = object({
 });
 const ok = object({ ok: Type.Boolean() });
 const entry = <P extends TSchema, R extends TSchema>(params: P, result: R) => ({ params, result });
+const VoiceList = Type.Array(object({ id: Type.String(), name: Type.String() }), { maxItems: 200 });
 const list = (schema: TSchema) =>
   entry(page, object({ items: Type.Array(schema), cursor: OptionalText }));
 const crud = <T extends TSchema>(schema: T) => ({
@@ -211,12 +215,19 @@ const rawMethodCatalog = {
   ...knowledgeWriteMethods,
   ...quickChatMethods,
   ...backupModelMethods,
+  ...vaultMethods,
+  ...projectDataMethods,
   ...staffMethods,
   ...agentTemplateMethods,
   ...bridgeMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
-    object({ protocolVersion: Type.Integer(), version: Text }),
+    object({
+      protocolVersion: Type.Integer(),
+      version: Text,
+      // I8: where the owner installs the GitHub App; only when this daemon has a cloud account.
+      githubInstallUrl: Type.Optional(Text),
+    }),
   ),
   "snapshot.get": entry(
     empty,
@@ -242,6 +253,21 @@ const rawMethodCatalog = {
     object({ previewId: Id, items: Type.Array(Json) }),
   ),
   "import.apply": entry(object({ previewId: Id, selected: Strings, consent: Type.Boolean() }), ok),
+  // D7: agents, memory, skills, routines, the company and settings, to and from a ZIP.
+  "export.bundle": entry(
+    object({ path: Text }),
+    object({ path: Text, counts: Type.Record(Text, Type.Integer()) }),
+  ),
+  "import.bundle": entry(
+    object({ path: Text }),
+    object({
+      previewId: Id,
+      agents: Type.Integer(),
+      items: Type.Array(Json),
+      connections: Strings,
+      tools: Strings,
+    }),
+  ),
   "doctor.report": entry(empty, object({ checks: Type.Array(Json) })),
   "doctor.fix": entry(object({ definitionId: Id, action: Id, confirmed: Type.Boolean() }), ok),
   "update.list": entry(empty, object({ updates: Type.Array(Json) })),
@@ -320,6 +346,39 @@ const rawMethodCatalog = {
   ),
   /** C2: turns an aside into a normal chat, listed like any other. */
   "thread.continueAside": entry(object({ id: Id }), ThreadSchema),
+  /** O1: whether an ElevenLabs key is set up. */
+  "voice.status": entry(object({}), object({ elevenlabs: Type.Boolean() })),
+  /**
+   * O1: checks the owner's ElevenLabs key by listing its voices, then keeps it in the keychain.
+   * Fails with voice_key_rejected, voice_limit, voice_unreachable or keychain_unavailable.
+   */
+  "voice.key.set": entry(
+    object({ key: Type.String({ minLength: 1, maxLength: 200 }) }),
+    object({ voices: VoiceList }),
+  ),
+  "voice.key.clear": entry(object({}), object({})),
+  /** O1: the key's voices. Fails with voice_not_set_up or the voice.key.set errors. */
+  "voice.voices": entry(object({}), object({ voices: VoiceList })),
+  /**
+   * O1 and O5: one piece of a reply as MP3, base64. Text holding a private value isn't sent
+   * (private_value). Also fails with voice_not_set_up, voice_not_found and the key errors.
+   */
+  "voice.speak": entry(
+    object({
+      text: Type.String({ minLength: 1, maxLength: 400 }),
+      voiceId: Type.String({ minLength: 1, maxLength: 64 }),
+    }),
+    object({ mime: Text, data: Text }),
+  ),
+  /** O2: records a finished call in its chat. Fails with call_time_invalid or thread_not_found. */
+  "voice.call.log": entry(
+    object({
+      threadId: Id,
+      startedAt: Type.String({ maxLength: 40 }),
+      endedAt: Type.String({ maxLength: 40 }),
+    }),
+    object({}),
+  ),
   /** C4: pins are newest first. Pinning fails with pin_limit past 50 pins in one chat. */
   "message.pin": entry(
     object({ threadId: Id, itemId: Id }),
@@ -808,6 +867,11 @@ const rawMethodCatalog = {
   "diagnostics.export": entry(
     empty,
     object({ versions: Type.Record(Text, Text), checks: Type.Array(Json), logs: Strings }),
+  ),
+  // D6: removes saved logins and marks the data folder; the next start empties it.
+  "maintenance.startFresh": entry(
+    object({ confirm: Type.Literal("start fresh") }),
+    object({ kept: Strings }),
   ),
 };
 export type MethodName = keyof typeof rawMethodCatalog;

@@ -43,7 +43,7 @@ describe("sign in", () => {
     const mac = await signIn(url, "mac");
     expect(await mac.client.next("features")).toEqual({
       t: "features",
-      push: ["needs_you", "task_done", "zolt"],
+      push: ["needs_you", "task_done", "zolt", "liveactivity"],
     });
     const phone = createIdentity();
     await registry.allowDevice(mac.id, linkId(phone.publicKey));
@@ -326,6 +326,23 @@ describe("frame checks", () => {
 });
 
 describe("push", () => {
+  it("takes an Android phone's FCM token for pushes, but not for a Live Activity", async () => {
+    const { url, registry, push } = await start();
+    const mac = await signIn(url, "mac");
+    const identity = createIdentity();
+    await registry.allowDevice(mac.id, linkId(identity.publicKey));
+    const phone = await signIn(url, "device", { identity, macId: mac.id });
+    phone.client.send({ t: "activity.register", platform: "fcm", token: "act" });
+    phone.client.send({ t: "push.register", platform: "fcm", token: "android" });
+    await expect
+      .poll(async () => (await registry.getDevice(mac.id, phone.id))?.pushToken)
+      .toBe("android");
+    expect((await registry.getDevice(mac.id, phone.id))?.activityToken).toBeUndefined();
+    mac.client.send({ t: "push", deviceId: phone.id, kind: "task_done", count: 1 });
+    await expect.poll(() => push.sent.length).toBe(1);
+    expect(push.sent[0]).toMatchObject({ platform: "fcm", token: "android" });
+  });
+
   it("sends through the push sender and forgets a dead token", async () => {
     const { url, registry, push } = await start();
     const mac = await signIn(url, "mac");
@@ -344,6 +361,7 @@ describe("push", () => {
       token: "tok",
       kind: "needs_you",
       count: 3,
+      macId: mac.id,
     });
 
     mac.client.send({
@@ -372,6 +390,22 @@ describe("push", () => {
     await expect.poll(() => push.sent.length).toBe(3);
     expect(push.sent[2]).toMatchObject({ kind: "zolt", count: 1, threadId: "chief" });
     expect(push.sent[2]).not.toHaveProperty("action");
+
+    // P3: a Live Activity token, then counts from the Mac; nothing goes before a token.
+    mac.client.send({ t: "activity", deviceId: phone.id, working: 1, needsYou: 0 });
+    phone.client.send({ t: "activity.register", platform: "apns-sandbox", token: "act" });
+    await expect
+      .poll(async () => (await registry.getDevice(mac.id, phone.id))?.activityToken)
+      .toBe("act");
+    expect(push.activities).toHaveLength(0);
+    mac.client.send({ t: "activity", deviceId: phone.id, working: 2, needsYou: 1 });
+    await expect.poll(() => push.activities.length).toBe(1);
+    expect(push.activities[0]).toEqual({
+      platform: "apns-sandbox",
+      token: "act",
+      working: 2,
+      needsYou: 1,
+    });
 
     // A device of another Mac gets nothing.
     const stranger = await signIn(url, "mac");

@@ -26,13 +26,16 @@ export async function registerNotificationCategories() {
       identifier: pushActions.reject,
       buttonTitle: "Reject",
       textInput: { submitButtonTitle: "Reject", placeholder: "Tell the agent why (optional)" },
-      options: { opensAppToForeground: false, isDestructive: true },
+      // Answering also needs an unlocked phone, so a found phone can't refuse for the owner.
+      options: { opensAppToForeground: false, isDestructive: true, isAuthenticationRequired: true },
     },
   ]);
 }
 
 /** Resolves with the client once it is online, or undefined after the timeout. */
-function onlineClient(timeoutMs: number): Promise<Client | undefined> {
+function onlineClient(timeoutMs: number, macId?: string): Promise<Client | undefined> {
+  const pick = (state: ReturnType<typeof useLink.getState>) =>
+    macId ? state.clients[macId] : state.client;
   return new Promise((resolve) => {
     let stopClient: (() => void) | undefined;
     const finish = (client: Client | undefined) => {
@@ -52,9 +55,9 @@ function onlineClient(timeoutMs: number): Promise<Client | undefined> {
     };
     const timer = setTimeout(() => finish(undefined), timeoutMs);
     const stopLink = useLink.subscribe((state, previous) => {
-      if (state.client !== previous.client) watch(state.client);
+      if (pick(state) !== pick(previous)) watch(pick(state));
     });
-    watch(useLink.getState().client);
+    watch(pick(useLink.getState()));
   });
 }
 
@@ -66,7 +69,9 @@ async function tell(title: string, body: string, threadId?: string) {
 }
 
 async function answerFromPush(response: Extract<PushResponse, { kind: "answer" }>) {
-  const client = await onlineClient(20_000);
+  // A Mac this phone has since forgotten can't take the answer.
+  const known = !response.macId || !!useLink.getState().clients[response.macId];
+  const client = known ? await onlineClient(20_000, response.macId) : undefined;
   if (!client) {
     await tell(
       "Answer not sent",
@@ -101,7 +106,14 @@ export function handleNotificationResponse(response: Notifications.NotificationR
     response.actionIdentifier,
     response.userText,
   );
-  if (next.kind === "open") router.push(`/chat/${next.threadId}`);
+  if (next.kind === "open") {
+    const { activeId, clients, switchTo } = useLink.getState();
+    if (next.macId && next.macId !== activeId) {
+      if (!clients[next.macId]) return;
+      switchTo(next.macId);
+    }
+    router.push(`/chat/${next.threadId}`);
+  }
   if (next.kind === "answer") void answerFromPush(next);
 }
 

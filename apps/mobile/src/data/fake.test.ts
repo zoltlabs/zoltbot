@@ -359,6 +359,25 @@ it("hides and shows a message in sample mode", async () => {
   client.stop();
 });
 
+describe("agent editing in sample mode", () => {
+  it("lists models per tool and saves a role", async () => {
+    const client = createClient(new FakeTransport({ replyDelayMs: 1 }));
+    await vi.waitFor(() => expect(client.getState().status).toBe("online"));
+    const catalog = (await client.getState().call("model.catalog", {})) as {
+      items: { definitionId: string; models: unknown[] }[];
+    };
+    expect(catalog.items.find((row) => row.definitionId === "claude")?.models.length).toBe(2);
+    const agent = client.getState().snapshot.entities.agent?.[0];
+    await client.getState().call("agent.update", {
+      id: agent?.id,
+      changes: { roleText: "Reviews PRs", model: "opus" },
+    });
+    expect(
+      client.getState().snapshot.entities.agent?.find((row) => row.id === agent?.id),
+    ).toMatchObject({ roleText: "Reviews PRs", model: "opus" });
+  });
+});
+
 describe("agent templates in sample mode", () => {
   it("lists templates and creates a profile from one", async () => {
     const fake = new FakeTransport({ replyDelayMs: 1 });

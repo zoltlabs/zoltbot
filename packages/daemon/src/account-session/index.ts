@@ -150,6 +150,8 @@ export function accountSession(options: AccountSessionOptions) {
           "/api/cloud/devices": "GET",
           "/api/cloud/runner-token": "POST",
           "/api/cloud/runner-grants": "PUT",
+          // I8: a short-lived token for the Zoltbot GitHub App on one repository.
+          "/api/github/installation-token": "POST",
         };
         if (routes[path] !== method) throw new Error("account_request_invalid");
         return request(path, method, payload, true);

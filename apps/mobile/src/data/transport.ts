@@ -22,6 +22,8 @@ export class OutcomeUnknownError extends Error {
 export interface TransportHandlers {
   status(status: LinkStatus, detail?: { lastSeenAt?: string; error?: string }): void;
   event(event: DomainEvent): void;
+  /** P8: a notification that isn't a domain event, such as a frame of the agent's browser. */
+  notify?(method: string, params: unknown): void;
   /** The six digit code from the handshake, shown while the person confirms on the Mac. */
   confirmCode?(code: string): void;
 }

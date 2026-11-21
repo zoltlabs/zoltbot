@@ -2,6 +2,18 @@ import { HOST_WORKSPACE_REF, STAFF_ALLOWANCE_OPTION, STAFF_APPROVAL_ITEM } from 
 import { sampleChannelRows } from "./fake-channels.js";
 import type { Row } from "./transport.js";
 
+/** P10: sample models per tool, as the Mac's catalog would list them. */
+const sampleModels: Record<string, { id: string; name: string }[]> = {
+  claude: [
+    { id: "opus", name: "Opus" },
+    { id: "sonnet", name: "Sonnet" },
+  ],
+  codex: [
+    { id: "gpt-large", name: "GPT Large" },
+    { id: "gpt-mini", name: "GPT Mini" },
+  ],
+};
+
 // Sample data for a manager's chat and backup models: Mira assigns two tasks to Sam and Theo,
 // waits on one, asks to add Juno, and Sam's chat has moved to a backup account. Every row uses
 // the real protocol entity shape (fake-manager.test.ts checks them).
@@ -521,6 +533,17 @@ export function answerManager(method: string, p: Row, store: ManagerRows): unkno
             model: "mini:free",
             name: "Mini",
           })),
+      };
+    case "model.catalog":
+      // P10: what the Mac has seen each tool offer, for the phone's model picker.
+      return {
+        items: store.rows("agentDefinition").map((row) => ({
+          definitionId: row.id,
+          adapter: row.adapter,
+          selectable: true,
+          models: sampleModels[String(row.id)] ?? [],
+          effort: ["low", "medium", "high"],
+        })),
       };
     case "backupOrder.set": {
       const orders = { ...(value(store, "models.orders") ?? {}) } as Row;

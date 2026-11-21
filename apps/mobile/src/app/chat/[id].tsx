@@ -1,4 +1,11 @@
-import { type ArtifactTarget, isStopPhrase, quoteText, withQuote } from "@zoltbot/protocol";
+import {
+  type ArtifactTarget,
+  findSecret,
+  isStopPhrase,
+  quoteText,
+  type SecretMatch,
+  withQuote,
+} from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { selectedRequest } from "@zoltbot/ui/interactions/request-presentation";
 import { router, useLocalSearchParams } from "expo-router";
@@ -31,6 +38,7 @@ import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import { useCalmStatus, workingStatus } from "../../data/status";
+import { scaleText } from "../../data/text-size";
 import type { Row } from "../../data/transport";
 import {
   place,
@@ -40,12 +48,14 @@ import {
   text,
   transcript,
 } from "../../data/view";
+import { withCalls } from "../../data/voice";
 import { newId, useAction } from "../../state/actions";
+import { useBrowserRunning } from "../../state/browser-screen";
 import { useChatDraft } from "../../state/chat-draft";
-import { useClient, useSnapshot } from "../../state/link";
+import { useClient, useLink, useSnapshot } from "../../state/link";
 import { outbox, startOutbox } from "../../state/outbox";
 import { donateBotConversation } from "../../state/sharing";
-import { sans, touch, useTheme } from "../../theme";
+import { sans, touch, useTextScale, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { BotAvatar } from "../../ui/BotAvatar";
@@ -59,8 +69,11 @@ import { Button, Chip, Segmented, Txt } from "../../ui/kit";
 import { messageMarks } from "../../ui/message-marks";
 import { PinStrip } from "../../ui/PinStrip";
 import { ReplyBar } from "../../ui/ReplyBar";
+import { useReadNewReplies } from "../../ui/read-aloud";
 import { useRowPositions } from "../../ui/row-positions";
+import { SecretBar } from "../../ui/SecretBar";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
+import { useCanListen, useDictation } from "../../ui/speech";
 import { TaskContext } from "../../ui/TaskContext";
 import { Message, type QueueActions } from "../../ui/Transcript";
 import { WaitingMessages } from "../../ui/WaitingMessages";
@@ -92,16 +105,20 @@ export default function Chat() {
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
-  const rows = withReactions(
+  const rows = withCalls(
     snapshot,
     id,
-    withHidden(
+    withReactions(
       snapshot,
       id,
-      withProgress(
+      withHidden(
         snapshot,
         id,
-        withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+        withProgress(
+          snapshot,
+          id,
+          withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+        ),
       ),
     ),
   );
@@ -110,6 +127,8 @@ export default function Chat() {
   const turn = runningTurn(snapshot, id);
   const status = useCalmStatus(workingStatus(snapshot, id));
   const who = profileName(snapshot, thread?.agentId);
+  // P8: the agent's own browser, watched and taken over from here.
+  const browserOpen = useBrowserRunning(thread ? id : undefined);
   const chief = chiefThreadId(snapshot.entities) === id;
   const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
   const location = place(snapshot, thread);
@@ -122,7 +141,12 @@ export default function Chat() {
   const pinnedIds = new Set(pinned.map((row) => row.id));
   // C6: the message being replied to; its quote goes ahead of the words when sent.
   const [replyTo, setReplyTo] = useState<TranscriptRow>();
+  const textSize = useTextScale();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
+  // O4: the composer's microphone and voice mode, in builds that can listen.
+  const canListen = useCanListen();
+  const dictation = useDictation(draft, setDraft, id);
+  useReadNewReplies(id, rows);
   const marks = online
     ? messageMarks(id, pinnedIds, run, (row) => {
         setReplyTo(row);
@@ -147,14 +171,37 @@ export default function Chat() {
   useEffect(() => {
     if (!turn) setDelivery("steer");
   }, [turn]);
+  // V4: a message that looks like a secret waits until the owner saves it or sends it anyway.
+  const [secret, setSecret] = useState<{ text: string; match: SecretMatch }>();
+  const sendAnyway = useRef<string | null>(null);
+  const saveSecret = async (label: string) => {
+    if (!secret) return;
+    const { text: held, match } = secret;
+    const result = (await run("vault.saveSecret", {
+      label,
+      value: held.slice(match.start, match.end),
+    })) as { reference?: unknown } | undefined;
+    if (typeof result?.reference !== "string") return;
+    setSecret(undefined);
+    const replaced = held.slice(0, match.start) + result.reference + held.slice(match.end);
+    // A save that ends after the owner edited the draft leaves it alone.
+    setDraft((current) => (current === held ? replaced : current));
+  };
   const send = async () => {
     const message = draft.trim();
     const words = replyTo ? withQuote(quoteText(replyTo.text), message) : message;
     if (!message && !attachments.length) return;
+    const match = sendAnyway.current === draft ? undefined : findSecret(draft);
+    sendAnyway.current = null;
+    if (match) {
+      setSecret({ text: draft, match });
+      return;
+    }
     // A bare "stop" while the agent works stops the turn instead of queueing a message.
     if (turn && !attachments.length && !replyTo && isStopPhrase(message)) {
       const stopped = await run("turn.interrupt", { threadId: id, turnId: text(turn.id) });
       if (stopped) {
+        dictation.cancel();
         setDraft("");
         AccessibilityInfo.announceForAccessibility("Stopped");
       }
@@ -169,6 +216,7 @@ export default function Chat() {
       if (asked) {
         followLatest.current = true;
         setFollowing(true);
+        dictation.cancel();
         setDraft("");
         setReplyTo(undefined);
         AccessibilityInfo.announceForAccessibility("Asked aside");
@@ -176,7 +224,8 @@ export default function Chat() {
       return;
     }
     // C12: while the Mac is unreachable, or behind messages still waiting, text waits too.
-    if (!online || outbox.has(id)) {
+    const macId = useLink.getState().activeId;
+    if (!online || outbox.has(id, macId)) {
       if (attachments.length || artifactTarget) {
         Alert.alert("Attachments need your Mac. Send them once it’s back.");
         return;
@@ -188,6 +237,7 @@ export default function Chat() {
           input: composeInput(words, []),
           text: words,
           createdAt: new Date().toISOString(),
+          ...(macId ? { macId } : {}),
         });
       } catch (error) {
         Alert.alert(error instanceof Error ? error.message : String(error));
@@ -195,6 +245,7 @@ export default function Chat() {
       }
       followLatest.current = true;
       setFollowing(true);
+      dictation.cancel();
       setDraft("");
       setReplyTo(undefined);
       if (online) void outbox.flush();
@@ -210,6 +261,7 @@ export default function Chat() {
       followLatest.current = true;
       setFollowing(true);
       void donateBotConversation(id).catch(() => undefined);
+      dictation.cancel();
       setDraft("");
       setAttachments([]);
       setArtifactTarget(undefined);
@@ -269,6 +321,26 @@ export default function Chat() {
           turnId={turn ? text(turn.id) : undefined}
           compactions={compactions(snapshot, id)}
         />
+        {browserOpen ? (
+          <Pressable
+            onPress={() => router.push(`/chat/browser?id=${encodeURIComponent(id)}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Open screen"
+            style={styles.bell}
+          >
+            <Icon name="screen" color={c["text-secondary"]} size={22} />
+          </Pressable>
+        ) : null}
+        {canListen && thread && online ? (
+          <Pressable
+            onPress={() => router.push(`/chat/voice?id=${encodeURIComponent(id)}`)}
+            accessibilityRole="button"
+            accessibilityLabel="Start call"
+            style={styles.bell}
+          >
+            <Icon name="call" color={c["text-secondary"]} size={22} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => router.push(`/chat/options?id=${encodeURIComponent(id)}`)}
           accessibilityRole="button"
@@ -368,6 +440,7 @@ export default function Chat() {
                   ? { onEdit: (queued: TranscriptRow) => void edit(queued) }
                   : {})}
                 {...(online && !busy && row.queued ? { queue: queueActions(row) } : {})}
+                canBranch={online && !turn && !request && !compareReadOnly}
                 {...(row.turnId && edits.get(row.turnId)?.length
                   ? {
                       edits: {
@@ -429,17 +502,19 @@ export default function Chat() {
           />
         </ScrollView>
       ) : null}
-      <Attachments
-        value={attachments}
-        onChange={setAttachments}
-        threadId={id}
-        disabled={busy}
-        onPasteAsText={(pasted) => {
-          setAttachments((all) => all.filter((entry) => entry.id !== pasted.id));
-          const words = pasted.part.type === "text" ? pasted.part.text : "";
-          setDraft((current) => (current.trim() ? `${current}\n${words}` : words));
-        }}
-      />
+      <View style={styles.attach}>
+        <Attachments
+          value={attachments}
+          onChange={setAttachments}
+          threadId={id}
+          disabled={busy}
+          onPasteAsText={(pasted) => {
+            setAttachments((all) => all.filter((entry) => entry.id !== pasted.id));
+            const words = pasted.part.type === "text" ? pasted.part.text : "";
+            setDraft((current) => (current.trim() ? `${current}\n${words}` : words));
+          }}
+        />
+      </View>
       <View
         style={[
           styles.composer,
@@ -447,6 +522,19 @@ export default function Chat() {
         ]}
         accessibilityLabel={`Message ${title}`}
       >
+        {secret && secret.text === draft ? (
+          <SecretBar
+            match={secret.match}
+            busy={busy}
+            online={online}
+            onSave={(label) => void saveSecret(label)}
+            onSendAnyway={() => {
+              sendAnyway.current = secret.text;
+              setSecret(undefined);
+              void send();
+            }}
+          />
+        ) : null}
         {replyTo ? (
           <ReplyBar row={replyTo} name={who} onCancel={() => setReplyTo(undefined)} />
         ) : null}
@@ -486,6 +574,7 @@ export default function Chat() {
             ref={input}
             value={draft}
             onChangeText={(next) => {
+              dictation.cancel();
               // C13: a paste over 2,000 characters becomes an attachment.
               const { draft: kept, pasted } = takeLongPaste(draft, next);
               setDraft(kept);
@@ -498,10 +587,32 @@ export default function Chat() {
             editable={!!thread}
             accessibilityLabel="Message"
             style={[
-              styles.input,
+              scaleText(styles.input, textSize),
               { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-raised"] },
             ]}
           />
+          {canListen && thread ? (
+            <Pressable
+              onPress={() =>
+                dictation.listening
+                  ? dictation.stop()
+                  : void dictation.start().then((problem) => problem && Alert.alert(problem))
+              }
+              accessibilityRole="button"
+              accessibilityLabel={dictation.listening ? "Stop dictation" : "Dictate"}
+              accessibilityState={{ selected: dictation.listening }}
+              style={[
+                styles.round,
+                { backgroundColor: dictation.listening ? c.primary : c["bg-raised"] },
+              ]}
+            >
+              <Icon
+                name="mic"
+                color={dictation.listening ? c["text-on-primary"] : c["text-secondary"]}
+                size={20}
+              />
+            </Pressable>
+          ) : null}
           {turn && !draft.trim() && !attachments.length ? (
             <Pressable
               onPress={stop}
@@ -552,6 +663,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingVertical: 16, gap: 16, flexGrow: 1 },
   pinned: { flexGrow: 0, borderTopWidth: StyleSheet.hairlineWidth },
   pinnedBody: { padding: 16 },
+  attach: { paddingHorizontal: 16, paddingTop: 8 },
   composer: {
     gap: 8,
     paddingHorizontal: 16,

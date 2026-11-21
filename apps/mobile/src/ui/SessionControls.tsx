@@ -20,6 +20,7 @@ import { useLink, useSnapshot } from "../state/link";
 import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Chip, Txt } from "./kit";
+import { openMenuSheet } from "./menu-sheet-store";
 
 export function pick(
   title: string,
@@ -39,6 +40,15 @@ export function pick(
         if (index < labels.length) choose(index);
       },
     );
+    return;
+  }
+  // Android alerts show at most three buttons.
+  if (labels.length > 2) {
+    openMenuSheet({
+      title,
+      ...(message ? { message } : {}),
+      items: labels.map((label, index) => ({ label, onPress: () => choose(index) })),
+    });
     return;
   }
   Alert.alert(title, message, [

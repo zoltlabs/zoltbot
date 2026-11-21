@@ -2,6 +2,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive NODE_VERSION=22.23.4
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash ca-certificates curl git gh python3 make g++ libatomic1 xz-utils \
+    xvfb x11vnc openbox fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 RUN set -eu; \
     case "$(dpkg --print-architecture)" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; *) exit 1 ;; esac; \
@@ -26,7 +27,8 @@ RUN npx --yes --package playwright@1.58.1 playwright install --with-deps chromiu
     && test -n "$chromium_binary" && ln -s "$chromium_binary" /usr/local/bin/chromium \
     && useradd --create-home --shell /bin/bash user
 COPY templates/sandbox/start.sh /usr/local/bin/zolt-worker
-RUN chmod 755 /usr/local/bin/zolt-worker \
+COPY templates/sandbox/desktop.sh /usr/local/bin/zolt-desktop
+RUN chmod 755 /usr/local/bin/zolt-worker /usr/local/bin/zolt-desktop \
     && mkdir -p /home/user/work /home/user/.zoltbot \
     && chown -R user:user /home/user
 USER user

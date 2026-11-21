@@ -28,10 +28,13 @@ export async function shellSession(daemon: DaemonAddress) {
     service,
     rpc,
     errors,
-    /** Opens the built renderer in `page` and records uncaught page errors in `errors`. */
-    async open(page: Page) {
+    /**
+     * Opens the built renderer in `page` and records uncaught page errors in `errors`. `path`
+     * picks another page of it, such as the agent dock's.
+     */
+    async open(page: Page, path?: string) {
       page.on("pageerror", (error) => errors.push(error.message));
-      await openShell(page, service);
+      await openShell(page, service, path);
     },
     async close() {
       rpc.stop();
@@ -68,12 +71,22 @@ export async function axeViolations(
   return lines;
 }
 
-/** Switches the page's color scheme and waits for the color transitions it starts to end. */
+/**
+ * Switches the page's color scheme and waits for the color transitions it starts to end. The
+ * shell's stylesheets follow data-theme on <html>, which the app sets from prefers-color-scheme
+ * while the Theme setting is System; waiting for it means both themes really render.
+ */
 export async function settleColorScheme(
   page: Page,
   colorScheme: (typeof COLOR_SCHEMES)[number],
 ): Promise<void> {
   await page.emulateMedia({ colorScheme });
+  await page.waitForFunction((scheme) => {
+    const { theme, themeChoice } = document.documentElement.dataset;
+    // Pages without the app (kit fixtures) have no data-theme of their own, and a theme the
+    // owner chose doesn't follow the system.
+    return theme === undefined || theme === scheme || (themeChoice ?? "system") !== "system";
+  }, colorScheme);
   await page.evaluate(() =>
     Promise.all(
       document

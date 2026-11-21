@@ -25,5 +25,7 @@ export function frozenArtifactGuidance(binding: ArtifactBinding) {
 export type ArtifactToolSurface = (
   artifact: boolean,
   browser: boolean,
-  thread?: { id: string },
+  thread?: { id: string; projectId?: string | null | undefined },
+  /** The session can't write, so write tools are left out. */
+  readOnly?: boolean,
 ) => HostToolDefinition[];

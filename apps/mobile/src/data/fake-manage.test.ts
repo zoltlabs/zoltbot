@@ -29,6 +29,23 @@ describe("sample management", () => {
     for (const row of items) expect(Value.Errors(ConnectionSchema, row).First()).toBeUndefined();
   });
 
+  it("offers apps to add and leaves signing in to a real Mac (P10)", async () => {
+    const fake = new FakeTransport();
+    const { items } = (await fake.call("connection.catalog.list", {})) as {
+      items: { id: string; phoneSignIn: boolean }[];
+    };
+    expect(items.filter((item) => item.phoneSignIn).map((item) => item.id)).toEqual([
+      "gmail",
+      "slack",
+    ]);
+    const added = await fake.call("connection.install", { serviceId: "gmail", projectId: "zolt" });
+    expect(Value.Errors(ConnectionSchema, added).First()).toBeUndefined();
+    expect(added).toMatchObject({ source: "catalog:gmail:v1", credentialStatus: "needs_sign_in" });
+    await expect(
+      fake.call("connection.auth.startForPhone", { id: "connection-gmail", confirmed: true }),
+    ).rejects.toThrow(/^mac_only/);
+  });
+
   it("refuses a routine edit made from a stale copy", async () => {
     const fake = new FakeTransport();
     const before = await routine(fake, "routine-sync-check");

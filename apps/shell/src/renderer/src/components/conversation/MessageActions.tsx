@@ -6,9 +6,11 @@ import { t } from "../../i18n";
 import { type Anchor, Menu, Popover, showToast } from "../../kit";
 import type { BranchMode } from "./Branching";
 import { requestHide, setHidden } from "./hide-flow";
-import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./icons";
+import { MoreIcon, PlusIcon, ReactionIcon, ReplyIcon, StopIcon } from "./icons";
 import { messageMenuGroups } from "./messageMenu";
 import { isPinned, setPinned } from "./pins-store";
+import { readingMessageId, stopReading } from "./read-aloud";
+import "./voice.css";
 
 export function MessageActions(props: { message: BotMessage; actions: MessageActionsState }) {
   let reactionButton: HTMLButtonElement | undefined;
@@ -37,7 +39,10 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
   return (
     <div
       class="message-actions"
-      classList={{ "message-actions-open": pickerOpen() || menu() !== null }}
+      classList={{
+        "message-actions-open":
+          pickerOpen() || menu() !== null || readingMessageId() === props.message.id,
+      }}
       role="toolbar"
       aria-label={t("chat.message.actions", author())}
     >
@@ -81,6 +86,16 @@ export function MessageActions(props: { message: BotMessage; actions: MessageAct
             </div>
           </Popover>
         )}
+      </Show>
+      <Show when={readingMessageId() === props.message.id}>
+        <button
+          type="button"
+          class="message-action-button message-stop-reading"
+          onClick={stopReading}
+        >
+          <StopIcon />
+          {t("chat.message.stopReading")}
+        </button>
       </Show>
       <button
         type="button"

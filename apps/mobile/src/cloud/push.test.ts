@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { fcmMessage } from "../../../../services/relay/src/fcm.js";
 import { apnsPayload } from "../../../../services/relay/src/push.js";
 import { pushActions, pushResponse, readPushTarget } from "../data/push.js";
 
@@ -73,4 +74,35 @@ it("refuses a manually supplied Cloud target's unsigned action even without its 
       pushActions.allow,
     ),
   ).toEqual({ kind: "none" });
+});
+
+it("routes an Android push the same as an iPhone one (P9)", () => {
+  // FCM data values are strings, so the scope and version arrive as text.
+  const scoped = fcmMessage({
+    platform: "fcm",
+    token: "t",
+    kind: "needs_you",
+    count: 1,
+    threadId: "thread:one",
+    cloud,
+  }).message.data;
+  expect(pushResponse(readPushTarget({ data: scoped }), "default")).toEqual({
+    kind: "open_cloud",
+    orgId: "personal",
+    threadId: "thread:one",
+    notificationId: cloud.notificationId,
+  });
+  const approval = fcmMessage({
+    platform: "fcm",
+    token: "t",
+    kind: "needs_you",
+    count: 1,
+    action: { category: "approval", interactionId: "request", threadId: "thread", version: 3 },
+  }).message.data;
+  expect(readPushTarget({ data: approval })).toMatchObject({
+    category: "approval",
+    threadId: "thread",
+    interactionId: "request",
+    version: 3,
+  });
 });

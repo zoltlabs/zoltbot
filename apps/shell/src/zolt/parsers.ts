@@ -53,6 +53,7 @@ export function parseSendMessage(value: unknown): SendMessageInput {
     text: value.text,
     attachmentDraftIds,
     replyToMessageId: replyToMessageId?.trim() || null,
+    ...(isObject(value.call) ? { call: { first: value.call.first === true } } : {}),
   };
 }
 

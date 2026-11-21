@@ -11,9 +11,11 @@ import type {
   MemoryImportSource,
   MemoryImportStatus,
   MemorySaveInput,
+  MemorySkillDecideInput,
+  MemoryView,
 } from "../shared/memory";
 import type { DaemonClient } from "./daemon-client";
-import { toMemoryEntry, toMemoryView } from "./memory-view";
+import { toMemoryEntry, toMemoryView, toSkillProposals } from "./memory-view";
 import { isObject, requireString } from "./parsers";
 
 type Row = Record<string, unknown>;
@@ -71,6 +73,23 @@ async function pickExport(): Promise<string | undefined> {
   return result.canceled ? undefined : result.filePaths[0];
 }
 
+function parseDecideSkill(input: unknown): MemorySkillDecideInput {
+  if (!isObject(input) || (input.decision !== "save" && input.decision !== "discard"))
+    throw new Error("Choose Save or Discard.");
+  return { id: requireString(input.id, "id"), decision: input.decision };
+}
+
+/** The daemon's skill errors carry a code and a sentence; the sentence is for the owner. */
+function skillError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : "";
+  const sentence = /skill_[a-z_]+: ([A-Z].+)$/.exec(message)?.[1];
+  if (sentence) return new Error(sentence);
+  // The library re-checks the text when it saves; a retry won't change that outcome.
+  if (/SKILL\.md:|possible secret|invalid relative path|skill: /.test(message))
+    return new Error("This skill can’t be saved as written. Discard it.");
+  return new Error("Couldn’t save this skill. Try again.");
+}
+
 function parseDecide(input: unknown): MemoryDecideInput {
   if (!isObject(input) || (input.decision !== "accept" && input.decision !== "reject"))
     throw new Error("Choose Keep or Discard.");
@@ -83,7 +102,26 @@ export function memoryService(
 ) {
   const entities = () => client.snapshot.entities as Record<string, Row[] | undefined>;
   return {
-    list: () => toMemoryView(client.snapshot as { entities: Record<string, Row[] | undefined> }),
+    /** Entries and proposals from the snapshot; M6 skill proposals from the daemon. */
+    async list(): Promise<MemoryView> {
+      const view = toMemoryView(client.snapshot as { entities: Record<string, Row[] | undefined> });
+      // The page still lists memory when skill proposals can't be read.
+      const result = (await client.call("skill.proposal.list", {}).catch(() => ({}))) as {
+        proposals?: Row[];
+      };
+      return { ...view, skills: toSkillProposals(entities(), result.proposals ?? []) };
+    },
+    async decideSkill(input: MemorySkillDecideInput): Promise<void> {
+      try {
+        await client.call(
+          "skill.proposal.decide",
+          { id: input.id, decision: input.decision },
+          randomUUID(),
+        );
+      } catch (error) {
+        throw skillError(error);
+      }
+    },
     async revisions(id: string): Promise<MemoryEntry[]> {
       const rows = ((await client.call("knowledge.revisions", { id })) ?? []) as Row[];
       return rows
@@ -182,6 +220,7 @@ export function memoryHandlers(client: DaemonClient): Record<string, (input: unk
       return service.archive(requireString(input.id, "id"), Number(input.revision) || 0);
     },
     [IPC_CHANNELS.memoryDecide]: (input) => service.decide(parseDecide(input)),
+    [IPC_CHANNELS.memoryDecideSkill]: (input) => service.decideSkill(parseDecideSkill(input)),
     [IPC_CHANNELS.memoryForget]: (input) => service.forget(parseForget(input)),
     [IPC_CHANNELS.memoryImportChoose]: (source) => service.importChoose(parseSource(source)),
     [IPC_CHANNELS.memoryImportStart]: (input) => {

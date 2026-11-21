@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useClient, useLink } from "../state/link";
 import { mono, sans, useTheme } from "../theme";
@@ -11,22 +11,43 @@ import { Button, Txt } from "../ui/kit";
 
 type Step = "scan" | "enter" | "confirm";
 
+/** The `zoltbot://pair?…` link this screen was opened with, or "" when it wasn't. */
+function openedLink(params: Record<string, string | string[] | undefined>) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params))
+    if (typeof value === "string") query.set(key, value);
+  return query.has("v") && query.has("m") ? `zoltbot://pair?${query}` : "";
+}
+
 /** Pairing (D124): scan the Mac's QR code, then check the code on both screens and Allow on the Mac. */
 export default function Pair() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  const [step, setStep] = useState<Step>("scan");
-  const [link, setLink] = useState("");
+  // A pairing link opened outside the app, such as from the Camera app, arrives as this screen's
+  // query. It fills the field rather than pairing at once, so a link someone sent needs a tap.
+  const opened = openedLink(useLocalSearchParams());
+  const [step, setStep] = useState<Step>(opened ? "enter" : "scan");
+  const [link, setLink] = useState(opened);
+  useEffect(() => {
+    if (!opened) return;
+    setLink(opened);
+    setStep((current) => (current === "confirm" ? current : "enter"));
+  }, [opened]);
   const [problem, setProblem] = useState("");
   const [permission, requestPermission] = useCameraPermissions();
   const scanned = useRef(false);
   const { status, confirmCode, error, kind } = useClient((state) => state);
   const macName = useLink((state) => state.macName);
+  // Pairing another Mac: the ones already paired stay, and the sample makes no sense here.
+  const another = useLink((state) => state.macs.length > 0 && !state.fake);
 
+  const waiting = useLink((state) => !!state.pairing);
   useEffect(() => {
     // The relay client reaches online only after the person allowed this phone on the Mac.
-    if (step === "confirm" && status === "online") router.replace("/");
-  }, [step, status]);
+    if (step === "confirm" && status === "online" && !waiting) router.replace("/");
+  }, [step, status, waiting]);
+  // Leaving before the Mac allowed this phone stops that pairing and goes back to the last Mac.
+  useEffect(() => () => useLink.getState().cancelPairing(), []);
 
   const start = async (text: string) => {
     setProblem("");
@@ -39,7 +60,7 @@ export default function Pair() {
     }
   };
   const cancel = () => {
-    void useLink.getState().disconnect();
+    useLink.getState().cancelPairing();
     scanned.current = false;
     setStep("scan");
   };
@@ -51,15 +72,14 @@ export default function Pair() {
   const code = confirmCode ? `${confirmCode.slice(0, 3)} ${confirmCode.slice(3)}` : "";
   const failed = step === "confirm" && kind === "relay" && error && status === "offline";
   return (
-    <View
-      style={[
+    // Scrolls so the buttons at the foot stay reachable at large text sizes.
+    <ScrollView
+      style={{ backgroundColor: c["bg-page"] }}
+      contentContainerStyle={[
         styles.page,
-        {
-          backgroundColor: c["bg-page"],
-          paddingTop: insets.top + 40,
-          paddingBottom: insets.bottom + 16,
-        },
+        { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 16 },
       ]}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.logo}>
         <Logo />
@@ -104,7 +124,7 @@ export default function Pair() {
       ) : (
         <>
           <Txt v="largeTitle" accessibilityRole="header" style={styles.center}>
-            Pair with your Mac
+            {another ? "Pair another Mac" : "Pair with your Mac"}
           </Txt>
           <Txt tone="secondary" style={styles.lede}>
             On your Mac, open Zoltbot, go to Settings › Devices and choose Pair a phone. Then scan
@@ -202,16 +222,18 @@ export default function Pair() {
         </View>
         {step === "confirm" ? (
           <Button label="Cancel" onPress={cancel} style={styles.big} />
+        ) : another ? (
+          <Button label="Cancel" onPress={() => router.back()} style={styles.big} />
         ) : (
           <Button label="Try it with sample data" onPress={sample} style={styles.big} />
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, paddingHorizontal: 24 },
+  page: { flexGrow: 1, paddingHorizontal: 24 },
   logo: { alignItems: "center", marginBottom: 28 },
   center: { textAlign: "center" },
   lede: { textAlign: "center", marginTop: 10, marginHorizontal: 8 },

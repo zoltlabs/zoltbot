@@ -11,7 +11,13 @@ export interface WaitingMessage {
   input: unknown[];
   text: string;
   createdAt: string;
+  /** The Mac it is for, when the phone is paired with several. Older entries have none. */
+  macId?: string;
 }
+
+/** A message with no Mac predates several Macs and belongs to whichever Mac is shown. */
+const forMac = (entry: WaitingMessage, macId?: string) =>
+  entry.macId === undefined || macId === undefined || entry.macId === macId;
 
 export interface OutboxStorage {
   get(key: string): Promise<string | null>;
@@ -43,7 +49,8 @@ function valid(row: unknown): row is WaitingMessage {
     typeof entry.threadId === "string" &&
     Array.isArray(entry.input) &&
     typeof entry.text === "string" &&
-    typeof entry.createdAt === "string"
+    typeof entry.createdAt === "string" &&
+    (entry.macId === undefined || typeof entry.macId === "string")
   );
 }
 
@@ -79,16 +86,19 @@ export function createOutbox(options: {
   };
   const sendAll = async () => {
     const blocked = new Set<string>();
+    const down = new Set<string>();
+    const chat = (row: WaitingMessage) => `${row.macId ?? ""}\n${row.threadId}`;
     // Messages added while this runs are sent too.
     for (;;) {
-      const entry = entries.find((row) => !blocked.has(row.threadId));
+      const entry = entries.find((row) => !blocked.has(chat(row)) && !down.has(row.macId ?? ""));
       if (!entry) return;
       try {
         await sendOne(entry);
       } catch (error) {
-        if (unreachable(error)) return;
+        // An unreachable Mac holds only its own messages; another Mac's still go.
+        if (unreachable(error)) down.add(entry.macId ?? "");
         // Refused: it stays for the owner to see, and later ones in that chat keep their place.
-        blocked.add(entry.threadId);
+        else blocked.add(chat(entry));
       }
     }
   };
@@ -102,8 +112,26 @@ export function createOutbox(options: {
       }
       options.changed(entries);
     },
-    list: (threadId: string) => entries.filter((entry) => entry.threadId === threadId),
-    has: (threadId: string) => entries.some((entry) => entry.threadId === threadId),
+    list: (threadId: string, macId?: string) =>
+      entries.filter((entry) => entry.threadId === threadId && forMac(entry, macId)),
+    has: (threadId: string, macId?: string) =>
+      entries.some((entry) => entry.threadId === threadId && forMac(entry, macId)),
+    /**
+     * Ties messages saved before several Macs to `first`, the only Mac then, and drops any whose
+     * Mac is no longer paired.
+     */
+    async settle(first: string, paired: readonly string[]) {
+      const next = entries
+        .map((entry) => (entry.macId === undefined ? { ...entry, macId: first } : entry))
+        .filter((entry) => paired.includes(entry.macId as string));
+      if (next.some((entry, index) => entry !== entries[index]) || next.length !== entries.length)
+        await save(next);
+    },
+    /** A forgotten Mac's messages can never send. */
+    async dropMac(macId: string) {
+      if (entries.some((entry) => entry.macId === macId))
+        await save(entries.filter((entry) => entry.macId !== macId));
+    },
     async add(entry: WaitingMessage) {
       if (entries.length >= MAX_WAITING)
         throw new Error("50 messages are waiting to send. Delete some first.");

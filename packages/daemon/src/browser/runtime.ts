@@ -1,3 +1,4 @@
+import { hostedLauncherSource } from "./hosted-launcher.js";
 import { redactBrowserText } from "./redaction.js";
 
 export { redactBrowserText } from "./redaction.js";
@@ -81,6 +82,8 @@ export function browserBinding(
   directory: string,
   cwd: string,
   selection: BrowserSelection,
+  profile?: { id: string; dir: string },
+  hosted = false,
 ): BrowserBinding {
   directory = realpathSync(directory);
   cwd = realpathSync(cwd);
@@ -108,6 +111,8 @@ export function browserBinding(
     home: path.join(root, "runtime"),
     browsers: path.join(directory, "browser", "browsers"),
     ...selection,
+    ...(profile ? { profile } : {}),
+    ...(hosted ? { hosted: true as const } : {}),
   };
   const guidanceText = renderBrowserGuidance(binding);
   return {
@@ -126,8 +131,12 @@ export const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}
 function renderBrowserGuidance(
   b: Omit<BrowserBinding, "guidanceText" | "guidanceHash" | "version"> & { version: number },
 ) {
+  // B4: a daemon-run browser can ask the owner directly; others keep their earlier text.
+  const help = b.hosted
+    ? `If a page needs a sign-in, a check or a payment, run ${shellQuote(b.launcher)} need-human sign_in|verification|payment|other 'why', then wait; never type passwords or solve checks.`
+    : "If login or takeover is needed, ask the human through the existing question tool; unattended waits expire.";
   // Absolute paths are long and repeat across launches; name each folder once (fixed budget, I9).
-  return `Browser verification (isolated local session, CLI ${b.runtimeVersion}). Run ${shellQuote(b.launcher)} open ${shellQuote(b.url ?? "about:blank")}, then snapshot before using refs, fill/click as needed, screenshot --filename=${shellQuote(path.join(b.artifactRoot, "capture.png"))}. Generated files go in that capture folder. Register the capture with team_browser_evidence using a path relative to it, URL, viewport and check outcome. Then inspect the returned canonicalPath with your native image tool, and report what the pixels show. Capture alone does not prove inspection. Checks are agent reports. Pause before human takeover. Shell approvals do not provide per-click security. If login or takeover is needed, ask the human through the existing question tool; unattended waits expire. Do not capture secrets, cookies or network bodies.`;
+  return `Browser verification (isolated local session, CLI ${b.runtimeVersion}). Run ${shellQuote(b.launcher)} open ${shellQuote(b.url ?? "about:blank")}, then snapshot before using refs, fill/click as needed, screenshot --filename=${shellQuote(path.join(b.artifactRoot, "capture.png"))}. Generated files go in that capture folder. Register the capture with team_browser_evidence using a path relative to it, URL, viewport and check outcome. Then inspect the returned canonicalPath with your native image tool, and report what the pixels show. Capture alone does not prove inspection. Checks are agent reports. Pause before human takeover. Shell approvals do not provide per-click security. ${help} Do not capture secrets, cookies or network bodies.`;
 }
 export function materializeBrowser(b: BrowserBinding) {
   if (b.runtimeVersion !== CLI_VERSION || b.version !== 1)
@@ -156,8 +165,38 @@ export function materializeBrowser(b: BrowserBinding) {
     outputDir: b.artifactRoot,
   });
   immutable(config, body);
-  const source = `const {spawn}=await import('node:child_process');\nconst {writeFileSync,renameSync}=await import('node:fs');\nconst {randomUUID}=await import('node:crypto');\nconst args=process.argv.slice(2);\nconst validate=${validateBrowserArgs.toString()};\nconst redact=${redactBrowserText.toString()};\ntry{validate(args)}catch(e){console.error(e.message);process.exit(1)}\nconst env=Object.fromEntries(Object.entries(process.env).filter(([k])=>! /^(PLAYWRIGHT_|PWTEST_|NODE_OPTIONS$|NODE_PATH$|HOME$|TMPDIR$|XDG_)/.test(k)));\nObject.assign(env,${JSON.stringify({ HOME: b.home, TMPDIR: path.join(b.home, "tmp"), XDG_RUNTIME_DIR: socketRoot(b), PLAYWRIGHT_BROWSERS_PATH: b.browsers, NO_UPDATE_NOTIFIER: "1" })});\nconst extra=args[0]==='open'?[${JSON.stringify(`--config=${config}`)}]:[];\nif(args[0]==='open'){const target=${JSON.stringify(path.join(b.home, "generation.json"))};const temp=target+'.'+randomUUID();writeFileSync(temp,JSON.stringify({nonce:randomUUID(),at:new Date().toISOString()}),{flag:'wx',mode:0o600});renameSync(temp,target); }\nconst child=spawn(${JSON.stringify(process.execPath)},[${JSON.stringify(cliPath())},${JSON.stringify(`-s=${b.session}`)},...args,...extra],{cwd:${JSON.stringify(b.artifactRoot)},env,stdio:['inherit','pipe','pipe']});\nfor(const [input,output] of [[child.stdout,process.stdout],[child.stderr,process.stderr]]){let text='';input.on('data',c=>{text+=c;if(text.length>1048576){child.kill();text='[browser output exceeded limit]'}});input.on('end',()=>output.write(redact(text)))}\nchild.on('error',()=>{console.error('browser_runtime_failed');process.exitCode=1});child.on('exit',code=>{process.exitCode=code??1});\n`;
-  immutable(`${b.launcher}.mjs`, source, 0o400);
+  // B1: a kept profile has its own config; the launcher uses it only while the folder is marked.
+  let profileConfig: string | undefined;
+  let marker: string | undefined;
+  if (b.profile) {
+    const root = path.join(path.dirname(path.dirname(b.browsers)), "browser-profiles");
+    if (!/^[a-z0-9-]{8,64}$/.test(b.profile.id) || b.profile.dir !== path.join(root, b.profile.id))
+      throw Error("browser_profile_invalid");
+    profileConfig = path.join(path.dirname(b.launcher), "config-profile.json");
+    marker = path.join(b.profile.dir, ".zoltbot-profile");
+    immutable(
+      profileConfig,
+      JSON.stringify({
+        browser: {
+          browserName: "chromium",
+          isolated: false,
+          userDataDir: b.profile.dir,
+          launchOptions: { headless: b.mode === "background", channel: "", chromiumSandbox: true },
+        },
+        outputDir: b.artifactRoot,
+      }),
+    );
+  }
+  // Launchers without a profile keep their earlier text, so resumed sessions still match.
+  const configChoice = profileConfig
+    ? `const {existsSync}=await import('node:fs');\nconst extra=args[0]==='open'?['--config='+(existsSync(${JSON.stringify(marker)})?${JSON.stringify(profileConfig)}:${JSON.stringify(config)})]:[];`
+    : `const extra=args[0]==='open'?[${JSON.stringify(`--config=${config}`)}]:[];`;
+  const source = `const {spawn}=await import('node:child_process');\nconst {writeFileSync,renameSync}=await import('node:fs');\nconst {randomUUID}=await import('node:crypto');\nconst args=process.argv.slice(2);\nconst validate=${validateBrowserArgs.toString()};\nconst redact=${redactBrowserText.toString()};\ntry{validate(args)}catch(e){console.error(e.message);process.exit(1)}\nconst env=Object.fromEntries(Object.entries(process.env).filter(([k])=>! /^(PLAYWRIGHT_|PWTEST_|NODE_OPTIONS$|NODE_PATH$|HOME$|TMPDIR$|XDG_)/.test(k)));\nObject.assign(env,${JSON.stringify({ HOME: b.home, TMPDIR: path.join(b.home, "tmp"), XDG_RUNTIME_DIR: socketRoot(b), PLAYWRIGHT_BROWSERS_PATH: b.browsers, NO_UPDATE_NOTIFIER: "1" })});\n${configChoice}\nif(args[0]==='open'){const target=${JSON.stringify(path.join(b.home, "generation.json"))};const temp=target+'.'+randomUUID();writeFileSync(temp,JSON.stringify({nonce:randomUUID(),at:new Date().toISOString()}),{flag:'wx',mode:0o600});renameSync(temp,target); }\nconst child=spawn(${JSON.stringify(process.execPath)},[${JSON.stringify(cliPath())},${JSON.stringify(`-s=${b.session}`)},...args,...extra],{cwd:${JSON.stringify(b.artifactRoot)},env,stdio:['inherit','pipe','pipe']});\nfor(const [input,output] of [[child.stdout,process.stdout],[child.stderr,process.stderr]]){let text='';input.on('data',c=>{text+=c;if(text.length>1048576){child.kill();text='[browser output exceeded limit]'}});input.on('end',()=>output.write(redact(text)))}\nchild.on('error',()=>{console.error('browser_runtime_failed');process.exitCode=1});child.on('exit',code=>{process.exitCode=code??1});\n`;
+  // B2: a daemon-run browser keeps the same header and swaps the spawn for attach/goto.
+  const launcher = b.hosted
+    ? hostedLauncherSource(b, source.slice(0, source.indexOf("const child=spawn(")), cliPath())
+    : source;
+  immutable(`${b.launcher}.mjs`, launcher, 0o400);
   immutable(
     b.launcher,
     `#!/bin/sh\nexec ${shellQuote(process.execPath)} ${shellQuote(`${b.launcher}.mjs`)} "$@"\n`,

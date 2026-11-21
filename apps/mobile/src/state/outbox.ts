@@ -11,6 +11,10 @@ interface OutboxState {
 
 export const useOutbox = create<OutboxState>(() => ({ messages: [] }));
 
+const clientFor = (message: WaitingMessage) => {
+  const { clients, client } = useLink.getState();
+  return message.macId ? clients[message.macId] : client;
+};
 const sendVia = (client: Client | undefined) => (message: WaitingMessage) =>
   client
     ? client
@@ -33,7 +37,7 @@ const keychain = {
 
 export const outbox = createOutbox({
   storage: keychain,
-  send: (message) => sendVia(useLink.getState().client)(message),
+  send: (message) => sendVia(clientFor(message))(message),
   changed: (messages) => useOutbox.setState({ messages: [...messages] }),
 });
 
@@ -42,18 +46,39 @@ let started = false;
 export function startOutbox(): void {
   if (started) return;
   started = true;
-  let watching: (() => void) | undefined;
-  const watch = (client: Client | undefined) => {
-    watching?.();
-    watching = client?.subscribe((state, before) => {
-      if (state.status === "online" && before.status !== "online") void outbox.flush();
-    });
-    if (client?.getState().status === "online") void outbox.flush();
+  let watching: (() => void)[] = [];
+  // Any Mac coming back sends what waits for it.
+  const watch = (clients: Client[]) => {
+    for (const stop of watching) stop();
+    watching = clients.map((client) =>
+      client.subscribe((state, before) => {
+        if (state.status === "online" && before.status !== "online") void outbox.flush();
+      }),
+    );
+    if (clients.some((client) => client.getState().status === "online")) void outbox.flush();
+  };
+  const all = (state: ReturnType<typeof useLink.getState>) => [
+    ...new Set([...Object.values(state.clients), ...(state.client ? [state.client] : [])]),
+  ];
+  let settled = false;
+  const settle = (state: ReturnType<typeof useLink.getState>) => {
+    const first = state.macs[0]?.macId;
+    if (settled || !state.booted || state.fake || !first) return;
+    settled = true;
+    void outbox.settle(
+      first,
+      state.macs.map((mac) => mac.macId),
+    );
   };
   void outbox.load().then(() => {
-    watch(useLink.getState().client);
+    watch(all(useLink.getState()));
+    settle(useLink.getState());
     useLink.subscribe((state, before) => {
-      if (state.client !== before.client) watch(state.client);
+      settle(state);
+      if (state.clients !== before.clients || state.client !== before.client) watch(all(state));
+      // A forgotten Mac's messages can never send.
+      for (const mac of before.macs)
+        if (!state.macs.some((row) => row.macId === mac.macId)) void outbox.dropMac(mac.macId);
     });
   });
 }

@@ -1,11 +1,17 @@
 // C3: a bare "stop" sent while the agent works stops the turn instead of queueing the word.
 import { isStopPhrase } from "@zoltbot/protocol";
 import { t } from "../../i18n";
+import en from "../../i18n/en.json";
 import { showToast } from "../../kit";
 
 export function stopsTurn(text: string, attachmentCount: number, running: boolean): boolean {
   if (!running || attachmentCount > 0) return false;
-  return isStopPhrase(text, t("chat.stop.phrases").split("|"));
+  // English stop words work in every language, as people often type them anyway.
+  const phrases = new Set([
+    ...t("chat.stop.phrases").split("|"),
+    ...en["chat.stop.phrases"].split("|"),
+  ]);
+  return isStopPhrase(text, [...phrases]);
 }
 
 /**

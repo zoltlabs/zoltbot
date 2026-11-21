@@ -1,4 +1,4 @@
-import { type FilePreviewKind, filePreviewKind } from "@zoltbot/protocol";
+import { type FilePreviewKind, filePreviewKind, isCallGuidance } from "@zoltbot/protocol";
 import { body, text } from "@zoltbot/ui/chat/types";
 import { chiefWakePrefix } from "@zoltbot/ui/chief/data";
 import { type ArtifactCard, artifactOccurrences, artifactReference } from "./artifacts.js";
@@ -54,6 +54,10 @@ export interface TranscriptRow {
   queued?: boolean;
   /** For your sent messages: the turn they started, so a new chat can start from before it. */
   turnId?: string;
+  /** P5: for the agent's finished messages, the turn a branch can start after. */
+  branchTurnId?: string;
+  /** P5: when the message was written, shown by dragging it left. */
+  at?: string;
   /** A manager's delegation or result card. */
   manager?: ManagerCard;
   /** One centered line: a message between agents, a supervision notice or a wait. */
@@ -155,10 +159,13 @@ function diffCounts(value: Row) {
 
 function userText(value: Row) {
   const parts = Array.isArray(value.input) ? (value.input as Row[]) : [];
-  return parts
-    .filter((part) => part.type === "text")
-    .map((part) => text(part.text))
-    .join("\n");
+  return (
+    parts
+      // O2: a call's guidance goes to the agent but isn't the owner's words.
+      .filter((part) => part.type === "text" && !isCallGuidance(part.text))
+      .map((part) => text(part.text))
+      .join("\n")
+  );
 }
 
 /** C16: the files and pictures in one of the owner's messages, by part. */
@@ -215,6 +222,17 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
       .filter((item) => item.kind === "interaction" && text(item.turnId))
       .map((item) => text(item.turnId)),
   );
+  // P5: a branch can start after a turn the Mac finished and can resume natively, and only from
+  // its last reply, since the branch keeps the whole turn.
+  const branchable = new Set(
+    (snapshot.entities.turn ?? [])
+      .filter((turn) => turn.status === "completed" && text(turn.nativeTurnId))
+      .map((turn) => text(turn.id)),
+  );
+  const lastReply = new Map<string, string>();
+  for (const item of items)
+    if (item.kind === "message" && branchable.has(text(item.turnId)))
+      lastReply.set(text(item.turnId), text(item.id));
   const briefTurns = new Set(
     items
       .filter((item) => text(item.id).startsWith(`${chiefWakePrefix}brief:`) && text(item.turnId))
@@ -225,7 +243,11 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
   const top: TranscriptRow[] = [];
   for (const item of items) {
     const value = body(item);
-    const base = { id: text(item.id), streaming: value.streaming === true };
+    const base = {
+      id: text(item.id),
+      streaming: value.streaming === true,
+      ...(text(item.createdAt) ? { at: text(item.createdAt) } : {}),
+    };
     let row: TranscriptRow | undefined;
     if (item.kind === "plan") continue;
     // A teammate's message or a supervision notice reads as one line, before any [Zoltbot] event.
@@ -274,6 +296,9 @@ export function transcript(snapshot: Snapshot, threadId: string): TranscriptRow[
         kind: item.kind,
         text: text(value.text),
         ...(item.kind === "message" && briefTurns.has(text(item.turnId)) ? { brief: true } : {}),
+        ...(item.kind === "message" && lastReply.get(text(item.turnId)) === text(item.id)
+          ? { branchTurnId: text(item.turnId) }
+          : {}),
       };
     else if (item.kind === "interaction") {
       const interaction = interactions.get(text(value.interactionId));

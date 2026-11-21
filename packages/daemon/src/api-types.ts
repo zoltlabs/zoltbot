@@ -16,11 +16,15 @@ export interface SetupContext {
 }
 export interface RuntimeContext {
   views?: import("./views/registry.js").ViewRegistry;
+  /** V2: saved logins the agents' `vault` tool types into pages. */
+  vault?: import("./vault/api.js").VaultRuntime;
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;
   /** R2: the cloud relay for webhook routines; absent until a cloud account is connected. */
   hookCloud?: import("./webhook-event-source.js").HookCloud;
+  /** M8: each project's shared database. */
+  projectData?: import("./project-data/databases.js").ProjectDatabases;
   publish(events: DomainEvent[]): void;
   wake(threadId: string): Promise<void>;
   /** Stops a running turn, for host tools acting on another chat after approval. */
@@ -67,6 +71,8 @@ export interface DaemonOptions {
   runtimeHost?: RuntimeHost;
   runtime?: (context: RuntimeContext) => OwnedRuntime;
   secrets?: PrivateVault;
+  /** V3: fake password-manager CLIs for tests; the real ones when absent. */
+  vaultProviders?: import("./vault/providers.js").ProviderHost;
   /** Quick Chat inference. ChatGPT plan usage stays off unless this build is eligible. */
   quickChat?: QuickChatHostOptions;
   /** I1: chat app bridges. Tests pass fake adapters; the default build adds the real apps. */

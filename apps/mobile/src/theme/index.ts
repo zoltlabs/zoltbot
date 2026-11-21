@@ -1,13 +1,16 @@
 import { useColorScheme } from "react-native";
+import { scaleText } from "../data/text-size";
 import { usePrefs } from "../state/prefs";
+import { useTextSize } from "../state/text-size";
 import { dark, light, type Tokens } from "./tokens.generated";
 
 export type { Tokens };
 export type Scheme = "light" | "dark";
 
 /**
- * Geist, as on the desktop. The expo-font plugin embeds the static weights at build time; iOS
- * groups them under one family and picks the face from fontWeight.
+ * Geist, as on the desktop. The expo-font plugin embeds the static weights at build time. iOS
+ * groups them under one family by itself; on Android app.json declares the family, weight by weight.
+ * Both then pick the face from fontWeight.
  */
 export const sans = "Geist";
 export const mono = "Geist Mono";
@@ -30,6 +33,23 @@ export const type = {
   tab: { fontFamily: sans, fontSize: 11, lineHeight: 13, fontWeight: "500" },
   code: { fontSize: 13, lineHeight: 18, fontFamily: mono },
 } as const;
+type TypeScale = typeof type;
+const scales = new Map<number, TypeScale>();
+/** P6: the type scale at the owner's text size. Dynamic Type still applies on top. */
+export function useType(): TypeScale {
+  const size = useTextSize((state) => state.size);
+  let scale = scales.get(size);
+  if (!scale) {
+    scale = Object.fromEntries(
+      Object.entries(type).map(([name, style]) => [name, scaleText(style, size)]),
+    ) as TypeScale;
+    scales.set(size, scale);
+  }
+  return scale;
+}
+/** P6: the owner's text size, for the few sizes set outside the type scale. */
+export const useTextScale = () => useTextSize((state) => state.size);
+
 /** The smallest thing a finger should have to hit (Apple HIG). */
 export const touch = 44;
 

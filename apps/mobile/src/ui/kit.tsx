@@ -13,7 +13,17 @@ import {
 } from "react-native";
 import { avatarHue } from "../data/view";
 import { t } from "../i18n";
-import { avatarColors, mono, type Tokens, touch, type as typeScale, useTheme } from "../theme";
+import {
+  avatarColors,
+  mono,
+  type Tokens,
+  touch,
+  type as typeScale,
+  useTheme,
+  useType,
+} from "../theme";
+import { openMenuSheet } from "./menu-sheet-store";
+import { type OpenPrompt, openPromptSheet } from "./prompt-sheet-store";
 
 type Variant = keyof typeof typeScale;
 type Tone =
@@ -56,9 +66,10 @@ export function Txt({
   accessibilityRole?: "header" | "text";
 }) {
   const { c } = useTheme();
+  const scale = useType();
   return (
     <Text
-      style={[typeScale[v] as TextStyle, { color: toneColor(c, tone) }, style]}
+      style={[(scale[v] ?? typeScale[v]) as TextStyle, { color: toneColor(c, tone) }, style]}
       numberOfLines={lines}
       {...rest}
     >
@@ -156,7 +167,7 @@ export function Row({
   mono?: boolean;
   /** Set for a row that toggles a switch, so VoiceOver reads it as one. */
   checked?: boolean;
-  /** Set for a row that picks one of a list, so VoiceOver reads which is chosen. */
+  /** Set for one choice in a list, so VoiceOver reads which one is chosen. */
   selected?: boolean;
   disabled?: boolean;
 }) {
@@ -229,7 +240,8 @@ export type MenuItem = {
 
 /**
  * Opens an action sheet of `items` with a separate Cancel row. iOS shows the native sheet;
- * other platforms get an alert with the same buttons.
+ * elsewhere a short menu is an alert and a longer one a sheet, since Android alerts show at
+ * most three buttons.
  */
 export function showMenu(items: MenuItem[], title?: string) {
   if (!items.length) return;
@@ -251,6 +263,10 @@ export function showMenu(items: MenuItem[], title?: string) {
     );
     return;
   }
+  if (items.filter((item) => !item.disabled).length > 2) {
+    openMenuSheet({ items, ...(title ? { title } : {}) });
+    return;
+  }
   Alert.alert(title ?? "", undefined, [
     ...items
       .filter((item) => !item.disabled)
@@ -261,6 +277,31 @@ export function showMenu(items: MenuItem[], title?: string) {
       })),
     { text: t("kit.cancel"), style: "cancel" as const },
   ]);
+}
+
+/**
+ * Asks for a line of text. iOS shows the native prompt; Android has none, so it opens a sheet.
+ * `onSubmit` gets the trimmed text, and only when there is some unless the prompt is `optional`.
+ */
+export function showPrompt(prompt: OpenPrompt) {
+  const submit = (value?: string) => {
+    const text = value?.trim() ?? "";
+    if (text || prompt.optional) prompt.onSubmit(text);
+  };
+  if (Platform.OS === "ios") {
+    Alert.prompt(
+      prompt.title,
+      prompt.message,
+      [
+        { text: t("kit.cancel"), style: "cancel" },
+        { text: prompt.confirmLabel, onPress: submit },
+      ],
+      "plain-text",
+      prompt.defaultValue,
+    );
+    return;
+  }
+  openPromptSheet({ ...prompt, onSubmit: submit });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { FcmPush, fcmAccount, RoutedPush } from "./fcm.js";
 import { FirestoreRegistry, metadataProject } from "./firestore.js";
 import { ApnsPush, DisabledPush, type PushSender } from "./push.js";
 import { MemoryRegistry, type Registry } from "./registry.js";
@@ -31,6 +32,27 @@ async function registry(): Promise<Registry> {
 }
 
 function push(): PushSender {
+  return new RoutedPush(apns(), fcm());
+}
+
+/** P9: Android pushes, from a Firebase service-account key. */
+function fcm(): PushSender {
+  const json =
+    env.FCM_SERVICE_ACCOUNT ??
+    (env.FCM_SERVICE_ACCOUNT_FILE ? readFileSync(env.FCM_SERVICE_ACCOUNT_FILE, "utf8") : "");
+  if (!json) {
+    log("warn", "fcm_disabled", { note: "set FCM_SERVICE_ACCOUNT or FCM_SERVICE_ACCOUNT_FILE" });
+    return new DisabledPush();
+  }
+  try {
+    return new FcmPush({ account: fcmAccount(json) });
+  } catch {
+    log("error", "fcm_disabled", { note: "the FCM service account key is not valid" });
+    return new DisabledPush();
+  }
+}
+
+function apns(): PushSender {
   const key = env.APNS_KEY ?? (env.APNS_KEY_FILE ? readFileSync(env.APNS_KEY_FILE, "utf8") : "");
   const { APNS_KEY_ID: keyId, APNS_TEAM_ID: teamId, APNS_TOPIC: topic } = env;
   if (!key || !keyId || !teamId || !topic) {

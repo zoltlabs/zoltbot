@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   ACTIVE,
   type DelegationRow,
@@ -18,7 +18,7 @@ import { useAction } from "../state/actions";
 import { useClient } from "../state/link";
 import { mono, touch, useTheme } from "../theme";
 import { Icon } from "./icons";
-import { Avatar, Button, Card, Chip, showConfirmSheet, Txt } from "./kit";
+import { Avatar, Button, Card, Chip, showConfirmSheet, showPrompt, Txt } from "./kit";
 
 type ResultCardData = Extract<ManagerCard, { kind: "result" }>;
 
@@ -144,15 +144,12 @@ function ResultCard({ card }: { card: ResultCardData }) {
       if (result) setDecided(decision === "accept" ? "accepted" : "sent_back");
     });
   const sendBack = () =>
-    Alert.prompt("Send back", "What should change?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Send back",
-        onPress: (value?: string) => {
-          if (value?.trim()) void review("changes", value.trim());
-        },
-      },
-    ]);
+    showPrompt({
+      title: "Send back",
+      message: "What should change?",
+      confirmLabel: "Send back",
+      onSubmit: (value) => void review("changes", value),
+    });
   const open = card.status === "review" && !decided;
   const status = decided === "accepted" ? "Accepted" : decided === "sent_back" ? "Sent back" : "";
   const title = resultTitle(card);

@@ -48,7 +48,44 @@ const authConfig = object({
   scopes: Type.Array(Text),
   origins: Type.Array(Text),
 });
+/** I6: one server from the official MCP registry. */
+export const RegistryItemSchema = object({
+  id: Text,
+  title: Text,
+  description: Text,
+  version: Text,
+  publisher: object({
+    kind: Type.Union([Type.Literal("domain"), Type.Literal("github")]),
+    name: Text,
+  }),
+  repository: Type.Optional(Text),
+  install: Type.Union([
+    Type.Literal("remote"),
+    Type.Literal("package"),
+    Type.Literal("unsupported"),
+  ]),
+  runs: Type.Optional(Text),
+  url: Type.Optional(Text),
+  needs: Type.Array(Text, { maxItems: 50 }),
+});
+export type RegistryItem = Static<typeof RegistryItemSchema>;
 export const connectionMethods = {
+  "connection.registry.search": {
+    params: object({ query: Type.String({ maxLength: 100 }) }),
+    result: object({ items: Type.Array(RegistryItemSchema) }),
+  },
+  "connection.registry.add": {
+    params: object({
+      projectId: Id,
+      registryId: Type.String({ minLength: 3, maxLength: 200 }),
+      /** What the owner saw; the add is refused if the registry changed since. */
+      version: Type.String({ maxLength: 50 }),
+      runs: Type.Optional(Type.String({ maxLength: 1000 })),
+      url: Type.Optional(Type.String({ maxLength: 2000 })),
+      executionConfirmed: Type.Optional(Type.Boolean()),
+    }),
+    result: ConnectionSchema,
+  },
   "connection.catalog.list": {
     params: object({}),
     result: object({
@@ -65,6 +102,8 @@ export const connectionMethods = {
             Type.Literal("registration_required"),
             Type.Literal("unavailable"),
           ]),
+          /** P10: signs in through the cloud broker, so the phone can sign in to it. */
+          phoneSignIn: Type.Optional(Type.Boolean()),
         }),
       ),
     }),
@@ -81,6 +120,12 @@ export const connectionMethods = {
           "google_drive",
           "google_docs",
           "slack",
+          // I7
+          "notion",
+          "atlassian",
+          "airtable",
+          "hubspot",
+          "google_calendar",
         ].map((id) => Type.Literal(id)),
       ),
       projectId: Id,
@@ -98,6 +143,25 @@ export const connectionMethods = {
   "connection.auth.start": {
     params: object({ id: Id, confirmed: Type.Boolean(), configuration: Type.Optional(authConfig) }),
     result: object({ id: Id, authorizationUrl: Text, destination: Text, scopes: Type.Array(Text) }),
+  },
+  /**
+   * P10: signs a cloud-broker app in from the phone. The sign-in returns to the phone app, which
+   * passes it on with `finish`. Takes no OAuth settings, unlike `start`, which stays on the Mac.
+   */
+  "connection.auth.startForPhone": {
+    params: object({ id: Id, confirmed: Type.Boolean() }),
+    result: object({ id: Id, authorizationUrl: Text, destination: Text, scopes: Type.Array(Text) }),
+  },
+  /** P10: what a phone sign-in's redirect carried back to the app. */
+  "connection.auth.finish": {
+    params: object({
+      id: Id,
+      state: Type.String({ maxLength: 200 }),
+      code: Type.Optional(Type.String({ maxLength: 4096 })),
+      iss: Type.Optional(Type.String({ maxLength: 2048 })),
+      error: Type.Optional(Type.String({ maxLength: 200 })),
+    }),
+    result: object({ state: Text }),
   },
   "connection.auth.status": { params: object({ id: Id }), result: object({ state: Text }) },
   "connection.auth.cancel": { params: object({ id: Id }), result: object({ state: Text }) },

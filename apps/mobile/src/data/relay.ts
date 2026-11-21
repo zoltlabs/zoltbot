@@ -168,6 +168,36 @@ export class RelayTransport implements Transport {
     });
   }
 
+  /**
+   * Tells the relay where to push (the app's notifications, or its Live Activity). Kept, and
+   * sent again each time the link comes back, since the relay may have dropped a stale one.
+   */
+  register(
+    kind: "push.register" | "activity.register",
+    platform: "apns" | "apns-sandbox" | "fcm",
+    token: string,
+  ) {
+    // A Live Activity is iPhone only, so its token is never an FCM one.
+    if (kind === "activity.register" && platform === "fcm") return;
+    this.registrations.set(
+      kind,
+      kind === "push.register"
+        ? { t: kind, platform, token }
+        : { t: kind, platform: platform as "apns" | "apns-sandbox", token },
+    );
+    if (this.allowed && this.session) this.sendRegistrations();
+  }
+  private readonly registrations = new Map<string, ClientFrame>();
+  private sendRegistrations() {
+    for (const frame of this.registrations.values()) {
+      try {
+        this.frame(frame);
+      } catch {
+        /* Tried again when the link comes back. */
+      }
+    }
+  }
+
   private frame(frame: ClientFrame) {
     const encoded = JSON.stringify(frame);
     // Sealed data is base64url, so its serialized frame contains only ASCII.
@@ -325,8 +355,10 @@ export class RelayTransport implements Transport {
       }
       this.finish = undefined;
       this.session = session;
-      if (this.allowed) this.status("online");
-      else {
+      if (this.allowed) {
+        this.status("online");
+        this.sendRegistrations();
+      } else {
         this.handlers?.confirmCode?.(session.confirmCode);
         this.status("pairing");
         this.waitForAllow(session);
@@ -350,6 +382,10 @@ export class RelayTransport implements Transport {
       if (this.allowed) this.handlers?.event(message.params as DomainEvent);
       return;
     }
+    if (typeof message.method === "string" && message.id === undefined) {
+      if (this.allowed) this.handlers?.notify?.(message.method, message.params);
+      return;
+    }
     const entry = typeof message.id === "number" ? this.pending.get(message.id) : undefined;
     if (!entry) return;
     this.pending.delete(message.id as number);
@@ -371,6 +407,7 @@ export class RelayTransport implements Transport {
         this.pairing = undefined;
         this.options.paired?.();
         this.status("online");
+        this.sendRegistrations();
       },
       (error: Error) => {
         if (session !== this.session) return;

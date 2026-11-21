@@ -17,14 +17,16 @@ import type { BotMessage, BotProfile } from "../data";
 import { ARTIFACT_PANEL_MAX, ARTIFACT_PANEL_MIN, ArtifactPanel } from "./ArtifactPanel";
 import { expandComposerMentions } from "./ComposerEditor";
 import { PromptCard } from "./ConversationPrompts";
+import { AgentBrowserPanel } from "./conversation/AgentBrowserPanel";
 import { AgentSettings, createAgentSettingsForm } from "./conversation/AgentSettings";
 import { createMediaPreview, MediaPreviewDialog } from "./conversation/Attachments";
 import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask-about";
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
-import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
+import { CallHost } from "./conversation/CallBar";
 import { Composer } from "./conversation/Composer";
 import { ConversationHeader } from "./conversation/ConversationHeader";
+import { currentCall, followCalls } from "./conversation/call";
 import {
   ARTIFACT_PANEL_STORAGE_KEY,
   BROWSER_PANEL_STORAGE_KEY,
@@ -38,7 +40,9 @@ import { HideConfirm } from "./conversation/hide-flow";
 import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
 import { PlanChecklist } from "./conversation/PlanChecklist";
+import { followPushToTalk } from "./conversation/push-to-talk";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
+import { followNewReplies } from "./conversation/read-aloud";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
 import { watchWorkingLine, workingLine } from "./conversation/status-store";
@@ -49,6 +53,7 @@ import { createDictation } from "./Dictation";
 import { ManagerEntry } from "./ManagerEntry";
 import { ModelNotice, SwitchDialog } from "./ModelSwitch";
 import { savePanelWidth } from "./PanelResizer";
+import { createSecretCheck, SecretBar } from "./vault/SecretBar";
 
 interface ConversationProps {
   agentStatus: AgentStatus;
@@ -151,6 +156,7 @@ export function Conversation(props: ConversationProps) {
   const onboardingModelRequired = createMemo(
     () => agentReady() && onboardingActive() && !onboardingModelConfirmed(),
   );
+  const secretCheck = createSecretCheck();
   const currentDraft = createMemo(() => {
     const id = props.bot?.id;
     return id ? (drafts()[id] ?? EMPTY_DRAFT) : EMPTY_DRAFT;
@@ -269,6 +275,12 @@ export function Conversation(props: ConversationProps) {
     draft: () => currentDraft().text,
     onDraft: (text) => updateCurrentDraft({ text }),
     onError: setComposerError,
+    onIdle: (finished) => pushToTalk.idle(finished),
+  });
+  const pushToTalk = followPushToTalk({
+    dictation,
+    ready: () => Boolean(props.bot) && !currentCall(),
+    onSend: () => void submitMessage(),
   });
 
   const messageActions = createMessageActionsState({
@@ -332,6 +344,14 @@ export function Conversation(props: ConversationProps) {
     });
   });
 
+  followNewReplies(
+    () => props.messages,
+    () => props.bot?.id,
+  );
+  followCalls(
+    () => props.messages,
+    () => props.bot?.id,
+  );
   createEffect(() => {
     const request = props.onboardingRequest;
     if (
@@ -480,6 +500,7 @@ export function Conversation(props: ConversationProps) {
   async function submitMessage(override?: string) {
     const botId = props.bot?.id;
     const draft = currentDraft();
+    if (!override && secretCheck.hold(draft.text)) return;
     const text = override ?? expandComposerMentions(draft.text);
     const attachments = override ? [] : draft.attachments;
     if (
@@ -703,7 +724,18 @@ export function Conversation(props: ConversationProps) {
               <Show
                 when={prompt().switchDialog}
                 fallback={
-                  <PromptCard questions={prompt().questions} onSubmit={props.onAnswerPrompt} />
+                  <PromptCard
+                    questions={prompt().questions}
+                    onSubmit={(answers) => {
+                      // B4: taking over from the agent's request opens its browser beside the chat.
+                      if (
+                        String(prompt().requestId).startsWith("browser-takeover:") &&
+                        Object.values(answers).flat().includes("Take over")
+                      )
+                        setActiveRightPanel("browser");
+                      return props.onAnswerPrompt(answers);
+                    }}
+                  />
                 }
               >
                 {(dialog) => (
@@ -724,6 +756,7 @@ export function Conversation(props: ConversationProps) {
         scroller={() => scrollElement}
       />
 
+      <CallHost bot={props.bot} />
       <Composer
         showAttachments={showAttachments()}
         attachmentBusy={attachmentBusy()}
@@ -755,6 +788,32 @@ export function Conversation(props: ConversationProps) {
         dictation={dictation}
         activeTurnId={props.activeTurnId}
         onStop={props.onStop}
+        notice={
+          <Show when={secretCheck.held()?.text === currentDraft().text && secretCheck.held()}>
+            {(held) => (
+              <SecretBar
+                text={held().text}
+                match={held().match}
+                onReplace={(text) => {
+                  // A save that ends after the owner moved on leaves the draft alone.
+                  if (currentDraft().text !== held().text) return;
+                  secretCheck.clear();
+                  updateCurrentDraft({ text });
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+                onSendAnyway={() => {
+                  secretCheck.allow();
+                  void submitMessage();
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+                onCancel={() => {
+                  secretCheck.clear();
+                  requestAnimationFrame(focusComposerEnd);
+                }}
+              />
+            )}
+          </Show>
+        }
       />
 
       <Show when={mediaPreview()}>
@@ -768,16 +827,14 @@ export function Conversation(props: ConversationProps) {
       </Show>
 
       <Show when={screenOpen()}>
-        <BrowserPanel
-          browser={browser}
-          activeBrowserTabId={props.activeBrowserTabId}
+        <AgentBrowserPanel
+          threadId={props.bot?.threadId ?? null}
+          agentName={props.bot?.name ?? ""}
           width={browserPanelWidth()}
           containerWidth={containerWidth}
           onResize={setBrowserPanelWidth}
           onResizeEnd={(value) => savePanelWidth(BROWSER_PANEL_STORAGE_KEY, value)}
-          onActivateBrowserTab={props.onActivateBrowserTab}
-          onCloseBrowserTab={props.onCloseBrowserTab}
-          surfaceRef={(element) => (browserSurface = element)}
+          onClose={() => browser.hideBrowserPanel()}
         />
       </Show>
 

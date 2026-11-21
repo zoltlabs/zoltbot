@@ -253,6 +253,20 @@ describe("approval notifications", () => {
       version: 2,
     });
   });
+  it("carries the sending Mac, and ignores a malformed one", () => {
+    const target = readPushTarget({
+      categoryIdentifier: "approval",
+      data: { body: { ...data, macId: "mac_A-1" } },
+    });
+    expect(target.macId).toBe("mac_A-1");
+    expect(pushResponse(target, "allow_once")).toMatchObject({ kind: "answer", macId: "mac_A-1" });
+    expect(pushResponse(target, "tap")).toEqual({
+      kind: "open",
+      threadId: "thread-meal-search",
+      macId: "mac_A-1",
+    });
+    expect(readPushTarget({ data: { ...data, macId: "../x" } }).macId).toBeUndefined();
+  });
 });
 
 describe("markdown", () => {

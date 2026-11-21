@@ -2,7 +2,7 @@ import { generateKeyPairSync, verify } from "node:crypto";
 import http2 from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { ApnsPush, apnsJwt, apnsPayload, pushText } from "./push.js";
+import { ApnsPush, activityPayload, apnsJwt, apnsPayload, pushText } from "./push.js";
 
 const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -50,6 +50,66 @@ describe("push text", () => {
       threadId: "h1",
       body: { category: "approval", interactionId: "r1", version: 3, threadId: "h1" },
     });
+  });
+});
+
+describe("several Macs", () => {
+  it("names the sending Mac by id, and drops a malformed one", () => {
+    expect(apnsPayload("needs_you", 1, undefined, undefined, undefined, "mac_A1")).toEqual({
+      aps: { alert: { body: "Zoltbot needs you" }, badge: 1, sound: "default" },
+      macId: "mac_A1",
+      body: { macId: "mac_A1" },
+    });
+    expect(apnsPayload("zolt", 1, undefined, "chief", undefined, "mac_A1")).toMatchObject({
+      threadId: "chief",
+      macId: "mac_A1",
+      body: { threadId: "chief", macId: "mac_A1" },
+    });
+    const approval = apnsPayload(
+      "needs_you",
+      1,
+      { category: "approval", interactionId: "r1", threadId: "h1", version: 3 },
+      undefined,
+      undefined,
+      "mac_A1",
+    );
+    expect(approval).toMatchObject({ macId: "mac_A1", body: { macId: "mac_A1" } });
+    expect(apnsPayload("needs_you", 2, undefined, undefined, undefined, "a b")).toEqual(
+      apnsPayload("needs_you", 2),
+    );
+  });
+});
+
+describe("Live Activity", () => {
+  it("carries two counts and an event, and nothing else", () => {
+    expect(activityPayload(2, 1, 1_700_000_000_000)).toEqual({
+      aps: {
+        timestamp: 1_700_000_000,
+        event: "update",
+        "content-state": { working: 2, needsYou: 1 },
+      },
+    });
+    expect(activityPayload(0, 0, 1_700_000_000_000)).toEqual({
+      aps: {
+        timestamp: 1_700_000_000,
+        event: "end",
+        "content-state": { working: 0, needsYou: 0 },
+        "dismissal-date": 1_700_000_060,
+      },
+    });
+    expect(activityPayload(1, 1, 1_700_000_000_000, "req:1").aps["content-state"]).toEqual({
+      working: 1,
+      needsYou: 1,
+      topId: "req:1",
+    });
+    expect(() => activityPayload(1, 1, 0, "Deploy the thing")).toThrow("push_scope_invalid");
+    for (const bad of [-1, 1.5, 1000, Number.NaN])
+      expect(() => activityPayload(bad, 0)).toThrow("push_scope_invalid");
+    // Whatever goes in, only numbers come out: no field can carry text.
+    const text = JSON.stringify(activityPayload(3, 4));
+    expect(
+      text.replace(/"(aps|timestamp|event|update|content-state|working|needsYou)"/g, ""),
+    ).toMatch(/^[{}:,\d]+$/);
   });
 });
 

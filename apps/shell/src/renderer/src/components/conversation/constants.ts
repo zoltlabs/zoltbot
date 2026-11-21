@@ -32,7 +32,8 @@ export const SETTINGS_PANEL_DEFAULT = 296;
 export const SETTINGS_PANEL_MIN = 180;
 export const SETTINGS_PANEL_MAX = 1600;
 export const BROWSER_PANEL_STORAGE_KEY = "openbot:browser-panel-width";
-export const BROWSER_PANEL_DEFAULT = 380;
+// B2: wide enough to read the agent's page.
+export const BROWSER_PANEL_DEFAULT = 560;
 export const BROWSER_PANEL_MIN = 220;
 export const BROWSER_PANEL_MAX = 1600;
 export const ARTIFACT_PANEL_STORAGE_KEY = "zoltbot:artifact-panel-width";

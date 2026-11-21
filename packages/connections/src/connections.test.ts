@@ -186,6 +186,36 @@ it("authenticates against a local fake issuer using PKCE and stores only a vault
     await expect(requestJson(`${origin}/redirect`, { origins: [] })).rejects.toThrow(
       "destination_denied",
     );
+
+    // P10: a phone sign-in returns to the app; no loopback is opened.
+    const phone = await oauth.start(config, 180000, "phone");
+    const phoneUrl = new URL(phone.authorizationUrl);
+    expect(phoneUrl.searchParams.get("redirect_uri")).toBe("zoltbot://connection-done");
+    const phoneState = phoneUrl.searchParams.get("state") as string;
+    expect(() => phone.complete?.({ state: "incorrect", code: "stolen", iss: origin })).toThrow(
+      "oauth_callback_rejected",
+    );
+    await expect(phone.result).rejects.toThrow("callback_rejected");
+    const again = await oauth.start(config, 180000, "phone");
+    const againState = new URL(again.authorizationUrl).searchParams.get("state") as string;
+    again.complete?.({ state: againState, code: "phone-code", iss: origin });
+    expect(() => again.complete?.({ state: againState, code: "phone-code", iss: origin })).toThrow(
+      "oauth_already_handled",
+    );
+    expect(await again.result).toEqual({ reference: "keychain:zoltbot:test" });
+    expect(values).toHaveLength(2);
+    expect(phoneState).not.toBe(againState);
+    const denied = await oauth.start(config, 180000, "phone");
+    expect(() =>
+      denied.complete?.({
+        state: new URL(denied.authorizationUrl).searchParams.get("state") as string,
+        error: "access_denied",
+      }),
+    ).toThrow("oauth_callback_rejected");
+    await expect(denied.result).rejects.toThrow("callback_rejected");
+    await expect(
+      oauth.start({ ...config, registrationEndpoint: `${origin}/register` }, 180000, "phone"),
+    ).rejects.toThrow("oauth_phone_unsupported");
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
