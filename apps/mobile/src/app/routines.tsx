@@ -12,8 +12,11 @@ import { Chip, Group, Row, Txt } from "../ui/kit";
 export default function Routines() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  const routines = (useSnapshot().entities.routine ?? [])
+  const { entities } = useSnapshot();
+  const routines = (entities.routine ?? [])
     .filter((row): row is Routine => Value.Check(RoutineSchema, row))
+    // A scheduled workflow keeps its own routine; it shows under Workflows instead.
+    .filter((routine) => !routine.workflowId)
     .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <View style={[styles.page, { backgroundColor: c["bg-page"], paddingTop: insets.top + 4 }]}>
@@ -23,6 +26,11 @@ export default function Routines() {
           Routines
         </Txt>
         <OfflineBanner />
+        {entities.workflow?.length ? (
+          <Group>
+            <Row title="Workflows" onPress={() => router.push("/workflows")} last />
+          </Group>
+        ) : null}
         {routines.length ? (
           <Group>
             {routines.map((routine, index) => (
