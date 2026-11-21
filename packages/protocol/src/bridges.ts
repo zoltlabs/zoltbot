@@ -18,6 +18,35 @@ export const BRIDGE_APP_NAMES: Record<BridgeKind, string> = {
   whatsapp: "WhatsApp",
 };
 
+/** The app the owner creates from this manifest has exactly the scopes the bridge uses. */
+export const SLACK_APP_MANIFEST = {
+  display_information: { name: "Zoltbot" },
+  features: {
+    app_home: { messages_tab_enabled: true, messages_tab_read_only_enabled: false },
+    bot_user: { display_name: "Zoltbot", always_online: true },
+  },
+  oauth_config: {
+    scopes: {
+      bot: [
+        "app_mentions:read",
+        "channels:read",
+        "chat:write",
+        "chat:write.customize",
+        "groups:read",
+        "im:history",
+        "users:read",
+      ],
+    },
+  },
+  settings: {
+    event_subscriptions: { bot_events: ["app_mention", "message.im"] },
+    interactivity: { is_enabled: false },
+    org_deploy_enabled: false,
+    socket_mode_enabled: true,
+    token_rotation_enabled: false,
+  },
+};
+
 /** A place outside Zoltbot: a Slack channel, a Telegram chat, a Discord channel. */
 export const BridgePlaceSchema = object({
   /** The app's own id. `dm` matches every direct message to the bot. */

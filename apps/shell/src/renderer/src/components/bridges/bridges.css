@@ -197,3 +197,29 @@ section > h3 {
   flex: 1;
   min-width: 0;
 }
+
+.bridge-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-3);
+  margin: 0;
+  padding-inline-start: var(--zb-space-5);
+  list-style: decimal;
+  color: var(--text-primary);
+}
+
+.bridge-steps li::marker {
+  color: var(--text-secondary);
+}
+
+.bridge-step-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-2);
+}
+
+.bridge-steps li > span:first-child {
+  display: block;
+}

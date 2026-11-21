@@ -113,3 +113,60 @@ test("Bridges shows a bridge's status and lets the owner allow someone who wrote
     await fixture.close();
   }
 });
+
+test("Adding Slack walks through the manifest and tokens, and keeps the tokens in the Keychain", async ({
+  page,
+}) => {
+  const fake = new FakeBridgeAdapter("Acme workspace");
+  const vault = memoryVault();
+  let credentials: Record<string, string> = {};
+  const fixture = await compareFixture({
+    secrets: vault,
+    bridges: {
+      adapters: {
+        slack: (input) => {
+          credentials = input.credentials;
+          return fake;
+        },
+      },
+    },
+  });
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.service.createBot({ profileId: "profile", title: "Support desk" });
+    await shell.open(page);
+    await page.getByRole("button", { name: "Open account menu" }).click();
+    await page.getByRole("menuitem", { name: "Bridges" }).click();
+    const dialog = page.getByRole("dialog", { name: "Bridges" });
+    await expect(dialog.getByText("No bridges")).toBeVisible();
+    await dialog.getByRole("button", { name: "Add bridge" }).click();
+    await dialog.getByRole("button", { name: "Slack" }).click();
+
+    const setup = page.getByRole("dialog", { name: "Add Slack" });
+    await expect(setup.getByRole("button", { name: "Copy manifest" })).toBeVisible();
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/i2-setup-${scheme}.png` });
+    }
+    await setup.getByLabel("App-level token").fill("xapp-test");
+    await setup.getByLabel("Bot token").fill("xoxb-test");
+    await setup.getByRole("button", { name: /Choose who answers/ }).click();
+    await page.getByRole("option", { name: "Support desk" }).click();
+    await setup.getByRole("button", { name: "Add bridge" }).click();
+
+    const detail = page.getByRole("dialog", { name: "Slack" });
+    await expect(detail.getByText("Connected")).toBeVisible();
+    await expect(detail.getByText("Direct messages → Support desk")).toBeVisible();
+    expect(credentials).toEqual({ appToken: "xapp-test", botToken: "xoxb-test" });
+    const views = ((await shell.rpc.call("bridge.list", {})) as { items: { bridge: { id: string } }[] }).items;
+    const saved = fixture.daemon.store.record("settings", `bridge.record.${views[0]?.bridge.id}`);
+    expect(saved).toBeTruthy();
+    expect(JSON.stringify([views, saved])).not.toContain("xoxb-test");
+    expect(shell.errors).toEqual([]);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});

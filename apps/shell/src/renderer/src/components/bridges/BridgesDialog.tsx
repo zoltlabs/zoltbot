@@ -419,12 +419,14 @@ export function BridgesDialog(props: { onClose: () => void }) {
   );
 }
 
+type AllowPerson = (view: BridgeView, refusalId: string) => unknown;
+
 function BridgeDetail(props: {
   view: BridgeView;
   busy: boolean;
   error: string | null;
   go: (screen: Screen) => void;
-  allow: (view: BridgeView, refusalId: string) => Promise<void>;
+  allow: AllowPerson;
 }) {
   const target = (route: BridgeRoute) => {
     const to = route.to;

@@ -3,6 +3,7 @@
 import type { BridgeKind } from "@zoltbot/protocol";
 import type { JSX } from "solid-js";
 import type { MessageKey } from "../../i18n";
+import { SlackSteps } from "./SlackSteps";
 
 export interface SetupField {
   /** The credential's name in the keychain entry. */
@@ -23,4 +24,13 @@ export interface BridgeSetupSpec {
   options?: () => Record<string, unknown>;
 }
 
-export const BRIDGE_SETUPS: BridgeSetupSpec[] = [];
+export const BRIDGE_SETUPS: BridgeSetupSpec[] = [
+  {
+    kind: "slack",
+    before: SlackSteps,
+    fields: [
+      { key: "appToken", label: "bridges.slack.appToken", placeholder: "xapp-…" },
+      { key: "botToken", label: "bridges.slack.botToken", placeholder: "xoxb-…" },
+    ],
+  },
+];

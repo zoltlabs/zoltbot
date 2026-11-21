@@ -19,6 +19,9 @@ function LabeledSelect(props: { label: string; children: JSX.Element }) {
   );
 }
 
+/** The shape of a channel id, not an instruction. */
+const CHANNEL_ID_EXAMPLE = "C0123ABCD";
+
 export function RouteEditor(props: {
   view: BridgeView;
   route: BridgeRoute | undefined;
@@ -96,7 +99,7 @@ export function RouteEditor(props: {
               id={id}
               class="zb-kit-input"
               value={placeId()}
-              placeholder="C0123ABCD"
+              placeholder={CHANNEL_ID_EXAMPLE}
               aria-describedby={describedBy}
               onInput={(event) => setPlaceId(event.currentTarget.value)}
             />

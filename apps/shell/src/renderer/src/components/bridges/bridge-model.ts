@@ -54,5 +54,8 @@ export function knownPlaces(view: BridgeView) {
   return [...places].map(([id, label]) => ({ id, label: label.trim() || id }));
 }
 
+/** randomUUID needs a secure context; getRandomValues works everywhere. */
 export const newId = (prefix: string) =>
-  `${prefix}-${globalThis.crypto.randomUUID().slice(0, 8)}`;
+  `${prefix}-${[...crypto.getRandomValues(new Uint8Array(6))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")}`;

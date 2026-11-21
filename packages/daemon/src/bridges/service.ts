@@ -9,6 +9,7 @@ import {
   BridgeError,
   bridgedText,
   bridgeSupervisor,
+  defaultBridgeAdapters,
   type InboundMessage,
   type OutboundMessage,
   routeFor,
@@ -70,7 +71,7 @@ export function startBridges(
   },
 ) {
   const { store } = options;
-  const adapters = options.adapters ?? {};
+  const adapters = { ...defaultBridgeAdapters, ...options.adapters };
   const write = (entries: { key: string; value: unknown }[]) =>
     writeRows(store, options.publish, entries);
 
