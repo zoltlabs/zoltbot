@@ -1,7 +1,12 @@
 // S5: the Memory page's daemon calls.
 import { randomUUID } from "node:crypto";
 import { IPC_CHANNELS } from "../shared/ipc";
-import type { MemoryDecideInput, MemoryEntry, MemorySaveInput } from "../shared/memory";
+import type {
+  MemoryDecideInput,
+  MemoryEntry,
+  MemoryForgetInput,
+  MemorySaveInput,
+} from "../shared/memory";
 import type { DaemonClient } from "./daemon-client";
 import { toMemoryEntry, toMemoryView } from "./memory-view";
 import { isObject, requireString } from "./parsers";
@@ -17,6 +22,15 @@ function parseSave(input: unknown): MemorySaveInput {
   if (!title) throw new Error("Give the entry a title.");
   if (body.length > 1200) throw new Error("Keep the entry under 1,200 characters.");
   return { id: requireString(input.id, "id"), title, body, revision };
+}
+
+function parseForget(input: unknown): MemoryForgetInput {
+  if (!isObject(input)) throw new Error("Invalid memory entry.");
+  const quote = requireString(input.quote, "quote").trim();
+  const revision = Number(input.revision);
+  if (!quote || quote.length > 1200) throw new Error("Pick the text to forget.");
+  if (!Number.isInteger(revision) || revision < 1) throw new Error("Invalid memory revision.");
+  return { id: requireString(input.id, "id"), quote, revision };
 }
 
 function parseDecide(input: unknown): MemoryDecideInput {
@@ -52,6 +66,22 @@ export function memoryService(client: DaemonClient) {
     async archive(id: string, revision: number): Promise<void> {
       await client.call("knowledge.archive", { id, expectedRevision: revision }, randomUUID());
     },
+    async forget(input: MemoryForgetInput): Promise<void> {
+      try {
+        await client.call(
+          "knowledge.forget",
+          { id: input.id, quote: input.quote, expectedRevision: input.revision },
+          randomUUID(),
+        );
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "";
+        if (code.includes("knowledge_revision_conflict"))
+          throw new Error("This entry changed. Open it again and pick the text.");
+        if (code.includes("knowledge_quote_not_found"))
+          throw new Error("That text isn't in the entry anymore.");
+        throw error;
+      }
+    },
     async decide(input: MemoryDecideInput): Promise<void> {
       await client.call(
         "proposal.decide",
@@ -73,5 +103,6 @@ export function memoryHandlers(client: DaemonClient): Record<string, (input: unk
       return service.archive(requireString(input.id, "id"), Number(input.revision) || 0);
     },
     [IPC_CHANNELS.memoryDecide]: (input) => service.decide(parseDecide(input)),
+    [IPC_CHANNELS.memoryForget]: (input) => service.forget(parseForget(input)),
   };
 }

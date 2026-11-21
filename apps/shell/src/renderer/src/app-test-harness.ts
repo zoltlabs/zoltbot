@@ -290,6 +290,7 @@ export function setUpAppTest() {
         save: vi.fn().mockResolvedValue(undefined),
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
+        forget: vi.fn().mockResolvedValue(undefined),
       },
       pins: {
         set: vi.fn().mockResolvedValue(undefined),

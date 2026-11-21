@@ -90,6 +90,9 @@ export function createMemoryStore() {
       ),
     archive: (entry: MemoryEntry) =>
       change(() => api().archive({ id: entry.id, revision: entry.revision })),
+    /** M2: takes one passage out of an entry; the entry's history keeps the old text. */
+    forget: (entry: MemoryEntry, quote: string) =>
+      change(() => api().forget({ id: entry.id, quote, revision: entry.revision })),
     decide: (id: string, decision: "accept" | "reject") =>
       change(() => api().decide({ id, decision })),
   };

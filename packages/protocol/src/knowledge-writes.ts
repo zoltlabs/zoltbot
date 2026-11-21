@@ -32,6 +32,8 @@ export const KnowledgeWriteReasonSchema = values([
   "granted",
   "confirmed",
   "not_found",
+  /** M2: the owner asked to forget a sentence; they confirm the exact text first. */
+  "forget_request",
 ]);
 export type KnowledgeWriteReason = Static<typeof KnowledgeWriteReasonSchema>;
 export const KnowledgeKindSchema = KnowledgeItemSchema.properties.kind;
@@ -50,6 +52,10 @@ export const KnowledgeProposalSchema = object({
   evidence: Type.Array(SourceRefSchema),
   /** The agent's one-line reason. */
   reason: Type.String({ maxLength: 300 }),
+  /** M2: the end date the agent gave; kept when the proposal is accepted. */
+  validUntil: Type.Optional(At),
+  /** M2: the sentence an agent asked to forget, shown in the review. */
+  forget: Type.Optional(Type.String({ minLength: 1, maxLength: 1200 })),
   /** Why the policy routed this write to review. */
   why: KnowledgeWriteReasonSchema,
   writer: ActorSchema,
@@ -138,6 +144,15 @@ export const knowledgeWriteMethods = {
   ),
   "knowledge.confirm": entry(
     object({ id: Id, expectedRevision: Type.Integer({ minimum: 1 }) }),
+    KnowledgeItemSchema,
+  ),
+  /** M2: removes one quoted sentence from an entry as a new revision, so it can be restored. */
+  "knowledge.forget": entry(
+    object({
+      id: Id,
+      quote: Type.String({ minLength: 1, maxLength: 1200 }),
+      expectedRevision: Type.Integer({ minimum: 1 }),
+    }),
     KnowledgeItemSchema,
   ),
   "knowledge.revert": entry(

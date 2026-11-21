@@ -27,7 +27,11 @@ export interface MemoryEntry {
   verification: "human" | "unverified" | "confirmed";
   status: "active" | "stale" | "superseded" | "archived";
   revision: number;
+  /** When it was first learned. */
+  createdAt: string;
   updatedAt: string;
+  /** M2: the fact stops being used after this time; null when it has no end. */
+  validUntil: string | null;
 }
 
 export interface MemoryProposal {
@@ -43,6 +47,8 @@ export interface MemoryProposal {
   agent: MemoryAgent | null;
   /** The agent's one-line reason. */
   reason: string;
+  /** M2: the exact text an agent asked to forget; null for other proposals. */
+  forget: string | null;
   createdAt: string;
 }
 
@@ -60,6 +66,13 @@ export interface MemorySaveInput {
   revision: number;
 }
 
+export interface MemoryForgetInput {
+  id: string;
+  /** The exact text to take out of the entry. */
+  quote: string;
+  revision: number;
+}
+
 export interface MemoryDecideInput {
   id: string;
   decision: "accept" | "reject";
@@ -71,6 +84,7 @@ export const MEMORY_CHANNELS = {
   memorySave: "memory:save",
   memoryArchive: "memory:archive",
   memoryDecide: "memory:decide",
+  memoryForget: "memory:forget",
 } as const;
 
 export interface MemoryDesktopApi {
@@ -81,4 +95,6 @@ export interface MemoryDesktopApi {
   archive: (input: { id: string; revision: number }) => Promise<void>;
   /** Keeps or discards what an agent proposed to remember. */
   decide: (input: MemoryDecideInput) => Promise<void>;
+  /** M2: removes one passage from an entry as a new revision. */
+  forget: (input: MemoryForgetInput) => Promise<void>;
 }

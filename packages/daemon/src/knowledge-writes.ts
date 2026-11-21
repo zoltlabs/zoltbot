@@ -8,6 +8,7 @@ import {
   type KnowledgeWriteDecision,
   type KnowledgeWriteInput,
   type KnowledgeWriteSession,
+  withoutQuote,
 } from "@zoltbot/knowledge";
 import {
   KnowledgeItemSchema,
@@ -36,11 +37,11 @@ const sourceKinds = ["task", "thread", "file", "url", "deliverable"] as const;
 export const knowledgeWriteToolDefinition = {
   name: "team_write_knowledge",
   description:
-    "Write durable facts to shared knowledge, never progress notes. Prefer revising an existing item. Knowledge is shared with other agents; the daemon decides applied or proposed.",
+    "Write durable facts to shared knowledge, never progress notes. Prefer revising an existing item. Knowledge is shared with other agents; the daemon decides applied or proposed. validUntil ends a fact that holds for a time. When the user asks you to forget something, use op forget with id and the exact quote; they confirm it.",
   inputSchema: {
     type: "object" as const,
     properties: {
-      op: { type: "string", enum: ["create", "revise", "confirm"] },
+      op: { type: "string", enum: ["create", "revise", "confirm", "forget"] },
       id: { type: "string", maxLength: 200 },
       expectedRevision: { type: "integer", minimum: 1 },
       scope: { type: "string", enum: ["here", "project", "user"] },
@@ -64,6 +65,8 @@ export const knowledgeWriteToolDefinition = {
         },
       },
       reason: { type: "string", maxLength: 300 },
+      validUntil: { type: "string", format: "date-time", maxLength: 40 },
+      quote: { type: "string", minLength: 1, maxLength: 1200 },
     },
     required: ["op", "evidence", "reason"],
     additionalProperties: false,
@@ -87,6 +90,7 @@ const why: Record<KnowledgeWriteReason, string> = {
   granted: "applied as unverified under a grant",
   confirmed: "already verified; evidence attached",
   not_found: "item not found",
+  forget_request: "sent to the user to confirm the exact text",
 };
 export interface KnowledgeWriteResult {
   result: "applied" | "proposed" | "merged" | "rejected";
@@ -104,13 +108,23 @@ const text = (value: unknown, max: number) =>
   typeof value === "string" && value.length <= max ? value : undefined;
 
 /** Shape validation only. Policy decisions belong to evaluateWrite. */
-function normalize(state: DomainState, raw: unknown, projectId: string): KnowledgeWriteInput {
+function normalize(
+  state: DomainState,
+  raw: unknown,
+  projectId: string,
+  threadId?: string,
+): KnowledgeWriteInput {
   const args = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const allowed = new Set(Object.keys(knowledgeWriteToolDefinition.inputSchema.properties));
   if (Object.keys(args).some((key) => !allowed.has(key)))
     throw new Error("invalid_knowledge_write");
-  const op = args.op as KnowledgeWriteInput["op"];
+  // M2: forget is a revise without the quoted text, always confirmed by the person.
+  const forget = args.op === "forget";
+  const op = (forget ? "revise" : args.op) as KnowledgeWriteInput["op"];
   if (!["create", "revise", "confirm"].includes(op)) throw new Error("invalid_knowledge_write");
+  const quote = forget ? text(args.quote, 1200)?.trim() : undefined;
+  if (forget && !quote) throw new Error("invalid_knowledge_write");
+  const validUntil = parseValidUntil(args.validUntil);
   const scope = (args.scope ?? "here") as NonNullable<KnowledgeWriteInput["scope"]>;
   if (!["here", "project", "user"].includes(String(scope)))
     throw new Error("invalid_knowledge_write");
@@ -137,19 +151,25 @@ function normalize(state: DomainState, raw: unknown, projectId: string): Knowled
     (typeof args.id !== "string" || !Number.isSafeInteger(args.expectedRevision))
   )
     throw new Error("invalid_knowledge_write");
-  const kind = (args.kind ?? item?.kind) as KnowledgeWriteInput["kind"];
-  const title = op === "confirm" ? item?.title : text(args.title, 200);
-  const body = op === "confirm" ? item?.body : text(args.body, 1200);
+  // A forget keeps everything about the entry except the quoted text.
+  const kind = (forget ? item?.kind : (args.kind ?? item?.kind)) as KnowledgeWriteInput["kind"];
+  const title = op === "confirm" || forget ? item?.title : text(args.title, 200);
+  if (forget && (!item || !quote || withoutQuote(item.body, quote) === undefined))
+    throw new Error("knowledge_quote_not_found");
+  // The policy checks the stored text; the change is worked out again when the person accepts.
+  const body = op === "confirm" || forget ? item?.body : text(args.body, 1200);
   if (op !== "confirm" || item) {
     if (!kinds.includes(kind) || !title?.trim() || !body?.trim())
       throw new Error("invalid_knowledge_write");
   }
-  const tags = Array.isArray(args.tags)
-    ? args.tags
-        .filter((tag): tag is string => typeof tag === "string" && tag.length <= 50)
-        .slice(0, 10)
-    : undefined;
-  const key = text(args.key, 100);
+  const tags = forget
+    ? item?.tags
+    : Array.isArray(args.tags)
+      ? args.tags
+          .filter((tag): tag is string => typeof tag === "string" && tag.length <= 50)
+          .slice(0, 10)
+      : undefined;
+  const key = forget ? undefined : text(args.key, 100);
   return {
     op,
     ...(typeof args.id === "string" ? { id: args.id } : {}),
@@ -162,9 +182,33 @@ function normalize(state: DomainState, raw: unknown, projectId: string): Knowled
     body: body ?? "",
     ...(tags ? { tags } : {}),
     ...(key ? { key } : {}),
-    evidence: sources,
+    // The person's own request in this chat is the evidence for a forget.
+    evidence: forget && !sources.length && threadId ? [{ kind: "thread", ref: threadId }] : sources,
     reason,
+    ...(validUntil && !forget ? { validUntil } : {}),
+    ...(quote ? { forget: quote } : {}),
   };
+}
+const DAY = 86_400_000;
+/**
+ * ISO dates only. A date without a time lasts through that whole day in every time zone; a date
+ * in the past or more than ten years ahead is refused.
+ */
+export function parseValidUntil(value: unknown, now = Date.now()) {
+  if (value === undefined) return undefined;
+  const text = typeof value === "string" ? value.trim() : "";
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(text);
+  if (
+    !dateOnly &&
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(text)
+  )
+    throw new Error("invalid_knowledge_write");
+  const parsed = Date.parse(dateOnly ? `${text}T00:00:00Z` : text);
+  // Midnight UTC plus 36 hours is the end of that day at UTC-12.
+  const at = dateOnly ? parsed + 1.5 * DAY : parsed;
+  if (!Number.isFinite(at) || at <= now || at > now + 3653 * DAY)
+    throw new Error("invalid_knowledge_write");
+  return new Date(at).toISOString();
 }
 
 function written(store: Store, sessionId: string) {
@@ -260,7 +304,7 @@ export function knowledgeWrites(context: RuntimeContext) {
   ): Promise<KnowledgeWriteResult> {
     const before = store.snapshot([...kindsLoaded]);
     const owner = writeSession(store, before, actor, false);
-    const input = normalize(before, raw, owner.projectId);
+    const input = normalize(before, raw, owner.projectId, owner.threadId);
     // Row 1 runs before anything is stored: the text never reaches the database or event log.
     const secret = await context.privacy.containsSecret([
       input.title,
@@ -275,7 +319,12 @@ export function knowledgeWrites(context: RuntimeContext) {
       seq = store.lastSeq();
     const receipt = store.dispatch(commandId, (snapshot) => {
       const session = writeSession(store, snapshot, actor, secret);
-      const decision: KnowledgeWriteDecision = evaluateWrite(snapshot, session, input);
+      const evaluated: KnowledgeWriteDecision = evaluateWrite(snapshot, session, input);
+      // A forget is never applied by the agent alone: the person sees the exact text first.
+      const decision: KnowledgeWriteDecision =
+        input.forget && (evaluated.outcome === "applied" || evaluated.outcome === "merged")
+          ? { ...evaluated, outcome: "proposed", reason: "forget_request" }
+          : evaluated;
       const applied = applyWriteDecision(session, input, decision, {
         commandId,
         at,

@@ -14,6 +14,7 @@ const OP_KEYS = {
   create: "memory.review.op.create",
   revise: "memory.review.op.revise",
   confirm: "memory.review.op.confirm",
+  forget: "memory.review.op.forget",
 } as const;
 
 export function MemoryPage(props: {
@@ -111,11 +112,15 @@ export function MemoryPage(props: {
       setDecideErrors((errors) => ({ ...errors, [proposal.id]: failure }));
       return;
     }
-    announce(
-      t(decision === "accept" ? "memory.review.kept" : "memory.review.discarded", {
-        title: proposal.title,
-      }),
-    );
+    // An agent's forget request reads the other way round: accepting forgets, rejecting keeps.
+    const done = proposal.forget
+      ? decision === "accept"
+        ? "memory.entry.forgot"
+        : "memory.review.notForgotten"
+      : decision === "accept"
+        ? "memory.review.kept"
+        : "memory.review.discarded";
+    announce(t(done, { title: proposal.title }));
   }
 
   const nothingSaved = () => !view().entries.length && !view().proposals.length;
@@ -244,12 +249,14 @@ export function MemoryPage(props: {
                         {(proposal) => (
                           <li class="memory-row memory-proposal" data-proposal-id={id}>
                             <div class="memory-proposal-head">
-                              <span class="memory-op">{t(OP_KEYS[proposal().op])}</span>
+                              <span id={`memory-proposal-op-${id}`} class="memory-op">
+                                {t(OP_KEYS[proposal().forget ? "forget" : proposal().op])}
+                              </span>
                               <span id={`memory-proposal-${id}`} class="memory-row-title">
                                 {proposal().title}
                               </span>
                             </div>
-                            <p class="memory-body">{proposal().body}</p>
+                            <p class="memory-body">{proposal().forget ?? proposal().body}</p>
                             <Show when={proposal().reason}>
                               <p class="memory-reason">{proposal().reason}</p>
                             </Show>
@@ -262,19 +269,27 @@ export function MemoryPage(props: {
                                   type="button"
                                   class="zb-kit-button primary"
                                   disabled={deciding().has(id)}
-                                  aria-describedby={`memory-proposal-${id}`}
+                                  aria-describedby={`memory-proposal-op-${id} memory-proposal-${id}`}
                                   onClick={() => void decide(proposal(), "accept")}
                                 >
-                                  {t("memory.review.keep")}
+                                  {t(
+                                    proposal().forget
+                                      ? "memory.review.forget"
+                                      : "memory.review.keep",
+                                  )}
                                 </button>
                                 <button
                                   type="button"
                                   class="zb-kit-button"
                                   disabled={deciding().has(id)}
-                                  aria-describedby={`memory-proposal-${id}`}
+                                  aria-describedby={`memory-proposal-op-${id} memory-proposal-${id}`}
                                   onClick={() => void decide(proposal(), "reject")}
                                 >
-                                  {t("memory.review.discard")}
+                                  {t(
+                                    proposal().forget
+                                      ? "memory.review.dontForget"
+                                      : "memory.review.discard",
+                                  )}
                                 </button>
                               </div>
                             </div>

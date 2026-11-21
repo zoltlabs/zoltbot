@@ -14,7 +14,9 @@ const entry = (id: string, patch: Partial<MemoryEntry> = {}): MemoryEntry => ({
   verification: "unverified",
   status: "active",
   revision: 1,
+  createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
+  validUntil: null,
   ...patch,
 });
 

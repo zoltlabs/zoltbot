@@ -80,6 +80,11 @@ export function rankKnowledge(
   }[] = [];
   const active = candidates.filter((item) => {
     if (item.status === "archived" || item.status === "superseded") return false;
+    // M2: a dated fact is left out before it starts and after it ends, even when pinned.
+    if ((item.validUntil && item.validUntil < now) || (item.validFrom && item.validFrom > now)) {
+      excluded.push({ id: item.id, reason: "stale" });
+      return false;
+    }
     if (item.status === "stale" || (item.reviewBy && item.reviewBy < now)) {
       // Pinned constraints require an explicit decision even when due for review.
       if (!item.pinned) {
@@ -239,8 +244,15 @@ export function buildKnowledgePack(
     tokenEstimate: estimateKnowledgeTokens(text),
     createdAt: input.at,
   });
+  // A required entry past its dates is left out on purpose, so it doesn't hold the task.
+  const expired = new Set(
+    ranked.excluded.filter((row) => row.reason === "stale").map((row) => row.id),
+  );
   const requiredOverflow = [...required].filter(
-    (id) => !input.excludedIds?.includes(id) && !included.some((item) => item.id === id),
+    (id) =>
+      !input.excludedIds?.includes(id) &&
+      !expired.has(id) &&
+      !included.some((item) => item.id === id),
   );
   return {
     pack,

@@ -19,7 +19,9 @@ const VIEW: MemoryView = {
       verification: "unverified",
       status: "active",
       revision: 2,
+      createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-02T00:00:00Z",
+      validUntil: null,
     },
   ],
   proposals: [
@@ -35,6 +37,7 @@ const VIEW: MemoryView = {
       writer: { kind: "agent", id: "a1", name: "Researcher" },
       agent: { id: "a1", name: "Researcher" },
       reason: "Saw the lockfile",
+      forget: null,
       createdAt: "2026-01-03T00:00:00Z",
     },
   ],
@@ -109,6 +112,53 @@ describe("Memory page", () => {
       "This entry changed while you were editing. Your changes weren't saved.",
     );
     expect(within(main).getByRole("textbox", { name: "Text" })).toHaveValue("Use grams.");
+  });
+
+  it("forgets one picked sentence after showing the exact text", async () => {
+    const entry = {
+      ...(VIEW.entries[0] as MemoryEntry),
+      body: "Use grams. Sam is away until 3 Dec.",
+      validUntil: "2026-12-03T00:00:00Z",
+    };
+    vi.mocked(window.openbot.memory.list).mockResolvedValue({ ...VIEW, entries: [entry] });
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: /^Units/ }));
+    expect(within(main).getByText(/^Learned .* · Until /)).toBeInTheDocument();
+    fireEvent.click(within(main).getByRole("button", { name: "Forget" }));
+    expect(within(main).getByText("Pick a sentence to forget.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(main).getByRole("button", { name: "Use grams." })).toHaveFocus(),
+    );
+    fireEvent.click(within(main).getByRole("button", { name: "Sam is away until 3 Dec." }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Forget this?" });
+    expect(dialog).toHaveTextContent("Sam is away until 3 Dec.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Forget" }));
+    await waitFor(() =>
+      expect(window.openbot.memory.forget).toHaveBeenCalledWith({
+        id: "units",
+        quote: "Sam is away until 3 Dec.",
+        revision: 2,
+      }),
+    );
+  });
+
+  it("shows an agent's forget request with the exact text and keeps the entry on Keep", async () => {
+    const proposal = {
+      ...(VIEW.proposals[0] as MemoryView["proposals"][number]),
+      op: "revise" as const,
+      title: "Units",
+      body: "Use grams.",
+      forget: "Sam is away until 3 Dec.",
+    };
+    vi.mocked(window.openbot.memory.list).mockResolvedValue({ ...VIEW, proposals: [proposal] });
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: /^Needs review/ }));
+    expect(await within(main).findByText("Sam is away until 3 Dec.")).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: "Forget" })).toBeInTheDocument();
+    fireEvent.click(within(main).getByRole("button", { name: "Don't forget" }));
+    await waitFor(() =>
+      expect(window.openbot.memory.decide).toHaveBeenCalledWith({ id: "pr1", decision: "reject" }),
+    );
   });
 
   it("keeps a proposal from Needs review", async () => {

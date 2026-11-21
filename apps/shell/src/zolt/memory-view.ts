@@ -59,7 +59,9 @@ export function toMemoryEntry(entities: Entities, row: Row): MemoryEntry {
     verification: pick(row.verification, VERIFICATIONS, "unverified"),
     status: pick(row.status, STATUSES, "active"),
     revision: Number(row.revision) || 1,
+    createdAt: text(row.createdAt),
     updatedAt: text(row.updatedAt),
+    validUntil: text(row.validUntil) || null,
   };
 }
 
@@ -86,6 +88,7 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
         writer: writerOf(entities, row.writer),
         agent: agentOf(writerOf(entities, row.writer)),
         reason: text(row.reason),
+        forget: text(row.forget) || null,
         createdAt: text(row.createdAt),
       };
     })

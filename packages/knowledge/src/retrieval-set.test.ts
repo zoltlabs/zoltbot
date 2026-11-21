@@ -168,3 +168,34 @@ it("keeps a verified constraint ahead of a newer unverified note with the same w
   );
   expect(ranked.items.map((item) => item.id)).toEqual(["a", "b"]);
 });
+
+it("leaves out facts outside their dates", () => {
+  const ended = { ...items[0], id: "ended", validUntil: "2026-11-01T00:00:00Z" };
+  const later = { ...items[0], id: "later", validFrom: "2026-12-01T00:00:00Z" };
+  const now = { ...items[0], id: "now", validUntil: "2026-12-01T00:00:00Z" };
+  const ranked = rankKnowledge(
+    { ...state, knowledge: [ended, later, now] },
+    scope,
+    "invoice",
+    set.now,
+  );
+  expect(ranked.items.map((item) => item.id)).toEqual(["now"]);
+  expect(
+    ranked.excluded
+      .filter((row) => row.reason === "stale")
+      .map((row) => row.id)
+      .sort(),
+  ).toEqual(["ended", "later"]);
+});
+
+it("forgets a quote only where it stands as whole words", async () => {
+  const { withoutQuote } = await import("./writes.js");
+  expect(withoutQuote("Use concatenate. A cat sat.", "cat")).toBe("Use concatenate. A sat.");
+  expect(withoutQuote("Sam lives in Paris. Ana lives in Paris.", "Ana lives in Paris.")).toBe(
+    "Sam lives in Paris.",
+  );
+  expect(withoutQuote("Line one.\nLine two.\nLine three.", "Line two.")).toBe(
+    "Line one.\n\nLine three.",
+  );
+  expect(withoutQuote("Short.", "Missing")).toBeUndefined();
+});
