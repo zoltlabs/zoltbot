@@ -326,6 +326,12 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         list: call(channels.spendList),
         setBudget: call(channels.spendSetBudget),
       },
+      data: {
+        projects: call(channels.dataProjects),
+        tables: call(channels.dataTables),
+        rows: call(channels.dataRows),
+        csv: call(channels.dataCsv),
+      },
       share: {
         status: call(channels.artifactShareStatus),
         publish: call(channels.artifactSharePublish),

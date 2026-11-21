@@ -21,6 +21,7 @@ export interface PaletteSources {
   openMemory: () => void;
   openUsage: () => void;
   openVault?: () => void;
+  openData: () => void;
   newChat: () => void;
 }
 
@@ -65,6 +66,7 @@ export function paletteItems(sources: PaletteSources): PaletteItem[] {
     memory: sources.openMemory,
     usage: sources.openUsage,
     ...(sources.openVault ? { vault: sources.openVault } : {}),
+    data: sources.openData,
   } as const;
   for (const [id, open] of Object.entries(pageActions))
     items.push({

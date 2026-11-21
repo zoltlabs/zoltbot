@@ -217,7 +217,7 @@ it("is offered as a compact hint in owner chats and refused in other threads", a
     const hint = chatSignalIndirectToolDefinitions.find(
       (tool) => tool.name === "team_propose_skill",
     );
-    expect(hint?.description).toMatch(/several attempts or the owner corrected/);
+    expect(hint?.description).toMatch(/retries or an owner correction/);
     expect(referenceTokenEstimate(JSON.stringify(hint))).toBeLessThanOrEqual(120);
   } finally {
     k.f.close();

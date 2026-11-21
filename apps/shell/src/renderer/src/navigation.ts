@@ -9,7 +9,8 @@ export type Route =
   | { id: "models" }
   | { id: "memory"; agentId: string | null }
   | { id: "usage" }
-  | { id: "vault" };
+  | { id: "vault" }
+  | { id: "data" };
 
 export type RouteId = Route["id"];
 

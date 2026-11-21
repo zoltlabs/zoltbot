@@ -1,4 +1,4 @@
-// The sidebar's page buttons: Map, Tasks, Models, Memory, Usage and Vault.
+// The sidebar's page buttons: Map, Tasks, Models, Memory, Usage, Vault and Data.
 import { Show } from "solid-js";
 import { t } from "../../i18n";
 import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
@@ -36,6 +36,18 @@ function VaultIcon() {
   );
 }
 
+function DataIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
+      <ellipse cx="10" cy="5" rx="6" ry="2.5" stroke-width="1.4" />
+      <path
+        d="M4 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"
+        stroke-width="1.4"
+      />
+    </svg>
+  );
+}
+
 export function SidebarViews(props: {
   mapOpen: boolean;
   tasksOpen: boolean;
@@ -43,6 +55,7 @@ export function SidebarViews(props: {
   memoryOpen?: boolean;
   usageOpen?: boolean;
   vaultOpen?: boolean;
+  dataOpen?: boolean;
   /** Tasks and approvals waiting on the owner. */
   needsYou: number;
   /** What agents proposed to remember, waiting for review. */
@@ -53,6 +66,7 @@ export function SidebarViews(props: {
   onOpenMemory?: (() => void) | undefined;
   onOpenUsage?: (() => void) | undefined;
   onOpenVault?: (() => void) | undefined;
+  onOpenData?: (() => void) | undefined;
 }) {
   return (
     <div class="sidebar-views">
@@ -147,6 +161,20 @@ export function SidebarViews(props: {
             <VaultIcon />
           </span>
           <span class="bot-row-copy">{t("vault.title")}</span>
+        </button>
+      </Show>
+      <Show when={props.onOpenData}>
+        <button
+          type="button"
+          class="bot-row sidebar-map-button"
+          classList={{ "bot-row-active": props.dataOpen === true }}
+          aria-pressed={props.dataOpen === true}
+          onClick={() => props.onOpenData?.()}
+        >
+          <span class="sidebar-map-icon">
+            <DataIcon />
+          </span>
+          <span class="bot-row-copy">{t("data.title")}</span>
         </button>
       </Show>
     </div>

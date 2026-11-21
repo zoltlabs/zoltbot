@@ -6,6 +6,7 @@ import { entityEditsApi } from "./entity-edits.js";
 import { memoryImportApi } from "./memory-import.js";
 import { memoryTidyTimer } from "./memory-tidy.js";
 import { orchestrationService } from "./orchestration/service.js";
+import { projectDataApi } from "./project-data/api.js";
 import { type QuickChatHostOptions, quickChatService } from "./quick-chat/service.js";
 import type { runtimeApi } from "./runtime-api.js";
 import type { SetupService } from "./setup-api.js";
@@ -82,6 +83,7 @@ export function conversationServices(host: {
     containsSecret: (text) => privacy.containsSecret(text),
     onError: host.onError,
   });
+  const projectData = projectDataApi(store, host.context.projectData);
   const backupModels = backupModelsApi({
     store,
     publish,
@@ -108,7 +110,8 @@ export function conversationServices(host: {
         (await entityEdits(method, params, commandId)) ??
         (await backupModels(method, params, commandId)) ??
         (await threadActions(method, params, commandId)) ??
-        (await memoryImport.api(method, params, commandId))
+        (await memoryImport.api(method, params, commandId)) ??
+        (await projectData(method, params))
       );
     },
     async close() {

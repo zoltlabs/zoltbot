@@ -243,7 +243,12 @@ export class NativeRuntimeHost implements RuntimeHost {
       (!saved && !legacyResume ? this.options.prepareArtifacts?.(stable, root.path) : undefined);
     const hostTools = (browser: boolean) =>
       saved?.launchManifest?.hostTools ??
-      this.options.artifactTools?.(!!artifact, browser, stable.thread);
+      this.options.artifactTools?.(
+        !!artifact,
+        browser,
+        stable.thread,
+        stable.profile.permissionProfile === "read_only",
+      );
     const baseTools = hostTools(false)?.filter(
       (t) => t.name !== "team_browser_evidence" && t.name !== "vault",
     );

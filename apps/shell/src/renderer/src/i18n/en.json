@@ -568,5 +568,20 @@
   "call.end": "End",
   "call.apple": "Speech recognition on this Mac sends what you say to Apple.",
   "call.failed": "Couldn’t start the call. Try again.",
-  "call.sendFailed": "Couldn’t send what you said."
+  "call.sendFailed": "Couldn’t send what you said.",
+  "data.title": "Data",
+  "data.empty": "No tables yet. Agents create them as they work.",
+  "data.project": "Project",
+  "data.refresh": "Refresh",
+  "data.export": "Export CSV",
+  "data.exportCut": "Exported the first 20 MB of this table.",
+  "data.nearFull": "{used} of {limit} used. Agents can’t add more once it’s full.",
+  "data.tables": "Tables",
+  "data.rowCount": "{count, plural, one {# row} other {# rows}}",
+  "data.range": "{from}–{to} of {total}",
+  "data.previous": "Previous",
+  "data.next": "Next",
+  "data.blob": "Binary data, {size}",
+  "data.kilobytes": "{size} KB",
+  "data.megabytes": "{size} MB"
 }

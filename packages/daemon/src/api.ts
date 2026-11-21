@@ -68,6 +68,7 @@ import { messagePinsApi } from "./message-pins-api.js";
 import { messageReactionsApi } from "./message-reactions-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
+import { ProjectDatabases } from "./project-data/databases.js";
 import { projectFilesApi } from "./project-files.js";
 import { pushNotifier } from "./push.js";
 import { recover } from "./recovery.js";
@@ -203,8 +204,11 @@ async function startOwnedDaemon(
   let runner: Runner | undefined;
   let interactions: InteractionEngine | undefined;
   let loadingInteractions: Promise<InteractionEngine> | undefined;
+  const projectData = new ProjectDatabases(path.join(options.dataDir, "project-data"));
+  resources.push(() => projectData.close());
   const runtimeContext: RuntimeContext = {
     store,
+    projectData,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     privacy,
     publish,

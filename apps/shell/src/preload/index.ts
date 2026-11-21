@@ -237,6 +237,12 @@ const openbotApi: OpenBotDesktopApi = {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),
     setBudget: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendSetBudget, input),
   },
+  data: {
+    projects: () => ipcRenderer.invoke(IPC_CHANNELS.dataProjects),
+    tables: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.dataTables, projectId),
+    rows: (input) => ipcRenderer.invoke(IPC_CHANNELS.dataRows, input),
+    csv: (input) => ipcRenderer.invoke(IPC_CHANNELS.dataCsv, input),
+  },
   share: {
     status: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareStatus, input),
     publish: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactSharePublish, input),

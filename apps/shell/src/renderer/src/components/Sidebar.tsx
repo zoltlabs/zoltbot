@@ -93,6 +93,8 @@ interface SidebarProps {
   /** V1: the Vault page. */
   vaultOpen?: boolean;
   onOpenVault?: () => void;
+  dataOpen?: boolean;
+  onOpenData?: () => void;
   onCreateBot: () => void;
   onCreateInProject: (projectId: string) => void;
   onCreateProject: () => void;
@@ -514,6 +516,8 @@ export function Sidebar(props: SidebarProps) {
         onOpenUsage={props.onOpenUsage}
         vaultOpen={props.vaultOpen}
         onOpenVault={props.onOpenVault}
+        dataOpen={props.dataOpen}
+        onOpenData={props.onOpenData}
       />
 
       <div class="sidebar-search-wrap">

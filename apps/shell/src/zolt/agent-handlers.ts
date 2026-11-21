@@ -6,6 +6,7 @@ import { bridgeHandlers } from "./bridges-service";
 import { branchHandlers } from "./branch-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
 import { coAuthorHandlers } from "./co-author-service";
+import { dataHandlers } from "./data-service";
 import { hiddenHandlers } from "./hidden-service";
 import { linkHandlers } from "./links-service";
 import { parseTaskAction } from "./manager-cards";
@@ -87,6 +88,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...threadActionHandlers(service.client),
     ...memoryHandlers(service.client),
     ...spendHandlers(service.client),
+    ...dataHandlers(service.client),
     ...artifactRepositoryHandlers(service.client),
     ...queueOrderHandlers(service.client),
     ...asideHandlers(service.client),

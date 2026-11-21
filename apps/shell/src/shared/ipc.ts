@@ -10,6 +10,7 @@ export type * from "./branches";
 export * from "./browser";
 export type * from "./co-author";
 export * from "./company";
+export type * from "./data";
 export * from "./dictation";
 export type * from "./hidden";
 export type * from "./links";
@@ -53,6 +54,7 @@ import type { DictationDesktopApi } from "./dictation";
 import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
+import { DATA_CHANNELS, type DataDesktopApi } from "./data";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
@@ -129,6 +131,7 @@ export const IPC_CHANNELS = {
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
+  ...DATA_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
@@ -795,6 +798,7 @@ export interface OpenBotDesktopApi {
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
+  data: DataDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;

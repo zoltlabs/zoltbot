@@ -15,6 +15,12 @@ import { knowledgeToolDefinition, knowledgeTools } from "./knowledge-tools.js";
 import { knowledgeWrites, knowledgeWriteToolDefinition } from "./knowledge-writes.js";
 import { skillProposals, skillProposalToolDefinition } from "./skill-proposals.js";
 import {
+  projectDbExecDefinition,
+  projectDbQueryDefinition,
+  projectDbToolNames,
+  projectDbTools,
+} from "./project-data/tools.js";
+import {
   currentTeamToolDefinitions,
   legacyTeamToolDefinitions,
   teamToolNames,
@@ -78,6 +84,7 @@ export function runtimeTools(
   const chief = chiefTools(context);
   const company = companyTools(context);
   const vault = vaultTools(context);
+  const projectDb = projectDbTools(context);
   function authorize(actor: ToolActor, name: string, args: unknown) {
     if (!active(actor)) return false;
     if (name === "company_work") return company.authorize(actor);
@@ -124,6 +131,7 @@ export function runtimeTools(
     if (artifactBinding && ["workspace_create", "workspace_update"].includes(name)) return false;
     if (name === "team_browser_evidence") return browser.authorize(actor);
     if (name === "vault") return vault.authorize(actor);
+    if (projectDbToolNames.has(name)) return projectDb.authorize(actor, name);
     // Writing shares the read tool's authorization; the write policy decides the outcome.
     if (name === "team_get_knowledge" || name === "team_write_knowledge")
       return knowledge.authorize(actor);
@@ -170,6 +178,7 @@ export function runtimeTools(
       ...workspace.tools,
       ...chief.tools,
       ["company_work", company.call],
+      ...projectDb.tools,
     ]),
     authorize,
     checkLimits(actor: ToolActor, name?: string) {
@@ -180,7 +189,8 @@ export function runtimeTools(
         name === "chief_triage" ||
         name === "team_read_thread" ||
         name === "workspace_read" ||
-        name === "team_knowledge_read";
+        name === "team_knowledge_read" ||
+        name === "project_db_query";
       const now = Date.now(),
         key = `${actor.sessionId}:${readOnly ? "r" : "w"}`;
       const previous = limits.get(key);
@@ -243,7 +253,9 @@ const artifactDescriptions: Record<string, string> = {
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
   team_propose_skill:
-    "Only after a task took several attempts or the owner corrected you: propose a skill (SKILL.md body; basedOn updates a library skill id). Owner reviews.",
+    "After retries or an owner correction: propose a SKILL.md (basedOn: skill id) for review.",
+  project_db_query: "One SELECT on the project's shared SQLite.",
+  project_db_exec: "One write there.",
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
@@ -330,6 +342,8 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
     },
     required: ["op", "evidence", "reason"],
   },
+  project_db_query: { type: "object", properties: { sql: { type: "string" } }, required: ["sql"] },
+  project_db_exec: { type: "object", properties: { sql: { type: "string" } }, required: ["sql"] },
   team_propose_skill: {
     type: "object",
     properties: {
@@ -427,6 +441,11 @@ export const chatSignalIndirectToolDefinitions = [
 ];
 /** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
 export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
+/** M8: hints for chats in a project, which share the project's database. */
+export const projectDbIndirectToolDefinitions = [
+  compactTool(projectDbQueryDefinition),
+  compactTool(projectDbExecDefinition),
+].map(compactTool);
 /** A compact hint for chats that belong to a team channel. */
 export const channelIndirectToolDefinitions = channelToolDefinitions.map(compactTool);
 export const artifactRuntimeToolDefinitions = [
@@ -487,4 +506,6 @@ export const allRuntimeToolDefinitions = [
   knowledgeWriteToolDefinition,
   skillProposalToolDefinition,
   artifactToolDefinition,
+  projectDbQueryDefinition,
+  projectDbExecDefinition,
 ];
