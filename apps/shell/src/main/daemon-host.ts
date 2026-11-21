@@ -122,8 +122,12 @@ export class DaemonHost {
   }
 
   /** Stops only a daemon this window started; one another app started keeps running. */
-  async stop(): Promise<void> {
-    if (this.attachedPid) return;
+  async stop(force = false): Promise<void> {
+    // D6: Start fresh stops a daemon another window started too.
+    if (this.attachedPid) {
+      if (force) await stopProcess(this.attachedPid);
+      return;
+    }
     await this.supervisor.close();
   }
 

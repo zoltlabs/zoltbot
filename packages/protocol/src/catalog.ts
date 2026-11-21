@@ -786,6 +786,11 @@ const rawMethodCatalog = {
     empty,
     object({ versions: Type.Record(Text, Text), checks: Type.Array(Json), logs: Strings }),
   ),
+  // D6: removes saved logins and marks the data folder; the next start empties it.
+  "maintenance.startFresh": entry(
+    object({ confirm: Type.Literal("start fresh") }),
+    object({ kept: Strings }),
+  ),
 };
 export type MethodName = keyof typeof rawMethodCatalog;
 export const methodCatalog = withMethodLocations(rawMethodCatalog);

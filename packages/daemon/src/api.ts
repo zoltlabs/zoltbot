@@ -1,6 +1,7 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { companyApi } from "./company-api.js";
 import { startCompanySupervisor } from "./company-supervisor.js";
+import { finishFreshStart, prepareFreshStart } from "./start-fresh.js";
 
 export type {
   Daemon,
@@ -101,6 +102,8 @@ async function startOwnedDaemon(
   const token = randomBytes(32).toString("hex");
   const redactor = options.redactor ?? new Redactor();
   redactor.register(token);
+  // D6: a Start fresh asked for last time empties the data folder before anything opens.
+  await finishFreshStart(options.dataDir);
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
@@ -629,6 +632,22 @@ async function startOwnedDaemon(
           String(params.query),
           typeof params.limit === "number" ? params.limit : 20,
         );
+      case "maintenance.startFresh":
+        return prepareFreshStart({
+          dataDir: options.dataDir,
+          snapshot: () => store.snapshot(),
+          // Turns stop when the app restarts the daemon next.
+          interruptAll: async () => undefined,
+          removeSecret: async (reference: string) => {
+            await options.secrets?.remove?.(reference);
+          },
+          repositoryRoots: () =>
+            (store.snapshot(["project"]).project ?? []).flatMap((project) =>
+              (project.roots as { path: string; repoRoot?: string | null }[]).map(
+                (root) => root.repoRoot || root.path,
+              ),
+            ),
+        });
       case "diagnostics.export":
         return {
           versions: { daemon: "0.1.0", node: process.version },

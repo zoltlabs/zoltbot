@@ -48,6 +48,7 @@ import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachmen
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { DOCK_CHANNELS } from "../shared/dock";
 import { dockHandlers, electronDock } from "./dock-window";
+import { startFreshHandlers } from "./start-fresh";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
@@ -383,6 +384,26 @@ function registerIpcHandlers(setupFile: string): void {
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(dockHandlers(dock, showChat)))
     handleTrusted(channel, handler);
+  const fresh = startFreshHandlers({
+    interruptAll: () => service.interruptAll(),
+    signOut: async () => void (await account.signOut()),
+    call: (method, params) => client.call(method, params),
+    stopDaemon: async () => {
+      dock.close();
+      viewHost.stop();
+      account.close();
+      await service.stop();
+      await daemonHost.stop(true);
+    },
+    appFiles: () => [SETUP_FILE, PREFERENCES_FILE].map((name) => join(app.getPath("userData"), name)),
+    clearStorage: () => session.defaultSession.clearStorageData(),
+    relaunch: () => {
+      isQuitting = shutdownStarted = true;
+      app.relaunch();
+      app.exit(0);
+    },
+  });
+  for (const [channel, handler] of Object.entries(fresh)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))

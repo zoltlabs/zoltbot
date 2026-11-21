@@ -500,5 +500,15 @@
   "dock.right": "Right edge",
   "dock.left": "Left edge",
   "dock.top": "Top center",
-  "dock.closeChat": "Close chat"
+  "dock.closeChat": "Close chat",
+  "fresh.open": "Start fresh…",
+  "fresh.title": "Start fresh?",
+  "fresh.body": "Deletes every agent, chat, task, memory and saved login on this Mac. Your project folders stay.",
+  "fresh.typeToConfirm": "Type \"start fresh\" to confirm",
+  "fresh.confirm": "Start fresh",
+  "fresh.cancel": "Cancel",
+  "fresh.failed": "Couldn’t start fresh. Try again.",
+  "fresh.keptTitle": "Delete these folders in your projects by hand",
+  "fresh.restart": "Restart",
+  "fresh.restartFailed": "Couldn’t restart. Quit Zoltbot and open it again."
 }
