@@ -57,6 +57,10 @@ export default function RootLayout() {
           />
           <Stack.Screen name="new" options={{ presentation: "modal" }} />
           <Stack.Screen
+            name="chat/voice"
+            options={{ presentation: "fullScreenModal", gestureEnabled: false }}
+          />
+          <Stack.Screen
             name="chat/fork"
             options={{
               presentation: "formSheet",

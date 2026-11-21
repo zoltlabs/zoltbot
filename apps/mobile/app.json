@@ -24,7 +24,7 @@
         "expo-camera",
         {
           "cameraPermission": "Zoltbot uses the camera to scan the pairing code your Mac shows.",
-          "microphonePermission": false,
+          "microphonePermission": "Zoltbot uses the microphone when you talk to an agent.",
           "recordAudioAndroid": false
         }
       ],
@@ -33,10 +33,17 @@
         {
           "photosPermission": "Choose photos to send to your Mac.",
           "cameraPermission": false,
-          "microphonePermission": false
+          "microphonePermission": "Zoltbot uses the microphone when you talk to an agent."
         }
       ],
       "expo-document-picker",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Zoltbot uses the microphone when you talk to an agent.",
+          "speechRecognitionPermission": "Zoltbot uses the microphone when you talk to an agent."
+        }
+      ],
       [
         "expo-font",
         {
