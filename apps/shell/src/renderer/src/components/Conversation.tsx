@@ -32,6 +32,7 @@ import {
   EMPTY_DRAFT,
   SETTINGS_PANEL_STORAGE_KEY,
 } from "./conversation/constants";
+import { DayRail } from "./conversation/DayRail";
 import { HideConfirm } from "./conversation/hide-flow";
 import { createMessageActionsState } from "./conversation/MessageActions";
 import { PinStrip } from "./conversation/PinStrip";
@@ -702,6 +703,11 @@ export function Conversation(props: ConversationProps) {
           </Show>
         </Show>
       </div>
+      <DayRail
+        messages={props.messages}
+        when={!props.agentPickerOpen && props.loaded}
+        scroller={() => scrollElement}
+      />
 
       <Composer
         showAttachments={showAttachments()}

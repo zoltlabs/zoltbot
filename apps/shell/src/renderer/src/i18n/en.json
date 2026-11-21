@@ -29,6 +29,7 @@
   "chat.context.newChat": "New chat",
   "chat.context.newChatFailed": "Couldn't start a new chat",
   "chat.context.tokens": "{used, number} of {size, number} tokens",
+  "chat.dayRail.label": "Days",
   "chat.message.actions": "{author, select, you {User} other {Agent}} message actions",
   "chat.message.addReaction": "Add reaction",
   "chat.message.branch": "Branch from here",

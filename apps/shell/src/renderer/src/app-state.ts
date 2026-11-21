@@ -53,6 +53,7 @@ export function createConversationState(activeBotId: Accessor<string>) {
         author: "bot",
         body: event.delta,
         time: formatTime(event.createdAt),
+        createdAt: event.createdAt,
         streaming: true,
         animate: conversationLoaded()[event.botId] === true,
         kind: "text",
