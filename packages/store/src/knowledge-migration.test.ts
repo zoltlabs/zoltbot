@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -69,4 +69,48 @@ it("never clears session taint", async () => {
   expect(() => store.database.prepare("DELETE FROM knowledge_session_taint").run()).toThrow(
     "taint_is_permanent",
   );
+});
+
+it("rebuilds knowledge search with stemming from the saved entries (015)", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "zolt-015-"));
+  dirs.push(dir);
+  const store = await openStore(path.join(dir, "zoltbot.db"));
+  stores.push(store);
+  const entry = {
+    ...knowledge,
+    title: "Invoice numbering",
+    body: "Invoices restart each January.",
+    tags: ["billing", "finance"],
+    verification: "human",
+    writer: owner,
+  };
+  store.dispatch("knowledge-015", () => ({
+    events: [
+      {
+        eventId: "e1",
+        aggregateType: "knowledge",
+        aggregateId: "k1",
+        type: "knowledge.created",
+        occurredAt: knowledge.updatedAt,
+        payload: entry,
+      },
+    ],
+    result: null,
+  }));
+  // Put the table back as it was before 015, then run 015 on it.
+  store.database.exec(
+    "DROP TABLE knowledge_fts; CREATE VIRTUAL TABLE knowledge_fts USING fts5(id UNINDEXED, text);",
+  );
+  const sql = readFileSync(
+    new URL("../migrations/015-knowledge-search.sql", import.meta.url),
+    "utf8",
+  );
+  store.database.exec(sql);
+  const search = (query: string) =>
+    store.database
+      .prepare("SELECT id, tags FROM knowledge_fts WHERE knowledge_fts MATCH ?")
+      .all(query);
+  expect(search('"invoice"')).toEqual([{ id: "k1", tags: "billing finance" }]);
+  expect(search('"restarting"')).toEqual([{ id: "k1", tags: "billing finance" }]);
+  expect(search('"payroll"')).toEqual([]);
 });

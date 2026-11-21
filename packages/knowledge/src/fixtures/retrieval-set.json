@@ -1,0 +1,438 @@
+{
+  "note": "Synthetic memory entries and queries for M1. Expected lists the entries that should rank in the top three, best first.",
+  "now": "2026-11-20T00:00:00Z",
+  "entries": [
+    [
+      "k01",
+      "decision",
+      "2026-11-10",
+      "Invoice numbering",
+      "Invoices use the format INV-YYYY-NNNN and restart each January.",
+      ["billing"]
+    ],
+    [
+      "k02",
+      "constraint",
+      "2026-06-01",
+      "Invoice currency",
+      "Send every invoice in US dollars, even for customers abroad.",
+      ["billing"]
+    ],
+    [
+      "k03",
+      "preference",
+      "2026-11-12",
+      "Invoice reminders",
+      "Remind customers about unpaid invoices after 14 days, then weekly.",
+      ["billing", "email"]
+    ],
+    [
+      "k04",
+      "goal",
+      "2026-10-01",
+      "Third quarter revenue target",
+      "Reach 120k in revenue by the end of the third quarter.",
+      ["finance"]
+    ],
+    [
+      "k05",
+      "goal",
+      "2026-03-01",
+      "Q1 hiring plan",
+      "Hire two engineers and one designer in Q1.",
+      ["hiring"]
+    ],
+    [
+      "k06",
+      "decision",
+      "2026-09-15",
+      "Fourth quarter launch",
+      "The mobile app launches in the fourth quarter, after the beta closes.",
+      ["launch", "mobile"]
+    ],
+    [
+      "k07",
+      "constraint",
+      "2026-11-01",
+      "Release branch",
+      "Releases are cut from main and tagged vX.Y.Z; never release from a feature branch.",
+      ["release"]
+    ],
+    [
+      "k08",
+      "lesson",
+      "2026-08-20",
+      "Releasing on Fridays",
+      "Avoid releasing on Fridays: the last two Friday releases needed weekend fixes.",
+      ["release"]
+    ],
+    [
+      "k09",
+      "requirement",
+      "2026-07-01",
+      "Release notes",
+      "Every release needs notes written for customers, not a commit list.",
+      ["release", "docs"]
+    ],
+    [
+      "k10",
+      "preference",
+      "2026-11-15",
+      "Meeting length",
+      "Keep meetings to 25 minutes and send the agenda the day before.",
+      ["meetings"]
+    ],
+    [
+      "k11",
+      "preference",
+      "2026-02-01",
+      "Meeting days",
+      "No meetings on Wednesdays; that day is for focused work.",
+      ["meetings", "calendar"]
+    ],
+    [
+      "k12",
+      "decision",
+      "2026-11-18",
+      "Standup time",
+      "The daily standup moved to 9:30 from 10:00.",
+      ["meetings"]
+    ],
+    [
+      "k13",
+      "decision",
+      "2026-04-02",
+      "Standup time (old)",
+      "The daily standup is at 10:00.",
+      ["meetings"]
+    ],
+    [
+      "k14",
+      "glossary",
+      "2026-05-05",
+      "ARR",
+      "Annual recurring revenue: monthly recurring revenue times twelve.",
+      ["finance"]
+    ],
+    [
+      "k15",
+      "glossary",
+      "2026-05-05",
+      "Churn",
+      "Customers who cancelled during the month divided by customers at its start.",
+      ["finance", "metrics"]
+    ],
+    [
+      "k16",
+      "constraint",
+      "2026-10-10",
+      "Database backups",
+      "Back up the production database every night and keep 30 days of copies.",
+      ["ops", "database"]
+    ],
+    [
+      "k17",
+      "lesson",
+      "2026-09-09",
+      "Restoring backups",
+      "Test restoring a backup every month; a backup nobody restored is a guess.",
+      ["ops", "database"]
+    ],
+    [
+      "k18",
+      "requirement",
+      "2026-08-08",
+      "Password storage",
+      "Store passwords hashed with argon2id; never log them.",
+      ["security"]
+    ],
+    [
+      "k19",
+      "constraint",
+      "2026-11-05",
+      "API keys",
+      "API keys live in the keychain or the secret store, never in the repository.",
+      ["security"]
+    ],
+    [
+      "k20",
+      "preference",
+      "2026-07-07",
+      "Code review size",
+      "Keep pull requests under 400 changed lines so they can be reviewed in one sitting.",
+      ["code", "review"]
+    ],
+    [
+      "k21",
+      "requirement",
+      "2026-06-06",
+      "Tests before merge",
+      "A pull request merges only when its tests pass locally.",
+      ["code", "tests"]
+    ],
+    [
+      "k22",
+      "decision",
+      "2026-10-20",
+      "Test runner",
+      "Unit tests use vitest; end-to-end tests use playwright.",
+      ["code", "tests"]
+    ],
+    [
+      "k23",
+      "preference",
+      "2026-11-11",
+      "Commit messages",
+      "Commit messages say what changed and why, in the imperative.",
+      ["code", "git"]
+    ],
+    [
+      "k24",
+      "glossary",
+      "2026-03-03",
+      "Customer",
+      "A company with at least one paid seat.",
+      ["sales"]
+    ],
+    [
+      "k25",
+      "goal",
+      "2026-09-01",
+      "Customer interviews",
+      "Interview five customers each month about onboarding.",
+      ["research", "sales"]
+    ],
+    [
+      "k26",
+      "lesson",
+      "2026-10-05",
+      "Onboarding drop-off",
+      "Most new customers stop at connecting their calendar; make that step optional.",
+      ["onboarding", "calendar"]
+    ],
+    [
+      "k27",
+      "preference",
+      "2026-11-02",
+      "Report format",
+      "Weekly reports lead with the three numbers that changed most, then the reasons.",
+      ["reports"]
+    ],
+    [
+      "k28",
+      "requirement",
+      "2026-09-30",
+      "Monthly finance report",
+      "The monthly finance report includes revenue, churn and cash on hand.",
+      ["finance", "reports"]
+    ],
+    [
+      "k29",
+      "constraint",
+      "2026-08-15",
+      "Travel budget",
+      "Flights over 600 dollars need approval before booking.",
+      ["travel", "finance"]
+    ],
+    [
+      "k30",
+      "preference",
+      "2026-07-21",
+      "Hotel choice",
+      "Book hotels within walking distance of the office being visited.",
+      ["travel"]
+    ],
+    [
+      "k31",
+      "decision",
+      "2026-10-30",
+      "Design tool",
+      "Mockups are made in the shared canvas, not in slides.",
+      ["design"]
+    ],
+    [
+      "k32",
+      "preference",
+      "2026-06-16",
+      "Dark mode",
+      "Every screen must work in dark mode before it ships.",
+      ["design"]
+    ],
+    [
+      "k33",
+      "requirement",
+      "2026-10-11",
+      "Accessibility",
+      "Text contrast meets WCAG AA and every control has a label.",
+      ["design", "accessibility"]
+    ],
+    [
+      "k34",
+      "open_question",
+      "2026-11-14",
+      "Pricing for teams",
+      "Should team plans be priced per seat or per workspace?",
+      ["pricing"]
+    ],
+    [
+      "k35",
+      "decision",
+      "2026-05-25",
+      "Individual pricing",
+      "The individual plan costs 12 dollars a month, billed yearly.",
+      ["pricing", "billing"]
+    ],
+    [
+      "k36",
+      "lesson",
+      "2026-04-14",
+      "Discount codes",
+      "Discount codes over 30 percent attracted customers who churned within two months.",
+      ["pricing", "sales"]
+    ],
+    [
+      "k37",
+      "constraint",
+      "2026-11-03",
+      "Support hours",
+      "Support answers within four business hours, Monday to Friday.",
+      ["support"]
+    ],
+    [
+      "k38",
+      "preference",
+      "2026-09-19",
+      "Support tone",
+      "Support replies are short, name the fix first and avoid apologies longer than a line.",
+      ["support", "email"]
+    ],
+    [
+      "k39",
+      "requirement",
+      "2026-08-01",
+      "Refunds",
+      "Refunds within 30 days need no reason; later ones go to the owner.",
+      ["support", "billing"]
+    ],
+    [
+      "k40",
+      "goal",
+      "2026-10-15",
+      "Newsletter",
+      "Send the product newsletter on the first Tuesday of each month.",
+      ["marketing", "email"]
+    ],
+    [
+      "k41",
+      "preference",
+      "2026-07-30",
+      "Social posts",
+      "Social posts show the product working; no stock photos.",
+      ["marketing"]
+    ],
+    [
+      "k42",
+      "lesson",
+      "2026-06-25",
+      "Launch emails",
+      "Launch emails sent on Tuesday mornings got the most replies.",
+      ["marketing", "email", "launch"]
+    ],
+    [
+      "k43",
+      "constraint",
+      "2026-11-08",
+      "Server region",
+      "Customer data stays in the US region.",
+      ["ops", "security"]
+    ],
+    [
+      "k44",
+      "decision",
+      "2026-09-02",
+      "Logging",
+      "Logs are kept for 14 days and never contain message text.",
+      ["ops", "security"]
+    ],
+    [
+      "k45",
+      "preference",
+      "2026-10-25",
+      "Error messages",
+      "Error messages say what happened and what to do next, without codes.",
+      ["design", "writing"]
+    ],
+    [
+      "k46",
+      "glossary",
+      "2026-02-20",
+      "Seat",
+      "One person who can sign in to a workspace.",
+      ["pricing"]
+    ],
+    [
+      "k47",
+      "goal",
+      "2026-11-16",
+      "Fourth quarter churn goal",
+      "Bring monthly churn under 3 percent by the end of Q4.",
+      ["finance", "metrics"]
+    ],
+    [
+      "k48",
+      "lesson",
+      "2026-08-28",
+      "Estimating work",
+      "Estimates for new features ran about twice as long as planned; add a buffer.",
+      ["planning"]
+    ],
+    [
+      "k49",
+      "decision",
+      "2026-11-19",
+      "Planning cadence",
+      "Plan work in two-week cycles that start on Mondays.",
+      ["planning"]
+    ],
+    [
+      "k50",
+      "preference",
+      "2026-05-12",
+      "Spreadsheets",
+      "Shared numbers live in one spreadsheet per team, not in chat.",
+      ["reports", "finance"]
+    ]
+  ],
+  "queries": [
+    ["invoice", ["k01", "k02", "k03"]],
+    ["how are invoices numbered", ["k01"]],
+    ["unpaid invoice reminder", ["k03"]],
+    ["Q3 revenue", ["k04"]],
+    ["fourth quarter", ["k06", "k47"]],
+    ["Q4 churn", ["k47"]],
+    ["releasing a new version", ["k07", "k08", "k09"]],
+    ["release notes for customers", ["k09"]],
+    ["when is standup", ["k12"]],
+    ["meetings", ["k10", "k11", "k12"]],
+    ["backups", ["k16", "k17"]],
+    ["restore a backup", ["k17"]],
+    ["passwords", ["k18"]],
+    ["where do api keys go", ["k19"]],
+    ["pull requests", ["k20", "k21"]],
+    ["tests", ["k22", "k21"]],
+    ["customer interviews", ["k25"]],
+    ["onboarding calendar", ["k26"]],
+    ["reports", ["k27", "k28"]],
+    ["finance report", ["k28"]],
+    ["flights", ["k29"]],
+    ["hotels", ["k30"]],
+    ["dark mode screens", ["k32"]],
+    ["team pricing", ["k34"]],
+    ["discounts", ["k36"]],
+    ["refund", ["k39"]],
+    ["support replies", ["k38", "k37"]],
+    ["launch email", ["k42"]],
+    ["logs", ["k44"]],
+    ["estimates", ["k48"]]
+  ]
+}

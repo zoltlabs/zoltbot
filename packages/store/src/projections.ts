@@ -271,7 +271,7 @@ export function applyProjection(database: SqlDriver, event: DomainEvent) {
   if (event.aggregateType === "knowledge") {
     database.prepare("DELETE FROM knowledge_fts WHERE id=?").run(event.aggregateId);
     database
-      .prepare("INSERT INTO knowledge_fts(id,text) VALUES(?,?)")
-      .run(event.aggregateId, `${body.title} ${body.body} ${(body.tags as string[]).join(" ")}`);
+      .prepare("INSERT INTO knowledge_fts(id,title,body,tags) VALUES(?,?,?,?)")
+      .run(event.aggregateId, body.title, body.body, (body.tags as string[]).join(" "));
   }
 }
