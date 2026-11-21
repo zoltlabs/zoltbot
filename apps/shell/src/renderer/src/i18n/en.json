@@ -530,5 +530,6 @@
   "keyboard.changeFor": "Change {command}",
   "keyboard.resetFor": "Reset {command}",
   "keyboard.pressKeys": "Press keys",
-  "keyboard.conflict": "Already used by {command}"
+  "keyboard.conflict": "Already used by {command}",
+  "keyboard.systemKey": "Your system uses these keys"
 }

@@ -112,6 +112,15 @@ describe("shortcut registry", () => {
     ).toThrow("already registered");
   });
 
+  it("still registers a shortcut whose default an owner's binding took", () => {
+    const registry = createShortcutRegistry({ isMac: true });
+    registry.setBindings({ a: "Mod+E" });
+    registry.register({ id: "a", keys: "Mod+U", when: "composer", label: "One", run: vi.fn() });
+    expect(() =>
+      registry.register({ id: "b", keys: "Mod+E", when: "composer", label: "Two", run: vi.fn() }),
+    ).not.toThrow();
+  });
+
   it("uses owner bindings and unregisters", () => {
     const registry = createShortcutRegistry({ isMac: true });
     const run = vi.fn();

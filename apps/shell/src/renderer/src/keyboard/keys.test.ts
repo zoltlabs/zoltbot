@@ -41,6 +41,25 @@ describe("keyboard keys", () => {
     expect(conflictFor("t", "Mod+T", tasks)).toBeUndefined();
   });
 
+  it("records the key the matcher reads, on any layout", () => {
+    // Shift+1 types "!": that is what the shortcut later sees.
+    expect(
+      keysFromEvent(press({ metaKey: true, shiftKey: true, key: "!", code: "Digit1" }), true),
+    ).toBe("Mod+Shift+!");
+    // On AZERTY the key labelled A sends code KeyQ and key "a".
+    expect(keysFromEvent(press({ metaKey: true, key: "a", code: "KeyQ" }), true)).toBe("Mod+A");
+    expect(keysFromEvent(press({ metaKey: true, key: "+", code: "Equal" }), true)).toBeNull();
+  });
+
+  it("keeps system keys, and reads Ctrl as Mod off a Mac", () => {
+    const list: ListedShortcut[] = [{ id: "a", label: "Tasks", keys: "Mod+T", when: "global" }];
+    expect(conflictFor("b", "Mod+C", list)).toBe("system");
+    expect(conflictFor("b", "Alt+F4", list, false)).toBe("system");
+    expect(conflictFor("b", "Ctrl+T", list, true)).toBeUndefined();
+    expect(conflictFor("b", "Ctrl+T", list, false)).toBe("Tasks");
+    expect(displayKeys("Mod+Ctrl+T", false)).toBe("Ctrl+T");
+  });
+
   it("shows keys the way each system writes them", () => {
     expect(displayKeys("Shift+Mod+T", true)).toBe("⇧⌘T");
     expect(displayKeys("Mod+Shift+T", false)).toBe("Ctrl+Shift+T");

@@ -127,8 +127,10 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
       if (shortcuts.has(shortcut.id))
         throw new Error(`Shortcut already registered: ${shortcut.id}`);
       const keys = normalizeKeys(shortcut.keys);
+      // Two shipped defaults must not clash. An owner's binding can still take a default that
+      // isn't registered yet; the Keyboard page refuses the clashes it can see.
       for (const other of shortcuts.values()) {
-        if (other.when === shortcut.when && normalizeKeys(keysFor(other.id) ?? "") === keys)
+        if (other.when === shortcut.when && normalizeKeys(other.keys) === keys)
           throw new Error(`${shortcut.id} and ${other.id} both use ${keys} in ${shortcut.when}`);
       }
       shortcuts.set(shortcut.id, shortcut);
@@ -162,7 +164,8 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
   };
 }
 
-function eventKey(event: KeyboardEvent): string {
+/** The key a press names, as shortcuts store it: what the matcher and the recorder both read. */
+export function eventKey(event: Pick<KeyboardEvent, "key" | "code" | "altKey">): string {
   // With Alt held, macOS reports a symbol as `key`; `code` keeps the physical letter.
   if (event.altKey && /^Key[A-Z]$/.test(event.code)) return event.code.slice(3).toLowerCase();
   if (event.altKey && event.code === "Space") return "space";

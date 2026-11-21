@@ -35,11 +35,17 @@ export function KeyboardDialog(props: { onClose: () => void }) {
       ...shortcut,
       keys: bindings()[shortcut.id] ?? shortcut.defaultKeys,
     }));
+  const byId = (id: string) => list().find((shortcut) => shortcut.id === id);
+  const conflictMessage = (used: string) =>
+    used === "system" ? t("keyboard.systemKey") : t("keyboard.conflict", { command: used });
   onMount(() => {
     void preferences
       ?.get()
       .then((saved) => setBindings({ ...saved.keyBindings }))
       .catch(() => undefined);
+    // Follow changes saved elsewhere, so this page never writes back an old copy.
+    const stop = preferences?.onChange((saved) => setBindings({ ...saved.keyBindings }));
+    if (stop) onCleanup(stop);
   });
 
   function save(next: Record<string, string>) {
@@ -59,7 +65,7 @@ export function KeyboardDialog(props: { onClose: () => void }) {
     }
     const keys = keysFromEvent(event, isMac);
     if (!keys) return;
-    const used = conflictFor(id, keys, list());
+    const used = conflictFor(id, keys, list(), isMac);
     if (used) {
       setConflict({ id, label: used });
       return;
@@ -89,52 +95,60 @@ export function KeyboardDialog(props: { onClose: () => void }) {
       }
     >
       <ul class="keyboard-list">
-        <For each={list()}>
-          {(shortcut) => (
-            <li class="keyboard-row">
-              <span class="keyboard-label">{shortcut.label}</span>
-              <span class="keyboard-keys" aria-live="polite">
-                <Show
-                  when={recording() === shortcut.id}
-                  fallback={<kbd>{displayKeys(shortcut.keys, isMac)}</kbd>}
-                >
-                  <span class="keyboard-recording">{t("keyboard.pressKeys")}</span>
-                </Show>
-              </span>
-              <span class="keyboard-actions">
-                <button
-                  type="button"
-                  class="zb-kit-button"
-                  aria-label={t("keyboard.changeFor", { command: shortcut.label })}
-                  onClick={() => {
-                    setConflict(null);
-                    setRecording(shortcut.id);
-                  }}
-                >
-                  {t("keyboard.change")}
-                </button>
-                <Show when={bindings()[shortcut.id]}>
+        {/* Rows are keyed by id, so saving doesn't rebuild them and focus stays put. */}
+        <For each={list().map((shortcut) => shortcut.id)}>
+          {(id) => {
+            const shortcut = () => byId(id) as ListedShortcut;
+            return (
+              <li class="keyboard-row">
+                <span class="keyboard-label">{shortcut().label}</span>
+                <span class="keyboard-keys" aria-live="polite">
+                  <Show
+                    when={recording() === shortcut().id}
+                    fallback={<kbd>{displayKeys(shortcut().keys, isMac)}</kbd>}
+                  >
+                    <span class="keyboard-recording">{t("keyboard.pressKeys")}</span>
+                  </Show>
+                </span>
+                <span class="keyboard-actions">
                   <button
                     type="button"
                     class="zb-kit-button"
-                    aria-label={t("keyboard.resetFor", { command: shortcut.label })}
+                    aria-label={t("keyboard.changeFor", { command: shortcut().label })}
                     onClick={() => {
-                      const next = { ...bindings() };
-                      delete next[shortcut.id];
-                      save(next);
+                      setConflict(null);
+                      setRecording(shortcut().id);
                     }}
                   >
-                    {t("keyboard.reset")}
+                    {t("keyboard.change")}
                   </button>
+                  <Show when={bindings()[shortcut().id]}>
+                    <button
+                      type="button"
+                      class="zb-kit-button"
+                      aria-label={t("keyboard.resetFor", { command: shortcut().label })}
+                      onClick={() => {
+                        // The default may since have gone to another command.
+                        const used = conflictFor(id, shortcut().defaultKeys ?? "", list(), isMac);
+                        if (used) return void setConflict({ id, label: used });
+                        setConflict(null);
+                        const next = { ...bindings() };
+                        delete next[id];
+                        save(next);
+                      }}
+                    >
+                      {t("keyboard.reset")}
+                    </button>
+                  </Show>
+                </span>
+                <Show when={conflict()?.id === id}>
+                  <p class="zb-kit-error keyboard-conflict" role="alert">
+                    {conflictMessage(conflict()?.label ?? "")}
+                  </p>
                 </Show>
-              </span>
-              <Show when={conflict()?.id === shortcut.id}>
-                <p class="zb-kit-error keyboard-conflict" role="alert">
-                  {t("keyboard.conflict", { command: conflict()?.label ?? "" })}
-                </p>
-              </Show>
-            </li>
-          )}
+              </li>
+            );
+          }}
         </For>
       </ul>
     </Dialog>
