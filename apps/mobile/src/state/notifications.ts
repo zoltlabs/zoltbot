@@ -26,7 +26,8 @@ export async function registerNotificationCategories() {
       identifier: pushActions.reject,
       buttonTitle: "Reject",
       textInput: { submitButtonTitle: "Reject", placeholder: "Tell the agent why (optional)" },
-      options: { opensAppToForeground: false, isDestructive: true },
+      // Answering also needs an unlocked phone, so a found phone can't refuse for the owner.
+      options: { opensAppToForeground: false, isDestructive: true, isAuthenticationRequired: true },
     },
   ]);
 }

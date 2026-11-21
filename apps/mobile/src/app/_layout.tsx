@@ -3,17 +3,21 @@ import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { View } from "react-native";
+import { startAppLock, useAppLock } from "../state/app-lock";
 import { useLink } from "../state/link";
 import { startNotificationActions } from "../state/notifications";
 import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
 import { BotAvatarPalette } from "../ui/BotAvatar";
+import { LockScreen } from "../ui/LockScreen";
 import { SharingLifecycle } from "../ui/SharingLifecycle";
 
 export default function RootLayout() {
   const { scheme, c } = useTheme();
   const booted = useLink((state) => state.booted);
+  const lockReady = useAppLock((state) => state.ready);
   useEffect(() => {
+    startAppLock();
     void useLink.getState().boot();
     loadVoicePrefs();
   }, []);
@@ -34,11 +38,12 @@ export default function RootLayout() {
       primary: c["accent-text"],
     },
   };
-  if (!booted) return <View style={{ flex: 1, backgroundColor: c["bg-page"] }} />;
+  if (!booted || !lockReady) return <View style={{ flex: 1, backgroundColor: c["bg-page"] }} />;
   return (
     <BotAvatarPalette>
       <ThemeProvider value={theme}>
         <SharingLifecycle />
+        <LockScreen />
         <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           screenOptions={{

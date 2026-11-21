@@ -10,6 +10,7 @@ import { type ThemePreference, usePrefs } from "../../state/prefs";
 import { usePush } from "../../state/push";
 import { TabScreen } from "../../ui/chrome";
 import { Button, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
+import { LockSettings } from "../../ui/LockSettings";
 import { MacSettings } from "../../ui/MacList";
 import { Toggle } from "../../ui/Toggle";
 import { VoiceSettings } from "../../ui/VoiceSettings";
@@ -77,6 +78,8 @@ export default function Settings() {
         ]}
       />
       <VoiceSettings />
+      <Section title="Privacy" />
+      <LockSettings />
 
       {fake ? (
         <>
