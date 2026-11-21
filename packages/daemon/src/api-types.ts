@@ -19,6 +19,8 @@ export interface RuntimeContext {
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;
+  /** M8: each project's shared database. */
+  projectData?: import("./project-data/databases.js").ProjectDatabases;
   publish(events: DomainEvent[]): void;
   wake(threadId: string): Promise<void>;
   /** Stops a running turn, for host tools acting on another chat after approval. */

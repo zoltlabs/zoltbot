@@ -3,6 +3,7 @@ import { backupModelMacOnlyMethods } from "./backup-models.js";
 import { bridgeMacOnlyMethods } from "./bridges.js";
 import { browserMacOnlyMethods } from "./browser.js";
 import type { MethodName } from "./catalog.js";
+import { projectDataMacOnlyMethods } from "./project-data.js";
 import { quickChatMacOnlyMethods } from "./quick-chat.js";
 import { shippingMacOnlyMethods } from "./shipping.js";
 import { skillMacOnlyMethods } from "./skills.js";
@@ -17,6 +18,7 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...browserMacOnlyMethods,
   ...quickChatMacOnlyMethods,
   ...backupModelMacOnlyMethods,
+  ...projectDataMacOnlyMethods,
   ...bridgeMacOnlyMethods,
   "routine.checkSource",
   "routine.connectionHandoff",

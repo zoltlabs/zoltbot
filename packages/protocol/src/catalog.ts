@@ -89,6 +89,7 @@ import { KnowledgeProposalSchema, knowledgeWriteMethods } from "./knowledge-writ
 import { MacOutputSnapshotSchema } from "./mac-approval.js";
 import { withMethodLocations } from "./method-locations.js";
 import { OrchestrationSchema, orchestrationMethods } from "./orchestration.js";
+import { projectDataMethods } from "./project-data.js";
 import { quickChatEvents, quickChatMethods } from "./quick-chat.js";
 import {
   ShippingFeedbackSchema,
@@ -211,6 +212,7 @@ const rawMethodCatalog = {
   ...knowledgeWriteMethods,
   ...quickChatMethods,
   ...backupModelMethods,
+  ...projectDataMethods,
   ...staffMethods,
   ...agentTemplateMethods,
   ...bridgeMethods,
