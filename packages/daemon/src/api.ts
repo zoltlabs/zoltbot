@@ -1,6 +1,7 @@
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { companyApi } from "./company-api.js";
 import { startCompanySupervisor } from "./company-supervisor.js";
+import { bundleApi, bundleSkills } from "./bundle.js";
 import { finishFreshStart, prepareFreshStart } from "./start-fresh.js";
 
 export type {
@@ -11,7 +12,7 @@ export type {
   SetupContext,
 } from "./api-types.js";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, rmSync } from "node:fs";
 import path from "node:path";
 import { type Command, handle } from "@zoltbot/core/commands";
@@ -561,6 +562,35 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => bridges.close());
+  // D7: move to another computer.
+  const bundles = bundleApi({
+    snapshot: () => store.snapshot() as Record<string, unknown[] | undefined>,
+    skills: bundleSkills(store.database),
+    connections: async () => {
+      const list = (await connections.api("connection.list", {}, undefined)) as {
+        items?: { name?: string; id?: string }[];
+      };
+      return (list?.items ?? []).map((item) => String(item.name ?? item.id ?? "")).filter(Boolean);
+    },
+    write: (commandId, events, inside) => {
+      const before = store.lastSeq();
+      store.dispatch(commandId, () => {
+        inside();
+        // Clients reload the skills list when this changes, as after skills.add.
+        const eventId = randomUUID();
+        const revision = {
+          eventId,
+          aggregateType: "settings",
+          aggregateId: "skills.libraryRevision",
+          type: "settings.updated",
+          occurredAt: new Date().toISOString(),
+          payload: { key: "skills.libraryRevision", value: eventId },
+        };
+        return { events: [...events, revision] as DomainEvent[], result: { ok: true } };
+      });
+      publish(store.eventsSince(before));
+    },
+  });
   const call = async (
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
@@ -656,6 +686,7 @@ async function startOwnedDaemon(
         };
       default: {
         const result =
+          (await bundles(request.method, params)) ??
           (await views?.api(request.method, params, commandId)) ??
           (await company(request.method, params, commandId)) ??
           (await channelApi(runtimeContext, ownedTasks)(request.method, params, commandId)) ??

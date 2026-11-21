@@ -48,6 +48,7 @@ import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachmen
 import { DaemonHost, daemonPaths } from "./daemon-host";
 import { DOCK_CHANNELS } from "../shared/dock";
 import { dockHandlers, electronDock } from "./dock-window";
+import { electronBundleHandlers } from "./bundle-handlers";
 import { startFreshHandlers } from "./start-fresh";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
@@ -404,6 +405,11 @@ function registerIpcHandlers(setupFile: string): void {
     },
   });
   for (const [channel, handler] of Object.entries(fresh)) handleTrusted(channel, handler);
+  const bundles = electronBundleHandlers(
+    (method, params) => client.call(method, params),
+    () => mainWindow,
+  );
+  for (const [channel, handler] of Object.entries(bundles)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))

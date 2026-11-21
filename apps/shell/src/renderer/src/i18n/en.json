@@ -510,5 +510,18 @@
   "fresh.failed": "Couldn’t start fresh. Try again.",
   "fresh.keptTitle": "Delete these folders in your projects by hand",
   "fresh.restart": "Restart",
-  "fresh.restartFailed": "Couldn’t restart. Quit Zoltbot and open it again."
+  "fresh.restartFailed": "Couldn’t restart. Quit Zoltbot and open it again.",
+  "move.title": "Move to another computer",
+  "move.note": "Saved logins and connection sign-ins aren’t included.",
+  "move.export": "Export…",
+  "move.importOpen": "Import…",
+  "move.importTitle": "{count, plural, one {Import # agent} other {Import # agents}}",
+  "move.import": "Import",
+  "move.cancel": "Cancel",
+  "move.replaces": "Replaces",
+  "move.setUpFirst": "To bring their agents, set up {tools} here first",
+  "move.signInAgain": "Sign in again here: {names}",
+  "move.exportFailed": "Couldn’t export. Try again.",
+  "move.notAnExport": "That file isn’t a Zoltbot export.",
+  "move.importFailed": "Couldn’t import. Try again."
 }

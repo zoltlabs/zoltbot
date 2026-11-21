@@ -781,6 +781,8 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** D7: move to another computer. Optional so test pages without it still load. */
+  bundle?: import("./bundle").BundleDesktopApi;
   /** D6: Start fresh. Optional so test pages without it still load. */
   fresh?: import("./start-fresh").StartFreshDesktopApi;
   /** D4: the agent dock. Optional so test pages without it still load. */

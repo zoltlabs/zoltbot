@@ -242,6 +242,21 @@ const rawMethodCatalog = {
     object({ previewId: Id, items: Type.Array(Json) }),
   ),
   "import.apply": entry(object({ previewId: Id, selected: Strings, consent: Type.Boolean() }), ok),
+  // D7: agents, memory, skills, routines, the company and settings, to and from a ZIP.
+  "export.bundle": entry(
+    object({ path: Text }),
+    object({ path: Text, counts: Type.Record(Text, Type.Integer()) }),
+  ),
+  "import.bundle": entry(
+    object({ path: Text }),
+    object({
+      previewId: Id,
+      agents: Type.Integer(),
+      items: Type.Array(Json),
+      connections: Strings,
+      tools: Strings,
+    }),
+  ),
   "doctor.report": entry(empty, object({ checks: Type.Array(Json) })),
   "doctor.fix": entry(object({ definitionId: Id, action: Id, confirmed: Type.Boolean() }), ok),
   "update.list": entry(empty, object({ updates: Type.Array(Json) })),

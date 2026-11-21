@@ -23,6 +23,7 @@ import type { BotProfile } from "../data";
 import { Menu, type MenuItem } from "../kit";
 import { createDockEntry } from "../dock/DockEntry";
 import { createStartFreshEntry } from "../fresh/StartFreshEntry";
+import { createMoveEntry } from "../bundle/MoveEntry";
 import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
@@ -360,6 +361,7 @@ export function Sidebar(props: SidebarProps) {
   const soundsEntry = createSoundsEntry();
   const dockEntry = createDockEntry();
   const freshEntry = createStartFreshEntry();
+  const moveEntry = createMoveEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -459,6 +461,7 @@ export function Sidebar(props: SidebarProps) {
         appearanceEntry.item(),
         soundsEntry.item(),
         dockEntry.item(),
+        moveEntry.item(),
       ],
       [
         {
@@ -794,6 +797,7 @@ export function Sidebar(props: SidebarProps) {
       <soundsEntry.Dialog />
       <dockEntry.Dialog />
       <freshEntry.Dialog />
+      <moveEntry.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu

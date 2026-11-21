@@ -1,3 +1,4 @@
+import { BUNDLE_CHANNELS } from "../shared/bundle";
 import { START_FRESH_CHANNELS } from "../shared/start-fresh";
 import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
@@ -274,6 +275,11 @@ const openbotApi: OpenBotDesktopApi = {
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesCreate, input),
+  },
+  bundle: {
+    export: () => ipcRenderer.invoke(BUNDLE_CHANNELS.export),
+    preview: () => ipcRenderer.invoke(BUNDLE_CHANNELS.preview),
+    apply: (input) => ipcRenderer.invoke(BUNDLE_CHANNELS.apply, input),
   },
   fresh: {
     run: (confirm) => ipcRenderer.invoke(START_FRESH_CHANNELS.run, confirm),
