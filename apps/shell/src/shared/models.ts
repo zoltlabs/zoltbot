@@ -94,6 +94,9 @@ export interface ModelsDesktopApi {
   /** How many tasks one employee runs at once. */
   runningLimit: () => Promise<number>;
   setRunningLimit: (limit: number) => Promise<number>;
+  /** A8: the model ids the owner starred, shared with the phone. */
+  starred: () => Promise<string[]>;
+  setStarred: (ids: string[]) => Promise<string[]>;
 }
 
 /** The bounds of the per-employee running-task limit; the daemon enforces the same. */
@@ -108,4 +111,6 @@ export const MODEL_CHANNELS = {
   modelsSetOrder: "models:set-order",
   modelsRunningLimit: "models:running-limit",
   modelsSetRunningLimit: "models:set-running-limit",
+  modelsStarred: "models:starred",
+  modelsSetStarred: "models:set-starred",
 } as const;

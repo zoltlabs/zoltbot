@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { TASK_RUNNING_LIMIT_SETTING } from "@zoltbot/protocol";
+import { STARRED_MODELS_SETTING, TASK_RUNNING_LIMIT_SETTING } from "@zoltbot/protocol";
 import type { ConversationMessage } from "../shared/ipc";
 import {
   type AddModelAccountInput,
@@ -74,6 +74,12 @@ export function runningLimitFrom(settings: Row[]): number {
     : RUNNING_LIMIT.default;
 }
 
+/** A8: the starred model ids in a settings row, or none. */
+export function starredFrom(settings: Row[]): string[] {
+  const value = settings.find((row) => row.key === STARRED_MODELS_SETTING)?.value;
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+}
+
 /** Accounts, backup orders and the running-task limit, read and changed through the daemon. */
 export function modelsService(client: DaemonClient): ModelsDesktopApi {
   const view = (row: unknown) => toAccountView(row as Row, client.rows("agentDefinition"));
@@ -92,7 +98,11 @@ export function modelsService(client: DaemonClient): ModelsDesktopApi {
         accounts: (Array.isArray(result.items) ? result.items : []).map(view),
         orders: toOrders(result.orders),
         free: (Array.isArray(result.free) ? (result.free as Row[]) : [])
-          .map((row) => ({ accountId: text(row.accountId), model: text(row.model), name: text(row.name) }))
+          .map((row) => ({
+            accountId: text(row.accountId),
+            model: text(row.model),
+            name: text(row.name),
+          }))
           .filter((row) => row.accountId && row.model),
       };
     },
@@ -132,6 +142,13 @@ export function modelsService(client: DaemonClient): ModelsDesktopApi {
         randomUUID(),
       );
       return limit;
+    },
+    async starred() {
+      return starredFrom(client.rows("settings"));
+    },
+    async setStarred(ids: string[]) {
+      await client.call("settings.set", { key: STARRED_MODELS_SETTING, value: ids }, randomUUID());
+      return ids;
     },
   };
 }

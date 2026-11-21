@@ -407,7 +407,9 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                       <div class="models-row-copy">
                         <strong>{account()?.name ?? "Removed account"}</strong>
                         <span>
-                          {freeName(entry) ? `${freeName(entry)} (free)` : (entry.model ?? "Default model")}
+                          {freeName(entry)
+                            ? `${freeName(entry)} (free)`
+                            : (entry.model ?? "Default model")}
                           {other() ? " · another provider" : ""}
                         </span>
                       </div>

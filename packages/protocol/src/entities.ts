@@ -249,6 +249,12 @@ export type Task = Static<typeof TaskSchema>;
 export const TASK_RUNNING_LIMIT_SETTING = "tasks.runningLimit";
 export const DEFAULT_TASK_RUNNING_LIMIT = 2;
 export const TaskRunningLimitSchema = Type.Integer({ minimum: 1, maximum: 20 });
+/** A8: settings key for the model ids the owner starred, shared by the Mac and the phone. */
+export const STARRED_MODELS_SETTING = "models.starred";
+export const StarredModelsSchema = Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
+  maxItems: 200,
+  uniqueItems: true,
+});
 /** The hold reason of a queued task whose employee already runs as many tasks as allowed. */
 export const AT_LIMIT_HOLD = "at_limit";
 export const TaskResultSchema = object({

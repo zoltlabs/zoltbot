@@ -15,10 +15,13 @@ import {
   offersFastMode,
   planOpen,
   runningBackground,
+  starredFirst,
+  starredModels,
   threadSession,
   toContextUsage,
 } from "./session.js";
 import { childSummary, interactionLine, toolTitle, transcript } from "./timeline.js";
+import type { Snapshot } from "./transport.js";
 
 const snapshot = sampleSnapshot(Date.parse("2026-11-03T12:00:00.000Z"));
 
@@ -328,5 +331,16 @@ describe("A5 fast mode", () => {
     expect(offersFastMode(snapshot, "fast")).toBe(true);
     expect(offersFastMode(snapshot, "plain")).toBe(false);
     expect(offersFastMode(snapshot, "missing")).toBe(false);
+  });
+});
+
+describe("A8 starred models", () => {
+  it("lists starred models first and reads the shared setting", () => {
+    const snapshot = {
+      entities: { settings: [{ key: "models.starred", value: ["c", "a", 3] }] },
+    } as unknown as Snapshot;
+    expect(starredModels(snapshot)).toEqual(["c", "a"]);
+    const models = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(starredFirst(models, starredModels(snapshot)).map((m) => m.id)).toEqual(["c", "a", "b"]);
   });
 });

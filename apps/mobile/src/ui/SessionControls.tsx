@@ -10,11 +10,13 @@ import {
   modeState,
   planOpen,
   runningBackground,
+  starredFirst,
+  starredModels,
 } from "../data/session";
 import type { Row } from "../data/transport";
 import { type MessageKey, t } from "../i18n";
 import { useAction } from "../state/actions";
-import { useLink } from "../state/link";
+import { useLink, useSnapshot } from "../state/link";
 import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Chip, Txt } from "./kit";
@@ -137,7 +139,18 @@ export function ModelChip({
 }) {
   const { c } = useTheme();
   const { run, busy } = useAction();
+  const snapshot = useSnapshot();
   if (!state) return null;
+  // A8: starred models first; the sheet's last entry stars or unstars the current model.
+  const starred = starredModels(snapshot);
+  const models = starredFirst(state.models, starred);
+  const current = state.models.find((row) => row.id === state.current);
+  const isStarred = current ? starred.includes(current.id) : false;
+  const toggleStar = () => {
+    if (!current) return;
+    const next = isStarred ? starred.filter((id) => id !== current.id) : [current.id, ...starred];
+    void run("settings.set", { key: "models.starred", value: next }, { quiet: true });
+  };
   const apply = async (model: string, effort: string | undefined) => {
     try {
       await run(
@@ -188,10 +201,17 @@ export function ModelChip({
         pick(
           "Model",
           undefined,
-          state.models.map((row) => (row.id === state.current ? `✓ ${row.name}` : row.name)),
+          [
+            ...models.map((row) => {
+              const name = starred.includes(row.id) ? `★ ${row.name}` : row.name;
+              return row.id === state.current ? `✓ ${name}` : name;
+            }),
+            ...(current ? [isStarred ? `Unstar ${current.name}` : `Star ${current.name}`] : []),
+          ],
           (index) => {
-            const model = state.models[index];
+            const model = models[index];
             if (model) chooseEffort(model.id);
+            else if (index === models.length) toggleStar();
           },
         )
       }

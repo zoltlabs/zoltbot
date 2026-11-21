@@ -62,7 +62,9 @@ export function latestSession(snapshot: Snapshot, threadId: string): Row | undef
 /** A5: the faster tiers the session's provider offers, from its capabilities. */
 export function serviceTiers(session: Row | undefined): string[] {
   const tiers = (session?.capabilities as Row | undefined)?.serviceTiers;
-  return Array.isArray(tiers) ? tiers.filter((tier): tier is string => typeof tier === "string") : [];
+  return Array.isArray(tiers)
+    ? tiers.filter((tier): tier is string => typeof tier === "string")
+    : [];
 }
 
 export function profileFor(snapshot: Snapshot, thread: Row): Row | undefined {

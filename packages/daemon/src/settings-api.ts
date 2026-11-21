@@ -1,6 +1,8 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   type DomainEvent,
+  STARRED_MODELS_SETTING,
+  StarredModelsSchema,
   TASK_RUNNING_LIMIT_SETTING,
   TaskRunningLimitSchema,
 } from "@zoltbot/protocol";
@@ -16,7 +18,7 @@ function reserved(key: string) {
   return (
     key.startsWith("view.") ||
     key.startsWith("fork.") ||
-    key.startsWith("models.") ||
+    (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||
     key.startsWith("routine.event.health.") ||
     key.startsWith("runtime.private.") ||
@@ -73,6 +75,8 @@ export function settingsApi(options: {
       !Value.Check(TaskRunningLimitSchema, input.value)
     )
       throw new Error("invalid_setting: use a whole number of tasks from 1 to 20");
+    if (input.key === STARRED_MODELS_SETTING && !Value.Check(StarredModelsSchema, input.value))
+      throw new Error("invalid_setting: use a list of up to 200 model ids");
     const check = store.receipt(commandId)
       ? undefined
       : await options.privacy.prepareData(undefined);

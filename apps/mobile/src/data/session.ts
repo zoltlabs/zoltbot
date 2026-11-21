@@ -225,3 +225,15 @@ export function offersFastMode(snapshot: Snapshot, profileId: string): boolean {
     return Array.isArray(tiers) && tiers.length > 0;
   });
 }
+
+/** A8: the model ids the owner starred, shared with the Mac. */
+export function starredModels(snapshot: Snapshot): string[] {
+  const value = snapshot.entities.settings?.find((row) => row.key === "models.starred")?.value;
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+}
+
+/** A8: starred models first, in the order they were starred; the rest keep their order. */
+export function starredFirst<T extends { id: string }>(models: T[], starred: string[]): T[] {
+  const top = starred.flatMap((id) => models.filter((model) => model.id === id));
+  return [...top, ...models.filter((model) => !starred.includes(model.id))];
+}
