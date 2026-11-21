@@ -61,6 +61,8 @@ export interface TranscriptRow {
   aside?: { threadId: string; question: boolean };
   /** C5: hidden from the chat; the agent still remembers it. */
   hidden?: boolean;
+  /** C8: reactions from the owner and the chat's agent. */
+  reactions?: { owner?: string; agent?: string };
 }
 
 /** What happened to a message you sent, read from the item, never from the send result. */

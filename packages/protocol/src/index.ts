@@ -26,6 +26,7 @@ export * from "./mac-approval.js";
 export * from "./mac-prefix.js";
 export * from "./message-hidden.js";
 export * from "./message-pins.js";
+export * from "./message-reactions.js";
 export * from "./native-compaction.js";
 export * from "./orchestration.js";
 export * from "./private-values.js";

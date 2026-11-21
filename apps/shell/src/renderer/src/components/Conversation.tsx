@@ -665,6 +665,7 @@ export function Conversation(props: ConversationProps) {
                   message={message}
                   messages={props.messages}
                   bots={props.bots}
+                  agent={props.bot}
                   branches={branches()}
                   animate={animateEntrance}
                   actions={messageActions}

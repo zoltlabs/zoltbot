@@ -111,3 +111,16 @@
   outline: 2px solid var(--text-info);
   outline-offset: 1px;
 }
+
+/* C8: the agent's reaction, with its avatar. */
+.message-reaction-agent {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding-left: 4px;
+}
+
+.message-reaction-agent .message-reaction-avatar {
+  width: 17px;
+  height: 17px;
+}

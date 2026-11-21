@@ -54,6 +54,7 @@ import {
 import { messageParts } from "./message-parts";
 import { modelsService, switchDialogFor } from "./models-service";
 import { pinnedMessages } from "./pins";
+import { setReaction, withReactions } from "./reactions";
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
@@ -498,10 +499,13 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   }
 
   async setMessageReaction(input: SetMessageReactionInput): Promise<void> {
+    await setReaction(this.client, input);
+    // C8: the daemon keeps reactions now; drop any copy saved only on this Mac.
     const key = `${input.botId}:${input.messageId}`;
-    if (input.emoji) this.preferences.reactions[key] = input.emoji;
-    else delete this.preferences.reactions[key];
-    await this.save();
+    if (key in this.preferences.reactions) {
+      delete this.preferences.reactions[key];
+      await this.save();
+    }
     this.emitConversation(input.botId);
   }
 
@@ -603,11 +607,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       botId,
       withAsides(snapshot, botId, toMessages(snapshot, botId, items)),
     );
-    for (const message of messages) {
-      const reaction = this.preferences.reactions[`${botId}:${message.id}`];
-      if (reaction) message.reaction = reaction;
-      conversation.texts.set(message.id, message.text);
-    }
+    withReactions(snapshot, botId, messages, this.preferences.reactions);
+    for (const message of messages) conversation.texts.set(message.id, message.text);
     return {
       botId,
       threadId: botId,

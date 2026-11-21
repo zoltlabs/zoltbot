@@ -58,6 +58,7 @@ export function productionRuntime(
           managerRuntimeToolDefinitions,
           managerBrowserToolDefinitions,
           artifactBrowserToolDefinitions,
+          chatSignalIndirectToolDefinitions,
           indirectRuntimeToolDefinitions,
           managerIndirectToolDefinitions,
           channelIndirectToolDefinitions,
@@ -142,6 +143,10 @@ export function productionRuntime(
               r.accountableThreadId === threadId &&
               !["completed", "cancelled"].includes(String(r.state)),
           ) === true;
+      const ownerChat = (threadId: string | undefined) => {
+        const row = threadId ? context.store.record("thread", threadId) : undefined;
+        return !!row && !row.taskId && !row.fork;
+      };
       const skills = skillsRuntime(context.store, path.join(directory, "runtime", "skills"));
       const native = new NativeRuntimeHost({
         adapters,
@@ -168,6 +173,8 @@ export function productionRuntime(
                 ...(browser ? [] : indirectRuntimeToolDefinitions),
                 // Waiting on and listing delegated work only matters to a chat that delegates.
                 ...(managesWork(thread?.id) ? managerIndirectToolDefinitions : []),
+                // Reacting needs an owner message to react to.
+                ...(!browser && ownerChat(thread?.id) ? chatSignalIndirectToolDefinitions : []),
                 // Reading a channel only matters to its members; posting rides on team_message.
                 ...(!browser && inChannel(context, thread?.id)
                   ? channelIndirectToolDefinitions

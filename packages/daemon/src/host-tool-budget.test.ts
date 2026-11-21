@@ -9,6 +9,7 @@ import {
   artifactRuntimeToolDefinitions,
   browserRuntimeToolDefinitions,
   channelIndirectToolDefinitions,
+  chatSignalIndirectToolDefinitions,
   indirectRuntimeToolDefinitions,
   managerArtifactBrowserToolDefinitions,
   managerArtifactToolDefinitions,
@@ -61,6 +62,18 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
           ...indirectRuntimeToolDefinitions,
           ...managerIndirectToolDefinitions,
           ...channelIndirectToolDefinitions,
+        ]),
+      ) +
+        referenceTokenEstimate(installedArtifact.guidanceText) +
+        32,
+    ).toBeLessThanOrEqual(1500);
+    // An owner chat also carries the chat_signal hint.
+    expect(
+      referenceTokenEstimate(
+        JSON.stringify([
+          ...artifactRuntimeToolDefinitions,
+          ...indirectRuntimeToolDefinitions,
+          ...chatSignalIndirectToolDefinitions,
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +

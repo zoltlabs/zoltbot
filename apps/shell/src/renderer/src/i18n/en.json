@@ -245,6 +245,8 @@
   "chat.message.unpinned": "Unpinned",
   "chat.message.hide": "Hide",
   "chat.askAbout": "Ask about this",
+  "chat.reaction.agent": "{name} reacted",
+  "chat.reaction.agentLabel": "{name} reacted {emoji}",
   "chat.reply.quoted": "Quoted:",
   "chat.hide.title": "Hide this message?",
   "chat.hide.body": "The agent still remembers it.",

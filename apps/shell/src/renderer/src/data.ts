@@ -40,6 +40,8 @@ export interface BotMessage {
   artifacts?: ArtifactSummary[];
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
+  /** C8: the agent's reaction to this message. */
+  agentReaction?: MessageReaction | null;
   items?: string[];
   notice?: ConversationNotice;
   card?: ManagerCard;

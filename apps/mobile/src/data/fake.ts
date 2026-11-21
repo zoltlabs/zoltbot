@@ -1,15 +1,18 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   type DomainEvent,
+  isReactionEmoji,
   type MethodName,
   macOnlyMethods,
   messageHiddenKey,
   messagePinsKey,
+  messageReactionsKey,
   methodCatalog,
   queueOrderKey,
   unservedMethods,
   withHiddenMessage,
   withMessagePin,
+  withMessageReaction,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
 import { answerChannel } from "./fake-channels.js";
@@ -459,6 +462,21 @@ export class FakeTransport implements Transport {
         const hidden = withHiddenMessage(prior, String(p.itemId), method === "message.hide");
         this.put("settings", { key, value: hidden });
         return { hidden };
+      }
+      case "message.react": {
+        // As zoltd (message-reactions-api): the owner's reaction, in one settings row per chat.
+        this.find("thread", p.threadId);
+        const key = messageReactionsKey(String(p.threadId));
+        const prior = this.rows("settings").find((row) => row.key === key)?.value;
+        const emoji = isReactionEmoji(p.emoji) ? p.emoji : null;
+        const reactions = withMessageReaction(prior, {
+          itemId: String(p.itemId),
+          actor: "owner",
+          emoji,
+          at: now,
+        });
+        this.put("settings", { key, value: reactions });
+        return { reactions };
       }
       case "thread.continueAside":
         return this.put("thread", { ...this.find("thread", p.id), kind: "side" });

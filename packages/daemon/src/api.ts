@@ -61,6 +61,7 @@ import { Logger, Redactor } from "./logging.js";
 import { messageApi } from "./message-api.js";
 import { messageHiddenApi } from "./message-hidden-api.js";
 import { messagePinsApi } from "./message-pins-api.js";
+import { messageReactionsApi } from "./message-reactions-api.js";
 import { nativeApi } from "./native-api.js";
 import { PrivateInputGuard } from "./private-input.js";
 import { projectFilesApi } from "./project-files.js";
@@ -391,6 +392,7 @@ async function startOwnedDaemon(
   });
   const pins = messagePinsApi({ store, privacy, redactor, publish });
   const hiddenMessages = messageHiddenApi({ store, privacy, redactor, publish });
+  const reactions = messageReactionsApi({ store, privacy, redactor, publish });
   const compare = compareApi({
     store,
     privacy,
@@ -616,6 +618,7 @@ async function startOwnedDaemon(
           (await asides(request.method, params, commandId)) ??
           (await pins(request.method, params, commandId)) ??
           (await hiddenMessages(request.method, params, commandId)) ??
+          (await reactions(request.method, params, commandId)) ??
           (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??

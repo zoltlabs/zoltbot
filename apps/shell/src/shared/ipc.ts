@@ -494,6 +494,8 @@ export interface ConversationMessage {
   delivery?: Pick<QueueDelivery, "id" | "status" | "position">;
   exchange?: AgentExchangeSummary;
   reaction?: MessageReaction | null;
+  /** C8: the agent's reaction to this message. */
+  agentReaction?: MessageReaction | null;
   notice?: ConversationNotice;
   card?: ManagerCard;
   /** C2: part of a side question asked in this chat. */

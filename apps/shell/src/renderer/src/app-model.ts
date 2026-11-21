@@ -114,7 +114,8 @@ export function toBotMessage(message: ConversationMessage): BotMessage {
     attachments: message.attachments,
     artifacts: message.artifacts,
     exchange: message.exchange,
-    reaction: message.reaction,
+    reaction: message.reaction ?? null,
+    agentReaction: message.agentReaction ?? null,
     ...(message.notice ? { notice: message.notice } : {}),
     ...(message.card ? { card: message.card } : {}),
     ...(message.aside ? { aside: { threadId: message.aside.threadId } } : {}),
@@ -189,6 +190,7 @@ export function botMessagesEqual(left: BotMessage, right: BotMessage): boolean {
     left.senderBotId === right.senderBotId &&
     left.replyToMessageId === right.replyToMessageId &&
     left.reaction === right.reaction &&
+    left.agentReaction === right.agentReaction &&
     JSON.stringify(left.attachments) === JSON.stringify(right.attachments) &&
     JSON.stringify(left.exchange) === JSON.stringify(right.exchange) &&
     JSON.stringify(left.items) === JSON.stringify(right.items) &&

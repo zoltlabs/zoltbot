@@ -330,6 +330,11 @@ const rawMethodCatalog = {
     object({ threadId: Id, itemId: Id }),
     object({ hidden: Type.Array(Id, { maxItems: 500 }) }),
   ),
+  /** C8: the owner's reaction; null clears it. Agents react with the chat_signal tool. */
+  "message.react": entry(
+    object({ threadId: Id, itemId: Id, emoji: Type.Union([Type.String(), Type.Null()]) }),
+    object({ reactions: Type.Array(Type.Unknown(), { maxItems: 500 }) }),
+  ),
   "message.unpin": entry(
     object({ threadId: Id, itemId: Id }),
     object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),

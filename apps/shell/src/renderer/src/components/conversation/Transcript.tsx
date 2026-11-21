@@ -341,6 +341,8 @@ export function TranscriptEntry(props: {
   message: BotMessage;
   messages: BotMessage[];
   bots: BotProfile[];
+  /** C8: the chat's agent, shown on its reactions. */
+  agent?: BotProfile;
   /** Chats branched from this one, by the message each shows under. */
   branches?: ReadonlyMap<string, BotProfile[]>;
   animate: boolean;
@@ -438,6 +440,22 @@ export function TranscriptEntry(props: {
                     >
                       {reaction()}
                     </button>
+                  )}
+                </Show>
+                <Show when={props.message.agentReaction}>
+                  {(emoji) => (
+                    <span
+                      class="message-reaction-pill message-reaction-agent"
+                      role="img"
+                      title={t("chat.reaction.agent", { name: props.agent?.name ?? "Agent" })}
+                      aria-label={t("chat.reaction.agentLabel", {
+                        name: props.agent?.name ?? "Agent",
+                        emoji: emoji(),
+                      })}
+                    >
+                      <AgentAvatar bot={props.agent} class="message-reaction-avatar" />
+                      {emoji()}
+                    </span>
                   )}
                 </Show>
                 <BranchList branches={branchesHere()} onOpenChat={props.onSelectAgent} />

@@ -97,6 +97,31 @@ function MessageActions({
   );
 }
 
+/** C8: the owner's and the agent's reactions under a message. */
+function Reactions({ row, align }: { row: TranscriptRow; align: "flex-start" | "flex-end" }) {
+  const { c } = useTheme();
+  const { owner, agent } = row.reactions ?? {};
+  if (!owner && !agent) return null;
+  const label = [owner && `You reacted ${owner}`, agent && `Agent reacted ${agent}`]
+    .filter(Boolean)
+    .join(". ");
+  return (
+    <View style={[styles.reactions, { alignSelf: align }]} accessible accessibilityLabel={label}>
+      {[owner, agent].map((emoji, index) =>
+        emoji ? (
+          <View
+            key={index === 0 ? "owner" : "agent"}
+            style={[styles.reaction, { borderColor: c.border, backgroundColor: c["bg-raised"] }]}
+          >
+            {index === 1 ? <Icon name="spark" size={12} color={c["accent-text"]} /> : null}
+            <Txt v="meta">{emoji}</Txt>
+          </View>
+        ) : null,
+      )}
+    </View>
+  );
+}
+
 function ToolRow({ row, threadId }: { row: TranscriptRow; threadId?: string }) {
   const { c } = useTheme();
   const recovered =
@@ -424,6 +449,7 @@ export function Message({
             {words ? <Txt selectable>{words}</Txt> : null}
           </Pressable>
         </SwipeReply>
+        <Reactions row={row} align="flex-end" />
         {edits?.count ? (
           <Button
             kind="plain"
@@ -484,6 +510,7 @@ export function Message({
           {prose}
         </Pressable>
       </SwipeReply>
+      <Reactions row={row} align="flex-start" />
       <MessageActions
         row={row}
         {...(marks ? { marks } : {})}
@@ -512,6 +539,16 @@ const styles = StyleSheet.create({
   },
   prose: { lineHeight: 22 },
   quote: { borderLeftWidth: 2, paddingLeft: 8, marginBottom: 4 },
+  reactions: { flexDirection: "row", gap: 6 },
+  reaction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
   tool: {
     flexDirection: "row",
     alignItems: "center",

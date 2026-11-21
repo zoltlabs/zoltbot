@@ -25,6 +25,7 @@ import { withHidden } from "../../data/hidden";
 import { pendingFor } from "../../data/interactions";
 import { pinnedRows } from "../../data/pins";
 import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue-order";
+import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import type { Row } from "../../data/transport";
@@ -84,10 +85,14 @@ export default function Chat() {
   const [following, setFollowing] = useState(true);
   const thread = (snapshot.entities.thread ?? []).find((row) => row.id === id);
   const queue = queuedIds(snapshot, id);
-  const rows = withHidden(
+  const rows = withReactions(
     snapshot,
     id,
-    withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+    withHidden(
+      snapshot,
+      id,
+      withAsides(snapshot, id, inQueueOrder(transcript(snapshot, id), queue)),
+    ),
   );
   const positions = useRowPositions();
   const pinned = pinnedRows(snapshot, id, rows);

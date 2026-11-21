@@ -1,4 +1,4 @@
-import { messageHiddenThread, messagePinsThread } from "@zoltbot/protocol";
+import { messageHiddenThread, messagePinsThread, messageReactionsThread } from "@zoltbot/protocol";
 import type {
   ConversationMessage,
   ConversationNotice,
@@ -384,7 +384,11 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
   if (kind === "settings" && text(row.key).startsWith("team.wait."))
     return [text(row.key).slice("team.wait.".length)];
   const marked =
-    kind === "settings" ? (messagePinsThread(row.key) ?? messageHiddenThread(row.key)) : undefined;
+    kind === "settings"
+      ? (messagePinsThread(row.key) ??
+        messageHiddenThread(row.key) ??
+        messageReactionsThread(row.key))
+      : undefined;
   if (marked) return [marked];
   return [];
 }
