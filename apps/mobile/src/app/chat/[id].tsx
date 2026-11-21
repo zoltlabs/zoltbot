@@ -43,6 +43,7 @@ import {
 import { newId, useAction } from "../../state/actions";
 import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useSnapshot } from "../../state/link";
+import { outbox, startOutbox } from "../../state/outbox";
 import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
@@ -62,6 +63,7 @@ import { useRowPositions } from "../../ui/row-positions";
 import { ModelChip, PlanChecklist } from "../../ui/SessionControls";
 import { TaskContext } from "../../ui/TaskContext";
 import { Message, type QueueActions } from "../../ui/Transcript";
+import { WaitingMessages } from "../../ui/WaitingMessages";
 import { WakeStatus } from "../../ui/WakeStatus";
 
 export default function Chat() {
@@ -71,6 +73,8 @@ export default function Chat() {
   const insets = useSafeAreaInsets();
   const snapshot = useSnapshot();
   const online = useClient((state) => state.status === "online");
+  // C12: saved messages load and send once the link is up.
+  useEffect(() => startOutbox(), []);
   const { run, busy } = useAction();
   const [draft, setDraft] = useState(brief ?? "");
   const [artifactTarget, setArtifactTarget] = useState<ArtifactTarget>();
@@ -169,6 +173,31 @@ export default function Chat() {
         setReplyTo(undefined);
         AccessibilityInfo.announceForAccessibility("Asked aside");
       }
+      return;
+    }
+    // C12: while the Mac is unreachable, or behind messages still waiting, text waits too.
+    if (!online || outbox.has(id)) {
+      if (attachments.length || artifactTarget) {
+        Alert.alert("Attachments need your Mac. Send them once it’s back.");
+        return;
+      }
+      try {
+        await outbox.add({
+          id: newId("phone"),
+          threadId: id,
+          input: composeInput(words, []),
+          text: words,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        Alert.alert(error instanceof Error ? error.message : String(error));
+        return;
+      }
+      followLatest.current = true;
+      setFollowing(true);
+      setDraft("");
+      setReplyTo(undefined);
+      if (online) void outbox.flush();
       return;
     }
     const result = await run("turn.send", {
@@ -367,6 +396,7 @@ export default function Chat() {
             </View>
           ) : null;
         })}
+        <WaitingMessages threadId={id} />
         <ChatOutcome threadId={id} />
       </ScrollView>
       {!following ? (
@@ -465,7 +495,7 @@ export default function Chat() {
             placeholder={canAside && delivery === "aside" ? "Ask aside…" : "Message"}
             placeholderTextColor={c["text-dim"]}
             multiline
-            editable={online && !!thread}
+            editable={!!thread}
             accessibilityLabel="Message"
             style={[
               styles.input,
@@ -485,14 +515,14 @@ export default function Chat() {
           ) : (
             <Pressable
               onPress={() => void send()}
-              disabled={!online || !thread || busy || (!draft.trim() && !attachments.length)}
+              disabled={!thread || busy || (!draft.trim() && !attachments.length)}
               accessibilityRole="button"
               accessibilityLabel="Send"
               style={[
                 styles.round,
                 {
                   backgroundColor: c.primary,
-                  opacity: online && (draft.trim() || attachments.length) ? 1 : 0.45,
+                  opacity: draft.trim() || attachments.length ? 1 : 0.45,
                 },
               ]}
             >
