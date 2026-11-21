@@ -26,6 +26,11 @@ export const browserMethods = {
   },
   /** B3: one mouse or key event from the owner while in control. Never logged. */
   "browser.input": { params: object({ threadId: Id, event: Json }), result: Json },
+  /** B5: accept (`accept: true`) or reject cookie banners on one site from now on. */
+  "browser.cookies": {
+    params: object({ site: Type.String({ minLength: 1, maxLength: 253 }), accept: Type.Boolean() }),
+    result: Json,
+  },
   /** B1: the agent's kept browser profile, or null. */
   "browser.profile.get": { params: object({ agentId: Id }), result: Json },
   /** B1: signs the agent out of every site by deleting its profile folder. */
@@ -41,6 +46,7 @@ export const browserMacOnlyMethods = [
   "browser.view",
   "browser.takeover",
   "browser.input",
+  "browser.cookies",
 ] as const;
 
 /** B1: a profile an agent keeps between browser launches, in the daemon's data folder. */

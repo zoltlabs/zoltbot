@@ -354,5 +354,12 @@
   "browser.view.inControl": "You’re in control",
   "browser.view.takeOverFailed": "Couldn’t take over. Try again.",
   "browser.view.handedBack": "{agent} has the browser again.",
-  "browser.view.leave": "Press Esc twice to leave the page."
+  "browser.view.leave": "Press Esc twice to leave the page.",
+  "browser.cookies.rejected": "Cookie banners on {site}: rejected",
+  "browser.cookies.accepted": "Cookie banners on {site}: accepted",
+  "browser.cookies.accept": "Accept from now on",
+  "browser.cookies.reject": "Reject from now on",
+  "browser.cookies.failed": "Couldn’t change the cookie banner setting. Try again.",
+  "browser.cookies.nowAccepted": "From now on, the browser accepts cookie banners on {site}.",
+  "browser.cookies.nowRejected": "From now on, the browser rejects cookie banners on {site}."
 }

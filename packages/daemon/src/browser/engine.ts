@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { CONSENT_SCRIPT, type ConsentChoice } from "./consent.js";
 import { cliPath } from "./runtime.js";
 
 export interface EngineFrame {
@@ -52,6 +53,8 @@ export interface BrowserEngine {
     userDataDir: string;
     headless: boolean;
     title: string;
+    /** B5: what to do with a cookie banner on a page, asked once per frame that shows one. */
+    consent?: (pageUrl: string) => ConsentChoice;
   }): Promise<EngineBrowser>;
 }
 
@@ -183,6 +186,14 @@ export function playwrightEngine(
           true,
         );
       });
+      const { consent } = options;
+      if (consent) {
+        // Page scripts can call this too; it only says reject or accept for the page's own site.
+        await context.exposeBinding("__zoltbotConsent", (source: { page: Playwright }) =>
+          consent(String(source.page?.url?.() ?? "")),
+        );
+        await context.addInitScript(CONSENT_SCRIPT);
+      }
       const { endpoint } = await context.browser().bind(options.title);
       forgetListing(options.title);
       return {

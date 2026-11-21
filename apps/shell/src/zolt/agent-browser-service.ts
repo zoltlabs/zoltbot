@@ -40,6 +40,14 @@ export function agentBrowserHandlers(
         event: input.event,
       });
     },
+    [IPC_CHANNELS.agentBrowserCookies]: async (input) => {
+      if (!isObject(input) || typeof input.accept !== "boolean") throw new Error("Invalid site.");
+      await client.call(
+        "browser.cookies",
+        { site: requireString(input.site, "site"), accept: input.accept },
+        randomUUID(),
+      );
+    },
     [IPC_CHANNELS.agentBrowserClearProfile]: async (input) => {
       await client.call(
         "browser.profile.clear",

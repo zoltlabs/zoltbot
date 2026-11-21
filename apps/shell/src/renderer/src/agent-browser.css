@@ -36,6 +36,47 @@
   white-space: nowrap;
 }
 
+/* B5: what the browser does with cookie banners on the site shown. */
+.agent-browser-cookies {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 2px 14px 0;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.agent-browser-cookies-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: rgb(var(--ink) / calc(0.72 * var(--ink-text-boost)));
+}
+
+.agent-browser-cookies-flip {
+  min-height: 24px;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.agent-browser-cookies-flip:focus-visible {
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: 2px;
+}
+
+.agent-browser-cookies-flip[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .agent-browser-empty {
   margin: 0;
   padding: 24px 16px;

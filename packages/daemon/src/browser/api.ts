@@ -3,6 +3,7 @@ import type { DomainState } from "@zoltbot/core";
 import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { cookieSettings } from "./consent.js";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
 import { browserHostFor, onBrowserHost } from "./host.js";
 import { profileApi } from "./profiles.js";
@@ -34,10 +35,15 @@ export function browserApi(
     closeBrowsers: async (id) => browserHostFor(directory)?.closeProfile(id),
     ...(options.publish ? { publish: options.publish } : {}),
   });
+  const cookies = cookieSettings(store, options.publish);
   const takeover = takeoverApi({
     store,
     host: () => browserHostFor(directory),
-    ready: (setup) => onBrowserHost(directory, setup),
+    ready: (setup) =>
+      onBrowserHost(directory, (host) => {
+        host.cookieSites = cookies.sites;
+        setup(host);
+      }),
     ...(options.publish ? { publish: options.publish } : {}),
   });
   const audit = async (
@@ -99,6 +105,8 @@ export function browserApi(
         ? takeover.take(String(p.threadId))
         : takeover.handBack(String(p.threadId));
     if (method === "browser.input") return takeover.input(String(p.threadId), p.event);
+    // B5: accept or reject cookie banners on one site.
+    if (method === "browser.cookies") return cookies.set(p.site, p.accept === true);
     if (method === "browser.profile.get") return profiles.get(String(p.agentId));
     if (method === "browser.profile.clear")
       return profiles.clear(String(p.agentId), p.confirmed === true);

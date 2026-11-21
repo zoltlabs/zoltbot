@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { consentChoice, siteOf } from "./consent.js";
 import { DETECT_SCRIPT, NUDGES, type PageNeeds } from "./detect.js";
 import type { BrowserEngine, EngineBrowser, EnginePage } from "./engine.js";
 import type { BrowserBinding } from "./runtime.js";
@@ -57,6 +58,9 @@ interface Running {
   control?: string | undefined;
   /** B4: nudges already given, by kind and site. */
   nudged: Set<string>;
+  /** B5: the site whose cookie banner was answered last, for the panel. */
+  cookies?: { site: string } | undefined;
+  consentWindow: { since: number; count: number };
 }
 
 interface Viewer {
@@ -78,6 +82,9 @@ export class BrowserHost {
 
   /** B4: the agent asked for the owner; the listener raises a card and calls control(). */
   onHelp: ((threadId: string, request: HelpRequest, url: string) => void) | undefined;
+
+  /** B5: sites where cookie banners are accepted; everywhere else they're rejected. */
+  cookieSites: () => readonly string[] = () => [];
   private helpTimer: ReturnType<typeof setInterval> | undefined;
 
   /** Profiles being launched, so two chats of one agent can't both take its kept profile. */
@@ -131,11 +138,23 @@ export class BrowserHost {
       mkdirSync(scratch, { mode: 0o700 });
     }
     let browser: EngineBrowser;
+    const banners: { run?: Running } = {};
     try {
       browser = await this.engine.launch({
         userDataDir: kept?.dir ?? (scratch as string),
         headless: binding.mode === "background",
         title: binding.session,
+        consent: (url) => {
+          const run = banners.run;
+          // The owner answers banners themselves while they have the browser. Page scripts can
+          // call this too, so a busy page gets no more than 60 answers a minute.
+          if (!run || owning(run.control)) return "skip";
+          const now = this.now();
+          if (now - run.consentWindow.since > 60_000) run.consentWindow = { since: now, count: 0 };
+          if (++run.consentWindow.count > 60) return "skip";
+          run.cookies = { site: siteOf(url) };
+          return consentChoice(url, this.cookieSites());
+        },
       });
     } catch (error) {
       if (scratch) rmSync(scratch, { recursive: true, force: true });
@@ -156,7 +175,9 @@ export class BrowserHost {
       lastFrame: 0,
       generation: 0,
       nudged: new Set(),
+      consentWindow: { since: 0, count: 0 },
     };
+    banners.run = run;
     this.running.set(binding.id, run);
     browser.onPage((page) => this.follow(run, page));
     browser.onPointer((page, point) => {
@@ -313,6 +334,14 @@ export class BrowserHost {
       url: run?.page?.url() ?? null,
       control: owning(run?.control),
       asked: Boolean(run?.control) && !owning(run?.control),
+      // B5: the banner answered on the page shown, if any.
+      cookies:
+        run?.cookies && run.page && siteOf(run.page.url()) === run.cookies.site
+          ? {
+              site: run.cookies.site,
+              accept: consentChoice(run.page.url(), this.cookieSites()) === "accept",
+            }
+          : null,
     };
   }
 

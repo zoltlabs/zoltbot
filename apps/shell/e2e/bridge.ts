@@ -336,6 +336,7 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         view: call(channels.agentBrowserView),
         takeover: call(channels.agentBrowserTakeover),
         input: call(channels.agentBrowserInput),
+        cookies: call(channels.agentBrowserCookies),
         onFrame: (listener: (frame: unknown) => void) => {
           frameListeners.add(listener);
           return () => frameListeners.delete(listener);

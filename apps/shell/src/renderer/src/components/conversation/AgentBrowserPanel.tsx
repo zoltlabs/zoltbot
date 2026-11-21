@@ -34,6 +34,9 @@ export function AgentBrowserPanel(props: {
   const [busy, setBusy] = createSignal(false);
   const [failed, setFailed] = createSignal(false);
   const [announce, setAnnounce] = createSignal("");
+  const [cookies, setCookies] = createSignal<{ site: string; accept: boolean } | null>(null);
+  const [savingCookies, setSavingCookies] = createSignal(false);
+  const [cookiesFailed, setCookiesFailed] = createSignal(false);
   let takeButton: HTMLButtonElement | undefined;
   let handButton: HTMLButtonElement | undefined;
   let lastEscape = 0;
@@ -51,6 +54,8 @@ export function AgentBrowserPanel(props: {
         setControl(false);
         setFailed(false);
         setAnnounce("");
+        setCookies(null);
+        setCookiesFailed(false);
         if (!threadId) return;
         const view = (open: boolean) =>
           window.openbot.agentBrowser
@@ -59,6 +64,7 @@ export function AgentBrowserPanel(props: {
               if (!open) return;
               if (state.url) setUrl((current) => current ?? state.url);
               setRunning(state.running);
+              if (!savingCookies()) setCookies(state.cookies ?? null);
               // The card can be answered elsewhere (Needs you, the phone).
               if (!busy() && control() !== state.control) {
                 setControl(state.control);
@@ -121,6 +127,29 @@ export function AgentBrowserPanel(props: {
       else setControl(false);
     } finally {
       setBusy(false);
+    }
+  }
+
+  // B5: the owner flips what the browser does with cookie banners on this site.
+  async function flipCookies() {
+    const current = cookies();
+    if (!current || savingCookies()) return;
+    const next = { site: current.site, accept: !current.accept };
+    setSavingCookies(true);
+    setCookiesFailed(false);
+    setAnnounce("");
+    try {
+      await window.openbot.agentBrowser.cookies(next);
+      setCookies(next);
+      setAnnounce(
+        t(next.accept ? "browser.cookies.nowAccepted" : "browser.cookies.nowRejected", {
+          site: next.site,
+        }),
+      );
+    } catch {
+      setCookiesFailed(true);
+    } finally {
+      setSavingCookies(false);
     }
   }
 
@@ -280,6 +309,31 @@ export function AgentBrowserPanel(props: {
             <span class="agent-browser-address-text">{address()}</span>
           </div>
         )}
+      </Show>
+      <Show when={cookies()}>
+        {(state) => (
+          <div class="agent-browser-cookies">
+            <span id="agent-browser-cookies-text" class="agent-browser-cookies-text">
+              {t(state().accept ? "browser.cookies.accepted" : "browser.cookies.rejected", {
+                site: state().site,
+              })}
+            </span>
+            <button
+              type="button"
+              class="agent-browser-cookies-flip"
+              aria-describedby="agent-browser-cookies-text"
+              aria-disabled={savingCookies()}
+              onClick={() => void flipCookies()}
+            >
+              {t(state().accept ? "browser.cookies.reject" : "browser.cookies.accept")}
+            </button>
+          </div>
+        )}
+      </Show>
+      <Show when={cookiesFailed()}>
+        <p class="agent-browser-error" role="alert">
+          {t("browser.cookies.failed")}
+        </p>
       </Show>
       <div
         class="agent-browser-stage"

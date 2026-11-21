@@ -79,8 +79,10 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     await source.close();
     const framePage = new FramePage(jpeg, "https://shop.example.test/orders");
     let pointer: ((page: EnginePage, point: { x: number; y: number }) => void) | undefined;
+    let consent: ((url: string) => string) | undefined;
     const engine: BrowserEngine = {
-      async launch() {
+      async launch(options) {
+        consent = options.consent;
         return {
           endpoint: "/tmp/fake.sock",
           pages: () => [framePage],
@@ -189,6 +191,30 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     await panel.getByRole("button", { name: "Hand back" }).click();
     await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
     expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
+
+    // B5: a cookie banner on the page was rejected; the owner accepts cookies on that site instead.
+    expect(consent?.("https://www.shop.example.test/orders")).toBe("reject");
+    const cookieLine = panel.locator(".agent-browser-cookies-text");
+    await expect(cookieLine).toHaveText("Cookie banners on shop.example.test: rejected", {
+      timeout: 10_000,
+    });
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/b5-cookies-${scheme}.png` });
+    }
+    await panel.getByRole("button", { name: "Accept from now on" }).click();
+    await expect(cookieLine).toHaveText("Cookie banners on shop.example.test: accepted");
+    expect(
+      fixture.daemon.store
+        .snapshot(["settings"])
+        .settings?.find((row) => row.key === "browser.cookies.accept")?.value,
+    ).toEqual(["shop.example.test"]);
+    expect(consent?.("https://shop.example.test/cart")).toBe("accept");
+    await panel.getByRole("button", { name: "Reject from now on" }).click();
+    await expect(cookieLine).toHaveText("Cookie banners on shop.example.test: rejected");
+    expect(consent?.("https://shop.example.test/cart")).toBe("reject");
 
     // Closing the panel stops the screencast.
     await panel.getByRole("button", { name: "Close browser" }).click();

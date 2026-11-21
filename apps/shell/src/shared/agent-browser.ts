@@ -1,4 +1,4 @@
-// B1–B3: the agent's own browser, run by the daemon.
+// B1–B5: the agent's own browser, run by the daemon.
 import type { AgentBrowserInput } from "./agent-browser-input";
 
 export type { AgentBrowserInput };
@@ -29,6 +29,8 @@ export interface AgentBrowserViewState {
   url: string | null;
   /** B3: the owner controls the browser and the agent waits. */
   control: boolean;
+  /** B5: whether the browser accepts or rejects cookie banners on the site shown, once one was answered there. */
+  cookies?: { site: string; accept: boolean } | null;
 }
 
 export const AGENT_BROWSER_CHANNELS = {
@@ -38,6 +40,7 @@ export const AGENT_BROWSER_CHANNELS = {
   agentBrowserFrame: "agent-browser:frame",
   agentBrowserTakeover: "agent-browser:takeover",
   agentBrowserInput: "agent-browser:input",
+  agentBrowserCookies: "agent-browser:cookies",
 } as const;
 
 /** How often an open panel renews its view; the daemon drops a viewer after 20 seconds. */
@@ -57,6 +60,8 @@ export interface AgentBrowserDesktopApi {
   }) => Promise<{ control: boolean; url: string | null }>;
   /** B3: one mouse or key event while in control. Never logged. */
   input: (input: { threadId: string; event: AgentBrowserInput }) => Promise<void>;
+  /** B5: accepts or rejects cookie banners on one site from now on. */
+  cookies: (input: { site: string; accept: boolean }) => Promise<void>;
   /** Frames for the chats this window views. */
   onFrame: (listener: (frame: AgentBrowserFrame) => void) => () => void;
 }
