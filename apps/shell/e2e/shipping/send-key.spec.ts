@@ -43,7 +43,9 @@ test("the owner can send with ⌘ Enter so Enter adds a line", async ({ page }) 
 
     await composer.press("ControlOrMeta+Enter");
     await expect(composer).toHaveText("");
-    const sent = page.getByLabel("Conversation").locator(".message-copy", { hasText: "second line" });
+    const sent = page
+      .getByLabel("Conversation")
+      .locator(".message-copy", { hasText: "second line" });
     await expect(sent).toBeVisible();
     // Enter made a real line break in the sent message.
     expect(await sent.evaluate((node) => node.innerText)).toMatch(/first line\s*\n\s*second line/);

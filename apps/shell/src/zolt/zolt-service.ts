@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { agentContinueKey, fileMimeType, MUTED_PREFIX } from "@zoltbot/protocol";
+import { type Outbox, turnOutbox, unreachable, waitingMessage } from "../main/outbox";
 import type {
   AccountUsage,
   AgentEvent,
@@ -27,7 +28,6 @@ import type {
 import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
 import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
-import { type Outbox, turnOutbox, unreachable, waitingMessage } from "../main/outbox";
 import { chooseAgent } from "./agent-choice";
 import { asideSource, asideThreads, withAsides } from "./asides";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
@@ -667,7 +667,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       threadId: botId,
       activeTurnId: text(runningTurn(this.client.snapshot, botId)?.id) || null,
       revision: conversation.revision,
-      messages: [...messages, ...conversation.pending, ...this.outbox.list(botId).map(waitingMessage)],
+      messages: [
+        ...messages,
+        ...conversation.pending,
+        ...this.outbox.list(botId).map(waitingMessage),
+      ],
       plan: latestPlan(items),
       pins: pinnedMessages(this.client.snapshot, botId, messages),
       workingStatus: workingStatus(this.client.snapshot, botId, items),

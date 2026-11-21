@@ -123,7 +123,11 @@ export function ComposerEditor(props: ComposerEditorProps) {
         return;
       }
       const plainEnter =
-        event.key === "Enter" && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey;
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey;
       if (plainEnter || event.key === "Tab") {
         event.preventDefault();
         const bot = options[activeOption()];

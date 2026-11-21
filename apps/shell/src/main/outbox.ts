@@ -106,7 +106,9 @@ export class Outbox {
     });
     return {
       messageId: commandId,
-      deliveries: [{ id: commandId, recipientBotId: input.botId, status: "queued", position: null }],
+      deliveries: [
+        { id: commandId, recipientBotId: input.botId, status: "queued", position: null },
+      ],
     };
   }
 

@@ -91,12 +91,7 @@ export function NewAgentDialog(props: {
             </button>
           }
         >
-          <button
-            type="button"
-            class="zb-kit-button"
-            disabled={busy()}
-            onClick={back}
-          >
+          <button type="button" class="zb-kit-button" disabled={busy()} onClick={back}>
             {t("agent.new.back")}
           </button>
           <button

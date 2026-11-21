@@ -86,7 +86,12 @@ test("messages written while Zoltbot is unreachable wait, then send once", async
     const send = () =>
       shell.service.client.call(
         "turn.send",
-        { threadId: bot.id, input: [{ type: "text", text: "Once" }], mode: "queue", outputMode: "auto" },
+        {
+          threadId: bot.id,
+          input: [{ type: "text", text: "Once" }],
+          mode: "queue",
+          outputMode: "auto",
+        },
         "outbox-e2e-once",
       ) as Promise<{ id: string }>;
     const [one, two] = [await send(), await send()];

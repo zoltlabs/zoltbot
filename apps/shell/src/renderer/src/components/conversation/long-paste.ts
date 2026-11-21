@@ -50,7 +50,8 @@ export function notePastedAttachments(
     if (index < 0) continue;
     const [entry] = waiting.splice(index, 1);
     if (entry) byAttachment.set(attachment.id, entry.text);
-    while (byAttachment.size > KEEP) byAttachment.delete(byAttachment.keys().next().value as string);
+    while (byAttachment.size > KEEP)
+      byAttachment.delete(byAttachment.keys().next().value as string);
   }
   setVersion((n) => n + 1);
 }

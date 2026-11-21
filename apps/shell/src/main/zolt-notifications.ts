@@ -56,7 +56,8 @@ export function connectNotifications(client: DaemonClient, host: NotificationHos
     }
     if (change.kind !== "rows" || change.streamed) return;
     for (const row of change.rows) notifications.event(change.aggregateType, row);
-    if (change.aggregateType === "interaction" || change.aggregateType === "settings") updateBadge();
+    if (change.aggregateType === "interaction" || change.aggregateType === "settings")
+      updateBadge();
   });
   if (client.status === "online") {
     notifications.snapshot(client.snapshot.entities);
