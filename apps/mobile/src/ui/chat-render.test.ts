@@ -118,6 +118,8 @@ beforeAll(async () => {
     type: {},
     avatarColors: () => ({ body: "", eye: "", screen: "" }),
     useTheme: () => ({ scheme, c: scheme === "dark" ? dark : light }),
+    useType: () => ({}),
+    useTextScale: () => 1,
   };
   const client = { getState: () => ({ status, snapshot, call: async () => ({}) }) };
   const link = {

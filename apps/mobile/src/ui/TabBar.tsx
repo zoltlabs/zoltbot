@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { needsYouTasks } from "../data/tasks";
 import { needsYou } from "../data/view";
 import { useSnapshot } from "../state/link";
-import { useTheme } from "../theme";
+import { type as typeScale, useTheme } from "../theme";
 import { Icon, type IconName } from "./icons";
 import { Txt } from "./kit";
 
@@ -66,12 +66,13 @@ export function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarPr
             <View style={[styles.pill, primary && { backgroundColor: c.primary }]}>
               <Icon name={tab.icon} color={primary ? c["text-on-primary"] : color} />
             </View>
-            <Txt v="tab" style={{ color }}>
+            {/* Like iOS's own tab bars, the labels keep their size. */}
+            <Txt v="tab" style={[typeScale.tab, { color }]}>
               {tab.label}
             </Txt>
             {badge ? (
               <View style={[styles.badge, { backgroundColor: c.attention }]}>
-                <Txt v="tab" style={{ color: c["bg-page"] }}>
+                <Txt v="tab" style={[typeScale.tab, { color: c["bg-page"] }]}>
                   {badge}
                 </Txt>
               </View>

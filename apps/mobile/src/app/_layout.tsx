@@ -7,6 +7,7 @@ import { startAppLock, useAppLock } from "../state/app-lock";
 import { useLink } from "../state/link";
 import { startLiveActivity } from "../state/live-activity";
 import { startNotificationActions } from "../state/notifications";
+import { useTextSize } from "../state/text-size";
 import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
 import { BotAvatarPalette } from "../ui/BotAvatar";
@@ -21,6 +22,7 @@ export default function RootLayout() {
     startAppLock();
     void useLink.getState().boot();
     loadVoicePrefs();
+    void useTextSize.getState().load();
   }, []);
   // Notification taps and Allow/Reject buttons, once screens can be navigated to.
   useEffect(() => (booted ? startNotificationActions() : undefined), [booted]);

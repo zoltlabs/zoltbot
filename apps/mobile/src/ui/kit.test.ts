@@ -85,6 +85,8 @@ beforeAll(async () => {
     type: {},
     avatarColors: () => ({ body: "", eye: "", screen: "" }),
     useTheme: () => ({ scheme: "dark", c: dark }),
+    useType: () => ({}),
+    useTextScale: () => 1,
   };
   const require = (id: string) =>
     id === "react-native" ? native : id === "kit-theme" ? theme : uiRequire(id);

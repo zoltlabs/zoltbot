@@ -12,6 +12,7 @@ import { TabScreen } from "../../ui/chrome";
 import { Button, Group, Row, Section, Segmented, showConfirmSheet, Txt } from "../../ui/kit";
 import { LockSettings } from "../../ui/LockSettings";
 import { MacSettings } from "../../ui/MacList";
+import { TextSizeSettings } from "../../ui/TextSizeSettings";
 import { Toggle } from "../../ui/Toggle";
 import { VoiceSettings } from "../../ui/VoiceSettings";
 
@@ -77,6 +78,7 @@ export default function Settings() {
           { value: "dark", label: "Dark" },
         ]}
       />
+      <TextSizeSettings />
       <VoiceSettings />
       <Section title="Privacy" />
       <LockSettings />

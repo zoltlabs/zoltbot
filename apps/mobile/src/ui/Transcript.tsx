@@ -3,9 +3,10 @@ import { router } from "expo-router";
 import { type ReactNode, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { pinnable } from "../data/pins";
+import { scaleText } from "../data/text-size";
 import { childSummary, type TranscriptRow } from "../data/view";
 import { useSnapshot } from "../state/link";
-import { mono, useTheme } from "../theme";
+import { mono, useTextScale, useTheme } from "../theme";
 import { AsideRow } from "./AsideRow";
 import { Icon } from "./icons";
 import { StaffCard } from "./interactions/StaffCard";
@@ -215,6 +216,7 @@ export function Message({
   canBranch?: boolean;
 }) {
   const { c } = useTheme();
+  const proseStyle = scaleText(styles.prose, useTextScale());
   if (row.aside) return <AsideRow row={row} />;
   if (row.progress) return <ProgressRow row={row} />;
   if (row.hidden) return <HiddenRow {...(marks ? { onShow: () => marks.hide(row, false) } : {})} />;
@@ -254,7 +256,7 @@ export function Message({
             Morning brief
           </Txt>
         </View>
-        <Txt style={styles.prose}>{row.text}</Txt>
+        <Txt style={proseStyle}>{row.text}</Txt>
         <Button kind="plain" label="Open Needs you" onPress={() => router.navigate("/")} />
       </View>
     );
@@ -352,7 +354,7 @@ export function Message({
       <Txt
         v={compact ? "meta" : "body"}
         tone={row.kind === "thought" || compact ? "muted" : "text"}
-        style={compact ? undefined : styles.prose}
+        style={compact ? undefined : proseStyle}
       >
         {row.kind === "thought" ? `Thinking: ${row.text}` : row.text}
         {row.streaming ? <Txt style={{ color: c.accent }}>{" ▍"}</Txt> : null}

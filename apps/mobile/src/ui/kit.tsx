@@ -13,7 +13,15 @@ import {
 } from "react-native";
 import { avatarHue } from "../data/view";
 import { t } from "../i18n";
-import { avatarColors, mono, type Tokens, touch, type as typeScale, useTheme } from "../theme";
+import {
+  avatarColors,
+  mono,
+  type Tokens,
+  touch,
+  type as typeScale,
+  useTheme,
+  useType,
+} from "../theme";
 
 type Variant = keyof typeof typeScale;
 type Tone =
@@ -56,9 +64,10 @@ export function Txt({
   accessibilityRole?: "header" | "text";
 }) {
   const { c } = useTheme();
+  const scale = useType();
   return (
     <Text
-      style={[typeScale[v] as TextStyle, { color: toneColor(c, tone) }, style]}
+      style={[(scale[v] ?? typeScale[v]) as TextStyle, { color: toneColor(c, tone) }, style]}
       numberOfLines={lines}
       {...rest}
     >

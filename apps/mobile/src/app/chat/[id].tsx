@@ -38,6 +38,7 @@ import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
 import { useCalmStatus, workingStatus } from "../../data/status";
+import { scaleText } from "../../data/text-size";
 import type { Row } from "../../data/transport";
 import {
   place,
@@ -53,7 +54,7 @@ import { useChatDraft } from "../../state/chat-draft";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { outbox, startOutbox } from "../../state/outbox";
 import { donateBotConversation } from "../../state/sharing";
-import { sans, touch, useTheme } from "../../theme";
+import { sans, touch, useTextScale, useTheme } from "../../theme";
 import { AssistantTurn } from "../../ui/AssistantTurn";
 import { Attachments } from "../../ui/Attachments";
 import { BotAvatar } from "../../ui/BotAvatar";
@@ -137,6 +138,7 @@ export default function Chat() {
   const pinnedIds = new Set(pinned.map((row) => row.id));
   // C6: the message being replied to; its quote goes ahead of the words when sent.
   const [replyTo, setReplyTo] = useState<TranscriptRow>();
+  const textSize = useTextScale();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   // O4: the composer's microphone and voice mode, in builds that can listen.
   const canListen = useCanListen();
@@ -570,7 +572,7 @@ export default function Chat() {
             editable={!!thread}
             accessibilityLabel="Message"
             style={[
-              styles.input,
+              scaleText(styles.input, textSize),
               { color: c.text, borderColor: c["border-strong"], backgroundColor: c["bg-raised"] },
             ]}
           />
