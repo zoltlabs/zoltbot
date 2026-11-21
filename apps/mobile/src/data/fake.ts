@@ -48,6 +48,8 @@ export class FakeTransport implements Transport {
       now?: () => number;
       settings?: Row[];
       onSettings?: (rows: Row[]) => void | Promise<void>;
+      /** A second sample Mac: the same work, nothing waiting on the owner. */
+      quiet?: boolean;
     } = {},
   ) {
     this.snapshot = sampleSnapshot(this.now());
@@ -61,6 +63,9 @@ export class FakeTransport implements Transport {
       at: () => this.at(),
     });
     if (options.settings) this.snapshot.entities.settings = options.settings;
+    const asks = this.snapshot.entities.interaction ?? [];
+    if (options.quiet)
+      this.snapshot.entities.interaction = asks.filter((row) => row.state !== "pending");
   }
   private now() {
     return this.options.now?.() ?? Date.now();

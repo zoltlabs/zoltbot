@@ -22,11 +22,16 @@ export default function Pair() {
   const scanned = useRef(false);
   const { status, confirmCode, error, kind } = useClient((state) => state);
   const macName = useLink((state) => state.macName);
+  // Pairing another Mac: the ones already paired stay, and the sample makes no sense here.
+  const another = useLink((state) => state.macs.length > 0 && !state.fake);
 
+  const waiting = useLink((state) => !!state.pairing);
   useEffect(() => {
     // The relay client reaches online only after the person allowed this phone on the Mac.
-    if (step === "confirm" && status === "online") router.replace("/");
-  }, [step, status]);
+    if (step === "confirm" && status === "online" && !waiting) router.replace("/");
+  }, [step, status, waiting]);
+  // Leaving before the Mac allowed this phone stops that pairing and goes back to the last Mac.
+  useEffect(() => () => useLink.getState().cancelPairing(), []);
 
   const start = async (text: string) => {
     setProblem("");
@@ -39,7 +44,7 @@ export default function Pair() {
     }
   };
   const cancel = () => {
-    void useLink.getState().disconnect();
+    useLink.getState().cancelPairing();
     scanned.current = false;
     setStep("scan");
   };
@@ -104,7 +109,7 @@ export default function Pair() {
       ) : (
         <>
           <Txt v="largeTitle" accessibilityRole="header" style={styles.center}>
-            Pair with your Mac
+            {another ? "Pair another Mac" : "Pair with your Mac"}
           </Txt>
           <Txt tone="secondary" style={styles.lede}>
             On your Mac, open Zoltbot, go to Settings › Devices and choose Pair a phone. Then scan
@@ -202,6 +207,8 @@ export default function Pair() {
         </View>
         {step === "confirm" ? (
           <Button label="Cancel" onPress={cancel} style={styles.big} />
+        ) : another ? (
+          <Button label="Cancel" onPress={() => router.back()} style={styles.big} />
         ) : (
           <Button label="Try it with sample data" onPress={sample} style={styles.big} />
         )}

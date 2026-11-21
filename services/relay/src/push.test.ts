@@ -53,6 +53,33 @@ describe("push text", () => {
   });
 });
 
+describe("several Macs", () => {
+  it("names the sending Mac by id, and drops a malformed one", () => {
+    expect(apnsPayload("needs_you", 1, undefined, undefined, undefined, "mac_A1")).toEqual({
+      aps: { alert: { body: "Zoltbot needs you" }, badge: 1, sound: "default" },
+      macId: "mac_A1",
+      body: { macId: "mac_A1" },
+    });
+    expect(apnsPayload("zolt", 1, undefined, "chief", undefined, "mac_A1")).toMatchObject({
+      threadId: "chief",
+      macId: "mac_A1",
+      body: { threadId: "chief", macId: "mac_A1" },
+    });
+    const approval = apnsPayload(
+      "needs_you",
+      1,
+      { category: "approval", interactionId: "r1", threadId: "h1", version: 3 },
+      undefined,
+      undefined,
+      "mac_A1",
+    );
+    expect(approval).toMatchObject({ macId: "mac_A1", body: { macId: "mac_A1" } });
+    expect(apnsPayload("needs_you", 2, undefined, undefined, undefined, "a b")).toEqual(
+      apnsPayload("needs_you", 2),
+    );
+  });
+});
+
 describe("APNs", () => {
   it("signs an ES256 provider token", () => {
     const token = apnsJwt(pem, "KEY123", "TEAM456", 1_700_000_000_000);

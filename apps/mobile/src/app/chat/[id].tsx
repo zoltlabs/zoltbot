@@ -50,7 +50,7 @@ import {
 import { withCalls } from "../../data/voice";
 import { newId, useAction } from "../../state/actions";
 import { useChatDraft } from "../../state/chat-draft";
-import { useClient, useSnapshot } from "../../state/link";
+import { useClient, useLink, useSnapshot } from "../../state/link";
 import { outbox, startOutbox } from "../../state/outbox";
 import { donateBotConversation } from "../../state/sharing";
 import { sans, touch, useTheme } from "../../theme";
@@ -219,7 +219,8 @@ export default function Chat() {
       return;
     }
     // C12: while the Mac is unreachable, or behind messages still waiting, text waits too.
-    if (!online || outbox.has(id)) {
+    const macId = useLink.getState().activeId;
+    if (!online || outbox.has(id, macId)) {
       if (attachments.length || artifactTarget) {
         Alert.alert("Attachments need your Mac. Send them once it’s back.");
         return;
@@ -231,6 +232,7 @@ export default function Chat() {
           input: composeInput(words, []),
           text: words,
           createdAt: new Date().toISOString(),
+          ...(macId ? { macId } : {}),
         });
       } catch (error) {
         Alert.alert(error instanceof Error ? error.message : String(error));

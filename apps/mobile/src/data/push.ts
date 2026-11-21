@@ -42,6 +42,8 @@ export interface PushTarget {
   threadId?: string;
   interactionId?: string;
   version?: number;
+  /** The Mac that sent it, when the phone is paired with several. */
+  macId?: string;
 }
 const field = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -78,13 +80,16 @@ export function readPushTarget(content: {
   if (threadId) target.threadId = threadId;
   if (interactionId) target.interactionId = interactionId;
   if (Number.isInteger(version) && version >= 1) target.version = version;
+  const macId = field(data.macId);
+  if (macId && /^[A-Za-z0-9_-]{1,128}$/.test(macId)) target.macId = macId;
   return target;
 }
 
 export type PushResponse =
-  | { kind: "open"; threadId: string }
+  | { kind: "open"; threadId: string; macId?: string }
   | {
       kind: "answer";
+      macId?: string;
       id: string;
       version: number;
       threadId?: string;
@@ -108,13 +113,17 @@ export function pushResponse(
       threadId: target.threadId,
     };
   }
+  const from = target.macId ? { macId: target.macId } : {};
   if (!quick)
-    return target.threadId ? { kind: "open", threadId: target.threadId } : { kind: "none" };
+    return target.threadId
+      ? { kind: "open", threadId: target.threadId, ...from }
+      : { kind: "none" };
   if (target.category !== approvalCategory || !target.interactionId || !target.version)
     return { kind: "none" };
   const feedback = userText?.trim();
   return {
     kind: "answer",
+    ...from,
     id: target.interactionId,
     version: target.version,
     ...(target.threadId ? { threadId: target.threadId } : {}),

@@ -26,6 +26,8 @@ export interface PushRequest {
   threadId?: string;
   /** Org-bound notice; Cloud approvals are reviewed and signed inside the app. */
   cloud?: CloudPushContext;
+  /** The Mac that sent it, so a phone paired with several Macs opens the right one. An id only. */
+  macId?: string;
 }
 
 /** `gone` means APNs says the token is no longer valid and should be forgotten. */
@@ -48,6 +50,7 @@ export function apnsPayload(
   action?: PushAction,
   threadId?: string,
   cloud?: CloudPushContext,
+  macId?: string,
 ) {
   // A notice is not a request, so it leaves the badge (what needs you) as it is.
   const aps =
@@ -75,7 +78,11 @@ export function apnsPayload(
     const data = { scope, threadId };
     return { aps, ...data, body: data };
   }
-  if (!action) return threadId ? { aps, threadId, body: { threadId } } : { aps };
+  const from = macId && /^[A-Za-z0-9_-]{1,128}$/.test(macId) ? { macId } : {};
+  if (!action) {
+    const data = { ...(threadId ? { threadId } : {}), ...from };
+    return Object.keys(data).length ? { aps, ...data, body: data } : { aps };
+  }
   // The app registers the "approval" category with Allow once and Reject buttons. The ids sit
   // at the top level of the APNs payload (the app's notification data) and are mirrored under
   // `body`, which expo-notifications prefers as data when present.
@@ -84,6 +91,7 @@ export function apnsPayload(
     interactionId: action.interactionId,
     version: action.version,
     threadId: action.threadId,
+    ...from,
   };
   return { aps: { ...aps, category: action.category }, ...data, body: data };
 }
@@ -172,7 +180,14 @@ export class ApnsPush implements PushSender {
     let body: string;
     try {
       body = JSON.stringify(
-        apnsPayload(request.kind, request.count, request.action, request.threadId, request.cloud),
+        apnsPayload(
+          request.kind,
+          request.count,
+          request.action,
+          request.threadId,
+          request.cloud,
+          request.macId,
+        ),
       );
     } catch {
       return Promise.resolve({ ok: false, gone: false, reason: "push_scope_invalid" });

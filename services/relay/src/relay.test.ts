@@ -344,6 +344,7 @@ describe("push", () => {
       token: "tok",
       kind: "needs_you",
       count: 3,
+      macId: mac.id,
     });
 
     mac.client.send({

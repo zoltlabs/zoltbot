@@ -412,6 +412,7 @@ export function createRelay(options: RelayOptions): Relay {
       token: record.pushToken,
       kind: frame.kind,
       count: frame.count,
+      macId,
       ...(frame.category === "approval" &&
       frame.interactionId !== undefined &&
       frame.threadId !== undefined &&

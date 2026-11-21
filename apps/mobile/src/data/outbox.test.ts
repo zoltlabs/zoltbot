@@ -117,3 +117,44 @@ it("treats an offline link and an unknown outcome as unreachable, and refusals a
   expect(unreachable(new OutcomeUnknownError("timeout"))).toBe(true);
   expect(unreachable(new Error("thread_archived"))).toBe(false);
 });
+
+it("keeps each Mac's messages apart, and one Mac being down holds only its own", async () => {
+  const sent: string[] = [];
+  const down = new Set(["studio"]);
+  const outbox = createOutbox({
+    storage: memory(),
+    send: async (row) => {
+      if (down.has(row.macId ?? "")) throw new Error("Your Mac is offline.");
+      sent.push(row.id);
+    },
+    changed: () => undefined,
+  });
+  await outbox.load();
+  await outbox.add({ ...message("a1"), macId: "studio" });
+  await outbox.add({ ...message("b1"), macId: "mini" });
+  expect(outbox.has("chat", "mini")).toBe(true);
+  expect(outbox.list("chat", "studio").map((row) => row.id)).toEqual(["a1"]);
+  await outbox.flush();
+  expect(sent).toEqual(["b1"]);
+  await outbox.dropMac("studio");
+  expect(outbox.has("chat", "studio")).toBe(false);
+});
+
+it("ties older messages to the first Mac and drops a forgotten Mac's", async () => {
+  const outbox = createOutbox({
+    storage: memory(),
+    send: async () => {
+      throw new Error("Your Mac is offline.");
+    },
+    changed: () => undefined,
+  });
+  await outbox.load();
+  await outbox.add(message("old"));
+  await outbox.add({ ...message("gone"), macId: "forgotten" });
+  await outbox.add({ ...message("mini"), macId: "mini" });
+  await outbox.settle("studio", ["studio", "mini"]);
+  expect(outbox.list("chat").map((row) => [row.id, row.macId])).toEqual([
+    ["old", "studio"],
+    ["mini", "mini"],
+  ]);
+});

@@ -13,7 +13,8 @@ import {
 } from "@zoltbot/link";
 import { describe, expect, it, vi } from "vitest";
 import { createClient } from "./client.js";
-import { deviceIdentity, memoryStore, pairedMac, savePairedMac } from "./link-store.js";
+import { deviceIdentity, memoryStore } from "./link-store.js";
+import { addMac, loadMacs, saveMacs } from "./macs.js";
 import { type LinkSocket, RelayTransport, readPairingUrl } from "./relay.js";
 
 /**
@@ -165,7 +166,7 @@ describe("relay transport", () => {
     const identity = await deviceIdentity(keys);
     const deviceId = linkId(identity.publicKey);
     const { mac, pairing } = readPairingUrl(h.url);
-    const paired = vi.fn(() => savePairedMac(keys, mac));
+    const paired = vi.fn(() => saveMacs(keys, addMac({ macs: [] }, mac)));
     const client = createClient(
       new RelayTransport({
         identity,
@@ -185,7 +186,7 @@ describe("relay transport", () => {
     h.state.allowed.add(deviceId);
     await vi.waitFor(() => expect(client.getState().status).toBe("online"));
     expect(paired).toHaveBeenCalledOnce();
-    expect(await pairedMac(keys)).toEqual(mac);
+    expect((await loadMacs(keys)).macs).toEqual([expect.objectContaining(mac)]);
     expect(client.getState().snapshot.entities.task).toEqual([{ id: "t1", state: "running" }]);
     expect(client.getState().confirmCode).toBeUndefined();
 

@@ -32,6 +32,7 @@ import { sans, touch, useTheme } from "../theme";
 import { BotAvatar } from "./BotAvatar";
 import { Icon } from "./icons";
 import { Txt } from "./kit";
+import { MacSwitcher } from "./MacList";
 import { pick } from "./SessionControls";
 
 const glyphs = {
@@ -343,6 +344,7 @@ export function Drawer() {
           },
         ]}
       >
+        <MacSwitcher onLeave={close} />
         <View style={styles.header}>
           {projects.length > 1 ? (
             <Pressable
