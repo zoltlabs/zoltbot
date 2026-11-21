@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { FakeBridgeAdapter } from "../../../../packages/bridges/src/index";
+import { BridgeError, FakeBridgeAdapter } from "../../../../packages/bridges/src/index";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme, shellSession } from "../harness";
 
@@ -257,6 +257,53 @@ test("Adding Discord lists the invite permissions and connects with the bot toke
     const detail = page.getByRole("dialog", { name: "Discord" });
     await expect(detail.getByText("Connected")).toBeVisible();
     expect(credentials).toEqual({ token: "discord-test-token" });
+    expect(shell.errors).toEqual([]);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});
+
+test("WhatsApp saves its token and says receiving needs the Zoltbot cloud", async ({ page }) => {
+  const fake = new FakeBridgeAdapter("Acme Support");
+  fake.failNext = new BridgeError("needs_account");
+  let credentials: Record<string, string> = {};
+  const fixture = await compareFixture({
+    secrets: memoryVault(),
+    bridges: {
+      adapters: {
+        whatsapp: (input) => {
+          credentials = input.credentials;
+          return fake;
+        },
+      },
+    },
+  });
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.open(page);
+    await page.getByRole("button", { name: "Open account menu" }).click();
+    await page.getByRole("menuitem", { name: "Bridges" }).click();
+    const dialog = page.getByRole("dialog", { name: "Bridges" });
+    await dialog.getByRole("button", { name: "Add bridge" }).click();
+    await dialog.getByRole("button", { name: "WhatsApp" }).click();
+    const setup = page.getByRole("dialog", { name: "Add WhatsApp" });
+    await expect(setup.getByLabel("Phone number ID")).toHaveAttribute("type", "text");
+    await expect(setup.getByLabel("Access token")).toHaveAttribute("type", "password");
+    await setup.getByLabel("Phone number ID").fill("1065");
+    await setup.getByLabel("Access token").fill("EAAG-test");
+    await setup.getByRole("button", { name: "Add bridge" }).click();
+
+    const detail = page.getByRole("dialog", { name: "WhatsApp" });
+    await expect(detail.getByText("Stopped")).toBeVisible();
+    await expect(detail.getByText(/needs the Zoltbot cloud/)).toBeVisible();
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/i5-needs-account-${scheme}.png` });
+    }
+    expect(credentials).toEqual({ phoneNumberId: "1065", accessToken: "EAAG-test" });
     expect(shell.errors).toEqual([]);
   } finally {
     await shell.close();

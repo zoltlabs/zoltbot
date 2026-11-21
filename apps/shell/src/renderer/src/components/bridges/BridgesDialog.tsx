@@ -340,7 +340,8 @@ export function BridgesDialog(props: { onClose: () => void }) {
                       input={(id, describedBy) => (
                         <input
                           id={id}
-                          type="password"
+                          type={field.plain ? "text" : "password"}
+                          inputmode={field.plain ? "numeric" : undefined}
                           autocomplete="off"
                           spellcheck={false}
                           class="zb-kit-input"

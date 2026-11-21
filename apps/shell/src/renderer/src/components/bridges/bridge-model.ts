@@ -27,10 +27,15 @@ export function problemText(status: BridgeStatus, kind?: BridgeKind): string | u
       ? t("bridges.problem.slackSetting")
       : kind === "discord"
         ? t("bridges.problem.discordSetting")
-        : t("bridges.problem.setupIncomplete");
+        : kind === "whatsapp"
+          ? t("bridges.problem.whatsappSetting")
+          : t("bridges.problem.setupIncomplete");
   if (status.problem === "token_in_use") return t("bridges.problem.tokenInUse");
   if (status.problem === "keychain_unavailable") return t("bridges.problem.keychain");
-  if (status.problem === "needs_account") return t("bridges.problem.needsAccount");
+  if (status.problem === "needs_account")
+    return kind === "whatsapp"
+      ? t("bridges.problem.whatsappRelay")
+      : t("bridges.problem.needsAccount");
   if (status.problem === "not_set_up") return t("bridges.problem.notSetUp");
   return undefined;
 }

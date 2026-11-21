@@ -5,6 +5,7 @@ import { BridgeError } from "./adapter.js";
 import { createDiscordAdapter } from "./discord.js";
 import { createSlackAdapter } from "./slack.js";
 import { createTelegramAdapter } from "./telegram.js";
+import { createWhatsappAdapter } from "./whatsapp.js";
 
 export type AdapterFactory = (input: { credentials: Record<string, string> }) => BridgeAdapter;
 
@@ -22,4 +23,10 @@ export const defaultBridgeAdapters: Partial<Record<BridgeKind, AdapterFactory>> 
     }),
   telegram: ({ credentials }) => createTelegramAdapter({ token: need(credentials, "token") }),
   discord: ({ credentials }) => createDiscordAdapter({ token: need(credentials, "token") }),
+  // No cloud relay yet, so it checks the token and then says receiving needs an account.
+  whatsapp: ({ credentials }) =>
+    createWhatsappAdapter({
+      accessToken: need(credentials, "accessToken"),
+      phoneNumberId: need(credentials, "phoneNumberId"),
+    }),
 };

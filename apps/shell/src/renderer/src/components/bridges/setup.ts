@@ -6,6 +6,7 @@ import type { MessageKey } from "../../i18n";
 import { DiscordSteps } from "./DiscordSteps";
 import { SlackSteps } from "./SlackSteps";
 import { TelegramSteps } from "./TelegramSteps";
+import { WhatsappSteps } from "./WhatsappSteps";
 
 export interface SetupField {
   /** The credential's name in the keychain entry. */
@@ -13,6 +14,8 @@ export interface SetupField {
   label: MessageKey;
   /** An example of the value's shape, never an instruction. */
   placeholder?: string;
+  /** An id rather than a secret, so it shows as typed. */
+  plain?: boolean;
   /** Optional fields can stay empty, such as a token only some setups need. */
   optional?: boolean;
 }
@@ -44,5 +47,18 @@ export const BRIDGE_SETUPS: BridgeSetupSpec[] = [
     kind: "discord",
     before: DiscordSteps,
     fields: [{ key: "token", label: "bridges.discord.tokenLabel" }],
+  },
+  {
+    kind: "whatsapp",
+    before: WhatsappSteps,
+    fields: [
+      {
+        key: "phoneNumberId",
+        label: "bridges.whatsapp.phoneLabel",
+        placeholder: "106540352242922",
+        plain: true,
+      },
+      { key: "accessToken", label: "bridges.whatsapp.tokenLabel", placeholder: "EAAG…" },
+    ],
   },
 ];
