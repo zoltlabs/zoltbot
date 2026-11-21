@@ -219,3 +219,47 @@ test("Telegram shows a pairing code until the owner sends it from their account"
     await fixture.close();
   }
 });
+
+test("Adding Discord lists the invite permissions and connects with the bot token", async ({
+  page,
+}) => {
+  const fake = new FakeBridgeAdapter("zolt");
+  let credentials: Record<string, string> = {};
+  const fixture = await compareFixture({
+    secrets: memoryVault(),
+    bridges: {
+      adapters: {
+        discord: (input) => {
+          credentials = input.credentials;
+          return fake;
+        },
+      },
+    },
+  });
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.open(page);
+    await page.getByRole("button", { name: "Open account menu" }).click();
+    await page.getByRole("menuitem", { name: "Bridges" }).click();
+    const dialog = page.getByRole("dialog", { name: "Bridges" });
+    await dialog.getByRole("button", { name: "Add bridge" }).click();
+    await dialog.getByRole("button", { name: "Discord" }).click();
+    const setup = page.getByRole("dialog", { name: "Add Discord" });
+    await expect(setup.getByText(/Read Message History/)).toBeVisible();
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/i4-setup-${scheme}.png` });
+    }
+    await setup.getByLabel("Bot token").fill("discord-test-token");
+    await setup.getByRole("button", { name: "Add bridge" }).click();
+    const detail = page.getByRole("dialog", { name: "Discord" });
+    await expect(detail.getByText("Connected")).toBeVisible();
+    expect(credentials).toEqual({ token: "discord-test-token" });
+    expect(shell.errors).toEqual([]);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});

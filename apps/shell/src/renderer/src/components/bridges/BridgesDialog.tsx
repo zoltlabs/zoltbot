@@ -285,7 +285,7 @@ export function BridgesDialog(props: { onClose: () => void }) {
                           <strong>{view.bridge.label}</strong>
                           <span>
                             {[
-                              problemText(view.status) ?? view.status.account,
+                              problemText(view.status, view.bridge.kind) ?? view.status.account,
                               t("bridges.routeCount", { count: view.bridge.routes.length }),
                             ]
                               .filter(Boolean)
@@ -455,7 +455,7 @@ function BridgeDetail(props: {
           <span class="bridge-dot" aria-hidden="true" />
           {statusLabel(props.view.status)}
         </span>
-        <Show when={problemText(props.view.status) ?? props.view.status.account}>
+        <Show when={problemText(props.view.status, props.view.bridge.kind) ?? props.view.status.account}>
           {(line) => (
             <span class="bridge-muted">
               <span aria-hidden="true">· </span>

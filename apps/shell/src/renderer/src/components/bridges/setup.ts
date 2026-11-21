@@ -3,6 +3,7 @@
 import type { BridgeKind } from "@zoltbot/protocol";
 import type { JSX } from "solid-js";
 import type { MessageKey } from "../../i18n";
+import { DiscordSteps } from "./DiscordSteps";
 import { SlackSteps } from "./SlackSteps";
 import { TelegramSteps } from "./TelegramSteps";
 
@@ -38,5 +39,10 @@ export const BRIDGE_SETUPS: BridgeSetupSpec[] = [
     kind: "telegram",
     before: TelegramSteps,
     fields: [{ key: "token", label: "bridges.telegram.tokenLabel", placeholder: "123456:ABC…" }],
+  },
+  {
+    kind: "discord",
+    before: DiscordSteps,
+    fields: [{ key: "token", label: "bridges.discord.tokenLabel" }],
   },
 ];

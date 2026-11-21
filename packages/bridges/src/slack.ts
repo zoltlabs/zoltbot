@@ -222,7 +222,7 @@ export function createSlackAdapter(options: SlackOptions): BridgeAdapter {
           if (envelope.type === "disconnect") {
             // Socket Mode turned off for the app: the owner has to turn it back on.
             if (envelope.reason === "link_disabled")
-              closing = new BridgeError("token_refused", "link_disabled");
+              closing = new BridgeError("setup_incomplete", "link_disabled");
             ws.close();
           }
           if (envelope.type === "events_api") {

@@ -102,6 +102,7 @@ export const BridgeProblemSchema = values([
   "not_set_up",
   "token_refused",
   "token_in_use",
+  "setup_incomplete",
   "keychain_unavailable",
   "needs_account",
   "network",

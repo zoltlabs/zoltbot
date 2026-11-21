@@ -174,7 +174,7 @@ describe("Slack bridge", () => {
       JSON.stringify({ type: "disconnect", reason: "link_disabled" }),
     );
     await vi.waitFor(() => expect(stoppedFor).toHaveBeenCalled());
-    expect(stoppedFor.mock.calls[0]?.[0]).toMatchObject({ problem: "token_refused" });
+    expect(stoppedFor.mock.calls[0]?.[0]).toMatchObject({ problem: "setup_incomplete" });
 
     const refused = await connected({ refuse: true });
     await expect(refused.adapter.start()).rejects.toMatchObject({ problem: "token_refused" });

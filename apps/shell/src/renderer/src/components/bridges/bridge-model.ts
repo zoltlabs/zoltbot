@@ -19,9 +19,15 @@ export function statusLabel(status: BridgeStatus) {
 }
 
 /** The step that gets a stopped bridge going again, or nothing when it runs or was stopped. */
-export function problemText(status: BridgeStatus): string | undefined {
+export function problemText(status: BridgeStatus, kind?: BridgeKind): string | undefined {
   if (status.state !== "stopped" || !status.problem) return undefined;
   if (status.problem === "token_refused") return t("bridges.problem.tokenRefused");
+  if (status.problem === "setup_incomplete")
+    return kind === "slack"
+      ? t("bridges.problem.slackSetting")
+      : kind === "discord"
+        ? t("bridges.problem.discordSetting")
+        : t("bridges.problem.setupIncomplete");
   if (status.problem === "token_in_use") return t("bridges.problem.tokenInUse");
   if (status.problem === "keychain_unavailable") return t("bridges.problem.keychain");
   if (status.problem === "needs_account") return t("bridges.problem.needsAccount");
