@@ -44,6 +44,7 @@ function fakePage(fields: Record<string, { type: string; url: string }>) {
 async function setup(
   fields: Record<string, { type: string; url: string }>,
   providers?: ProviderHost,
+  clock?: { now: () => number; wait: (ms: number) => Promise<void> },
 ) {
   const f = await runtimeFixture();
   const keychain = memoryKeychain();
@@ -68,7 +69,7 @@ async function setup(
     vault: vault.runtime,
   };
   const page = fakePage(fields);
-  const tools = vaultTools(context, { page: () => page.page });
+  const tools = vaultTools(context, { page: () => page.page, ...clock });
   const call = (args: Record<string, unknown>) =>
     tools.call({ actor, arguments: args, idempotencyKey: "k" }) as Promise<Record<string, unknown>>;
   return { f, vault, context, page, call, woken, keychain };
@@ -127,6 +128,7 @@ it("types a saved login after the owner allows it, and never returns or stores t
     const id = await save(vault);
     expect(await call({ action: "list" })).toEqual({
       logins: [{ id, label: "github.com", sites: ["github.com"], hasUsername: true }],
+      codes: [],
     });
     expect(await call({ action: "fill", id, password: "e2", username: "e1" })).toEqual({
       status: "waiting_for_owner",
@@ -184,7 +186,7 @@ it("hides logins from agents that aren't on the list", async () => {
   const { f, vault, page, call } = await setup(loginForm);
   try {
     const other = await save(vault, ["someone-else"]);
-    expect(await call({ action: "list" })).toEqual({ logins: [] });
+    expect(await call({ action: "list" })).toEqual({ logins: [], codes: [] });
     expect(await call({ action: "fill", id: other, password: "e2" })).toEqual({
       error: "vault_entry_not_found",
     });
@@ -404,6 +406,70 @@ it("signs in with a login kept in a password manager, which Zoltbot never stores
     });
     expect(keychain.items.size).toBe(kept - 1);
     expect(readFileSync(path.join(f.root, "provider-sessions.json"), "utf8")).toBe("{}");
+  } finally {
+    f.close();
+  }
+});
+
+it("types a two-step code from a saved setup key, under the same site and owner rules (V6)", async () => {
+  let clock = 57_000;
+  const waits: number[] = [];
+  const form = {
+    e5: { type: "text", url: "https://github.com/two-factor" },
+    e6: { type: "checkbox", url: "https://github.com/two-factor" },
+    e7: { type: "text", url: "https://evil.example/two-factor" },
+  };
+  const { f, vault, context, page, call } = await setup(form, undefined, {
+    now: () => clock,
+    wait: async (ms) => {
+      waits.push(ms);
+      clock += ms;
+    },
+  });
+  try {
+    // The RFC 6238 SHA1 test key, with 8 digits.
+    const { entry } = (await vault.api("vault.save", {
+      kind: "totp",
+      sites: ["github.com"],
+      agents: "all",
+      value:
+        "otpauth://totp/Example:sample?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8&period=30",
+    })) as { entry: { id: string } };
+    const id = entry.id;
+    expect(await call({ action: "list" })).toEqual({
+      logins: [],
+      codes: [{ id, label: "github.com", sites: ["github.com"] }],
+    });
+    expect(await call({ action: "fill", id, password: "e5" })).toEqual({
+      error: "code_entry_takes_code",
+    });
+    expect(await call({ action: "fill", id, code: "e6" })).toEqual({ error: "not_a_code_field" });
+    expect(await call({ action: "fill", id, code: "e7" })).toMatchObject({
+      error: "site_mismatch",
+    });
+    expect(await call({ action: "fill", id, code: "e5" })).toEqual({
+      status: "waiting_for_owner",
+    });
+    const request = card(f.store);
+    expect(request.items[0]?.prompt).toContain("enter your two-step code on github.com");
+    await respondVaultApproval(context, request, answer(f.store, request, "allow_session"));
+    expect(await call({ action: "fill", id, code: "e5", submit: true })).toEqual({
+      filled: ["code"],
+      submitted: true,
+    });
+    expect(page.typed).toEqual([{ target: "e5", value: "94287082" }]);
+    expect(waits).toEqual([]);
+
+    // A code about to expire waits for the next one.
+    clock = 58_000;
+    expect(await call({ action: "fill", id, code: "e5" })).toEqual({
+      filled: ["code"],
+      submitted: false,
+    });
+    expect(waits).toEqual([2000]);
+    expect(page.typed[1]?.value).toMatch(/^\d{8}$/);
+    expect(page.typed[1]?.value).not.toBe("94287082");
+    expect(JSON.stringify(f.store.snapshot())).not.toContain("GEZDGNBVGY3TQOJQ");
   } finally {
     f.close();
   }

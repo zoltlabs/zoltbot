@@ -1,7 +1,8 @@
 // V2: the agents' `vault` tool. An agent in a browser session lists the logins it may use and asks
 // the daemon to type one into a page. The daemon checks the page is the saved site and the field
 // is a password field, asks the owner the first time, then types the value itself: the agent
-// never receives it, and nothing it can read (tool result, audit, log) contains it.
+// never receives it, and nothing it can read (tool result, audit, log) contains it. V6: a two-step
+// code entry is filled the same way, with a code worked out from its setup key.
 import { queueHumanInput, requestInteraction } from "@zoltbot/core";
 import type { ToolActor, ToolInvocation } from "@zoltbot/hostmcp";
 import {
@@ -15,11 +16,12 @@ import { ownedBrowser } from "../browser/evidence.js";
 import type { VaultRuntime } from "./api.js";
 import { browserPageDriver, type PageDriver, validTarget } from "./page-driver.js";
 import type { VaultRecord } from "./store.js";
+import { totp } from "./totp.js";
 
 export const vaultToolDefinition = {
   name: "vault",
   description:
-    "Sign in with the owner's saved logins. list: logins you may use. fill: id plus snapshot refs of the password field (and username); Zoltbot types them, you never see the password.",
+    "Sign in with the owner's saved logins. list: logins and two-step codes you may use. fill: a login's id plus snapshot refs of the password field (and username), or a code's id plus the ref of the code field; Zoltbot types them, you never see them.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -27,6 +29,7 @@ export const vaultToolDefinition = {
       id: { type: "string", maxLength: 100 },
       password: { type: "string", minLength: 1, maxLength: 500 },
       username: { type: "string", minLength: 1, maxLength: 500 },
+      code: { type: "string", minLength: 1, maxLength: 500 },
       submit: { type: "boolean" },
     },
     required: ["action"],
@@ -41,12 +44,17 @@ export const vaultCompactSchema = {
     id: { type: "string" },
     password: { type: "string" },
     username: { type: "string" },
+    code: { type: "string" },
     submit: { type: "boolean" },
   },
   required: ["action"],
 };
 
 const USERNAME_TYPES = new Set(["text", "email", "tel"]);
+/** Sites ask for a two-step code in a text, number or password field. */
+const CODE_TYPES = new Set(["text", "tel", "number", "password"]);
+/** A code this close to expiring waits for the next one, so the site doesn't reject it. */
+const MIN_SECONDS_LEFT = 3;
 
 function allowed(record: VaultRecord, agentId: string) {
   return record.agents === "all" || record.agents.includes(agentId);
@@ -121,6 +129,7 @@ function askOwner(
 ) {
   const agent = context.store.record("agent", actor.agentId);
   const name = typeof agent?.name === "string" ? agent.name : "This agent";
+  const code = record.kind === "totp";
   const before = context.store.lastSeq();
   context.store.dispatch(id, (state) =>
     requestInteraction(
@@ -133,14 +142,16 @@ function askOwner(
         title: `Sign in to ${host}`,
         context: {
           toolName: "vault",
-          markdown: `Zoltbot types the password into the page. ${name} never sees it.`,
+          markdown: `Zoltbot types the ${code ? "two-step code" : "password"} into the page. ${name} never sees it.`,
           toolInput: { vaultFill: record.id, vaultHost: host },
         },
         items: [
           {
             id: "vault",
             header: "Vault",
-            prompt: `Let ${name} sign in to ${host} with your saved login?`,
+            prompt: code
+              ? `Let ${name} enter your two-step code on ${host}?`
+              : `Let ${name} sign in to ${host} with your saved login?`,
             choices: [{ id: "allow_once" }, { id: "allow_session" }, { id: "reject_once" }],
           },
         ],
@@ -157,9 +168,16 @@ function askOwner(
 
 export function vaultTools(
   context: RuntimeContext,
-  /** Tests pass a fake page; the default drives the run's own browser session. */
-  options: { page?: (actor: ToolActor) => PageDriver } = {},
+  /** Tests pass a fake page and clock; the default drives the run's own browser session. */
+  options: {
+    page?: (actor: ToolActor) => PageDriver;
+    now?: () => number;
+    wait?: (ms: number) => Promise<void>;
+  } = {},
 ) {
+  const now = options.now ?? Date.now;
+  const wait =
+    options.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const pageFor =
     options.page ??
     ((actor: ToolActor) => browserPageDriver(ownedBrowser(context.store, actor).binding));
@@ -170,8 +188,14 @@ export function vaultTools(
   async function fill(actor: ToolActor, args: Record<string, unknown>, vault: VaultRuntime) {
     const record = vault.records.get(String(args.id ?? ""));
     if (!record || !allowed(record, actor.agentId)) return { error: "vault_entry_not_found" };
-    if (record.kind !== "login") return { error: "vault_entry_not_a_login" };
-    const password = String(args.password ?? "");
+    const isCode = record.kind === "totp";
+    if (record.kind !== "login" && !isCode) return { error: "vault_entry_not_fillable" };
+    // A login fills a password field (and a username); a two-step code fills one code field.
+    if (
+      isCode ? args.password !== undefined || args.username !== undefined : args.code !== undefined
+    )
+      return { error: isCode ? "code_entry_takes_code" : "login_entry_takes_password" };
+    const password = String((isCode ? args.code : args.password) ?? "");
     const username = typeof args.username === "string" ? args.username : undefined;
     if (!validTarget(password) || (username !== undefined && !validTarget(username)))
       return { error: "invalid_target" };
@@ -179,10 +203,11 @@ export function vaultTools(
       return { error: "vault_entry_has_no_username" };
     const page = pageFor(actor);
 
-    // The value only goes into a password field, on the saved site, in the frame it is in.
+    // The value only goes into a password (or code) field, on the saved site, in its own frame.
     const field = await page.field(password);
     const host = fillableHost(field.url);
-    if (field.type !== "password") return { error: "not_a_password_field" };
+    if (isCode ? !CODE_TYPES.has(field.type) : field.type !== "password")
+      return { error: isCode ? "not_a_code_field" : "not_a_password_field" };
     if (!host || !record.sites.some((site) => vaultSiteMatches(site, host)))
       return { error: "site_mismatch", sites: record.sites };
     if (username !== undefined) {
@@ -210,8 +235,37 @@ export function vaultTools(
         actor: { kind: "agent", id: actor.agentId },
         detail: { host, sessionId: actor.sessionId },
       });
+    const finish = async (
+      fields: { target: string; value: string; types: string[] }[],
+      filled: string[],
+    ) => {
+      try {
+        await page.fill(fields, new URL(field.url).origin, args.submit === true);
+      } catch (error) {
+        // The page moved on between the check and the fill; nothing was typed.
+        if (error instanceof Error && error.message === "page_changed")
+          return { error: "page_changed" };
+        throw error;
+      }
+      await vault.markUsed(record.id);
+      vault.audit({
+        action: "vault.fill",
+        entryId: record.id,
+        actor: { kind: "agent", id: actor.agentId },
+        detail: { host, sessionId: actor.sessionId, approval: approval.id },
+      });
+      return { filled, submitted: args.submit === true };
+    };
     const value = await vault.read(record);
-    if (value.kind !== "login") return { error: "vault_entry_not_a_login" };
+    if (value.kind === "totp") {
+      let next = totp(value, now());
+      if (next.secondsLeft < MIN_SECONDS_LEFT) {
+        await wait(next.secondsLeft * 1000);
+        next = totp(value, now());
+      }
+      return finish([{ target: password, value: next.code, types: [...CODE_TYPES] }], ["code"]);
+    }
+    if (value.kind !== "login") return { error: "vault_entry_not_fillable" };
     const fields = [
       ...(username !== undefined && (value.username ?? record.username)
         ? [
@@ -224,23 +278,7 @@ export function vaultTools(
         : []),
       { target: password, value: value.password, types: ["password"] },
     ];
-    try {
-      await page.fill(fields, new URL(field.url).origin, args.submit === true);
-    } catch (error) {
-      // The page moved on between the check and the fill; nothing was typed.
-      if (error instanceof Error && error.message === "page_changed")
-        return { error: "page_changed" };
-      throw error;
-    }
-    const filled = fields.length === 2 ? ["username", "password"] : ["password"];
-    await vault.markUsed(record.id);
-    vault.audit({
-      action: "vault.fill",
-      entryId: record.id,
-      actor: { kind: "agent", id: actor.agentId },
-      detail: { host, sessionId: actor.sessionId, approval: approval.id },
-    });
-    return { filled, submitted: args.submit === true };
+    return finish(fields, fields.length === 2 ? ["username", "password"] : ["password"]);
   }
 
   return {
@@ -267,6 +305,10 @@ export function vaultTools(
               sites: record.sites,
               hasUsername: !!record.username || !!record.source,
             })),
+          codes: vault.records
+            .list()
+            .filter((record) => record.kind === "totp" && allowed(record, call.actor.agentId))
+            .map((record) => ({ id: record.id, label: record.label, sites: record.sites })),
         };
       if (args.action !== "fill") return { error: "unknown_action" };
       // One fill at a time per run, so two calls can't both raise the owner's prompt.

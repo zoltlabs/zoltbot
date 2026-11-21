@@ -233,7 +233,7 @@ const artifactDescriptions: Record<string, string> = {
   team_browser_evidence:
     "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
   vault:
-    "Saved logins. list; fill(id, password ref, username ref, submit). You never see the password.",
+    "Saved logins and two-step codes. list; fill(id, password ref, username ref, submit) or fill(id, code ref). You never see them.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
   chat_signal: "emoji react, not filler; status: doing-now line; progress: milestone note",
   routine_draft: "Scoped routines. get explains authorization; stable key.",

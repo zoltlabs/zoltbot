@@ -79,7 +79,16 @@ function shown(value: VaultValue): string {
 export function readVaultValue(raw: unknown): VaultValue {
   const value = raw as Partial<VaultValue> | null;
   if (value?.kind === "login" && typeof value.password === "string") return value as VaultValue;
-  if (value?.kind === "totp" && typeof value.secret === "string") return value as VaultValue;
+  if (
+    value?.kind === "totp" &&
+    typeof value.secret === "string" &&
+    ["SHA1", "SHA256", "SHA512"].includes(String(value.algorithm)) &&
+    [6, 7, 8].includes(Number(value.digits)) &&
+    Number.isInteger(value.period) &&
+    Number(value.period) >= 1 &&
+    Number(value.period) <= 300
+  )
+    return value as VaultValue;
   if (value?.kind === "secret" && typeof value.value === "string") return value as VaultValue;
   throw new Error("vault_value_invalid");
 }
