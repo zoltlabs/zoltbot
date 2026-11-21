@@ -228,7 +228,7 @@ const artifactDescriptions: Record<string, string> = {
   team_browser_evidence:
     "Register PNG screenshot evidence from this execution output folder with viewport and check outcome.",
   chat_wake: "Chat waits: list returns contract; human saves proposals.",
-  chat_signal: "emoji react, not filler",
+  chat_signal: "emoji react, not filler; status: doing-now line",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
   team_get_knowledge:
@@ -261,7 +261,7 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
     },
     required: ["action"],
   },
-  chat_signal: { type: "object", properties: { emoji: {} } },
+  chat_signal: { type: "object", properties: { emoji: {}, status: {} } },
   chat_wake: {
     type: "object",
     properties: {

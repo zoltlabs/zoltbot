@@ -534,6 +534,8 @@ export interface ConversationSnapshot {
   plan?: PlanStep[];
   /** C4: pinned messages, newest pin first. */
   pins?: PinnedMessage[];
+  /** C9: what the agent is doing, while a turn runs; null otherwise. */
+  workingStatus?: string | null;
 }
 
 /** One step of an agent's plan. */

@@ -177,6 +177,23 @@ it("keeps meaningful messages visible and routine work collapsed in both themes"
     expect(html).toContain("Message actions");
   }
 });
+it("shows the agent's working line while it works", () => {
+  const html = render("AssistantTurn", {
+    threadId: "chat",
+    active: true,
+    paused: false,
+    status: "Reading the invoices",
+    rows: [{ id: "tool", kind: "tool", text: "Read file", status: "running", streaming: false }],
+  });
+  expect(html).toContain("Reading the invoices");
+  const idle = render("AssistantTurn", {
+    threadId: "chat",
+    active: true,
+    paused: false,
+    rows: [{ id: "m", kind: "message", text: "Looking.", streaming: false }],
+  });
+  expect(idle).toContain("Working…");
+});
 it("shows an unresolved failure outside collapsed activity", () => {
   const html = render("AssistantTurn", {
     threadId: "chat",

@@ -26,6 +26,7 @@ function reserved(key: string) {
     key.startsWith("chat.pins.") ||
     key.startsWith("chat.hidden.") ||
     key.startsWith("chat.reactions.") ||
+    key.startsWith("chat.status.") ||
     reservedChiefKeys.has(key) ||
     key === identityReferenceKey
   );

@@ -1,0 +1,51 @@
+/* C9: the working line crossfades when it changes, and the agent's avatar breathes. */
+.agent-activity-line {
+  overflow: hidden;
+  min-width: 0;
+  max-width: min(360px, 100%);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: agent-activity-line-in 240ms ease-out;
+}
+
+/* The bubble can shrink in a narrow pane and eases to each new line's width. */
+.agent-activity-entry .agent-activity-bubble {
+  min-width: 0;
+  max-width: 100%;
+  interpolate-size: allow-keywords;
+  transition: width 200ms ease-out;
+}
+
+@keyframes agent-activity-line-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.agent-activity-avatar-breathing {
+  animation: agent-activity-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes agent-activity-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-activity-line,
+  .agent-activity-avatar-breathing {
+    animation: none;
+  }
+
+  .agent-activity-entry .agent-activity-bubble {
+    transition: none;
+  }
+}

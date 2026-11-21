@@ -39,6 +39,7 @@ import { PlanChecklist } from "./conversation/PlanChecklist";
 import { OrganizationSidePanel } from "./conversation/RightPanel";
 import { createRightPanelState } from "./conversation/right-panel-state";
 import { createScrollFade, createSeenMessages } from "./conversation/scroll-fade";
+import { watchWorkingLine, workingLine } from "./conversation/status-store";
 import { stopInstead } from "./conversation/stop-phrase";
 import { AgentSetupCard, OnboardingStep, TranscriptEntry } from "./conversation/Transcript";
 import { AgentActivityIndicator } from "./conversation/WorkingLine";
@@ -178,6 +179,7 @@ export function Conversation(props: ConversationProps) {
   );
   const { fadeAtTop, fadeAtBottom, update: updateFade } = createScrollFade();
   const markMessageSeen = createSeenMessages(() => props.bot?.id);
+  watchWorkingLine(() => props.bot?.id);
   let scrollElement: HTMLDivElement | undefined;
   let conversationPanel: HTMLElement | undefined;
   let browserSurface: HTMLDivElement | undefined;
@@ -681,7 +683,7 @@ export function Conversation(props: ConversationProps) {
               );
             }}
           </For>
-          <AgentActivityIndicator bot={props.bot} state={agentActivity()} />
+          <AgentActivityIndicator bot={props.bot} state={agentActivity()} line={workingLine()} />
           <Show when={props.prompt}>
             {(prompt) => (
               <Show

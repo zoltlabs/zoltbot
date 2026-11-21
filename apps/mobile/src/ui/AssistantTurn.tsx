@@ -90,20 +90,25 @@ function Activity({
   rows,
   active,
   threadId,
+  status,
   onInspect,
 }: {
   rows: TranscriptRow[];
   active: boolean;
   threadId: string;
+  /** C9: what the agent says it is doing, shown while it works. */
+  status?: string | undefined;
   onInspect?: () => void;
 }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
   const working = active && rows.some((row) => row.status === "running" || row.streaming);
-  const label =
+  // The button's name stays the same while the status line changes underneath it.
+  const name =
     working && rows.every((row) => row.kind === "thought")
       ? "Thinking…"
       : activityLabel(rows, active);
+  const label = working && status ? status : name;
   return (
     <View>
       <Pressable
@@ -112,7 +117,7 @@ function Activity({
           setOpen(!open);
         }}
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={name}
         accessibilityState={{ expanded: open }}
         style={[styles.toggle, { backgroundColor: c["bg-sunken"] }]}
       >
@@ -147,8 +152,11 @@ export function AssistantTurn({
   onInspect,
   marks,
   track,
+  status,
 }: {
   marks?: MarkActions;
+  /** C9: the agent's working line for the running turn. */
+  status?: string | undefined;
   /** Measures each message, so a pin can scroll to it. */
   track?: (rowId: string) => RowTracker;
   rows: TranscriptRow[];
@@ -169,6 +177,7 @@ export function AssistantTurn({
             key={segment.id}
             rows={segment.rows}
             threadId={threadId}
+            status={status}
             onInspect={onInspect}
             active={active && !paused && segment === segments.at(-1)}
           />
@@ -187,7 +196,9 @@ export function AssistantTurn({
       )}
       {active && !paused && !last?.streaming && last?.status !== "running" ? (
         <Progress
-          label={tools ? "Using tools…" : last?.kind === "thought" ? "Thinking…" : "Working…"}
+          label={
+            status ?? (tools ? "Using tools…" : last?.kind === "thought" ? "Thinking…" : "Working…")
+          }
         />
       ) : null}
     </View>

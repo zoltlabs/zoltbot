@@ -30,7 +30,12 @@ async function fixture() {
   const stored = () =>
     f.store.snapshot(["settings"]).settings?.find((r) => r.key === messageReactionsKey("thread"))
       ?.value;
-  const actor = { threadId: "thread", agentId: "agent", sessionId: "session", turnId: "source-turn" };
+  const actor = {
+    threadId: "thread",
+    agentId: "agent",
+    sessionId: "session",
+    turnId: "source-turn",
+  };
   const call = (args: unknown, key: string) =>
     signal({ actor, arguments: args, idempotencyKey: key } as never);
   return { ...f, api, call, published, stored };

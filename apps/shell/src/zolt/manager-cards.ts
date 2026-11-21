@@ -1,4 +1,9 @@
-import { messageHiddenThread, messagePinsThread, messageReactionsThread } from "@zoltbot/protocol";
+import {
+  chatStatusThread,
+  messageHiddenThread,
+  messagePinsThread,
+  messageReactionsThread,
+} from "@zoltbot/protocol";
 import type {
   ConversationMessage,
   ConversationNotice,
@@ -387,7 +392,8 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
     kind === "settings"
       ? (messagePinsThread(row.key) ??
         messageHiddenThread(row.key) ??
-        messageReactionsThread(row.key))
+        messageReactionsThread(row.key) ??
+        chatStatusThread(row.key))
       : undefined;
   if (marked) return [marked];
   return [];

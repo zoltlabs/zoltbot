@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { workingStatus } from "../../data/status";
 import { type TeamNode, teamTree } from "../../data/team-tree";
 import { text, zolt } from "../../data/view";
 import { useClient, useSnapshot } from "../../state/link";
@@ -12,6 +13,7 @@ import { Icon } from "../../ui/icons";
 import { Button, Group, Row, Section, Txt } from "../../ui/kit";
 
 function Branch({ node, depth = 0, online }: { node: TeamNode; depth?: number; online: boolean }) {
+  const snapshot = useSnapshot();
   const { c } = useTheme();
   const [open, setOpen] = useState(depth === 0);
   const repo = depth === 0;
@@ -54,7 +56,7 @@ function Branch({ node, depth = 0, online }: { node: TeamNode; depth?: number; o
                 last
                 label={working ? `${title}, working` : title}
                 left={<BotAvatar id={id} working={working} />}
-                detail={working ? "Working" : undefined}
+                detail={working ? (workingStatus(snapshot, id) ?? "Working") : undefined}
                 onPress={() => router.push(`/chat/${encodeURIComponent(id)}`)}
               />
             );
@@ -105,7 +107,13 @@ export default function Home() {
           titleLines={2}
           last
           left={<BotAvatar id="zolt" zolt size={40} working={chief.working} />}
-          detail={chief.working ? "Working" : threadId ? undefined : "Not set up"}
+          detail={
+            chief.working
+              ? ((threadId ? workingStatus(snapshot, threadId) : undefined) ?? "Working")
+              : threadId
+                ? undefined
+                : "Not set up"
+          }
           disabled={!threadId && !online}
           onPress={() =>
             threadId

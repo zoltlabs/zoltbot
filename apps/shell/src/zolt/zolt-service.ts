@@ -58,6 +58,7 @@ import { setReaction, withReactions } from "./reactions";
 import { changesSpend } from "./spend-view";
 import { isStaffApproval, runStaffAction, staffProject, toStaffOverview } from "./staff-view";
 import { toTaskSummaries } from "./tasks-view";
+import { workingStatus } from "./working-status";
 
 interface Preferences {
   bots: Record<string, BotPreferences>;
@@ -617,6 +618,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       messages: [...messages, ...conversation.pending],
       plan: latestPlan(items),
       pins: pinnedMessages(this.client.snapshot, botId, messages),
+      workingStatus: workingStatus(this.client.snapshot, botId, items),
     };
   }
 

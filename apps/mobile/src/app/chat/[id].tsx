@@ -28,6 +28,7 @@ import { editableQueued, inQueueOrder, moved, queuedIds } from "../../data/queue
 import { withReactions } from "../../data/reactions";
 import { compactions, latestPlan, modelState, threadSession } from "../../data/session";
 import { isStaffApproval } from "../../data/staff";
+import { useCalmStatus, workingStatus } from "../../data/status";
 import type { Row } from "../../data/transport";
 import {
   place,
@@ -97,6 +98,7 @@ export default function Chat() {
   const positions = useRowPositions();
   const pinned = pinnedRows(snapshot, id, rows);
   const turn = runningTurn(snapshot, id);
+  const status = useCalmStatus(workingStatus(snapshot, id));
   const who = profileName(snapshot, thread?.agentId);
   const chief = chiefThreadId(snapshot.entities) === id;
   const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
@@ -304,6 +306,7 @@ export default function Chat() {
                 track={positions.row}
                 {...(marks ? { marks } : {})}
                 active={entry.active}
+                status={entry.active ? status : undefined}
                 paused={!!request || !online}
                 onInspect={() => {
                   followLatest.current = false;
