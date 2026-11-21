@@ -5,8 +5,8 @@ import { FakePush } from "./push.js";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const account = {
-  project_id: "zolt-test",
-  client_email: "relay@zolt-test.iam.gserviceaccount.com",
+  project_id: "example-project",
+  client_email: "relay@example-project.iam.gserviceaccount.com",
   private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
 };
 
@@ -105,7 +105,7 @@ describe("fcm", () => {
               },
             },
           }
-        : { status: 200, body: { name: "projects/zolt-test/messages/1" } };
+        : { status: 200, body: { name: "projects/example-project/messages/1" } };
     });
     const push = new FcmPush({
       account,
@@ -122,7 +122,7 @@ describe("fcm", () => {
     // One token exchange serves both sends.
     expect(google.calls.filter((c) => c.url.endsWith("/token"))).toHaveLength(1);
     const sent = google.calls.filter((c) => c.url.includes("messages:send"));
-    expect(sent[0]?.url).toBe("https://fcm.example.test/v1/projects/zolt-test/messages:send");
+    expect(sent[0]?.url).toBe("https://fcm.example.test/v1/projects/example-project/messages:send");
     expect(sent[0]?.headers.authorization).toBe("Bearer at-1");
   });
 
