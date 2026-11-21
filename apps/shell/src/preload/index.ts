@@ -244,6 +244,7 @@ const openbotApi: OpenBotDesktopApi = {
     takeover: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserTakeover, input),
     input: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserInput, input),
     cookies: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserCookies, input),
+    teach: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserTeach, input),
     onFrame: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, frame: AgentBrowserFrame) =>
         listener(frame);

@@ -102,6 +102,7 @@ describe("browser host", () => {
         control: false,
         asked: false,
         cookies: null,
+        teach: null,
       });
       await settle();
       expect(page.starts).toBe(1);

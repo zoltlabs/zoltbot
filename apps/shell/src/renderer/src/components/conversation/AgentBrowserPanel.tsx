@@ -1,4 +1,5 @@
 // B2: the agent's own browser, live, beside the chat. B3: the owner can take it over.
+// M7: the owner can teach a task by doing it here; Done sends the recording to the agent.
 import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import { AGENT_BROWSER_RENEW_MS, type AgentBrowserFrame } from "../../../../shared/agent-browser";
 import {
@@ -37,7 +38,12 @@ export function AgentBrowserPanel(props: {
   const [cookies, setCookies] = createSignal<{ site: string; accept: boolean } | null>(null);
   const [savingCookies, setSavingCookies] = createSignal(false);
   const [cookiesFailed, setCookiesFailed] = createSignal(false);
+  const [teach, setTeach] = createSignal<number | null>(null);
+  const [teachFailed, setTeachFailed] = createSignal<"start" | "done" | "cancel" | null>(null);
   let takeButton: HTMLButtonElement | undefined;
+  let teachButton: HTMLButtonElement | undefined;
+  let doneButton: HTMLButtonElement | undefined;
+  let closeButton: HTMLButtonElement | undefined;
   let handButton: HTMLButtonElement | undefined;
   let lastEscape = 0;
   let canvas: HTMLCanvasElement | undefined;
@@ -56,6 +62,8 @@ export function AgentBrowserPanel(props: {
         setAnnounce("");
         setCookies(null);
         setCookiesFailed(false);
+        setTeach(null);
+        setTeachFailed(null);
         if (!threadId) return;
         const view = (open: boolean) =>
           window.openbot.agentBrowser
@@ -65,6 +73,13 @@ export function AgentBrowserPanel(props: {
               if (state.url) setUrl((current) => current ?? state.url);
               setRunning(state.running);
               if (!savingCookies()) setCookies(state.cookies ?? null);
+              if (!busy()) {
+                const next = state.teach?.steps ?? null;
+                // Teaching ended elsewhere (the card in the chat, the phone): nothing was kept.
+                if (next === null && teach() !== null)
+                  setAnnounce(t("browser.teach.stopped", { agent: props.agentName }));
+                setTeach(next);
+              }
               // The card can be answered elsewhere (Needs you, the phone).
               if (!busy() && control() !== state.control) {
                 setControl(state.control);
@@ -75,12 +90,18 @@ export function AgentBrowserPanel(props: {
             .catch(() => undefined);
         void view(true);
         const renew = setInterval(() => void view(true), AGENT_BROWSER_RENEW_MS);
+        // While recording, the step count keeps up with the owner.
+        const count = setInterval(() => teach() !== null && void view(true), 1_000);
+        onCleanup(() => clearInterval(count));
         const off = window.openbot.agentBrowser.onFrame((next) => {
           if (next.threadId !== threadId) return;
           setUrl(next.url);
           void draw(next);
         });
         onCleanup(() => {
+          // Closing the panel or switching chats mid-recording cancels it, so the agent isn't stuck.
+          if (teach() !== null)
+            void window.openbot.agentBrowser.teach({ threadId, action: "cancel" }).catch(() => {});
           clearInterval(renew);
           off();
           void view(false);
@@ -125,6 +146,34 @@ export function AgentBrowserPanel(props: {
     } catch {
       if (next) setFailed(true);
       else setControl(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // M7: Teach takes control and records; Done or Cancel hands the browser back.
+  async function teachAction(action: "start" | "done" | "cancel") {
+    const threadId = props.threadId;
+    if (!threadId || busy()) return;
+    setBusy(true);
+    setTeachFailed(null);
+    setFailed(false);
+    try {
+      const result = await window.openbot.agentBrowser.teach({ threadId, action });
+      if (action === "start") {
+        setControl(true);
+        setTeach(result.steps);
+        setAnnounce(t("browser.teach.started"));
+      } else {
+        setControl(false);
+        setTeach(null);
+        setAnnounce(t(result.sent ? "browser.teach.sent" : "browser.teach.stopped", { agent: props.agentName }));
+      }
+      requestAnimationFrame(() =>
+        (action === "start" ? canvas : (teachButton ?? closeButton))?.focus(),
+      );
+    } catch {
+      setTeachFailed(action);
     } finally {
       setBusy(false);
     }
@@ -205,7 +254,7 @@ export function AgentBrowserPanel(props: {
       if (now - lastEscape < 600) {
         lastEscape = 0;
         event.preventDefault();
-        handButton?.focus();
+        (teach() !== null ? doneButton : handButton)?.focus();
         return;
       }
       lastEscape = now;
@@ -251,10 +300,25 @@ export function AgentBrowserPanel(props: {
       <header class="agent-browser-header">
         <h2>{t("browser.view.title")}</h2>
         <div class="agent-browser-control">
+          <Show when={teach() === null}>
           <Show
             when={control()}
             fallback={
               <Show when={running()}>
+                <button
+                  ref={teachButton}
+                  type="button"
+                  class="zb-kit-button agent-browser-control-button"
+                  aria-describedby="agent-browser-teach-hint"
+                  title={t("browser.teach.hint", { agent: props.agentName })}
+                  disabled={busy()}
+                  onClick={() => void teachAction("start")}
+                >
+                  {t("browser.teach.start")}
+                </button>
+                <span id="agent-browser-teach-hint" class="sr-only">
+                  {t("browser.teach.hint", { agent: props.agentName })}
+                </span>
                 <button
                   ref={takeButton}
                   type="button"
@@ -280,8 +344,10 @@ export function AgentBrowserPanel(props: {
               {t("browser.view.handBack")}
             </button>
           </Show>
+          </Show>
         </div>
         <button
+          ref={closeButton}
           type="button"
           class="agent-settings-nav-button"
           aria-label={t("browser.view.close")}
@@ -290,6 +356,34 @@ export function AgentBrowserPanel(props: {
           <CloseIcon />
         </button>
       </header>
+      <Show when={teach() !== null}>
+        <div class="agent-browser-teachbar">
+          <span
+            id="agent-browser-recording"
+            class="agent-browser-control-status agent-browser-recording"
+          >
+            {t("browser.teach.recording", { count: teach() ?? 0 })}
+          </span>
+          <button
+            type="button"
+            class="zb-kit-button agent-browser-control-button"
+            disabled={busy()}
+            onClick={() => void teachAction("cancel")}
+          >
+            {t("browser.teach.cancel")}
+          </button>
+          <button
+            ref={doneButton}
+            type="button"
+            class="zb-kit-button primary agent-browser-control-button"
+            aria-describedby="agent-browser-recording"
+            disabled={busy() || !teach()}
+            onClick={() => void teachAction("done")}
+          >
+            {t("browser.teach.done")}
+          </button>
+        </div>
+      </Show>
       <p class="sr-only" aria-live="polite">
         {announce()}
       </p>
@@ -297,6 +391,20 @@ export function AgentBrowserPanel(props: {
         <p class="agent-browser-error" role="alert">
           {t("browser.view.takeOverFailed")}
         </p>
+      </Show>
+      <Show when={teachFailed()}>
+        {(which) => (
+          <p class="agent-browser-error" role="alert">
+            {t(
+              which() === "start"
+                ? "browser.teach.startFailed"
+                : which() === "done"
+                  ? "browser.teach.doneFailed"
+                  : "browser.teach.cancelFailed",
+              { agent: props.agentName },
+            )}
+          </p>
+        )}
       </Show>
       <Show
         when={url()}
@@ -340,6 +448,7 @@ export function AgentBrowserPanel(props: {
         classList={{
           "agent-browser-stage-ready": Boolean(frame()),
           "agent-browser-stage-control": control(),
+          "agent-browser-stage-teach": teach() !== null,
         }}
       >
         <div class="agent-browser-screen">
@@ -348,7 +457,13 @@ export function AgentBrowserPanel(props: {
             role={control() ? "application" : "img"}
             tabIndex={control() ? 0 : -1}
             aria-label={t("browser.view.screen", { agent: props.agentName })}
-            aria-describedby={control() ? "agent-browser-leave" : undefined}
+            aria-describedby={
+              teach() !== null
+                ? "agent-browser-teaching agent-browser-leave"
+                : control()
+                  ? "agent-browser-leave"
+                  : undefined
+            }
             onPointerDown={(event) => mouse("down", event)}
             onPointerUp={(event) => mouse("up", event)}
             onPointerMove={(event) => mouse("move", event)}
@@ -357,6 +472,9 @@ export function AgentBrowserPanel(props: {
             onKeyUp={(event) => key("up", event)}
             onContextMenu={(event) => control() && event.preventDefault()}
           />
+          <span id="agent-browser-teaching" class="sr-only">
+            {t("browser.teach.started")}
+          </span>
           <span id="agent-browser-leave" class="sr-only">
             {t("browser.view.leave")}
           </span>

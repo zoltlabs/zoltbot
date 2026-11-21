@@ -48,6 +48,16 @@ export function agentBrowserHandlers(
         randomUUID(),
       );
     },
+    [IPC_CHANNELS.agentBrowserTeach]: async (input) => {
+      const action = isObject(input) ? input.action : undefined;
+      if (action !== "start" && action !== "done" && action !== "cancel")
+        throw new Error("Invalid teach action.");
+      return client.call(
+        "browser.teach",
+        { threadId: requireString((input as { threadId?: unknown }).threadId, "threadId"), action },
+        randomUUID(),
+      );
+    },
     [IPC_CHANNELS.agentBrowserClearProfile]: async (input) => {
       await client.call(
         "browser.profile.clear",

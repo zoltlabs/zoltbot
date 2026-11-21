@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type {
@@ -81,10 +81,12 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
     let pointer: ((page: EnginePage, point: { x: number; y: number }) => void) | undefined;
     let consent: ((url: string) => string) | undefined;
     let purchase: Parameters<BrowserEngine["launch"]>[0]["purchase"];
+    let teach: ((step: unknown) => void) | undefined;
     const engine: BrowserEngine = {
       async launch(options) {
         consent = options.consent;
         purchase = options.purchase;
+        teach = options.teach;
         return {
           endpoint: "/tmp/fake.sock",
           pages: () => [framePage],
@@ -245,6 +247,48 @@ test("the Browser panel shows the agent’s browser live, lets the owner take ov
       "The owner confirmed the purchase, and the button was clicked once.",
     );
     expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
+
+    // M7: Teach. The owner does the task; each click and typed value is a step; Done sends it.
+    await panel.getByRole("button", { name: "Teach" }).click();
+    const recording = panel.locator(".agent-browser-recording");
+    await expect(recording).toHaveText("Recording · 1 step");
+    const teaching = panel.getByRole("application", { name: "Research’s browser" });
+    await expect(teaching).toBeFocused();
+    await expect(page.getByRole("region", { name: "Teaching Research" })).toBeVisible();
+    // Steps count only right after the owner's own input reaches the page.
+    const area = await teaching.boundingBox();
+    if (!area) throw Error("no canvas");
+    const before = framePage.input.length;
+    await page.mouse.click(area.x + 20, area.y + 20);
+    await expect.poll(() => framePage.input.length).toBeGreaterThan(before);
+    teach?.({ kind: "click", role: "link", name: "March orders" });
+    teach?.({ kind: "type", role: "textbox", name: "Password", text: "", sensitive: true });
+    await expect(recording).toHaveText("Recording · 3 steps", { timeout: 5_000 });
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      const shots = process.env.ZOLTBOT_SHOTS;
+      if (shots) await page.screenshot({ path: `${shots}/m7-recording-${scheme}.png` });
+    }
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel.getByRole("button", { name: "Teach" })).toBeVisible();
+    expect(existsSync(path.join(binding.home, "control.json"))).toBe(false);
+    await expect(
+      page.getByLabel("Conversation").getByText(/I showed you a task in your browser: 3 steps/),
+    ).toBeVisible({
+      timeout: 10_000,
+    });
+    const teachRoot = path.join(binding.artifactRoot, "teach");
+    const [folder] = readdirSync(teachRoot);
+    const taught = readFileSync(path.join(teachRoot, String(folder), "recording.md"), "utf8");
+    expect(taught).toContain("2. Clicked the link “March orders”");
+    expect(taught).toContain("3. Typed [hidden] in the textbox “Password”");
+    // Cancel keeps nothing.
+    await panel.getByRole("button", { name: "Teach" }).click();
+    await expect(recording).toBeVisible();
+    await panel.getByRole("button", { name: "Cancel" }).click();
+    await expect(panel.getByRole("button", { name: "Teach" })).toBeVisible();
+    expect(readdirSync(teachRoot)).toEqual([folder]);
 
     // Closing the panel stops the screencast.
     await panel.getByRole("button", { name: "Close browser" }).click();
