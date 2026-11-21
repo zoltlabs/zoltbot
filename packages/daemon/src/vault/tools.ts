@@ -175,7 +175,8 @@ export function vaultTools(
     const username = typeof args.username === "string" ? args.username : undefined;
     if (!validTarget(password) || (username !== undefined && !validTarget(username)))
       return { error: "invalid_target" };
-    if (username !== undefined && !record.username) return { error: "vault_entry_has_no_username" };
+    if (username !== undefined && !record.username && !record.source)
+      return { error: "vault_entry_has_no_username" };
     const page = pageFor(actor);
 
     // The value only goes into a password field, on the saved site, in the frame it is in.
@@ -212,8 +213,14 @@ export function vaultTools(
     const value = await vault.read(record);
     if (value.kind !== "login") return { error: "vault_entry_not_a_login" };
     const fields = [
-      ...(username !== undefined && record.username
-        ? [{ target: username, value: record.username, types: [...USERNAME_TYPES] }]
+      ...(username !== undefined && (value.username ?? record.username)
+        ? [
+            {
+              target: username,
+              value: value.username ?? record.username ?? "",
+              types: [...USERNAME_TYPES],
+            },
+          ]
         : []),
       { target: password, value: value.password, types: ["password"] },
     ];
@@ -258,7 +265,7 @@ export function vaultTools(
               id: record.id,
               label: record.label,
               sites: record.sites,
-              hasUsername: !!record.username,
+              hasUsername: !!record.username || !!record.source,
             })),
         };
       if (args.action !== "fill") return { error: "unknown_action" };

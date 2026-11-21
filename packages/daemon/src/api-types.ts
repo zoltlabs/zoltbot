@@ -66,6 +66,8 @@ export interface DaemonOptions {
   runtimeHost?: RuntimeHost;
   runtime?: (context: RuntimeContext) => OwnedRuntime;
   secrets?: PrivateVault;
+  /** V3: fake password-manager CLIs for tests; the real ones when absent. */
+  vaultProviders?: import("./vault/providers.js").ProviderHost;
   /** Quick Chat inference. ChatGPT plan usage stays off unless this build is eligible. */
   quickChat?: QuickChatHostOptions;
   /** Relay link (D124). Tuning is for tests; defaultUrl is the build's relay (ZOLTBOT_RELAY_URL). */

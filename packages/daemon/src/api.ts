@@ -402,6 +402,7 @@ async function startOwnedDaemon(
     redactor,
     publish,
     ...(options.secrets ? { secrets: options.secrets } : {}),
+    ...(options.vaultProviders ? { providers: options.vaultProviders } : {}),
   });
   runtimeContext.vault = vault.runtime;
   const attachmentPreview = attachmentPreviewApi({ store });

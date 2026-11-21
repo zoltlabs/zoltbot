@@ -1,14 +1,18 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { handle } from "@zoltbot/core";
 import type { Interaction, InteractionAnswer } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { expect, it } from "vitest";
 import { memoryKeychain } from "../../../../tools/fakes/src/memory-keychain.js";
+import { fakePasswordManagers } from "../../../../tools/fakes/src/password-managers.js";
 import { at, runtimeFixture } from "../../../../tools/fakes/src/runtime-fixture.js";
 import type { RuntimeContext } from "../api-types.js";
 import { Redactor } from "../logging.js";
 import { PrivateInputGuard } from "../private-input.js";
 import { vaultApi } from "./api.js";
 import type { PageDriver } from "./page-driver.js";
+import type { ProviderHost } from "./providers.js";
 import { respondVaultApproval, vaultTools } from "./tools.js";
 
 const PASSWORD = "synthetic-vault-password-7731";
@@ -37,7 +41,10 @@ function fakePage(fields: Record<string, { type: string; url: string }>) {
   return { page, typed, submitted: () => submitted };
 }
 
-async function setup(fields: Record<string, { type: string; url: string }>) {
+async function setup(
+  fields: Record<string, { type: string; url: string }>,
+  providers?: ProviderHost,
+) {
   const f = await runtimeFixture();
   const keychain = memoryKeychain();
   const woken: string[] = [];
@@ -49,6 +56,7 @@ async function setup(fields: Record<string, { type: string; url: string }>) {
     privacy,
     redactor: new Redactor(),
     publish() {},
+    ...(providers ? { providers } : {}),
   });
   const context: RuntimeContext = {
     store: f.store,
@@ -289,6 +297,113 @@ it("refuses plain http and asks again when the login is used on another of its s
       "Sign in to github.com",
       "Sign in to www.github.com",
     ]);
+  } finally {
+    f.close();
+  }
+});
+
+it("signs in with a login kept in a password manager, which Zoltbot never stores", async () => {
+  const managers = fakePasswordManagers({
+    installed: { op: "ready", bw: "locked" },
+    bitwardenSession: "synthetic-bw-session-key-0001",
+    items: [
+      {
+        id: "abcdefghijklmnopqrstuvwxyz",
+        title: "GitHub",
+        username: "manager-user",
+        password: "synthetic-manager-password-9",
+        urls: ["https://github.com"],
+      },
+    ],
+  });
+  const { f, vault, context, page, call, keychain } = await setup(loginForm, managers.host);
+  try {
+    expect(await vault.api("vault.providers", {})).toEqual({
+      providers: [
+        { id: "1password", name: "1Password", state: "ready" },
+        { id: "bitwarden", name: "Bitwarden", state: "locked", path: "/fake/bin/bw" },
+        { id: "proton", name: "Proton Pass", state: "missing" },
+      ],
+    });
+    const { entry } = (await vault.api("vault.save", {
+      kind: "login",
+      sites: ["github.com"],
+      username: "manager-user",
+      agents: "all",
+      source: { provider: "1password", item: "abcdefghijklmnopqrstuvwxyz" },
+    })) as { entry: { id: string; source?: unknown } };
+    expect(entry.source).toEqual({ provider: "1password", item: "abcdefghijklmnopqrstuvwxyz" });
+    await expect(vault.api("vault.reveal", { id: entry.id })).rejects.toThrow(
+      "vault_value_in_manager",
+    );
+    await expect(
+      vault.api("vault.update", { id: entry.id, value: "replacement-password" }),
+    ).rejects.toThrow("vault_value_in_manager");
+
+    await call({ action: "fill", id: entry.id, password: "e2", username: "e1" });
+    const request = card(f.store);
+    await respondVaultApproval(context, request, answer(f.store, request, "allow_once"));
+    expect(await call({ action: "fill", id: entry.id, password: "e2", username: "e1" })).toEqual({
+      filled: ["username", "password"],
+      submitted: false,
+    });
+    expect(page.typed).toEqual([
+      { target: "e1", value: "manager-user" },
+      { target: "e2", value: "synthetic-manager-password-9" },
+    ]);
+
+    // Bitwarden: a wrong key isn't kept; the right one unlocks it.
+    await expect(
+      vault.api("vault.providerUnlock", {
+        provider: "bitwarden",
+        session: "wrong-session-key-0000",
+      }),
+    ).rejects.toThrow("provider_session_invalid");
+    expect(
+      await vault.api("vault.providerUnlock", {
+        provider: "bitwarden",
+        session: "synthetic-bw-session-key-0001",
+      }),
+    ).toEqual({
+      provider: { id: "bitwarden", name: "Bitwarden", state: "ready", path: "/fake/bin/bw" },
+    });
+    expect(await vault.api("vault.providers", {})).toMatchObject({
+      providers: [{ state: "ready" }, { state: "ready" }, { state: "missing" }],
+    });
+    // A wrong key later leaves the working one in place.
+    await expect(
+      vault.api("vault.providerUnlock", {
+        provider: "bitwarden",
+        session: "wrong-session-key-0000",
+      }),
+    ).rejects.toThrow("provider_session_invalid");
+    expect(await vault.api("vault.providers", {})).toMatchObject({
+      providers: [{}, { state: "ready" }, {}],
+    });
+    // A different program at the same path doesn't get the key.
+    managers.replace("bw");
+    const sent = managers.sessions.length;
+    expect(await vault.api("vault.providers", {})).toMatchObject({
+      providers: [{}, { state: "locked" }, {}],
+    });
+    expect(managers.sessions.slice(sent)).toEqual([false]);
+
+    const written = readdirSync(f.root)
+      .filter((name) => statSync(path.join(f.root, name)).isFile())
+      .map((name) => readFileSync(path.join(f.root, name)).toString("latin1"))
+      .join("");
+    expect(written).toContain("abcdefghijklmnopqrstuvwxyz");
+    expect(written).not.toContain("synthetic-manager-password-9");
+    expect(written).not.toContain("synthetic-bw-session-key-0001");
+    expect(JSON.stringify(f.store.snapshot())).not.toContain("synthetic-manager-password-9");
+
+    // Forgetting the key removes it from the keychain.
+    const kept = keychain.items.size;
+    expect(await vault.api("vault.providerForget", { provider: "bitwarden" })).toMatchObject({
+      provider: { state: "locked" },
+    });
+    expect(keychain.items.size).toBe(kept - 1);
+    expect(readFileSync(path.join(f.root, "provider-sessions.json"), "utf8")).toBe("{}");
   } finally {
     f.close();
   }

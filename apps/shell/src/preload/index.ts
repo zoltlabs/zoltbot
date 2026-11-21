@@ -261,6 +261,10 @@ const openbotApi: OpenBotDesktopApi = {
     remove: (id) => ipcRenderer.invoke(IPC_CHANNELS.vaultRemove, id),
     reveal: (id) => ipcRenderer.invoke(IPC_CHANNELS.vaultReveal, id),
     agents: () => ipcRenderer.invoke(IPC_CHANNELS.vaultAgents),
+    providers: () => ipcRenderer.invoke(IPC_CHANNELS.vaultProviders),
+    providerItems: (input) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderItems, input),
+    providerUnlock: (input) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderUnlock, input),
+    providerForget: (provider) => ipcRenderer.invoke(IPC_CHANNELS.vaultProviderForget, provider),
   },
   coAuthor: {
     get: (botId) => ipcRenderer.invoke(IPC_CHANNELS.coAuthorGet, botId),

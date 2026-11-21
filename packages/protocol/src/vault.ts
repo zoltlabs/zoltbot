@@ -20,6 +20,43 @@ export const VaultAgentsSchema = Type.Union([
 ]);
 export type VaultAgents = Static<typeof VaultAgentsSchema>;
 
+/** V3: password managers whose own CLI can hand Zoltbot a login at fill time. */
+export const VAULT_PROVIDERS = ["1password", "bitwarden", "proton"] as const;
+export const VaultProviderIdSchema = values(VAULT_PROVIDERS);
+export type VaultProviderId = Static<typeof VaultProviderIdSchema>;
+export const VAULT_PROVIDER_STATES = [
+  "ready",
+  "locked",
+  "signed_out",
+  "missing",
+  "failed",
+] as const;
+
+/** An entry kept in a password manager: Zoltbot stores which item, never its value. */
+export const VaultSourceSchema = object({
+  provider: VaultProviderIdSchema,
+  item: Type.String({ minLength: 1, maxLength: 200 }),
+});
+export type VaultSource = Static<typeof VaultSourceSchema>;
+
+export const VaultProviderSchema = object({
+  id: VaultProviderIdSchema,
+  name: Type.String({ maxLength: 50 }),
+  state: values(VAULT_PROVIDER_STATES),
+  /** For a manager unlocked with a session key: the program the key is given to. */
+  path: Type.Optional(Type.String({ maxLength: 1024 })),
+});
+export type VaultProvider = Static<typeof VaultProviderSchema>;
+
+export const VaultProviderItemSchema = object({
+  id: Type.String({ minLength: 1, maxLength: 200 }),
+  title: Type.String({ maxLength: 200 }),
+  username: Type.Optional(Type.String({ maxLength: 500 })),
+  sites: Type.Array(Host, { maxItems: MAX_VAULT_SITES }),
+});
+export type VaultProviderItem = Static<typeof VaultProviderItemSchema>;
+export const MAX_VAULT_PROVIDER_ITEMS = 200;
+
 export const VaultEntrySchema = object({
   id: Id,
   kind: VaultKindSchema,
@@ -30,6 +67,8 @@ export const VaultEntrySchema = object({
   agents: VaultAgentsSchema,
   /** Reserved for "Always allow": agents that may use the entry without asking. Not set yet. */
   trusted: Type.Optional(Type.Array(Id, { maxItems: 200 })),
+  /** V3: the password manager item the login comes from, instead of a keychain value. */
+  source: Type.Optional(VaultSourceSchema),
   createdAt: At,
   lastUsedAt: Type.Optional(At),
 });
@@ -47,7 +86,10 @@ export const vaultMethods = {
       available: Type.Boolean(),
     }),
   },
-  /** `value` is the password (login) or the setup key or otpauth link (totp). */
+  /**
+   * `value` is the password (login) or the setup key or otpauth link (totp). A login from a
+   * password manager gives `source` instead, and no value.
+   */
   "vault.save": {
     params: object({
       kind: VaultKindSchema,
@@ -55,7 +97,8 @@ export const vaultMethods = {
       sites: Sites,
       username: Type.Optional(Type.String({ maxLength: 500 })),
       agents: VaultAgentsSchema,
-      value: Value,
+      value: Type.Optional(Value),
+      source: Type.Optional(VaultSourceSchema),
     }),
     result: object({ entry: VaultEntrySchema }),
   },
@@ -81,6 +124,37 @@ export const vaultMethods = {
     params: object({ id: Id }),
     result: object({ value: Type.String() }),
   },
+  /** V3: the password managers this Mac has, and whether each can be read now. */
+  "vault.providers": {
+    params: object({}),
+    result: object({ providers: Type.Array(VaultProviderSchema, { maxItems: 10 }) }),
+  },
+  /** V3: logins in a password manager, by title and site only; never a password. */
+  "vault.providerItems": {
+    params: object({
+      provider: VaultProviderIdSchema,
+      search: Type.Optional(Type.String({ maxLength: 100 })),
+    }),
+    result: object({
+      items: Type.Array(VaultProviderItemSchema, { maxItems: MAX_VAULT_PROVIDER_ITEMS }),
+    }),
+  },
+  /**
+   * V3: a session key from the manager's own unlock command (Bitwarden's `bw unlock --raw`),
+   * kept in the keychain so Zoltbot can read while the manager stays unlocked.
+   */
+  "vault.providerUnlock": {
+    params: object({
+      provider: VaultProviderIdSchema,
+      session: Type.String({ minLength: 1, maxLength: 1000 }),
+    }),
+    result: object({ provider: VaultProviderSchema }),
+  },
+  /** V3: drops the session key kept for a manager. */
+  "vault.providerForget": {
+    params: object({ provider: VaultProviderIdSchema }),
+    result: object({ provider: VaultProviderSchema }),
+  },
 };
 
 export const vaultMacOnlyMethods = [
@@ -89,6 +163,10 @@ export const vaultMacOnlyMethods = [
   "vault.update",
   "vault.remove",
   "vault.reveal",
+  "vault.providers",
+  "vault.providerItems",
+  "vault.providerUnlock",
+  "vault.providerForget",
 ] as const;
 
 /**

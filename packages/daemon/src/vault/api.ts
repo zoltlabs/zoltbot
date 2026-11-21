@@ -1,4 +1,4 @@
-// V1: vault.list, vault.save, vault.update, vault.remove and vault.reveal. Values go straight to
+// V1: vault.list, vault.save, vault.update, vault.remove and vault.reveal (V3 adds managers). Values go straight to
 // the keychain; only references are kept, and no value is returned except by reveal, which the
 // Mac guards with its own Touch ID or password prompt.
 import { randomUUID } from "node:crypto";
@@ -15,11 +15,14 @@ import type { Redactor } from "../logging.js";
 import type { PrivateVault } from "../private-context.js";
 import type { PrivateInputGuard } from "../private-input.js";
 import { writeVaultAudit } from "./audit.js";
+import { validSource, vaultManagers } from "./provider-api.js";
+import type { ProviderHost } from "./providers.js";
 import { publicEntry, type VaultRecord, VaultRecords } from "./store.js";
 
 /** What the keychain holds for one entry. */
 export type VaultValue =
-  | { kind: "login"; password: string }
+  /** `username` is set when the login comes from a password manager (V3). */
+  | { kind: "login"; password: string; username?: string }
   | {
       kind: "totp";
       secret: string;
@@ -35,6 +38,8 @@ export interface VaultHost {
   privacy: Pick<PrivateInputGuard, "remember">;
   redactor: Pick<Redactor, "register">;
   publish(events: DomainEvent[]): void;
+  /** V3: how the managers' CLIs are found and run; the real ones when absent. */
+  providers?: ProviderHost;
 }
 
 const OWNER = { kind: "human" as const, id: "local-owner" };
@@ -85,6 +90,12 @@ export function vaultApi(host: VaultHost) {
         host.redactor.register(text);
       }
   };
+  const managers = vaultManagers({
+    dataDir: host.dataDir,
+    ...(secrets ? { secrets } : {}),
+    ...(host.providers ? { providers: host.providers } : {}),
+    guard: (text) => guard({ kind: "login", password: text }),
+  });
   let revealing = false;
   const audit = (action: string, entryId: string) =>
     writeVaultAudit(host, { action, entryId, actor: OWNER });
@@ -96,6 +107,8 @@ export function vaultApi(host: VaultHost) {
       records,
       available: () => !!secrets,
       async read(record: VaultRecord): Promise<VaultValue> {
+        if (record.source) return { kind: "login", ...(await managers.read(record.source)) };
+        if (!record.reference) throw new Error("vault_value_invalid");
         const value = readVaultValue(await keychain().read(record.reference));
         guard(value);
         return value;
@@ -112,16 +125,24 @@ export function vaultApi(host: VaultHost) {
     },
     async api(method: string, params: Record<string, unknown>): Promise<unknown> {
       if (!method.startsWith("vault.")) return undefined;
+      if (method.startsWith("vault.provider")) return managers.api(method, params);
       switch (method) {
         case "vault.list":
           return { entries: records.list().map(publicEntry), available: !!host.secrets };
         case "vault.save": {
-          const secrets = keychain();
           const kind = params.kind as VaultKind;
           const hosts = sites(params.sites as string[]);
-          const value = valueFor(kind, String(params.value));
-          guard(value);
-          const { reference } = await secrets.put(value);
+          // V3: a login from a password manager keeps only which item it is.
+          const source = params.source !== undefined ? validSource(params.source) : undefined;
+          if (source && (kind !== "login" || params.value !== undefined))
+            throw new Error("invalid_source");
+          let reference: string | undefined;
+          if (!source) {
+            if (typeof params.value !== "string") throw new Error("value_required");
+            const value = valueFor(kind, params.value);
+            guard(value);
+            reference = (await keychain().put(value)).reference;
+          }
           const username = typeof params.username === "string" ? params.username.trim() : "";
           const record: VaultRecord = {
             id: randomUUID(),
@@ -135,12 +156,12 @@ export function vaultApi(host: VaultHost) {
             ...(kind === "login" && username ? { username } : {}),
             agents: agents(params.agents as VaultAgents),
             createdAt: new Date().toISOString(),
-            reference,
+            ...(source ? { source } : reference ? { reference } : {}),
           };
           try {
             await records.change((list) => ({ records: [...list, record], result: undefined }));
           } catch (error) {
-            await secrets.remove?.(reference).catch(() => {});
+            if (reference) await secrets?.remove?.(reference).catch(() => {});
             throw error;
           }
           audit("vault.save", record.id);
@@ -153,6 +174,7 @@ export function vaultApi(host: VaultHost) {
           let reference = current.reference;
           let replaced: string | undefined;
           if (typeof params.value === "string") {
+            if (current.source || !reference) throw new Error("vault_value_in_manager");
             const secrets = keychain();
             const value = valueFor(current.kind, params.value);
             guard(value);
@@ -179,7 +201,7 @@ export function vaultApi(host: VaultHost) {
               ...(params.agents !== undefined
                 ? { agents: agents(params.agents as VaultAgents) }
                 : {}),
-              reference,
+              ...(reference ? { reference } : {}),
             };
             // Agents dropped from the list lose the "Always" they were given.
             const allowed = next.agents;
@@ -199,7 +221,7 @@ export function vaultApi(host: VaultHost) {
             if (!record) throw new Error("vault_entry_not_found");
             return { records: list.filter((item) => item.id !== id), result: record };
           });
-          await secrets?.remove?.(removed.reference).catch(() => {});
+          if (removed.reference) await secrets?.remove?.(removed.reference).catch(() => {});
           audit("vault.remove", id);
           return { ok: true };
         }
@@ -209,13 +231,16 @@ export function vaultApi(host: VaultHost) {
           if (revealing) throw new Error("reveal_in_progress");
           const record = records.get(String(params.id));
           if (!record) throw new Error("vault_entry_not_found");
+          // The password manager shows its own logins.
+          if (!record.reference) throw new Error("vault_value_in_manager");
+          const reference = record.reference;
           let value: VaultValue;
           revealing = true;
           try {
             // The Mac's prompt names the entry it is for.
             const what = record.kind === "login" ? "password" : "setup key";
             const reason = `show the saved ${what} for ${record.label.slice(0, 80)}`;
-            value = readVaultValue(await secrets.reveal(record.reference, reason));
+            value = readVaultValue(await secrets.reveal(reference, reason));
           } catch {
             throw new Error("reveal_cancelled");
           } finally {

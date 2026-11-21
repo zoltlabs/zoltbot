@@ -7,6 +7,7 @@ import { vaultApi } from "../../../../packages/daemon/src/vault/api";
 import { vaultTools } from "../../../../packages/daemon/src/vault/tools";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { memoryKeychain } from "../../../../tools/fakes/src/memory-keychain";
+import { fakePasswordManagers } from "../../../../tools/fakes/src/password-managers";
 import { axeViolations, COLOR_SCHEMES, settleColorScheme, shellSession } from "../harness";
 
 const PASSWORD = "synthetic-e2e-password-5521";
@@ -185,6 +186,92 @@ test("the owner allows an agent's sign-in from its chat, and the page gets the p
     expect(await fill()).toEqual({ status: "waiting_for_owner" });
     expect(shell.errors).toEqual([]);
     expect(written(fixture.daemon.dataDir)).not.toContain(PASSWORD);
+  } finally {
+    await shell.close();
+    await fixture.close();
+  }
+});
+
+/** V3: the owner adds a login from 1Password and unlocks Bitwarden with its session key. */
+test("adds logins from password managers without copying their passwords", async ({ page }) => {
+  const keychain = memoryKeychain();
+  const managers = fakePasswordManagers({
+    installed: { op: "ready", bw: "locked" },
+    bitwardenSession: "synthetic-bw-session-key-0002",
+    items: [
+      {
+        id: "abcdefghijklmnopqrstuvwxyz",
+        title: "GitHub",
+        username: "manager-user",
+        password: "synthetic-manager-password-3",
+        urls: ["https://github.com/login"],
+      },
+      {
+        id: "zyxwvutsrqponmlkjihgfedcba",
+        title: "Example Mail",
+        password: "synthetic-manager-password-4",
+        urls: ["https://mail.example.test"],
+      },
+    ],
+  });
+  const fixture = await compareFixture({
+    secrets: keychain.secrets,
+    vaultProviders: managers.host,
+  });
+  const shell = await shellSession(fixture.daemon);
+  try {
+    await shell.open(page);
+    await page
+      .getByRole("complementary", { name: "Bot navigation" })
+      .getByRole("button", { name: "Vault" })
+      .click();
+    const vault = page.getByRole("main", { name: "Vault" });
+    await vault.getByRole("button", { name: "Add from password manager" }).click();
+    await page.getByRole("menuitem", { name: "1Password" }).click();
+    let picker = page.getByRole("dialog", { name: "Add from 1Password" });
+    await expect(picker.getByText("Example Mail")).toBeVisible();
+    await picker.getByLabel("Search").fill("git");
+    await expect(picker.getByText("Example Mail")).toHaveCount(0);
+    await picker.getByRole("radio", { name: /GitHub/ }).check();
+    for (const scheme of COLOR_SCHEMES) {
+      await settleColorScheme(page, scheme);
+      expect(await axeViolations(page)).toEqual([]);
+      await page.screenshot({ path: test.info().outputPath(`provider-picker-${scheme}.png`) });
+    }
+    await picker.getByRole("button", { name: "Next" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add login" });
+    await expect(dialog.getByLabel("Site")).toHaveValue("github.com");
+    await expect(dialog.getByLabel("Password")).toHaveCount(0);
+    await expect(dialog.getByText(/The password stays in 1Password/)).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath("provider-confirm.png") });
+    await dialog.getByRole("button", { name: "Save login" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(vault.getByText("manager-user · 1Password · All agents")).toBeVisible();
+
+    // Bitwarden is locked until the owner pastes the key from `bw unlock --raw`.
+    await vault.getByRole("button", { name: "Add from password manager" }).click();
+    await page.getByRole("menuitem", { name: "Bitwarden" }).click();
+    picker = page.getByRole("dialog", { name: "Add from Bitwarden" });
+    await expect(picker.getByText(/Bitwarden is locked/)).toBeVisible();
+    await expect(picker.getByText("/fake/bin/bw")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath("provider-locked.png") });
+    await picker.getByLabel("Session key").fill("wrong-session-key-0000");
+    await picker.getByRole("button", { name: "Unlock" }).click();
+    await expect(picker.getByText("That key didn't unlock Bitwarden.")).toBeVisible();
+    await picker.getByLabel("Session key").fill("synthetic-bw-session-key-0002");
+    await picker.getByRole("button", { name: "Unlock" }).click();
+    await expect(picker.getByText("Example Mail")).toBeVisible();
+    // Forgetting the key locks it again.
+    await picker.getByRole("button", { name: "Forget key" }).click();
+    await expect(picker.getByText(/Bitwarden is locked/)).toBeVisible();
+    await picker.getByRole("button", { name: "Cancel" }).click();
+
+    expect(shell.errors).toEqual([]);
+    const files = written(fixture.daemon.dataDir);
+    expect(files).not.toContain("synthetic-manager-password");
+    expect(files).not.toContain("synthetic-bw-session-key-0002");
   } finally {
     await shell.close();
     await fixture.close();

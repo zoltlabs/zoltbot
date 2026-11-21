@@ -17,8 +17,8 @@ import { MAX_VAULT_ENTRIES, type VaultEntry, VaultEntrySchema } from "@zoltbot/p
 import { isSecretReference } from "../secrets.js";
 
 export interface VaultRecord extends VaultEntry {
-  /** `keychain:zoltbot:<uuid>`. Never leaves the daemon. */
-  reference: string;
+  /** `keychain:zoltbot:<uuid>`. Never leaves the daemon. Absent for a manager's login (V3). */
+  reference?: string;
 }
 
 /** The record without its reference, as clients see it. */
@@ -37,8 +37,11 @@ function readFile(file: string): unknown[] {
 function asRecord(item: unknown): VaultRecord | undefined {
   if (!item || typeof item !== "object") return undefined;
   const { reference, ...entry } = item as Record<string, unknown>;
-  if (typeof reference !== "string" || !isSecretReference(reference)) return undefined;
   if (!Value.Check(VaultEntrySchema, entry)) return undefined;
+  // Each record has exactly one home for its value: the keychain, or a password manager.
+  if (entry.source !== undefined)
+    return reference === undefined ? (entry as VaultEntry) : undefined;
+  if (typeof reference !== "string" || !isSecretReference(reference)) return undefined;
   return { ...(entry as VaultEntry), reference };
 }
 

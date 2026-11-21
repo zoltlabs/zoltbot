@@ -6,6 +6,10 @@ import {
   VAULT_CHANNELS as C,
   type VaultItem,
   type VaultList,
+  type VaultProvider,
+  type VaultProviderId,
+  type VaultProviderItem,
+  type VaultSource,
   type VaultSaveInput,
   type VaultUpdateInput,
 } from "../shared/vault";
@@ -20,6 +24,10 @@ const MESSAGES: Record<string, string> = {
   vault_unavailable: "This Mac's keychain isn't available.",
   vault_full: "The vault is full. Remove a login first.",
   vault_entry_not_found: "It was already removed.",
+  provider_missing: "That password manager isn't on this Mac.",
+  provider_failed: "The password manager didn't answer. Unlock it and try again.",
+  provider_session_invalid: "That key didn't unlock Bitwarden.",
+  vault_value_in_manager: "Change it in the password manager.",
 };
 
 /** The daemon's error code, as words the owner can act on. */
@@ -31,7 +39,7 @@ function failure(error: unknown, fallback: string): Error {
 
 export function parseVaultItem(value: unknown): VaultItem | null {
   if (!isObject(value)) return null;
-  const { id, kind, label, sites, username, agents, createdAt, lastUsedAt } = value;
+  const { id, kind, label, sites, username, agents, createdAt, lastUsedAt, source } = value;
   if (typeof id !== "string" || (kind !== "login" && kind !== "totp")) return null;
   if (typeof label !== "string" || !Array.isArray(sites) || typeof createdAt !== "string")
     return null;
@@ -51,7 +59,41 @@ export function parseVaultItem(value: unknown): VaultItem | null {
     agents: agentList,
     createdAt,
     ...(typeof lastUsedAt === "string" ? { lastUsedAt } : {}),
+    ...(parseSource(source) ? { source: parseSource(source) as VaultSource } : {}),
   };
+}
+
+const PROVIDERS = new Set<VaultProviderId>(["1password", "bitwarden", "proton"]);
+
+function parseProvider(value: unknown): VaultProviderId {
+  if (typeof value === "string" && PROVIDERS.has(value as VaultProviderId))
+    return value as VaultProviderId;
+  throw new Error("Invalid password manager.");
+}
+
+function parseSource(value: unknown): VaultSource | undefined {
+  if (!isObject(value) || typeof value.item !== "string") return undefined;
+  try {
+    return { provider: parseProvider(value.provider), item: value.item };
+  } catch {
+    return undefined;
+  }
+}
+
+function parseProviderState(value: unknown): VaultProvider | null {
+  if (!isObject(value) || typeof value.name !== "string") return null;
+  const states = ["ready", "locked", "signed_out", "missing", "failed"];
+  if (typeof value.state !== "string" || !states.includes(value.state)) return null;
+  try {
+    return {
+      id: parseProvider(value.id),
+      name: value.name,
+      state: value.state as VaultProvider["state"],
+      ...(typeof value.path === "string" ? { path: value.path } : {}),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function parseAgents(value: unknown): "all" | string[] {
@@ -68,7 +110,9 @@ function parseSave(value: unknown): VaultSaveInput {
     site: requireString(value.site, "site"),
     ...(typeof value.username === "string" ? { username: value.username } : {}),
     agents: parseAgents(value.agents),
-    value: requireString(value.value, "value"),
+    ...(parseSource(value.source)
+      ? { source: parseSource(value.source) as VaultSource }
+      : { value: requireString(value.value, "value") }),
   };
 }
 
@@ -111,7 +155,7 @@ export function vaultHandlers(client: Client): Record<string, (input: unknown) =
               sites: [save.site],
               ...(save.username?.trim() ? { username: save.username.trim() } : {}),
               agents: save.agents,
-              value: save.value,
+              ...(save.source ? { source: save.source } : { value: save.value }),
             },
             randomUUID(),
           ),
@@ -166,6 +210,72 @@ export function vaultHandlers(client: Client): Record<string, (input: unknown) =
         );
       }
       return [...named].map(([id, name]) => ({ id, name }));
+    },
+    [C.vaultProviders]: async () => {
+      const result = await client.call("vault.providers", {});
+      return isObject(result) && Array.isArray(result.providers)
+        ? result.providers.map(parseProviderState).filter((item) => !!item)
+        : [];
+    },
+    [C.vaultProviderItems]: async (input) => {
+      if (!isObject(input)) throw new Error("Invalid request.");
+      try {
+        const result = await client.call("vault.providerItems", {
+          provider: parseProvider(input.provider),
+          ...(typeof input.search === "string" && input.search.trim()
+            ? { search: input.search.trim().slice(0, 100) }
+            : {}),
+        });
+        if (!isObject(result) || !Array.isArray(result.items)) return [];
+        return result.items.flatMap((item): VaultProviderItem[] => {
+          if (!isObject(item) || typeof item.id !== "string" || typeof item.title !== "string")
+            return [];
+          return [
+            {
+              id: item.id,
+              title: item.title,
+              ...(typeof item.username === "string" ? { username: item.username } : {}),
+              sites: Array.isArray(item.sites)
+                ? item.sites.filter((site): site is string => typeof site === "string")
+                : [],
+            },
+          ];
+        });
+      } catch (error) {
+        throw failure(error, "Couldn't read the password manager. Try again.");
+      }
+    },
+    [C.vaultProviderUnlock]: async (input) => {
+      if (!isObject(input)) throw new Error("Invalid request.");
+      try {
+        const result = await client.call(
+          "vault.providerUnlock",
+          {
+            provider: parseProvider(input.provider),
+            session: requireString(input.session, "session").trim(),
+          },
+          randomUUID(),
+        );
+        const provider = parseProviderState(isObject(result) ? result.provider : undefined);
+        if (!provider) throw new Error("Invalid password manager.");
+        return provider;
+      } catch (error) {
+        throw failure(error, "Couldn't unlock it. Try again.");
+      }
+    },
+    [C.vaultProviderForget]: async (input) => {
+      try {
+        const result = await client.call(
+          "vault.providerForget",
+          { provider: parseProvider(input) },
+          randomUUID(),
+        );
+        const provider = parseProviderState(isObject(result) ? result.provider : undefined);
+        if (!provider) throw new Error("Invalid password manager.");
+        return provider;
+      } catch (error) {
+        throw failure(error, "Couldn't forget the key. Try again.");
+      }
     },
     [C.vaultReveal]: async (input) => {
       const result = await client.call("vault.reveal", { id: requireString(input, "id") });

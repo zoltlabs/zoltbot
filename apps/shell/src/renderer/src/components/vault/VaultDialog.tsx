@@ -2,7 +2,12 @@
 // Show asks the Mac for Touch ID or the password, then puts the stored value in the field.
 import { parseTotpSetup, totpIssuer, vaultHost } from "@zoltbot/protocol";
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import type { VaultItem, VaultItemKind } from "../../../../shared/vault";
+import type {
+  VaultItem,
+  VaultItemKind,
+  VaultProviderId,
+  VaultProviderItem,
+} from "../../../../shared/vault";
 import { t } from "../../i18n";
 import { Dialog, Field } from "../../kit";
 import { readQrPicture } from "./qr";
@@ -17,12 +22,18 @@ export function VaultDialog(props: {
   /** The entry being edited; absent when adding. */
   item?: VaultItem;
   agents: readonly VaultAgentOption[];
+  /** V3: a login picked from a password manager, when adding one. */
+  pick?: { provider: VaultProviderId; item: VaultProviderItem };
+  /** V3: the manager's name, for a login that comes from one. */
+  managerName?: string;
   onClose: () => void;
   onSaved: (item: VaultItem) => void;
 }) {
   const editing = () => !!props.item;
   const login = () => props.kind === "login";
-  const [site, setSite] = createSignal(props.item?.sites[0] ?? "");
+  // A manager's login keeps its password (and username) in the manager.
+  const managed = () => !!props.pick || !!props.item?.source;
+  const [site, setSite] = createSignal(props.item?.sites[0] ?? props.pick?.item.sites[0] ?? "");
   const [username, setUsername] = createSignal(props.item?.username ?? "");
   const [value, setValue] = createSignal("");
   const [shown, setShown] = createSignal(false);
@@ -57,7 +68,7 @@ export function VaultDialog(props: {
   function check(): boolean {
     const next: { site?: string; value?: string; agents?: string } = {};
     if (!vaultHost(site())) next.site = t("vault.error.site");
-    if (!editing() && !edited())
+    if (!managed() && !editing() && !edited())
       next.value = t(login() ? "vault.error.password" : "vault.error.key");
     if (!login() && edited() && !parseTotpSetup(value())) next.value = t("vault.error.key");
     if (!all() && !chosen().size) next.agents = t("vault.error.agents");
@@ -70,21 +81,30 @@ export function VaultDialog(props: {
     setBusy(true);
     const agents = all() ? ("all" as const) : [...chosen()];
     try {
+      const pick = props.pick;
       const item = props.item
         ? await window.openbot.vault.update({
             id: props.item.id,
             site: site(),
-            ...(login() ? { username: username() } : {}),
+            ...(login() && !managed() ? { username: username() } : {}),
             agents,
             ...(edited() && value() ? { value: value() } : {}),
           })
-        : await window.openbot.vault.save({
-            kind: props.kind,
-            site: site(),
-            ...(login() ? { username: username() } : {}),
-            agents,
-            value: value(),
-          });
+        : pick
+          ? await window.openbot.vault.save({
+              kind: "login",
+              site: site(),
+              ...(pick.item.username ? { username: pick.item.username } : {}),
+              agents,
+              source: { provider: pick.provider, item: pick.item.id },
+            })
+          : await window.openbot.vault.save({
+              kind: props.kind,
+              site: site(),
+              ...(login() ? { username: username() } : {}),
+              agents,
+              value: value(),
+            });
       props.onSaved(item);
     } catch (error) {
       setErrors({ form: error instanceof Error ? error.message : t("vault.error.save") });
@@ -182,7 +202,22 @@ export function VaultDialog(props: {
             />
           )}
         />
-        <Show when={login()}>
+        <Show when={managed()}>
+          <p class="vault-provider-note">
+            {t("vault.provider.kept", { name: props.managerName ?? "" })}
+          </p>
+        </Show>
+        <Show when={managed() && (props.pick?.item.username ?? props.item?.username)}>
+          {(name) => (
+            <Field
+              label={t("vault.field.username")}
+              input={(id) => (
+                <input id={id} class="zb-kit-input" readOnly value={name()} />
+              )}
+            />
+          )}
+        </Show>
+        <Show when={login() && !managed()}>
           <Field
             label={t("vault.field.username")}
             input={(id) => (
@@ -197,6 +232,7 @@ export function VaultDialog(props: {
             )}
           />
         </Show>
+        <Show when={!managed()}>
         <Field
           label={t(login() ? "vault.field.password" : "vault.field.key")}
           error={errors().value}
@@ -241,6 +277,7 @@ export function VaultDialog(props: {
             </div>
           )}
         />
+        </Show>
         <fieldset class="vault-agents">
           <legend class="zb-kit-field-label">{t("vault.field.agents")}</legend>
           <label class="vault-check">

@@ -1,12 +1,25 @@
 // V1: the Vault page. Saved logins and two-step codes, which agents may use each one, and Add,
 // Edit and Remove. Values never reach this page except through Show behind Touch ID.
 import { createSignal, For, onMount, Show } from "solid-js";
-import type { VaultItem, VaultItemKind } from "../../../../shared/vault";
+import type {
+  VaultItem,
+  VaultItemKind,
+  VaultProvider,
+  VaultProviderId,
+  VaultProviderItem,
+} from "../../../../shared/vault";
 import { t } from "../../i18n";
 import { ConfirmDialog, EmptyState, Menu, showToast, Tooltip } from "../../kit";
 import { SidebarToggleIcon } from "../SidebarIcons";
+import { ProviderDialog } from "./ProviderDialog";
 import { type VaultAgentOption, VaultDialog } from "./VaultDialog";
 import "./vault.css";
+
+const MANAGER_NAMES: Record<VaultProviderId, string> = {
+  "1password": "1Password",
+  bitwarden: "Bitwarden",
+  proton: "Proton Pass",
+};
 
 function KindIcon(props: { kind: VaultItemKind }) {
   return (
@@ -33,9 +46,18 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
   const [available, setAvailable] = createSignal(true);
   const [loaded, setLoaded] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [editing, setEditing] = createSignal<{ kind: VaultItemKind; item?: VaultItem } | null>(
-    null,
-  );
+  const [editing, setEditing] = createSignal<{
+    kind: VaultItemKind;
+    item?: VaultItem;
+    pick?: { provider: VaultProviderId; item: VaultProviderItem };
+  } | null>(null);
+  // V3: password managers this Mac has; a missing one isn't offered.
+  const [providers, setProviders] = createSignal<VaultProvider[]>([]);
+  const [picking, setPicking] = createSignal<VaultProvider | null>(null);
+  const [managerMenu, setManagerMenu] = createSignal<HTMLElement | null>(null);
+  const managers = () => providers().filter((provider) => provider.state !== "missing");
+  const managerName = (id: VaultProviderId | undefined) =>
+    providers().find((provider) => provider.id === id)?.name ?? MANAGER_NAMES[id ?? "1password"];
   const [menu, setMenu] = createSignal<{ item: VaultItem; anchor: HTMLElement } | null>(null);
   const [removing, setRemoving] = createSignal<VaultItem | null>(null);
   const [removeBusy, setRemoveBusy] = createSignal(false);
@@ -61,6 +83,10 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
   onMount(() => {
     heading?.focus();
     void load();
+    window.openbot.vault
+      .providers()
+      .then(setProviders)
+      .catch(() => setProviders([]));
   });
 
   const names = () => new Map(agents().map((agent) => [agent.id, agent.name]));
@@ -71,13 +97,22 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
         : item.agents.length
           ? item.agents.map((id) => names().get(id) ?? t("vault.removedAgent")).join(", ")
           : t("vault.noAgents");
-    const first = item.kind === "login" ? item.username : t("vault.kind.code");
+    const first =
+      item.kind === "login"
+        ? [item.username, item.source ? managerName(item.source.provider) : undefined]
+            .filter(Boolean)
+            .join(" · ")
+        : t("vault.kind.code");
     return { first, who };
   };
 
   // A toast left from the last save would sit over the dialog's buttons.
   let dismissToast: (() => void) | undefined;
-  function openDialog(open: { kind: VaultItemKind; item?: VaultItem }) {
+  function openDialog(open: {
+    kind: VaultItemKind;
+    item?: VaultItem;
+    pick?: { provider: VaultProviderId; item: VaultProviderItem };
+  }) {
     dismissToast?.();
     setEditing(open);
   }
@@ -100,8 +135,30 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
     }
   }
 
+  const fromManager = () => (
+    <Show when={managers().length}>
+      <button
+        type="button"
+        class="zb-kit-button no-drag"
+        aria-haspopup={managers().length > 1 ? "menu" : undefined}
+        onClick={(event) => {
+          const only = managers().length === 1 ? managers()[0] : undefined;
+          if (only) {
+            dismissToast?.();
+            setPicking(only);
+          } else setManagerMenu(event.currentTarget);
+        }}
+      >
+        {managers().length === 1
+          ? t("vault.provider.addFrom", { name: managers()[0]?.name ?? "" })
+          : t("vault.provider.addFromMenu")}
+      </button>
+    </Show>
+  );
+
   const addButtons = (
     <>
+      {fromManager()}
       <button
         type="button"
         class="zb-kit-button no-drag"
@@ -161,13 +218,16 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
                   title={t("vault.empty")}
                   level={2}
                   action={
-                    <button
-                      type="button"
-                      class="zb-kit-button primary"
-                      onClick={() => openDialog({ kind: "login" })}
-                    >
-                      {t("vault.addLogin")}
-                    </button>
+                    <div class="vault-actions">
+                      {fromManager()}
+                      <button
+                        type="button"
+                        class="zb-kit-button primary"
+                        onClick={() => openDialog({ kind: "login" })}
+                      >
+                        {t("vault.addLogin")}
+                      </button>
+                    </div>
                   }
                 />
               }
@@ -242,11 +302,45 @@ export function VaultPage(props: { sidebarCollapsed: boolean; onShowSidebar: () 
           );
         }}
       </Show>
+      <Show when={managerMenu()}>
+        {(anchor) => (
+          <Menu
+            anchor={anchor()}
+            label={t("vault.provider.addFromMenu")}
+            onClose={() => setManagerMenu(null)}
+            groups={[
+              managers().map((provider) => ({
+                id: provider.id,
+                label: provider.name,
+                run: () => {
+                  dismissToast?.();
+                  setPicking(provider);
+                },
+              })),
+            ]}
+          />
+        )}
+      </Show>
+      <Show when={picking()}>
+        {(provider) => (
+          <ProviderDialog
+            provider={provider()}
+            onClose={() => setPicking(null)}
+            onPick={(item) => {
+              const id = provider().id;
+              setPicking(null);
+              openDialog({ kind: "login", pick: { provider: id, item } });
+            }}
+          />
+        )}
+      </Show>
       <Show when={editing()}>
         {(open) => (
           <VaultDialog
             kind={open().kind}
             {...(open().item ? { item: open().item } : {})}
+            {...(open().pick ? { pick: open().pick } : {})}
+            managerName={managerName(open().pick?.provider ?? open().item?.source?.provider)}
             agents={agents()}
             onClose={() => setEditing(null)}
             onSaved={(saved) => {
