@@ -366,6 +366,12 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         get: call(channels.coAuthorGet),
         set: call(channels.coAuthorSet),
       },
+      bridges: {
+        list: call(channels.bridgesList),
+        save: call(channels.bridgesSave),
+        remove: call(channels.bridgesRemove),
+        targets: call(channels.bridgesTargets),
+      },
       templates: {
         list: call(channels.agentTemplatesList),
         create: call(channels.agentTemplatesCreate),

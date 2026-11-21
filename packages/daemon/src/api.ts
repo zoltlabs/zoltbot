@@ -37,6 +37,7 @@ import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
 import { asideApi } from "./aside-api.js";
 import { attachmentPreviewApi } from "./attachment-preview-api.js";
+import { startBridges } from "./bridges/service.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
 import { channelApi } from "./channel-service.js";
@@ -544,6 +545,19 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => finish.close());
+  const bridges = startBridges({
+    ...options.bridges,
+    store,
+    publish,
+    ...(options.secrets ? { secrets: options.secrets } : {}),
+    remember: (value) => redactor.register(value),
+    send: async (method, params, id) =>
+      (method === "channel.post"
+        ? await channelApi(runtimeContext, ownedTasks)(method, params, id)
+        : await runtime?.(method, params, id)) ?? Promise.reject(new Error("runtime_unavailable")),
+    onError: (code) => logger.write("warn", code),
+  });
+  resources.push(() => bridges.close());
   const call = async (
     request: ReturnType<typeof parseRequest>,
     client: LinkClient,
@@ -639,6 +653,7 @@ async function startOwnedDaemon(
           (await artifacts(request.method, params, commandId)) ??
           (await browser(request.method, params)) ??
           (await connections.api(request.method, params, commandId)) ??
+          (await bridges.api(request.method, params, commandId)) ??
           (await knowledge(request.method, params, commandId)) ??
           (await skills(request.method, params, commandId)) ??
           (await devices.api(request.method, params, commandId)) ??
@@ -778,6 +793,7 @@ async function startOwnedDaemon(
   observers = (events) => {
     companyWatch.observe();
     finish.observe(events);
+    bridges.observe(events);
     push.observe(events);
     taint(events);
     for (const event of events)

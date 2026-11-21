@@ -1,0 +1,241 @@
+/* I1: the Bridges dialog. Rows are buttons or list items; status is a word, the dot only repeats it. */
+.bridge-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bridge-list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.bridge-row,
+.bridge-route {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-space-3);
+  width: 100%;
+  padding: var(--zb-space-2) var(--zb-space-1);
+  text-align: start;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  border-radius: var(--zb-radius-sm);
+  font: inherit;
+}
+
+.bridge-row {
+  cursor: pointer;
+}
+
+.bridge-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bridge-row:hover {
+  background: var(--surface-option-active);
+}
+
+.bridge-row:focus-visible,
+.bridge-chip-remove:focus-visible {
+  outline: 2px solid var(--zb-kit-focus);
+  outline-offset: 1px;
+}
+
+.bridge-row-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--zb-space-0-5);
+}
+
+.bridge-row-name strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.bridge-row-name span,
+.bridge-muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.bridge-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zb-space-1-5);
+  color: var(--text-secondary);
+  font-size: var(--zb-text-sm);
+}
+
+.bridge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--zb-radius-pill);
+  background: var(--text-muted);
+}
+
+.bridge-status-connected .bridge-dot {
+  background: var(--text-success);
+}
+
+.bridge-status-reconnecting .bridge-dot {
+  background: var(--text-warning);
+}
+
+.bridge-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zb-space-2);
+}
+
+.bridge-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-space-3);
+  margin-bottom: var(--zb-space-1);
+}
+
+.bridge-section-head h3,
+section > h3 {
+  margin: 0 0 var(--zb-space-1);
+  font-size: var(--zb-text-md);
+  font-weight: 600;
+}
+
+.bridge-select-row {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--zb-space-3);
+}
+
+.bridge-people {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.bridge-people legend {
+  margin-bottom: var(--zb-space-2);
+  padding: 0;
+  font-weight: 500;
+}
+
+.bridge-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zb-space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bridge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-space-1);
+  max-width: 100%;
+  padding: var(--zb-space-0-5) var(--zb-space-1) var(--zb-space-0-5) var(--zb-space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--zb-radius-pill);
+  font-size: var(--zb-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.bridge-chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-radius: var(--zb-radius-pill);
+  cursor: pointer;
+}
+
+.bridge-chip-remove:hover {
+  color: var(--text-primary);
+  background: var(--surface-option-active);
+}
+
+.bridge-chip-remove svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.bridge-add-person {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--zb-space-2);
+}
+
+.bridge-add-person > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.bridge-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zb-space-3);
+  margin: 0;
+  padding-inline-start: var(--zb-space-5);
+  list-style: decimal;
+  color: var(--text-primary);
+}
+
+.bridge-steps li::marker {
+  color: var(--text-secondary);
+}
+
+.bridge-step-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+  margin-top: var(--zb-space-2);
+}
+
+.bridge-steps li > span:first-child {
+  display: block;
+}
+
+.bridge-pairing p {
+  margin: 0 0 var(--zb-space-2);
+  color: var(--text-secondary);
+}
+
+.bridge-code {
+  display: inline-block;
+  padding: var(--zb-space-1) var(--zb-space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--zb-radius-sm);
+  color: var(--text-primary);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-md);
+  user-select: all;
+}

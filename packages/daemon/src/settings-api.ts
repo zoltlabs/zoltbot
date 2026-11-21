@@ -1,6 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   AGENT_CONTINUE_PREFIX,
+  BRIDGE_PREFIX,
   type DomainEvent,
   MEMORY_TIDY_SETTING,
   MUTED_PREFIX,
@@ -35,6 +36,8 @@ function reserved(key: string) {
     key.startsWith("chat.reactions.") ||
     key.startsWith("chat.status.") ||
     key.startsWith("chat.progress.") ||
+    // I1: bridges change only through bridge.save, which keeps tokens in the keychain.
+    key.startsWith(BRIDGE_PREFIX) ||
     reservedChiefKeys.has(key) ||
     key === identityReferenceKey
   );

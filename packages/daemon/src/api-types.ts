@@ -66,6 +66,8 @@ export interface DaemonOptions {
   secrets?: PrivateVault;
   /** Quick Chat inference. ChatGPT plan usage stays off unless this build is eligible. */
   quickChat?: QuickChatHostOptions;
+  /** I1: chat app bridges. Tests pass fake adapters; the default build adds the real apps. */
+  bridges?: import("./bridges/service.js").BridgeHostOptions;
   /** Relay link (D124). Tuning is for tests; defaultUrl is the build's relay (ZOLTBOT_RELAY_URL). */
   relay?: {
     retry?: { baseMs: number; maxMs: number };

@@ -315,6 +315,12 @@ export function setUpAppTest() {
         get: vi.fn().mockResolvedValue(null),
         set: vi.fn().mockResolvedValue(undefined),
       },
+      bridges: {
+        list: vi.fn().mockResolvedValue([]),
+        save: vi.fn(),
+        remove: vi.fn().mockResolvedValue(undefined),
+        targets: vi.fn().mockResolvedValue({ chats: [], channels: [] }),
+      },
       templates: {
         list: vi.fn().mockResolvedValue([]),
         create: vi.fn(),

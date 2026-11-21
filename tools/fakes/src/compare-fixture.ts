@@ -11,6 +11,8 @@ export async function compareFixture(
     serviceTiers?: string[];
     /** A7: the models every fake session lists. */
     models?: { id: string; name: string; free?: boolean }[];
+    /** I1: fake chat app adapters. */
+    bridges?: import("../../../packages/daemon/src/api.js").DaemonOptions["bridges"];
   } = {},
 ) {
   const f = await runtimeFixture("zoltbot.db");
@@ -79,6 +81,7 @@ export async function compareFixture(
   const daemon = await startDaemon({
     dataDir: f.root,
     ...(options.secrets ? { secrets: options.secrets } : {}),
+    ...(options.bridges ? { bridges: options.bridges } : {}),
     origins: ["http://127.0.0.1:5196"],
     runtimeHost: {
       async prepare(input) {

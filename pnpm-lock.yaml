@@ -397,6 +397,15 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  packages/bridges:
+    dependencies:
+      '@zoltbot/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      ws:
+        specifier: 8.19.0
+        version: 8.19.0
+
   packages/cell:
     dependencies:
       '@zoltbot/cloud-contracts':
@@ -481,6 +490,9 @@ importers:
       '@zoltbot/artifact-validation':
         specifier: workspace:*
         version: link:../artifact-validation
+      '@zoltbot/bridges':
+        specifier: workspace:*
+        version: link:../bridges
       '@zoltbot/cloud-contracts':
         specifier: workspace:*
         version: link:../cloud-contracts

@@ -46,6 +46,7 @@ import type {
 } from "./channels";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
@@ -134,6 +135,7 @@ export const IPC_CHANNELS = {
   ...HIDDEN_CHANNELS,
   ...AGENT_TEMPLATE_CHANNELS,
   ...CO_AUTHOR_CHANNELS,
+  ...BRIDGE_CHANNELS,
   browserOpen: "browser:open",
   browserActivate: "browser:activate",
   browserClose: "browser:close",
@@ -795,4 +797,5 @@ export interface OpenBotDesktopApi {
   hidden: HiddenDesktopApi;
   templates: AgentTemplatesDesktopApi;
   coAuthor: CoAuthorDesktopApi;
+  bridges: BridgesDesktopApi;
 }

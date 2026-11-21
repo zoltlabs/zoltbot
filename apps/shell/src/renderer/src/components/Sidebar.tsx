@@ -23,6 +23,7 @@ import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
+import { createBridgesEntry } from "./bridges/BridgesEntry";
 import {
   AccountIcon,
   CloseIcon,
@@ -350,6 +351,7 @@ export function Sidebar(props: SidebarProps) {
       );
   }
 
+  const bridges = createBridgesEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -445,6 +447,7 @@ export function Sidebar(props: SidebarProps) {
           icon: <PermissionsIcon />,
           run: props.onOpenPermissions,
         },
+        bridges.item(),
       ],
       [
         {
@@ -774,6 +777,7 @@ export function Sidebar(props: SidebarProps) {
         </button>
       </div>
 
+      <bridges.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu
