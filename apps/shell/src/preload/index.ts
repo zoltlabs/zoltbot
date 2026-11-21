@@ -226,6 +226,7 @@ const openbotApi: OpenBotDesktopApi = {
     save: (input) => ipcRenderer.invoke(IPC_CHANNELS.memorySave, input),
     archive: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryArchive, input),
     decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecide, input),
+    decideSkill: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecideSkill, input),
     forget: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryForget, input),
     setTidy: (on) => ipcRenderer.invoke(IPC_CHANNELS.memorySetTidy, on),
     importChoose: (source) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportChoose, source),

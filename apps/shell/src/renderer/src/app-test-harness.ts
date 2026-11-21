@@ -285,11 +285,12 @@ export function setUpAppTest() {
         }),
       },
       memory: {
-        list: vi.fn().mockResolvedValue({ entries: [], proposals: [], tidy: true }),
+        list: vi.fn().mockResolvedValue({ entries: [], proposals: [], skills: [], tidy: true }),
         revisions: vi.fn().mockResolvedValue([]),
         save: vi.fn().mockResolvedValue(undefined),
         archive: vi.fn().mockResolvedValue(undefined),
         decide: vi.fn().mockResolvedValue(undefined),
+        decideSkill: vi.fn().mockResolvedValue(undefined),
         forget: vi.fn().mockResolvedValue(undefined),
         setTidy: vi.fn().mockResolvedValue(undefined),
         importChoose: vi.fn().mockResolvedValue(null),

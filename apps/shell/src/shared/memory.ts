@@ -54,10 +54,29 @@ export interface MemoryProposal {
   createdAt: string;
 }
 
+/** M6: a skill an agent proposed to save or update. */
+export interface MemorySkillProposal {
+  id: string;
+  /** The skill's name. */
+  title: string;
+  /** The SKILL.md the agent proposed. */
+  body: string;
+  /** The SKILL.md it replaces; null for a new skill. */
+  base: string | null;
+  /** Skills apply everywhere. */
+  projectId: null;
+  projectName: "";
+  writer: MemoryWriter;
+  agent: MemoryAgent | null;
+  createdAt: string;
+}
+
 export interface MemoryView {
   entries: MemoryEntry[];
   /** Agent proposals waiting for the owner. */
   proposals: MemoryProposal[];
+  /** M6: skills agents proposed, waiting for the owner. */
+  skills: MemorySkillProposal[];
   /** M3: whether the nightly tidy-up looks for entries that repeat each other. */
   tidy: boolean;
 }
@@ -80,6 +99,11 @@ export interface MemoryForgetInput {
 export interface MemoryDecideInput {
   id: string;
   decision: "accept" | "reject";
+}
+
+export interface MemorySkillDecideInput {
+  id: string;
+  decision: "save" | "discard";
 }
 
 /** M4: where an imported export came from. */
@@ -110,6 +134,7 @@ export const MEMORY_CHANNELS = {
   memorySave: "memory:save",
   memoryArchive: "memory:archive",
   memoryDecide: "memory:decide",
+  memoryDecideSkill: "memory:decide-skill",
   memoryForget: "memory:forget",
   memorySetTidy: "memory:set-tidy",
   memoryImportChoose: "memory:import-choose",
@@ -125,6 +150,8 @@ export interface MemoryDesktopApi {
   archive: (input: { id: string; revision: number }) => Promise<void>;
   /** Keeps or discards what an agent proposed to remember. */
   decide: (input: MemoryDecideInput) => Promise<void>;
+  /** M6: saves or discards a skill an agent proposed. */
+  decideSkill: (input: MemorySkillDecideInput) => Promise<void>;
   /** M2: removes one passage from an entry as a new revision. */
   forget: (input: MemoryForgetInput) => Promise<void>;
   /** M3: turns the nightly tidy-up on or off. */

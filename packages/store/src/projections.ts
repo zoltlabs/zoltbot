@@ -46,6 +46,7 @@ export const tableMap: Record<string, string> = {
   knowledge: "knowledge_items",
   contextPack: "context_packs",
   knowledgeProposal: "knowledge_proposals",
+  skillProposal: "skill_proposals",
   deliverable: "legacy_deliverables",
   workflow: "workflow_versions",
   workflowRun: "workflow_runs",

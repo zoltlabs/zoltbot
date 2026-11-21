@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MemoryEntry, MemoryView } from "../../../shared/memory";
+import type { MemoryEntry, MemorySkillProposal, MemoryView } from "../../../shared/memory";
 import { setUpAppTest } from "../app-test-harness";
 import { createMemoryStore } from "../memory-store";
 import { MemoryPage } from "./MemoryPage";
@@ -42,6 +42,7 @@ const VIEW: MemoryView = {
       createdAt: "2026-01-03T00:00:00Z",
     },
   ],
+  skills: [],
   tidy: true,
 };
 
@@ -272,6 +273,73 @@ describe("Memory page", () => {
     fireEvent.click(within(main).getByRole("button", { name: "Keep" }));
     await waitFor(() =>
       expect(window.openbot.memory.decide).toHaveBeenCalledWith({ id: "pr1", decision: "accept" }),
+    );
+  });
+
+  const skill = (patch: Partial<MemorySkillProposal>): MemorySkillProposal => ({
+    id: "sk1",
+    title: "release-checklist",
+    body: "---\nname: release-checklist\n---\nRun the tests.\nTag the commit.\n",
+    base: "---\nname: release-checklist\n---\nRun the tests.\nPush.\n",
+    projectId: null,
+    projectName: "",
+    writer: { kind: "agent", id: "a1", name: "Researcher" },
+    agent: { id: "a1", name: "Researcher" },
+    createdAt: "2026-01-04T00:00:00Z",
+    ...patch,
+  });
+
+  it("shows a proposed skill update as a labelled diff and announces Save", async () => {
+    vi.mocked(window.openbot.memory.list).mockResolvedValue({ ...VIEW, skills: [skill({})] });
+    const main = page();
+    const review = await within(main).findByRole("button", { name: /^Needs review/ });
+    expect(review).toHaveTextContent("2");
+    fireEvent.click(review);
+    expect(await within(main).findByText("Save as skill: release-checklist")).toBeInTheDocument();
+    const changes = within(main).getByRole("list", { name: "Changes" });
+    expect(
+      within(changes)
+        .getAllByRole("listitem")
+        .map((line) => line.textContent),
+    ).toEqual([
+      "2 unchanged lines",
+      " ---",
+      " Run the tests.",
+      "−RemovedPush.",
+      "+AddedTag the commit.",
+    ]);
+    const row = main.querySelector('[data-proposal-id="sk1"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(window.openbot.memory.decideSkill).toHaveBeenCalledWith({
+        id: "sk1",
+        decision: "save",
+      }),
+    );
+    expect(
+      await within(main).findByText("Saved release-checklist as a skill."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a new skill's whole text and the daemon's reason when saving fails", async () => {
+    const proposal = skill({
+      id: "sk2",
+      title: "report-format",
+      body: "---\nname: report-format\n---\nUse a table.\n",
+      base: null,
+    });
+    vi.mocked(window.openbot.memory.list).mockResolvedValue({ ...VIEW, skills: [proposal] });
+    vi.mocked(window.openbot.memory.decideSkill).mockRejectedValueOnce(
+      new Error("A skill with this name already exists."),
+    );
+    const main = page();
+    fireEvent.click(await within(main).findByRole("button", { name: /^Needs review/ }));
+    expect(await within(main).findByText(/Use a table\./)).toBeInTheDocument();
+    expect(within(main).queryByRole("list", { name: "Changes" })).toBeNull();
+    const row = main.querySelector('[data-proposal-id="sk2"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: "Save" }));
+    expect(await within(row).findByRole("alert")).toHaveTextContent(
+      "A skill with this name already exists.",
     );
   });
 });

@@ -709,7 +709,9 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       return;
     }
     if (change.aggregateType === "agentDefinition") void this.refreshAgents(true);
-    if (change.aggregateType.startsWith("knowledge")) this.pagesDirty.add("memory-changed");
+    // M6: skill proposals wait in the Memory page's Needs review too.
+    if (change.aggregateType.startsWith("knowledge") || change.aggregateType === "skillProposal")
+      this.pagesDirty.add("memory-changed");
     if (changesSpend(change.aggregateType, change.rows)) this.pagesDirty.add("spend-changed");
     for (const row of change.rows) {
       const threadId =

@@ -44,6 +44,7 @@ export * from "./shipping.js";
 export * from "./skill-views.js";
 export * from "./speech-queue.js";
 export * from "./speech-text.js";
+export * from "./skills.js";
 export * from "./staff.js";
 export * from "./status-line.js";
 export * from "./stop-phrase.js";
