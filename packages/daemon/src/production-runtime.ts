@@ -11,8 +11,11 @@ import {
   loginArgs,
   slashCommand,
 } from "./backup-models/records.js";
+import { playwrightEngine } from "./browser/engine.js";
 import { ownedBrowser } from "./browser/evidence.js";
+import { browserHostFor, forgetBrowserHost } from "./browser/host.js";
 import { browserObserver } from "./browser/observation.js";
+import { profileApi } from "./browser/profiles.js";
 import { browserBinding, browserReadiness } from "./browser/runtime.js";
 import { inChannel } from "./channel-tools.js";
 import { isChief } from "./chief/identity.js";
@@ -39,6 +42,16 @@ export function productionRuntime(
       }>
     | undefined;
   let closed = false;
+  // B2: the daemon runs each browser task's browser, so the owner can watch it.
+  const browserHost = () => browserHostFor(directory, () => playwrightEngine(directory));
+  const browserSweep = setInterval(() => {
+    const live = (threadId: string) =>
+      (context.store.snapshot(["session"]).session ?? []).some(
+        (s) => s.threadId === threadId && !["closed", "failed"].includes(String(s.state)),
+      );
+    void browserHostFor(directory)?.sweep(live);
+  }, 60_000);
+  browserSweep.unref();
   const load = () =>
     (loaded ??= (async () => {
       if (closed) throw new Error("runtime_closed");
@@ -211,6 +224,8 @@ export function productionRuntime(
         },
         observeBrowser: (executionId, sessionId) =>
           browserObserver(context.store, executionId, sessionId),
+        startBrowser: (binding, threadId) =>
+          browserHost()?.ensure(binding, threadId) ?? Promise.resolve(),
         async prepareBrowser(input, cwd) {
           const task = input.thread.taskId
             ? context.store.record("task", input.thread.taskId)
@@ -223,7 +238,17 @@ export function productionRuntime(
             throw new Error("browser_requires_shell_workspace_write_profile");
           if ((await browserReadiness(directory)).state !== "ready")
             throw new Error("browser_setup_required");
-          return browserBinding(directory, cwd, selection);
+          // B1: the agent's kept profile, or isolated (asking the owner the first time).
+          const profile = profileApi({
+            store: context.store,
+            dataDir: directory,
+            publish: (events) => context.publish(events),
+          }).forLaunch({
+            agentId: String(input.profile.id),
+            agentName: String(input.profile.name ?? "This agent"),
+            threadId: String(input.thread.id),
+          });
+          return browserBinding(directory, cwd, selection, profile, Boolean(browserHost()));
         },
         extensions: connectionsRuntime(context.store, context.secrets, (secret) =>
           context.privacy.remember(secret),
@@ -374,6 +399,8 @@ export function productionRuntime(
     },
     async close() {
       closed = true;
+      clearInterval(browserSweep);
+      await forgetBrowserHost(directory)?.catch(() => {});
       if (loaded) {
         const value = await loaded;
         value.tokens.close();

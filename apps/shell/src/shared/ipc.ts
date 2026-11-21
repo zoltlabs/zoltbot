@@ -2,6 +2,7 @@ import type { FilePreviewKind } from "@zoltbot/protocol";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export * from "./agent-browser";
 export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
@@ -26,6 +27,7 @@ export type * from "./vault";
 export * from "./views";
 export type * from "./voice";
 
+import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
 import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
   ARTIFACT_REPOSITORY_CHANNELS,
@@ -132,6 +134,7 @@ export const IPC_CHANNELS = {
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
   ...DATA_CHANNELS,
+  ...AGENT_BROWSER_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
@@ -640,6 +643,8 @@ export interface AgentPromptQuestion {
   question: string;
   isSecret: boolean;
   options: Array<{ label: string; description: string }> | null;
+  /** Only the options answer it (no typed answer), e.g. the browser's Hand back. */
+  choiceOnly?: boolean;
 }
 
 export interface RespondToPromptInput {
@@ -807,6 +812,7 @@ export interface OpenBotDesktopApi {
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
   data: DataDesktopApi;
+  agentBrowser: AgentBrowserDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;

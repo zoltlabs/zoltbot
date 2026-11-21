@@ -3,6 +3,7 @@ import { START_FRESH_CHANNELS } from "../shared/start-fresh";
 import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
+  type AgentBrowserFrame,
   type AgentEvent,
   type AttachmentImportEvent,
   type DictationEvent,
@@ -235,6 +236,20 @@ const openbotApi: OpenBotDesktopApi = {
     importChoose: (source) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportChoose, source),
     importStart: (choice) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStart, choice),
     importStatus: (id) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStatus, id),
+  },
+  agentBrowser: {
+    profile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserProfile, input),
+    clearProfile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserClearProfile, input),
+    view: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserView, input),
+    takeover: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserTakeover, input),
+    input: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserInput, input),
+    cookies: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserCookies, input),
+    onFrame: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, frame: AgentBrowserFrame) =>
+        listener(frame);
+      ipcRenderer.on(IPC_CHANNELS.agentBrowserFrame, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.agentBrowserFrame, handler);
+    },
   },
   spend: {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),

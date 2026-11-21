@@ -42,6 +42,7 @@ import { attachmentPreviewApi } from "./attachment-preview-api.js";
 import { startBridges } from "./bridges/service.js";
 import { browserApi } from "./browser/api.js";
 import { frozenBrowser } from "./browser/evidence.js";
+import { TAKEOVER_PREFIX } from "./browser/takeover.js";
 import { channelApi } from "./channel-service.js";
 import { chiefWaker } from "./chief/proactive.js";
 import { compareApi } from "./compare-api.js";
@@ -244,10 +245,13 @@ async function startOwnedDaemon(
         const host = base && {
           ...base,
           // D119 approvals are answered by the host, never by a native session.
+          // B3: a browser takeover card is the daemon's own; no native session waits on it.
           respond: (request: Interaction, answer: InteractionAnswer) =>
-            request.nativeRef === HOST_WORKSPACE_REF
-              ? respondHostApproval(runtimeContext, request, answer)
-              : base.respond(request, answer),
+            request.id.startsWith(TAKEOVER_PREFIX)
+              ? Promise.resolve()
+              : request.nativeRef === HOST_WORKSPACE_REF
+                ? respondHostApproval(runtimeContext, request, answer)
+                : base.respond(request, answer),
         };
         interactions = new InteractionEngine({
           prepareInput: (input) => privacy.prepareInput(input),
@@ -733,7 +737,7 @@ async function startOwnedDaemon(
           (await chats.api(request.method, params, commandId)) ??
           (await shipping.api(request.method, params, commandId)) ??
           (await artifacts(request.method, params, commandId)) ??
-          (await browser(request.method, params)) ??
+          (await browser(request.method, params, "human", client)) ??
           (await connections.api(request.method, params, commandId)) ??
           (await bridges.api(request.method, params, commandId)) ??
           (await knowledge(request.method, params, commandId)) ??
@@ -775,10 +779,11 @@ async function startOwnedDaemon(
         id = raw.id;
       const request = parseRequest(raw, localCommandActor(client.deviceId));
       const result = await call(request, client);
-      logger.write("info", "API request", {
-        method: request.method,
-        ...(client.deviceId ? { from: "phone" } : {}),
-      });
+      if (request.method !== "browser.input")
+        logger.write("info", "API request", {
+          method: request.method,
+          ...(client.deviceId ? { from: "phone" } : {}),
+        });
       return JSON.stringify({ jsonrpc: "2.0", id, result });
     } catch (error) {
       const message = redactor.text(error instanceof Error ? error.message : "internal");
@@ -878,6 +883,7 @@ async function startOwnedDaemon(
     bridges.observe(events);
     push.observe(events);
     taint(events);
+    browser.observe(events);
     for (const event of events)
       if (
         event.aggregateType === "task" &&

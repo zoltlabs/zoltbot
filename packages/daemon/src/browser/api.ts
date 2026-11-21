@@ -3,8 +3,23 @@ import type { DomainState } from "@zoltbot/core";
 import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { cookieSettings, siteSettings } from "./consent.js";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
+import { browserHostFor, onBrowserHost } from "./host.js";
+import { profileApi } from "./profiles.js";
+import { PURCHASE_ALLOW_SETTING } from "./purchase.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
+import { takeoverApi } from "./takeover.js";
+
+const viewers = new WeakMap<object, string>();
+const viewerKey = (client: object) => {
+  let key = viewers.get(client);
+  if (!key) {
+    key = randomUUID();
+    viewers.set(client, key);
+  }
+  return key;
+};
 export function browserApi(
   store: Store,
   directory: string,
@@ -15,6 +30,25 @@ export function browserApi(
   } = {},
 ) {
   const pending = new Set<string>();
+  const profiles = profileApi({
+    store,
+    dataDir: directory,
+    closeBrowsers: async (id) => browserHostFor(directory)?.closeProfile(id),
+    ...(options.publish ? { publish: options.publish } : {}),
+  });
+  const cookies = cookieSettings(store, options.publish);
+  const payments = siteSettings(store, PURCHASE_ALLOW_SETTING, options.publish);
+  const takeover = takeoverApi({
+    store,
+    host: () => browserHostFor(directory),
+    ready: (setup) =>
+      onBrowserHost(directory, (host) => {
+        host.cookieSites = cookies.sites;
+        host.purchaseSites = payments.sites;
+        setup(host);
+      }),
+    ...(options.publish ? { publish: options.publish } : {}),
+  });
   const audit = async (
     action: string,
     target: string,
@@ -51,13 +85,36 @@ export function browserApi(
     });
     options.publish?.(store.eventsSince(before));
   };
-  return async (
+  const respond = async (
     method: string,
     p: Record<string, unknown>,
     authority: "human" | "task_policy" = "human",
+    client?: { send(text: string): void },
   ) => {
     if (!method.startsWith("browser.")) return undefined;
     if (method === "browser.readiness") return browserReadiness(directory);
+    if (method === "browser.view") {
+      // B2: frames go only to the connection that asked, and are never stored.
+      if (!client) throw Error("browser_view_requires_connection");
+      const host = browserHostFor(directory);
+      if (!host) return { running: false, url: null };
+      return host.view(viewerKey(client), String(p.threadId), p.open === true, (frame) =>
+        client.send(JSON.stringify({ jsonrpc: "2.0", method: "browser.frame", params: frame })),
+      );
+    }
+    // B3: the owner's takeover. Input is never logged or stored.
+    if (method === "browser.takeover")
+      return p.control === true
+        ? takeover.take(String(p.threadId))
+        : takeover.handBack(String(p.threadId));
+    if (method === "browser.input") return takeover.input(String(p.threadId), p.event);
+    // B5: accept or reject cookie banners on one site.
+    if (method === "browser.cookies") return cookies.set(p.site, p.accept === true);
+    // B6: only the owner lets the agent pay on a site without asking.
+    if (method === "browser.purchase.allow") return payments.set(p.site, p.allow === true);
+    if (method === "browser.profile.get") return profiles.get(String(p.agentId));
+    if (method === "browser.profile.clear")
+      return profiles.clear(String(p.agentId), p.confirmed === true);
     if (method === "browser.setup") {
       if (p.confirmed !== true) throw Error("confirmation_required");
       if (pending.has("setup")) throw Error("browser_setup_running");
@@ -185,4 +242,5 @@ export function browserApi(
       pending.delete(id);
     }
   };
+  return Object.assign(respond, { observe: takeover.observe });
 }

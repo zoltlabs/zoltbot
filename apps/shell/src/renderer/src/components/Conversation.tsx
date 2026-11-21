@@ -17,11 +17,11 @@ import type { BotMessage, BotProfile } from "../data";
 import { ARTIFACT_PANEL_MAX, ARTIFACT_PANEL_MIN, ArtifactPanel } from "./ArtifactPanel";
 import { expandComposerMentions } from "./ComposerEditor";
 import { PromptCard } from "./ConversationPrompts";
+import { AgentBrowserPanel } from "./conversation/AgentBrowserPanel";
 import { AgentSettings, createAgentSettingsForm } from "./conversation/AgentSettings";
 import { createMediaPreview, MediaPreviewDialog } from "./conversation/Attachments";
 import { AskAboutThis, focusComposerEnd, withAskQuote } from "./conversation/ask-about";
 import { BranchBanner, branchesByMessage, createBranching } from "./conversation/Branching";
-import { BrowserPanel } from "./conversation/BrowserPanel";
 import { createBrowserState } from "./conversation/browser-state";
 import { CallHost } from "./conversation/CallBar";
 import { Composer } from "./conversation/Composer";
@@ -724,7 +724,18 @@ export function Conversation(props: ConversationProps) {
               <Show
                 when={prompt().switchDialog}
                 fallback={
-                  <PromptCard questions={prompt().questions} onSubmit={props.onAnswerPrompt} />
+                  <PromptCard
+                    questions={prompt().questions}
+                    onSubmit={(answers) => {
+                      // B4: taking over from the agent's request opens its browser beside the chat.
+                      if (
+                        String(prompt().requestId).startsWith("browser-takeover:") &&
+                        Object.values(answers).flat().includes("Take over")
+                      )
+                        setActiveRightPanel("browser");
+                      return props.onAnswerPrompt(answers);
+                    }}
+                  />
                 }
               >
                 {(dialog) => (
@@ -816,16 +827,14 @@ export function Conversation(props: ConversationProps) {
       </Show>
 
       <Show when={screenOpen()}>
-        <BrowserPanel
-          browser={browser}
-          activeBrowserTabId={props.activeBrowserTabId}
+        <AgentBrowserPanel
+          threadId={props.bot?.threadId ?? null}
+          agentName={props.bot?.name ?? ""}
           width={browserPanelWidth()}
           containerWidth={containerWidth}
           onResize={setBrowserPanelWidth}
           onResizeEnd={(value) => savePanelWidth(BROWSER_PANEL_STORAGE_KEY, value)}
-          onActivateBrowserTab={props.onActivateBrowserTab}
-          onCloseBrowserTab={props.onCloseBrowserTab}
-          surfaceRef={(element) => (browserSurface = element)}
+          onClose={() => browser.hideBrowserPanel()}
         />
       </Show>
 

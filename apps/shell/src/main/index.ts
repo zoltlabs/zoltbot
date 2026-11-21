@@ -116,6 +116,11 @@ const dock = electronDock({
   bots: () => service.listBots(),
   tasks: () => service.listTasks(),
 });
+// B2: browser frames go straight to the window, never through the snapshot.
+client.onNotice((method, frame) => {
+  if (method === "browser.frame" && mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send(IPC_CHANNELS.agentBrowserFrame, frame);
+});
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";

@@ -109,6 +109,14 @@ function RequestCard({ request, who, position }: CardProps) {
       <QuestionCard request={request} disabled={disabled} submit={submit} />
     ) : type === "approval" ? (
       <ApprovalCard request={request} disabled={disabled} submit={submit} />
+    ) : request.id.startsWith("browser-takeover:") && request.id.includes(":help-") ? (
+      // B4: the browser runs on the Mac; the phone only says where to finish.
+      <View style={styles.context}>
+        {request.items[0]?.prompt ? <Txt v="body">{request.items[0].prompt}</Txt> : null}
+        <Txt v="meta" tone="muted">
+          Finish on your Mac.
+        </Txt>
+      </View>
     ) : type === "plan" || type === "gate" ? (
       <PlanCard request={request} disabled={disabled} submit={submit} />
     ) : (

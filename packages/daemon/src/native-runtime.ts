@@ -71,6 +71,8 @@ export interface NativeRuntimeOptions {
   };
   observeBrowser?(executionId: string, sessionId: string): (event: AgentEvent) => void;
   prepareBrowser?(input: RuntimeInput, cwd: string): Promise<BrowserBinding | undefined>;
+  /** B2: launches the daemon-run browser a hosted binding attaches to. */
+  startBrowser?(binding: BrowserBinding, threadId: string): Promise<void>;
   validateKnowledge?(manifest: LaunchManifest): void;
   validateSkills?(manifest: LaunchManifest, input: RuntimeInput): void;
   contributions?(input: RuntimeInput, remainingTokens: number): Promise<LaunchContributions>;
@@ -416,6 +418,9 @@ export class NativeRuntimeHost implements RuntimeHost {
         consumed = true;
         checkRoot();
         if (browser) materializeBrowser(browser);
+        // Without it the launcher falls back to the CLI's own browser, so a failure isn't fatal.
+        if (browser?.hosted)
+          await this.options.startBrowser?.(browser, String(stable.thread.id)).catch(() => {});
         const writerKey = (nativeId: string) =>
           JSON.stringify([
             stable.definition.adapter,
