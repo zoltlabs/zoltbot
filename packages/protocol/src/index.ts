@@ -38,6 +38,7 @@ export * from "./native-compaction.js";
 export * from "./orchestration.js";
 export * from "./private-values.js";
 export * from "./progress-notes.js";
+export * from "./project-data.js";
 export * from "./quick-chat.js";
 export * from "./reply-quote.js";
 export * from "./session-order.js";

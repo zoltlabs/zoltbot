@@ -202,6 +202,8 @@ function approvalAction(rows: readonly Record<string, unknown>[], created: reado
   const row = rows.find((value) => value.id === created[0]);
   if (!row || typeof row.version !== "number" || !opaque(row.id) || !opaque(row.threadId))
     return undefined;
+  // B6: a purchase is confirmed where its site and total are shown, never from the lock screen.
+  if (String(row.id).startsWith("browser-takeover:")) return undefined;
   const choices = notificationChoices(row as unknown as Interaction);
   if (!choices.includes("allow_once") || !choices.includes("reject_once")) return undefined;
   return {

@@ -3,6 +3,7 @@ import {
   AGENT_CONTINUE_PREFIX,
   BRIDGE_PREFIX,
   type DomainEvent,
+  GITHUB_BOT_SETTING,
   MEMORY_TIDY_SETTING,
   MUTED_PREFIX,
   STARRED_MODELS_SETTING,
@@ -24,6 +25,12 @@ function reserved(key: string) {
     key.startsWith("view.") ||
     // A9: caps change only through limits.set, which asks for confirmation and audits.
     key.startsWith("limits.") ||
+    // B1: a kept browser profile changes only through browser.profile.*, which audits a clear.
+    key.startsWith("browser.profile.") ||
+    // B5: the cookie list changes through browser.cookies, which checks each site.
+    key.startsWith("browser.cookies.") ||
+    // B6: the purchase guard's exceptions change through browser.purchase.allow.
+    key.startsWith("browser.purchase.") ||
     key.startsWith("fork.") ||
     (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||
@@ -92,7 +99,8 @@ export function settingsApi(options: {
     if (
       (input.key.startsWith(MUTED_PREFIX) ||
         input.key.startsWith(AGENT_CONTINUE_PREFIX) ||
-        input.key === MEMORY_TIDY_SETTING) &&
+        input.key === MEMORY_TIDY_SETTING ||
+        input.key === GITHUB_BOT_SETTING) &&
       typeof input.value !== "boolean"
     )
       throw new Error("invalid_setting: use true or false");

@@ -48,7 +48,10 @@ function credential(value: Record<string, unknown>, config: OAuthConfiguration):
     String(value.token_type).toLowerCase() !== "bearer" ||
     (value.scope !== undefined &&
       (typeof value.scope !== "string" ||
-        value.scope.split(" ").some((s) => !config.scopes.includes(s))))
+        value.scope
+          .split(" ")
+          .filter(Boolean)
+          .some((s) => !config.scopes.includes(s))))
   )
     throw new Error("oauth_invalid_token_response");
   return {
@@ -196,7 +199,8 @@ export class ConnectionOAuth {
             created: true,
             json: {
               client_name: "Zoltbot",
-              scope: config.scopes.join(" "),
+              // A service that lists no scopes gets no scope parameter, not an empty one.
+              ...(config.scopes.length ? { scope: config.scopes.join(" ") } : {}),
               redirect_uris: [redirect],
               grant_types: ["authorization_code", "refresh_token"],
               response_types: ["code"],
@@ -223,7 +227,7 @@ export class ConnectionOAuth {
         response_type: "code",
         client_id: config.clientId,
         redirect_uri: redirect,
-        scope: config.scopes.join(" "),
+        ...(config.scopes.length ? { scope: config.scopes.join(" ") } : {}),
         state,
         code_challenge: challenge,
         code_challenge_method: "S256",

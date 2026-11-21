@@ -16,6 +16,7 @@ export function respondHostApproval(
         backupSwitch?: unknown;
         staffChange?: unknown;
         vaultFill?: string;
+        connectionProposal?: unknown;
       }
     | undefined;
   if (input?.cuaSession)
@@ -39,6 +40,10 @@ export function respondHostApproval(
   if (input?.vaultFill)
     return import("./vault/tools.js").then((tools) =>
       tools.respondVaultApproval(context, request, answer),
+    );
+  if (input?.connectionProposal)
+    return import("./connection-proposal.js").then((tools) =>
+      tools.respondConnectionProposal(context, request, answer),
     );
   if (input?.staffChange)
     return import("./staff-tools.js").then((tools) =>

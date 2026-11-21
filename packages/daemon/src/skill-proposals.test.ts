@@ -3,8 +3,8 @@ import type { SkillProposal } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { knowledgeWriteFixture } from "./knowledge-write-fixture.js";
 import {
-  chatSignalIndirectToolDefinitions,
   indirectRuntimeToolDefinitions,
+  ownerChatIndirectToolDefinitions,
   runtimeToolDefinitions,
 } from "./runtime-tools.js";
 import { SKILL_PROPOSAL_PENDING_CAP, skillMarkdown } from "./skill-proposals.js";
@@ -214,10 +214,10 @@ it("is offered as a compact hint in owner chats and refused in other threads", a
     );
     for (const surface of [runtimeToolDefinitions, indirectRuntimeToolDefinitions])
       expect(surface.map((tool) => tool.name)).not.toContain("team_propose_skill");
-    const hint = chatSignalIndirectToolDefinitions.find(
+    const hint = ownerChatIndirectToolDefinitions.find(
       (tool) => tool.name === "team_propose_skill",
     );
-    expect(hint?.description).toMatch(/several attempts or the owner corrected/);
+    expect(hint?.description).toMatch(/retries or an owner correction/);
     expect(referenceTokenEstimate(JSON.stringify(hint))).toBeLessThanOrEqual(120);
   } finally {
     k.f.close();

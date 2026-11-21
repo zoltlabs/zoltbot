@@ -2,6 +2,7 @@
 // the daemon's settings instead.
 
 import { SPEECH_RATES } from "@zoltbot/protocol";
+import { DOCK_POSITIONS, type DockPosition } from "./dock";
 
 export const PREFERENCE_CHANNELS = {
   preferencesGet: "preferences:get",
@@ -10,7 +11,25 @@ export const PREFERENCE_CHANNELS = {
 } as const;
 
 export type ThemePreference = "system" | "light" | "dark";
-export type TextSizePreference = "default" | "large" | "larger";
+export type TextSizePreference = "small" | "default" | "large" | "larger";
+/** D1: the interface font, from the stacks the app bundles or the system has. */
+export type FontPreference = "system" | "geist" | "serif";
+/** D1: the fill behind a chat's messages. */
+export type ChatBackgroundPreference = "none" | "tint" | "dots" | "grid";
+
+/** D1: each text size as a scale of the whole interface. */
+export const TEXT_SCALE: Readonly<Record<TextSizePreference, number>> = Object.freeze({
+  small: 0.875,
+  default: 1,
+  large: 1.125,
+  larger: 1.25,
+});
+/** D9: the languages the interface comes in, as BCP 47 tags. */
+export const LANGUAGES = ["en", "es", "de", "fr", "ja", "pt-BR", "zh-CN"] as const;
+export type Language = (typeof LANGUAGES)[number];
+/** D9: "system" follows the system's preferred languages. */
+export type LanguagePreference = "system" | Language;
+
 /** C14: which key sends a message; the other adds a new line. */
 export type SendKeyPreference = "enter" | "mod-enter";
 /** O1: who reads replies aloud. */
@@ -22,7 +41,15 @@ export type PushToTalkKey = (typeof PUSH_TO_TALK_KEYS)[number];
 export interface Preferences {
   theme: ThemePreference;
   textSize: TextSizePreference;
+  font: FontPreference;
+  chatBackground: ChatBackgroundPreference;
   sounds: boolean;
+  /** D2: each sound, under the `sounds` switch. */
+  soundTaskFinished: boolean;
+  soundNeedsYou: boolean;
+  soundMessageSent: boolean;
+  /** D2: 0 to 1. */
+  soundVolume: number;
   /** Shortcut id → key combination, only for shortcuts the owner rebound. */
   keyBindings: Record<string, string>;
   showInDock: boolean;
@@ -43,12 +70,22 @@ export interface Preferences {
   pushToTalkKey: PushToTalkKey;
   /** O3: letting go of the key also sends the message. */
   sendOnRelease: boolean;
+  /** D4: the agent dock, a small always-on-top bar of working agents. */
+  agentDock: boolean;
+  agentDockPosition: DockPosition;
+  language: LanguagePreference;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   theme: "system",
   textSize: "default",
+  font: "system",
+  chatBackground: "none",
   sounds: true,
+  soundTaskFinished: true,
+  soundNeedsYou: true,
+  soundMessageSent: true,
+  soundVolume: 0.6,
   keyBindings: Object.freeze({}) as Record<string, string>,
   showInDock: true,
   hideConfirmed: false,
@@ -61,10 +98,20 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   pushToTalkKey: "Fn",
   sendOnRelease: false,
   speechRate: 1,
+  agentDock: false,
+  agentDockPosition: "right",
+  language: "system",
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
-const TEXT_SIZES: readonly TextSizePreference[] = ["default", "large", "larger"];
+const TEXT_SIZES = Object.keys(TEXT_SCALE) as TextSizePreference[];
+export const FONTS: readonly FontPreference[] = ["system", "geist", "serif"];
+export const CHAT_BACKGROUNDS: readonly ChatBackgroundPreference[] = [
+  "none",
+  "tint",
+  "dots",
+  "grid",
+];
 
 type Validators = { [K in keyof Preferences]: (value: unknown) => value is Preferences[K] };
 
@@ -72,7 +119,15 @@ const VALIDATORS: Validators = {
   theme: (value): value is ThemePreference => THEMES.includes(value as ThemePreference),
   textSize: (value): value is TextSizePreference =>
     TEXT_SIZES.includes(value as TextSizePreference),
+  font: (value): value is FontPreference => FONTS.includes(value as FontPreference),
+  chatBackground: (value): value is ChatBackgroundPreference =>
+    CHAT_BACKGROUNDS.includes(value as ChatBackgroundPreference),
   sounds: (value): value is boolean => typeof value === "boolean",
+  soundTaskFinished: (value): value is boolean => typeof value === "boolean",
+  soundNeedsYou: (value): value is boolean => typeof value === "boolean",
+  soundMessageSent: (value): value is boolean => typeof value === "boolean",
+  soundVolume: (value): value is number =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1,
   keyBindings: (value): value is Record<string, string> =>
     isRecord(value) &&
     Object.entries(value).every(([id, keys]) => id.length > 0 && typeof keys === "string"),
@@ -91,6 +146,11 @@ const VALIDATORS: Validators = {
     typeof value === "string" && /^[A-Za-z0-9]{0,64}$/.test(value),
   speechRate: (value): value is number =>
     (SPEECH_RATES as readonly number[]).includes(value as number),
+  agentDock: (value): value is boolean => typeof value === "boolean",
+  agentDockPosition: (value): value is DockPosition =>
+    DOCK_POSITIONS.includes(value as DockPosition),
+  language: (value): value is LanguagePreference =>
+    value === "system" || LANGUAGES.includes(value as Language),
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

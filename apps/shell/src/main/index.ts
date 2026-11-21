@@ -26,8 +26,9 @@ import {
   type DictationAccessStatus,
   type ExportResult,
   IPC_CHANNELS,
+  type UpdateStatus,
 } from "../shared/ipc";
-import { PREFERENCE_CHANNELS } from "../shared/preferences";
+import { normalizePreferences, PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
 import { DaemonClient } from "../zolt/daemon-client";
 import { checkAttachmentSize } from "../zolt/draft-store";
@@ -45,6 +46,10 @@ import { notificationForAgentEvent } from "./agent-notifications";
 import { runAttachmentAction } from "./attachment-actions";
 import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
 import { DaemonHost, daemonPaths } from "./daemon-host";
+import { DOCK_CHANNELS } from "../shared/dock";
+import { dockHandlers, electronDock } from "./dock-window";
+import { electronBundleHandlers } from "./bundle-handlers";
+import { startFreshHandlers } from "./start-fresh";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
@@ -62,7 +67,9 @@ import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
-import { followWindowTheme, windowBackground } from "./window-theme";
+import { electronUpdateFeed } from "./update-feed";
+import { UpdaterService } from "./updater";
+import { appearanceFollower, followWindowTheme, windowBackground } from "./window-theme";
 import { connectNotifications } from "./zolt-notifications";
 
 if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), "Zoltbot Shell Dev"));
@@ -91,13 +98,29 @@ const hosted = hostedOrigins(
   process.env,
   app.isPackaged ? readFileSync(join(paths.root, "package.json"), "utf8") : undefined,
 );
-const daemonHost = new DaemonHost(paths, {
-  ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
-  ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
-  ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
-});
+const daemonHost = new DaemonHost(
+  paths,
+  {
+    ...(hosted.broker ? { ZOLTBOT_BROKER_ORIGIN: hosted.broker } : {}),
+    ...(hosted.cloud ? { ZOLTBOT_CLOUD_ORIGIN: hosted.cloud } : {}),
+    ...(hosted.relay ? { ZOLTBOT_RELAY_URL: hosted.relay } : {}),
+  },
+  // D3: a packaged app replaces an older daemon left running from before an update.
+  app.isPackaged ? app.getVersion() : undefined,
+);
 const client = new DaemonClient(daemonHost.connection);
 const service = new ZoltService(client, join(paths.dataDir, "shell"));
+// D4: the agent dock.
+const dock = electronDock({
+  preload: join(__dirname, "../preload/index.cjs"),
+  bots: () => service.listBots(),
+  tasks: () => service.listTasks(),
+});
+// B2: browser frames go straight to the window, never through the snapshot.
+client.onNotice((method, frame) => {
+  if (method === "browser.frame" && mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send(IPC_CHANNELS.agentBrowserFrame, frame);
+});
 const rendererOrigin = process.env.ELECTRON_RENDERER_URL
   ? new URL(process.env.ELECTRON_RENDERER_URL).origin
   : "openbot-app://app";
@@ -197,6 +220,7 @@ let shutdownStarted = false;
 
 const SETUP_FILE = "zoltbot-shell-setup-v1.json";
 const PREFERENCES_FILE = "zoltbot-preferences.json";
+const appearance = appearanceFollower(nativeTheme);
 
 // The desktop build compiles the speech helper; ZOLTBOT_SPEECH_HELPER points tests at a fake.
 const speechHelperPath =
@@ -320,18 +344,30 @@ function registerIpcHandlers(setupFile: string): void {
     return shell.openExternal(url.toString());
   });
 
-  const updateStatus = {
-    phase: "unsupported" as const,
-    currentVersion: app.getVersion(),
-    availableVersion: null,
-    progress: null,
-    checkedAt: null,
-    message: null,
+  // D3: unsupported until a signed build's update feed loads.
+  const emitUpdate = (status: UpdateStatus) => {
+    for (const window of BrowserWindow.getAllWindows())
+      if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.updateEvent, status);
   };
-  handleTrusted(IPC_CHANNELS.updateGetStatus, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateCheck, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateDownload, () => updateStatus);
-  handleTrusted(IPC_CHANNELS.updateInstall, () => undefined);
+  let updater = new UpdaterService(undefined, {
+    currentVersion: app.getVersion(),
+    emit: emitUpdate,
+  });
+  void electronUpdateFeed(app.isPackaged)
+    .then((feed) => {
+      if (!feed) return;
+      updater = new UpdaterService(feed, { currentVersion: app.getVersion(), emit: emitUpdate });
+      updater.start();
+    })
+    .catch(() => undefined);
+  handleTrusted(IPC_CHANNELS.updateGetStatus, () => updater.status);
+  handleTrusted(IPC_CHANNELS.updateCheck, () => updater.check());
+  handleTrusted(IPC_CHANNELS.updateDownload, () => updater.download());
+  handleTrusted(IPC_CHANNELS.updateInstall, () => {
+    // quitAndInstall closes the windows before before-quit: let them close instead of hiding.
+    isQuitting = true;
+    updater.install();
+  });
   handleTrusted(IPC_CHANNELS.maintenanceExportData, () => exportDiagnostics());
   handleTrusted(IPC_CHANNELS.maintenanceExportDiagnostics, () => exportDiagnostics());
   handleTrusted(IPC_CHANNELS.artifactPrepare, (hash: unknown) =>
@@ -345,11 +381,40 @@ function registerIpcHandlers(setupFile: string): void {
       update: (patch) => updatePreferences(preferencesFile, patch),
     },
     (saved) => {
+      dock.apply(saved);
+      appearance.apply(saved, BrowserWindow.getAllWindows());
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
     },
   );
   for (const [channel, handler] of Object.entries(preferences)) handleTrusted(channel, handler);
+  for (const [channel, handler] of Object.entries(dockHandlers(dock, showChat)))
+    handleTrusted(channel, handler);
+  const fresh = startFreshHandlers({
+    interruptAll: () => service.interruptAll(),
+    signOut: async () => void (await account.signOut()),
+    call: (method, params) => client.call(method, params),
+    stopDaemon: async () => {
+      dock.close();
+      viewHost.stop();
+      account.close();
+      await service.stop();
+      await daemonHost.stop(true);
+    },
+    appFiles: () => [SETUP_FILE, PREFERENCES_FILE].map((name) => join(app.getPath("userData"), name)),
+    clearStorage: () => session.defaultSession.clearStorageData(),
+    relaunch: () => {
+      isQuitting = shutdownStarted = true;
+      app.relaunch();
+      app.exit(0);
+    },
+  });
+  for (const [channel, handler] of Object.entries(fresh)) handleTrusted(channel, handler);
+  const bundles = electronBundleHandlers(
+    (method, params) => client.call(method, params),
+    () => mainWindow,
+  );
+  for (const [channel, handler] of Object.entries(bundles)) handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(agentHandlers(service)))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(viewHandlers(viewHost)))
@@ -497,6 +562,7 @@ function createWindow(): BrowserWindow {
     },
   });
   const stopFollowingTheme = followWindowTheme(window, nativeTheme);
+  appearance.attach(window);
   window.once("ready-to-show", () => window.show());
   window.on("close", (event) => {
     if (process.platform === "darwin" && !isQuitting) {
@@ -505,6 +571,8 @@ function createWindow(): BrowserWindow {
     }
   });
   window.on("closed", () => {
+    // Elsewhere the app quits with its last window; a hidden dock mustn't keep it open.
+    if (process.platform !== "darwin") dock.close();
     stopFollowingTheme();
     if (mainWindow === window) mainWindow = null;
   });
@@ -514,6 +582,23 @@ function createWindow(): BrowserWindow {
     if (!isTrustedRendererUrl(targetUrl)) event.preventDefault();
   });
   return window;
+}
+
+/** D4: brings the main window forward on one chat. */
+function showChat(botId: string): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    const window = createWindow();
+    mainWindow = window;
+    window.webContents.once("did-finish-load", () =>
+      window.webContents.send(DOCK_CHANNELS.showChat, botId),
+    );
+    void loadRenderer(window);
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.webContents.send(DOCK_CHANNELS.showChat, botId);
 }
 
 function loadRenderer(window: BrowserWindow): Promise<void> {
@@ -550,6 +635,8 @@ function configureApplicationMenu(): void {
 }
 
 function forwardAgentEvent(event: AgentEvent): void {
+  dock.handle(event);
+  dock.current?.webContents.send(IPC_CHANNELS.agentEvent, event);
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send(IPC_CHANNELS.agentEvent, event);
   if (mainWindow.isFocused() || !Notification.isSupported()) return;
@@ -647,6 +734,10 @@ if (!hasSingleInstanceLock) {
       );
       configureViewProtocol();
       viewHost.start();
+      const startPreferences = await readPreferences(
+        join(app.getPath("userData"), PREFERENCES_FILE),
+      ).catch(() => normalizePreferences({}));
+      appearance.apply(startPreferences);
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {
@@ -667,6 +758,7 @@ if (!hasSingleInstanceLock) {
       await loadRenderer(mainWindow);
       await daemonHost.start();
       await service.initialize();
+      dock.apply(startPreferences);
       app.on("activate", () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.show();
@@ -694,6 +786,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   shutdownStarted = true;
   dictation.cancel();
+  dock.close();
   viewHost.stop();
   account.close();
   void service

@@ -24,6 +24,11 @@ outside source control. Signed builds also need `ZOLTBOT_HOSTED_ORIGIN`: officia
 `https://zoltbot.ai`, and forks use their own origin or `none`. `ZOLTBOT_RELAY_URL` optionally
 names a default phone relay (official builds: `wss://relay.zoltbot.ai`). Publication is a separate, explicitly approved action.
 
+A signed build also writes `Zoltbot-<version>-<arch>-mac.zip` and `latest-mac.yml`, and
+the app it contains checks GitHub Releases for updates every 6 hours. To ship an update,
+attach the `.dmg`, the `.zip` and `latest-mac.yml` to the release. The release body is shown
+as the app's "What's new". Unsigned builds have no update feed and never check.
+
 To build or submit the iPhone app with EAS, use your own Expo owner, bundle identifiers
 and App Groups, and set `APPLE_TEAM_ID`, `EXPO_PROJECT_ID` and `EXPO_ASC_APP_ID`.
 No account identifiers are checked in. Review `apps/mobile/app.json`,

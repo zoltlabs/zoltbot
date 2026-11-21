@@ -10,11 +10,12 @@ import {
   artifactRuntimeToolDefinitions,
   browserRuntimeToolDefinitions,
   channelIndirectToolDefinitions,
-  chatSignalIndirectToolDefinitions,
   indirectRuntimeToolDefinitions,
   managerArtifactBrowserToolDefinitions,
   managerArtifactToolDefinitions,
   managerIndirectToolDefinitions,
+  ownerChatIndirectToolDefinitions,
+  projectDbIndirectToolDefinitions,
   runtimeToolDefinitions,
 } from "./runtime-tools.js";
 
@@ -67,6 +68,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
           ...indirectRuntimeToolDefinitions,
           ...managerIndirectToolDefinitions,
           ...channelIndirectToolDefinitions,
+          ...projectDbIndirectToolDefinitions,
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +
@@ -79,7 +81,7 @@ it("fits artifact plus browser guidance and the compact frozen schemas inside 15
         JSON.stringify([
           ...artifactRuntimeToolDefinitions,
           ...indirectRuntimeToolDefinitions,
-          ...chatSignalIndirectToolDefinitions,
+          ...ownerChatIndirectToolDefinitions,
         ]),
       ) +
         referenceTokenEstimate(installedArtifact.guidanceText) +

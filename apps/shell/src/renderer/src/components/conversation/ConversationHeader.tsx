@@ -176,8 +176,8 @@ export function ConversationHeader(props: {
                     props.browserControlled
                       ? `${props.browserControllerName ?? "Agent"} is controlling the browser`
                       : props.screenOpen
-                        ? "Hide computer"
-                        : "Open computer"
+                        ? "Hide browser"
+                        : "Open browser"
                   }
                   aria-expanded={props.screenOpen}
                   onClick={props.onToggleScreen}

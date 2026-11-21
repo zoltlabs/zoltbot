@@ -2,6 +2,7 @@ import type { FilePreviewKind } from "@zoltbot/protocol";
 import type { ConversationNotice, ManagerCard, TaskActionInput } from "./manager-cards";
 import type { PreferencesDesktopApi } from "./preferences";
 
+export * from "./agent-browser";
 export type * from "./agent-templates";
 export type * from "./artifact-repository";
 export type * from "./artifact-share";
@@ -10,6 +11,7 @@ export type * from "./branches";
 export * from "./browser";
 export type * from "./co-author";
 export * from "./company";
+export type * from "./data";
 export * from "./dictation";
 export type * from "./hidden";
 export type * from "./links";
@@ -25,6 +27,7 @@ export type * from "./vault";
 export * from "./views";
 export type * from "./voice";
 
+import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
 import { AGENT_TEMPLATE_CHANNELS, type AgentTemplatesDesktopApi } from "./agent-templates";
 import {
   ARTIFACT_REPOSITORY_CHANNELS,
@@ -53,6 +56,7 @@ import type { DictationDesktopApi } from "./dictation";
 import { BRIDGE_CHANNELS, type BridgesDesktopApi } from "./bridges";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
+import { DATA_CHANNELS, type DataDesktopApi } from "./data";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
@@ -129,6 +133,8 @@ export const IPC_CHANNELS = {
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
+  ...DATA_CHANNELS,
+  ...AGENT_BROWSER_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
@@ -194,6 +200,8 @@ export interface UpdateStatus {
   progress: number | null;
   checkedAt: string | null;
   message: string | null;
+  /** D3: the release's notes as plain text, for "What's new". */
+  releaseNotes?: string | null;
 }
 
 export interface ExportResult {
@@ -635,6 +643,8 @@ export interface AgentPromptQuestion {
   question: string;
   isSecret: boolean;
   options: Array<{ label: string; description: string }> | null;
+  /** Only the options answer it (no typed answer), e.g. the browser's Hand back. */
+  choiceOnly?: boolean;
 }
 
 export interface RespondToPromptInput {
@@ -787,6 +797,12 @@ export interface OpenBotDesktopApi {
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;
+  /** D7: move to another computer. Optional so test pages without it still load. */
+  bundle?: import("./bundle").BundleDesktopApi;
+  /** D6: Start fresh. Optional so test pages without it still load. */
+  fresh?: import("./start-fresh").StartFreshDesktopApi;
+  /** D4: the agent dock. Optional so test pages without it still load. */
+  dock?: import("./dock").DockDesktopApi;
   /** Desktop-only preferences. Optional so test pages without it still load. */
   preferences?: PreferencesDesktopApi;
   views: ViewsDesktopApi;
@@ -795,6 +811,8 @@ export interface OpenBotDesktopApi {
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
+  data: DataDesktopApi;
+  agentBrowser: AgentBrowserDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;

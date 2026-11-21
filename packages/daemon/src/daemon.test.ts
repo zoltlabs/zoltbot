@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { DetectionService } from "@zoltbot/detect";
@@ -593,4 +601,28 @@ it("rejects known private values in imported metadata before durable projection 
   const beforeReplay = daemon.store.lastSeq();
   await apply(publicReceipt);
   expect(daemon.store.lastSeq()).toBe(beforeReplay);
+});
+
+describe("start fresh (D6)", () => {
+  it("empties the data folder on the next start and leaves project folders alone", async () => {
+    const dataDir = directory();
+    const project = directory();
+    writeFileSync(path.join(project, "README.md"), "project");
+    const d = await start(dataDir);
+    const client = await connect(d);
+    const budget = { scopeType: "day", scopeId: "2026-10-28", usd: 1, confirmed: true };
+    await client.call("budget.set", budget, "fresh-budget");
+    expect(d.store.snapshot().audit?.length).toBeGreaterThan(0);
+    await expect(client.call("maintenance.startFresh", { confirm: "yes" })).rejects.toThrow();
+    expect(await client.call("maintenance.startFresh", { confirm: "start fresh" })).toEqual({
+      kept: [],
+    });
+    await d.close();
+    daemons.splice(daemons.indexOf(d), 1);
+
+    const again = await start(dataDir);
+    expect(again.store.snapshot().audit ?? []).toEqual([]);
+    expect(existsSync(path.join(dataDir, "start-fresh"))).toBe(false);
+    expect(readFileSync(path.join(project, "README.md"), "utf8")).toBe("project");
+  });
 });

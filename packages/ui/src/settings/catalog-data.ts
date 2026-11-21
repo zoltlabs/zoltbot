@@ -7,13 +7,26 @@ const services: Record<string, string> = {
   google_drive: "Google Drive",
   google_docs: "Google Docs",
   slack: "Slack",
+  notion: "Notion",
+  atlassian: "Jira",
+  airtable: "Airtable",
+  hubspot: "HubSpot",
+  google_calendar: "Google Calendar",
 };
 export function serviceName(source: string): string | undefined {
   const match = /^catalog:([a-z_]+):v1$/.exec(source);
   return match?.[1] ? services[match[1]] : undefined;
 }
 export function usesBroker(id: string) {
-  return ["github", "gmail", "google_drive", "google_docs", "slack"].includes(id);
+  return [
+    "github",
+    "gmail",
+    "google_drive",
+    "google_docs",
+    "slack",
+    "hubspot",
+    "google_calendar",
+  ].includes(id);
 }
 export function serviceMark(id: string) {
   return (
@@ -27,6 +40,11 @@ export function serviceMark(id: string) {
         google_drive: "D",
         google_docs: "▤",
         slack: "#",
+        notion: "N",
+        atlassian: "J",
+        airtable: "▦",
+        hubspot: "HS",
+        google_calendar: "31",
       } as Record<string, string>
     )[id] ?? "◇"
   );
@@ -51,6 +69,16 @@ export function permissionDescription(id: string) {
           "Reads Google Docs and discovers files in the Drive account you authorize. This is not selected-document authorization and does not permit editing.",
         slack:
           "Searches accessible public/private conversations and reads their history. No chat:write permission is requested. Channel choices do not restrict the workspace grant. Organization approval may be required.",
+        notion:
+          "Notion’s MCP server can read and edit the pages and databases you share during sign-in. Notion doesn’t offer a read-only grant.",
+        atlassian:
+          "Access follows the Atlassian sites and products you approve during sign-in, with your own Jira and Confluence permissions.",
+        airtable:
+          "Requests read access to records, base schemas and the list of your bases. No write scope is requested.",
+        hubspot:
+          "Reads the CRM objects Zoltbot’s HubSpot app is allowed to see, with your own HubSpot permissions.",
+        google_calendar:
+          "Reads every calendar and event in the Google account you authorize. It can’t create, change or answer events.",
       } as Record<string, string>
     )[id] ?? "Review the requested permissions at the service."
   );

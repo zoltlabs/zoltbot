@@ -1,5 +1,9 @@
+import { BUNDLE_CHANNELS } from "../shared/bundle";
+import { START_FRESH_CHANNELS } from "../shared/start-fresh";
+import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
+  type AgentBrowserFrame,
   type AgentEvent,
   type AttachmentImportEvent,
   type DictationEvent,
@@ -233,9 +237,29 @@ const openbotApi: OpenBotDesktopApi = {
     importStart: (choice) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStart, choice),
     importStatus: (id) => ipcRenderer.invoke(IPC_CHANNELS.memoryImportStatus, id),
   },
+  agentBrowser: {
+    profile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserProfile, input),
+    clearProfile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserClearProfile, input),
+    view: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserView, input),
+    takeover: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserTakeover, input),
+    input: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserInput, input),
+    cookies: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserCookies, input),
+    onFrame: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, frame: AgentBrowserFrame) =>
+        listener(frame);
+      ipcRenderer.on(IPC_CHANNELS.agentBrowserFrame, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.agentBrowserFrame, handler);
+    },
+  },
   spend: {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),
     setBudget: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendSetBudget, input),
+  },
+  data: {
+    projects: () => ipcRenderer.invoke(IPC_CHANNELS.dataProjects),
+    tables: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.dataTables, projectId),
+    rows: (input) => ipcRenderer.invoke(IPC_CHANNELS.dataRows, input),
+    csv: (input) => ipcRenderer.invoke(IPC_CHANNELS.dataCsv, input),
   },
   share: {
     status: (input) => ipcRenderer.invoke(IPC_CHANNELS.artifactShareStatus, input),
@@ -308,6 +332,30 @@ const openbotApi: OpenBotDesktopApi = {
   templates: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesList),
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentTemplatesCreate, input),
+  },
+  bundle: {
+    export: () => ipcRenderer.invoke(BUNDLE_CHANNELS.export),
+    preview: () => ipcRenderer.invoke(BUNDLE_CHANNELS.preview),
+    apply: (input) => ipcRenderer.invoke(BUNDLE_CHANNELS.apply, input),
+  },
+  fresh: {
+    run: (confirm) => ipcRenderer.invoke(START_FRESH_CHANNELS.run, confirm),
+    restart: () => ipcRenderer.invoke(START_FRESH_CHANNELS.restart),
+  },
+  dock: {
+    getState: () => ipcRenderer.invoke(DOCK_CHANNELS.getState),
+    onState: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: DockState) => listener(state);
+      ipcRenderer.on(DOCK_CHANNELS.state, handler);
+      return () => ipcRenderer.removeListener(DOCK_CHANNELS.state, handler);
+    },
+    expand: (botId) => ipcRenderer.invoke(DOCK_CHANNELS.expand, botId),
+    openChat: (botId) => ipcRenderer.invoke(DOCK_CHANNELS.openChat, botId),
+    onShowChat: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, botId: string) => listener(botId);
+      ipcRenderer.on(DOCK_CHANNELS.showChat, handler);
+      return () => ipcRenderer.removeListener(DOCK_CHANNELS.showChat, handler);
+    },
   },
   views: {
     getMap: () => ipcRenderer.invoke(IPC_CHANNELS.viewGetMap),

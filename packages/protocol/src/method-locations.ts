@@ -3,6 +3,7 @@ import { backupModelMacOnlyMethods } from "./backup-models.js";
 import { bridgeMacOnlyMethods } from "./bridges.js";
 import { browserMacOnlyMethods } from "./browser.js";
 import type { MethodName } from "./catalog.js";
+import { projectDataMacOnlyMethods } from "./project-data.js";
 import { quickChatMacOnlyMethods } from "./quick-chat.js";
 import { shippingMacOnlyMethods } from "./shipping.js";
 import { skillMacOnlyMethods } from "./skills.js";
@@ -18,6 +19,7 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...browserMacOnlyMethods,
   ...quickChatMacOnlyMethods,
   ...backupModelMacOnlyMethods,
+  ...projectDataMacOnlyMethods,
   ...bridgeMacOnlyMethods,
   ...vaultMacOnlyMethods,
   "routine.checkSource",
@@ -30,6 +32,9 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "routine.archiveHistory",
   "routine.create",
   "connection.install",
+  // I6: the registry is searched and its packages run from the Mac.
+  "connection.registry.search",
+  "connection.registry.add",
   "connection.auth.start",
   "connection.auth.status",
   "connection.auth.cancel",
@@ -40,6 +45,11 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   "detect.startLogin",
   "native.openCommand",
   "diagnostics.export",
+  // D7: read and write files on the Mac by path.
+  "export.bundle",
+  "import.bundle",
+  // D6: deletes this Mac's data.
+  "maintenance.startFresh",
   // M4: these read files on the Mac by path.
   "memory.import.preview",
   "memory.import.start",

@@ -90,6 +90,7 @@ import { KnowledgeProposalSchema, knowledgeWriteMethods } from "./knowledge-writ
 import { MacOutputSnapshotSchema } from "./mac-approval.js";
 import { withMethodLocations } from "./method-locations.js";
 import { OrchestrationSchema, orchestrationMethods } from "./orchestration.js";
+import { projectDataMethods } from "./project-data.js";
 import { quickChatEvents, quickChatMethods } from "./quick-chat.js";
 import {
   ShippingFeedbackSchema,
@@ -215,6 +216,7 @@ const rawMethodCatalog = {
   ...quickChatMethods,
   ...backupModelMethods,
   ...vaultMethods,
+  ...projectDataMethods,
   ...staffMethods,
   ...agentTemplateMethods,
   ...bridgeMethods,
@@ -246,6 +248,21 @@ const rawMethodCatalog = {
     object({ previewId: Id, items: Type.Array(Json) }),
   ),
   "import.apply": entry(object({ previewId: Id, selected: Strings, consent: Type.Boolean() }), ok),
+  // D7: agents, memory, skills, routines, the company and settings, to and from a ZIP.
+  "export.bundle": entry(
+    object({ path: Text }),
+    object({ path: Text, counts: Type.Record(Text, Type.Integer()) }),
+  ),
+  "import.bundle": entry(
+    object({ path: Text }),
+    object({
+      previewId: Id,
+      agents: Type.Integer(),
+      items: Type.Array(Json),
+      connections: Strings,
+      tools: Strings,
+    }),
+  ),
   "doctor.report": entry(empty, object({ checks: Type.Array(Json) })),
   "doctor.fix": entry(object({ definitionId: Id, action: Id, confirmed: Type.Boolean() }), ok),
   "update.list": entry(empty, object({ updates: Type.Array(Json) })),
@@ -822,6 +839,11 @@ const rawMethodCatalog = {
   "diagnostics.export": entry(
     empty,
     object({ versions: Type.Record(Text, Text), checks: Type.Array(Json), logs: Strings }),
+  ),
+  // D6: removes saved logins and marks the data folder; the next start empties it.
+  "maintenance.startFresh": entry(
+    object({ confirm: Type.Literal("start fresh") }),
+    object({ kept: Strings }),
   ),
 };
 export type MethodName = keyof typeof rawMethodCatalog;

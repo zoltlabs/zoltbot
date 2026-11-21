@@ -1,0 +1,206 @@
+/* D4: the agent dock. The window is see-through; only the bar and the mini chat are drawn. */
+html:has(.dock-body),
+.dock-body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.dock-body #root {
+  height: 100%;
+}
+
+.dock {
+  --dock-waiting: var(--openbot-orange);
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* The orange ring on white is too faint: a darker orange in the light theme. */
+:root[data-theme="light"] .dock {
+  --dock-waiting: #b45309;
+}
+
+/* On the right edge the chat opens to the bar's left; on the left edge, to its right. */
+.dock[data-position="right"] {
+  flex-direction: row-reverse;
+}
+.dock[data-position="top"] {
+  flex-direction: column;
+}
+
+.dock-bar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  background: var(--surface-dialog);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.dock[data-position="top"] .dock-bar {
+  flex-direction: row;
+}
+
+.dock-agent {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.dock-agent:hover,
+.dock-agent[aria-pressed="true"] {
+  background: var(--surface-pill-hover);
+}
+
+.dock-agent:focus-visible,
+.dock-chat button:focus-visible,
+.dock-chat textarea:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
+/* The status ring: turning while the agent works, solid while it waits on the owner. */
+.dock-agent::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.dock-agent[data-working]::after {
+  border-color: var(--text-accent);
+  border-right-color: transparent;
+  animation: dock-ring 1.2s linear infinite;
+}
+
+/* Waiting: a full ring, so it reads apart from the working arc without color or motion. */
+.dock-agent[data-waiting]::after {
+  border-color: var(--dock-waiting);
+  animation: none;
+}
+
+@keyframes dock-ring {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-agent[data-working]::after {
+    animation: none;
+  }
+}
+
+.dock-needs-you {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  margin: 8px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--openbot-orange);
+  color: #1c1c1c;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-chat {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+  margin: 0 8px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 14px;
+  background: var(--surface-dialog);
+  overflow: hidden;
+}
+
+.dock[data-position="top"] .dock-chat {
+  margin: 8px 0 0;
+  align-self: stretch;
+}
+
+.dock-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.dock-chat-name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dock-chat-name:hover {
+  text-decoration: underline;
+}
+
+.dock-chat-close {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.dock-chat-close:hover {
+  background: var(--surface-pill-hover);
+}
+
+.dock-chat-message {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dock-chat-composer {
+  padding: 8px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.dock-chat-composer textarea {
+  width: 100%;
+  resize: none;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.4;
+}
+
+.dock-chat-composer textarea::placeholder {
+  color: var(--text-muted);
+}
