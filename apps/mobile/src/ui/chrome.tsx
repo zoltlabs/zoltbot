@@ -26,8 +26,12 @@ export function StatusLine() {
       <View
         style={[styles.dot, { backgroundColor: status === "online" ? c.ok : c["text-muted"] }]}
       />
+      {/* At large text sizes the name gives way, so the status stays readable. */}
+      <Txt v="meta" tone="muted" lines={1} style={styles.shrink}>
+        {name}
+      </Txt>
       <Txt v="meta" tone="muted" lines={1}>
-        {`${name} · ${label}`}
+        {`· ${label}`}
       </Txt>
     </View>
   );
@@ -158,6 +162,7 @@ export const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingBottom: 32, gap: 10 },
   status: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  shrink: { flexShrink: 1 },
   banner: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12 },
   strong: { fontWeight: "600" },
   backBar: {

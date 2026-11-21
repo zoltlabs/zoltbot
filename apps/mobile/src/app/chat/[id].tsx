@@ -502,17 +502,19 @@ export default function Chat() {
           />
         </ScrollView>
       ) : null}
-      <Attachments
-        value={attachments}
-        onChange={setAttachments}
-        threadId={id}
-        disabled={busy}
-        onPasteAsText={(pasted) => {
-          setAttachments((all) => all.filter((entry) => entry.id !== pasted.id));
-          const words = pasted.part.type === "text" ? pasted.part.text : "";
-          setDraft((current) => (current.trim() ? `${current}\n${words}` : words));
-        }}
-      />
+      <View style={styles.attach}>
+        <Attachments
+          value={attachments}
+          onChange={setAttachments}
+          threadId={id}
+          disabled={busy}
+          onPasteAsText={(pasted) => {
+            setAttachments((all) => all.filter((entry) => entry.id !== pasted.id));
+            const words = pasted.part.type === "text" ? pasted.part.text : "";
+            setDraft((current) => (current.trim() ? `${current}\n${words}` : words));
+          }}
+        />
+      </View>
       <View
         style={[
           styles.composer,
@@ -661,6 +663,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingVertical: 16, gap: 16, flexGrow: 1 },
   pinned: { flexGrow: 0, borderTopWidth: StyleSheet.hairlineWidth },
   pinnedBody: { padding: 16 },
+  attach: { paddingHorizontal: 16, paddingTop: 8 },
   composer: {
     gap: 8,
     paddingHorizontal: 16,

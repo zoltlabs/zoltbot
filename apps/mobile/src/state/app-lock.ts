@@ -4,6 +4,8 @@ import * as SecureStore from "expo-secure-store";
 import { Alert, AppState, type NativeEventSubscription, NativeModules } from "react-native";
 import { create } from "zustand";
 import {
+  type CheckOutcome,
+  checkOutcome,
   defaultLockPrefs,
   type LockPrefs,
   type LockState,
@@ -32,11 +34,11 @@ interface AppLock extends LockState {
   setPrefs(patch: Partial<LockPrefs>): Promise<"ok" | "unavailable" | "cancelled" | "failed">;
 }
 
-let checking: Promise<boolean> | undefined;
-async function check(reason: string): Promise<boolean> {
+let checking: Promise<CheckOutcome> | undefined;
+async function check(reason: string): Promise<CheckOutcome> {
   checking ??= LocalAuthentication.authenticateAsync({ promptMessage: reason })
-    .then((result) => result.success)
-    .catch(() => false)
+    .then(checkOutcome)
+    .catch((): CheckOutcome => "failed")
     .finally(() => {
       checking = undefined;
     });
@@ -56,9 +58,14 @@ export const useAppLock = create<AppLock>((set, get) => ({
   async unlock() {
     if (!get().locked) return true;
     if (nativeLock) return false; // The native cover asks for Face ID itself.
-    const ok = await check("Unlock Zoltbot");
-    if (ok) set(unlocked());
-    return ok;
+    const outcome = await check("Unlock Zoltbot");
+    // The screen lock was removed after the lock was turned on: nothing could ever unlock it.
+    if (outcome === "unavailable") {
+      await noPasscode();
+      return true;
+    }
+    if (outcome === "ok") set(unlocked());
+    return outcome === "ok";
   },
   async setPrefs(patch) {
     const prefs = readLockPrefs({ ...get().prefs, ...patch });
@@ -67,8 +74,10 @@ export const useAppLock = create<AppLock>((set, get) => ({
         const level = await LocalAuthentication.getEnrolledLevelAsync().catch(() => 0);
         if (level === LocalAuthentication.SecurityLevel.NONE) return "unavailable";
       }
-      if (!(await check(prefs.enabled ? "Turn on the lock" : "Turn off the lock")))
-        return "cancelled";
+      const outcome = await check(prefs.enabled ? "Turn on the lock" : "Turn off the lock");
+      // With no screen lock left there is nothing to check, and turning the lock off is safe.
+      const offAnyway = outcome === "unavailable" && !prefs.enabled;
+      if (outcome !== "ok" && !offAnyway) return outcome;
     }
     try {
       await save(prefs);

@@ -6,7 +6,17 @@ import { needsYou, since } from "../data/view";
 import { useLink } from "../state/link";
 import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
-import { Button, Chip, Group, Row, Section, showConfirmSheet, showMenu, Txt } from "./kit";
+import {
+  Button,
+  Chip,
+  Group,
+  Row,
+  Section,
+  showConfirmSheet,
+  showMenu,
+  showPrompt,
+  Txt,
+} from "./kit";
 
 // P1: a phone paired with several Macs. Settings lists them with Rename and Forget; the drawer
 // header switches between them and shows what needs the owner on the Macs not shown.
@@ -49,13 +59,12 @@ export function useMacStatus(): Record<string, MacStatus> {
 const pairAnother = () => router.push("/pair");
 
 function rename(mac: SavedMac) {
-  Alert.prompt(
-    "Rename",
-    undefined,
-    (label) => void useLink.getState().rename(mac.macId, label),
-    "plain-text",
-    mac.label,
-  );
+  showPrompt({
+    title: "Rename",
+    defaultValue: mac.label,
+    confirmLabel: "Rename",
+    onSubmit: (label) => void useLink.getState().rename(mac.macId, label),
+  });
 }
 function forget(mac: SavedMac) {
   showConfirmSheet({
@@ -83,11 +92,22 @@ export function MacSettings() {
         {macs.map((mac, index) => {
           const active = mac.macId === activeId;
           const online = status[mac.macId]?.online ?? false;
+          // One chip says both: the name keeps the room at large text sizes.
+          const state = online
+            ? "Connected"
+            : mac.lastSeenAt
+              ? `Seen ${since(mac.lastSeenAt)}`
+              : "Offline";
           return (
             <Row
               key={mac.macId}
               title={mac.label}
-              label={[mac.label, active ? "shown" : "", online ? "Connected" : "Offline"]
+              label={[
+                mac.label,
+                active ? "shown" : "",
+                online ? "Connected" : "Offline",
+                !online && mac.lastSeenAt ? `last seen ${since(mac.lastSeenAt)}` : "",
+              ]
                 .filter(Boolean)
                 .join(", ")}
               left={
@@ -95,14 +115,7 @@ export function MacSettings() {
                   {active ? <Icon name="check" size={18} color={c["accent-text"]} /> : null}
                 </View>
               }
-              detail={!online && mac.lastSeenAt ? `Last seen ${since(mac.lastSeenAt)}` : undefined}
-              right={
-                <Chip
-                  label={online ? "Connected" : "Offline"}
-                  tone={online ? "ok" : "neutral"}
-                  dot
-                />
-              }
+              right={<Chip label={state} tone={online ? "ok" : "neutral"} dot />}
               onPress={() =>
                 showMenu(
                   [
@@ -199,6 +212,8 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: touch,
     alignSelf: "flex-start",
+    // Lines its dot up with the drawer header's 16pt edge.
+    marginHorizontal: 12,
     paddingHorizontal: 4,
     borderRadius: 10,
   },

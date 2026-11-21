@@ -105,7 +105,8 @@ export default function VoiceMode() {
             // Superseded: muting, a newer session or the call ending did it on purpose.
             if (mine !== generation || ended || error === "superseded") return;
             session = undefined;
-            if (error) return fail(error);
+            // The recognizer's own words are technical, so the call says it plainly.
+            if (error) return fail("Couldn’t listen. Try again.");
             // A session that ends at once over and over isn't going to hear anything.
             failures = Date.now() - heardAt < 2000 ? failures + 1 : 0;
             if (failures >= MAX_RESTARTS) return fail("Couldn’t keep listening.");

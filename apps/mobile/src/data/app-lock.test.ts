@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { launchLock, nextLock, readLockPrefs, unlocked } from "./app-lock.js";
+import { checkOutcome, launchLock, nextLock, readLockPrefs, unlocked } from "./app-lock.js";
 
 const on = { enabled: true, after: 60 } as const;
 const t0 = 1_000_000;
@@ -46,5 +46,17 @@ describe("app lock", () => {
       locked: false,
       covered: false,
     });
+  });
+});
+
+describe("checkOutcome", () => {
+  it("tells backing out from a phone that can't check, and from a failed check", () => {
+    expect(checkOutcome({ success: true })).toBe("ok");
+    expect(checkOutcome({ success: false, error: "user_cancel" })).toBe("cancelled");
+    expect(checkOutcome({ success: false, error: "system_cancel" })).toBe("cancelled");
+    expect(checkOutcome({ success: false, error: "passcode_not_set" })).toBe("unavailable");
+    expect(checkOutcome({ success: false, error: "not_enrolled" })).toBe("unavailable");
+    expect(checkOutcome({ success: false, error: "lockout" })).toBe("failed");
+    expect(checkOutcome({ success: false })).toBe("failed");
   });
 });

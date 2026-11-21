@@ -3,6 +3,7 @@
 import type { SpeechEngine } from "@zoltbot/protocol";
 import { requireOptionalNativeModule } from "expo";
 import { useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 
 type Recognition = typeof import("expo-speech-recognition");
 type Speech = typeof import("expo-speech");
@@ -107,6 +108,7 @@ export async function listen(
   // A newer session took over while this one waited.
   if (current !== session) return undefined;
   const mine = () => current === session;
+  let stopping = false;
   session.subscriptions.push(
     native.addListener("result", (event) => {
       if (!mine()) return;
@@ -117,8 +119,13 @@ export async function listen(
     native.addListener("error", (event) => {
       // Aborted: this session being ended on purpose.
       if (!mine() || event.error === "aborted") return;
-      // Silence isn't a failure; the caller starts listening again.
-      close(session, event.error === "no-speech" ? undefined : event.message || event.error);
+      // Silence isn't a failure; the caller starts listening again. Android names it
+      // "speech-timeout", and may report "client" for a stop() asked for on purpose.
+      const quiet =
+        event.error === "no-speech" ||
+        event.error === "speech-timeout" ||
+        (stopping && event.error === "client");
+      close(session, quiet ? undefined : event.error);
     }),
     native.addListener("end", () => {
       if (mine()) close(session);
@@ -149,7 +156,11 @@ export async function listen(
       : {}),
   });
   return {
-    stop: () => mine() && native.stop(),
+    stop: () => {
+      if (!mine()) return;
+      stopping = true;
+      native.stop();
+    },
     abort: () => {
       if (!mine()) return;
       close(session, "superseded");
@@ -230,9 +241,12 @@ export function useDictation(draft: string, setDraft: (text: string) => void, sc
       {
         partial: write,
         final: write,
-        ended: () => {
+        ended: (error) => {
           session.current = undefined;
           if (live.current) setListening(false);
+          // A recognizer that fails, rather than one stopped on purpose, says so.
+          if (error && error !== "superseded" && live.current)
+            Alert.alert("Dictation stopped", "Try again, or type instead.");
         },
       },
     );
