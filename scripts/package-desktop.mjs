@@ -157,11 +157,12 @@ await build({
       },
       ...(signing.identity ? { identity: signing.identity } : {}),
       notarize: signing.notarize,
+      // The zip (signed builds only) takes the mac name; the dmg below sets its own.
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder fills these in.
+      artifactName: "${productName}-${version}-${arch}-mac.${ext}",
     },
     // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder fills these in.
     dmg: { artifactName: "${productName}-${version}-${arch}.${ext}" },
-    // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder fills these in.
-    zip: { artifactName: "${productName}-${version}-${arch}-mac.${ext}" },
     afterPack: addArchitectureFiles,
     // A signed build reads updates from GitHub Releases: electron-builder writes app-update.yml
     // into the app and latest-mac.yml next to the zip. Uploading stays a manual step
