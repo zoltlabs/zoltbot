@@ -143,6 +143,9 @@ export const shippingMethods = {
   ),
   "shipping.merge": method(object({ ...task, fingerprint: Id, confirmed: Type.Boolean() })),
 };
+/** I8: when true, pull requests come from zoltbot[bot] on repositories with the app installed. */
+export const GITHUB_BOT_SETTING = "github.postAsBot";
+export const GITHUB_APP_INSTALL_URL = "https://github.com/apps/zoltbot/installations/new";
 export const shippingMacOnlyMethods = [
   "shipping.setup",
   "shipping.linkPreview",

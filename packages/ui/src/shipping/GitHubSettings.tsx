@@ -1,3 +1,4 @@
+import { GITHUB_APP_INSTALL_URL, GITHUB_BOT_SETTING } from "@zoltbot/protocol";
 import { useState } from "react";
 import type { ChatConnection, Row } from "../chat/types.js";
 import { Button } from "../components/primitives.js";
@@ -7,7 +8,29 @@ export function GitHubSettings({ connection }: { connection: ChatConnection }) {
   const [taskId, setTaskId] = useState(""),
     [result, setResult] = useState<Row>(),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [saving, setSaving] = useState(false);
+  const botRow = connection.snapshot.entities.settings?.find(
+    (row) => row.key === GITHUB_BOT_SETTING,
+  );
+  const asBot = botRow?.value === true;
+  async function setAsBot(value: boolean) {
+    setSaving(true);
+    setError("");
+    try {
+      await connection.call(
+        "settings.set",
+        // No row yet means nothing to compare against.
+        { key: GITHUB_BOT_SETTING, value, expected: botRow ? { value: botRow.value } : {} },
+        crypto.randomUUID(),
+      );
+    } catch {
+      setError("The setting couldn’t be saved. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  const botLabel = "Post as Zoltbot";
   return (
     <section className="zb-card settings-panel">
       <h2>GitHub shipping</h2>
@@ -19,6 +42,24 @@ export function GitHubSettings({ connection }: { connection: ChatConnection }) {
         Managed publishing supports GitHub.com and same-repository branches. Agent MCP connections
         remain separate. Publishing, feedback, and merging require confirmation on the Mac.
       </p>
+      <div className="github-bot-setting">
+        <label>
+          <input
+            type="checkbox"
+            checked={asBot}
+            disabled={connection.status !== "online" || saving}
+            onChange={(event) => void setAsBot(event.target.checked)}
+          />{" "}
+          {botLabel}
+        </label>
+        <p className="settings-hint">
+          Pull requests come from zoltbot[bot] on repositories where the Zoltbot app is installed,
+          and from you everywhere else. Needs a Zoltbot account.{" "}
+          <a href={GITHUB_APP_INSTALL_URL} target="_blank" rel="noreferrer">
+            Install on GitHub
+          </a>
+        </p>
+      </div>
       {tasks.length ? (
         <>
           <label htmlFor="github-settings-task">Check a task's GitHub setup</label>

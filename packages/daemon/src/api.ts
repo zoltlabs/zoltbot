@@ -51,6 +51,7 @@ import { type Cleanup, withDaemonResources } from "./daemon-resources.js";
 import { deviceBook } from "./devices.js";
 import { finishCheck } from "./finish-check.js";
 import { forkApi } from "./fork-api.js";
+import { githubAccountTokens } from "./github/bot.js";
 import { shippingService } from "./github/service.js";
 import { respondHostApproval } from "./host-approvals.js";
 import { inboxApi } from "./inbox-api.js";
@@ -104,11 +105,14 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
+  let botTokens: ReturnType<typeof githubAccountTokens> | undefined;
   if (options.nativeAccount) {
     const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
       logger.write("warn", "native_account_unavailable"),
     );
     if (account) resources.push(() => account.close());
+    if (account)
+      botTokens = githubAccountTokens(account.location(), options.nativeAccount.origin, logger);
   }
   if (options.cloudRunner) {
     try {
@@ -337,6 +341,7 @@ async function startOwnedDaemon(
     publish,
     worktrees: worktreeService(options.dataDir, store),
     ...(options.githubClient ? { client: options.githubClient } : {}),
+    ...(botTokens ? { botTokens } : {}),
     ...(options.githubPublishing ? { publishing: options.githubPublishing } : {}),
     checkPublic: (value) => privacy.prepareData(value),
     wake: () => ownedTasks.schedule(),
