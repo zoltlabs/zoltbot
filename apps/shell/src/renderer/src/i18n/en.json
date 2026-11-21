@@ -479,5 +479,11 @@
   "appearance.bg.tint": "Tint",
   "appearance.bg.dots": "Dots",
   "appearance.bg.grid": "Grid",
-  "appearance.done": "Done"
+  "appearance.done": "Done",
+  "sounds.title": "Sounds",
+  "sounds.taskFinished": "Task finished",
+  "sounds.needsYou": "Needs you",
+  "sounds.messageSent": "Message sent",
+  "sounds.volume": "Volume",
+  "sounds.done": "Done"
 }

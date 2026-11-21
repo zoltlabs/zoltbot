@@ -30,6 +30,12 @@ export interface Preferences {
   font: FontPreference;
   chatBackground: ChatBackgroundPreference;
   sounds: boolean;
+  /** D2: each sound, under the `sounds` switch. */
+  soundTaskFinished: boolean;
+  soundNeedsYou: boolean;
+  soundMessageSent: boolean;
+  /** D2: 0 to 1. */
+  soundVolume: number;
   /** Shortcut id → key combination, only for shortcuts the owner rebound. */
   keyBindings: Record<string, string>;
   showInDock: boolean;
@@ -44,6 +50,10 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   font: "system",
   chatBackground: "none",
   sounds: true,
+  soundTaskFinished: true,
+  soundNeedsYou: true,
+  soundMessageSent: true,
+  soundVolume: 0.6,
   keyBindings: Object.freeze({}) as Record<string, string>,
   showInDock: true,
   hideConfirmed: false,
@@ -70,6 +80,11 @@ const VALIDATORS: Validators = {
   chatBackground: (value): value is ChatBackgroundPreference =>
     CHAT_BACKGROUNDS.includes(value as ChatBackgroundPreference),
   sounds: (value): value is boolean => typeof value === "boolean",
+  soundTaskFinished: (value): value is boolean => typeof value === "boolean",
+  soundNeedsYou: (value): value is boolean => typeof value === "boolean",
+  soundMessageSent: (value): value is boolean => typeof value === "boolean",
+  soundVolume: (value): value is number =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1,
   keyBindings: (value): value is Record<string, string> =>
     isRecord(value) &&
     Object.entries(value).every(([id, keys]) => id.length > 0 && typeof keys === "string"),

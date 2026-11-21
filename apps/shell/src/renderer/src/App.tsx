@@ -53,6 +53,7 @@ import type { BotProfile } from "./data";
 import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
 import { paletteItems } from "./palette-items";
+import { followSounds, playSound } from "./sounds/sounds";
 import { createStaffStore } from "./staff-store";
 import { createTasksStore } from "./tasks-store";
 
@@ -214,6 +215,16 @@ export function App() {
 
   onMount(() => {
     const unsubscribe = window.openbot.agent.onEvent(handleAgentEvent);
+    onCleanup(
+      followSounds({
+        // Covered by a page or channel, the open chat isn't being watched.
+        openBotId: () =>
+          mapOpen() || tasksOpen() || modelsOpen() || memoryOpen() || usageOpen() || channelOpen()
+            ? ""
+            : activeBotId(),
+        muted: (id) => botList().some((bot) => bot.id === id && bot.muted === true),
+      }),
+    );
     const unsubscribeUpdate = window.openbot.update.onEvent(setUpdateStatus);
     onCleanup(() => {
       unsubscribe();
@@ -507,6 +518,7 @@ export function App() {
         ...(replyToMessageId ? { replyToMessageId } : {}),
       });
       setUiErrors((current) => ({ ...current, [botId]: [] }));
+      playSound("messageSent");
       return true;
     } catch (error) {
       appendUiError(botId, error, "Send failed");
