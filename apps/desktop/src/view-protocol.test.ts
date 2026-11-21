@@ -92,7 +92,7 @@ it("rejects tampered manifests, file sizes and paths", async () => {
     const file = value.files[1];
     if (!file) throw Error("fixture");
     if (change === "hash") file.hash = "f".repeat(64);
-    if (change === "size") file.bytes = 25 * 1024 * 1024 + 1;
+    if (change === "size") file.bytes = 100 * 1024 * 1024 + 1;
     if (change === "path") file.path = "../index.html";
     if (change === "collision") value.files.push({ ...file, path: file.path.toUpperCase() });
     if (change === "entry") file.path = "other.html";
