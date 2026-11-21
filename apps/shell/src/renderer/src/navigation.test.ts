@@ -88,4 +88,16 @@ describe("navigation history", () => {
     expect(routesEqual(tasks, { id: "tasks", projectId: "p" })).toBe(false);
     expect(routesEqual(map, { id: "map" })).toBe(true);
   });
+
+  it("lets the next route take the place of a chat with no thread", () => {
+    const closed = push(push(startNavigation(chat("a")), map), chat(""));
+    const next = push(closed, tasks);
+    expect(next.back).toEqual([chat("a"), map]);
+    expect(next.current).toEqual(tasks);
+  });
+
+  it("keeps the same history when nothing was removed", () => {
+    const state = push(startNavigation(chat("a")), map);
+    expect(removeRoutes(state, () => false, chat(""))).toBe(state);
+  });
 });

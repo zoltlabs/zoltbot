@@ -33,6 +33,7 @@ import {
 } from "./app-model";
 import { useShortcut } from "./app-shortcuts";
 import { createConversationState } from "./app-state";
+import { createBackForward } from "./back-forward";
 import { createChannelsStore } from "./channels-store";
 import { ChannelPage } from "./components/ChannelPage";
 import { CommandPalette } from "./components/CommandPalette";
@@ -41,6 +42,7 @@ import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
 import { MemoryPage } from "./components/MemoryPage";
 import { ModelsSettings } from "./components/ModelsSettings";
+import { NavButtons } from "./components/NavButtons";
 import { PanelResizer, readPanelWidth, savePanelWidth } from "./components/PanelResizer";
 import { Sidebar, type SidebarAgentState } from "./components/Sidebar";
 import { SidebarChannels } from "./components/SidebarChannels";
@@ -79,9 +81,24 @@ export function App() {
     const at = pages.location();
     return at.id === "memory" ? at : undefined;
   };
+  const tasksRoute = () => {
+    const at = pages.location();
+    return at.id === "tasks" ? at : undefined;
+  };
   const staff = createStaffStore(() => null);
   const channels = createChannelsStore();
   const channelOpen = () => channels.openId() !== null;
+  const history = createBackForward({
+    pages,
+    chatId: activeBotId,
+    channelId: channels.openId,
+    chatExists: (id) => botList().some((bot) => bot.id === id),
+    channelExists: (id) => channels.channels().some((row) => row.id === id),
+    showChat: (id) => selectBot(id),
+    showChannel: (id) => openChannel(id),
+    closeChannel: () => channels.open(null),
+    enabled: () => setupDone() && !paletteOpen() && !permissionsOpen(),
+  });
   const conversationState = createConversationState(activeBotId);
   const {
     liveMessages,
@@ -702,6 +719,12 @@ export function App() {
           classList={{ "app-frame-sidebar-collapsed": leftPanelCollapsed() }}
           style={`--left-panel-width: ${leftPanelCollapsed() ? 0 : leftPanelWidth()}px`}
         >
+          <NavButtons
+            canGoBack={history.canGoBack()}
+            canGoForward={history.canGoForward()}
+            onBack={history.back}
+            onForward={history.forward}
+          />
           <Show when={!leftPanelCollapsed()}>
             <Sidebar
               bots={botList()}
@@ -846,7 +869,7 @@ export function App() {
             <TasksPage
               store={tasks}
               bots={botList()}
-              projectId={tasksProject()}
+              projectId={tasksRoute()?.projectId ?? null}
               sidebarCollapsed={leftPanelCollapsed()}
               onShowSidebar={() => setSidebarCollapsed(false)}
               onOpenChat={selectBot}

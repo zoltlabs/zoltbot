@@ -41,9 +41,18 @@ export function startNavigation(route: Route): NavigationState {
   return { back: [], current: route, forward: [] };
 }
 
+/**
+ * A chat route with no thread stands in for "the open chat" after a page closes, until the
+ * app knows which chat that is. It never becomes a history entry of its own.
+ */
+export function isStandIn(route: Route): boolean {
+  return route.id === "chat" && route.threadId === "";
+}
+
 /** Opens a route. Visiting the current route again changes nothing. */
 export function push(state: NavigationState, route: Route): NavigationState {
   if (routesEqual(state.current, route)) return state;
+  if (isStandIn(state.current)) return { ...state, current: route, forward: [] };
   return {
     back: [...state.back, state.current].slice(-HISTORY_LIMIT),
     current: route,
@@ -91,6 +100,7 @@ export function removeRoutes(
   gone: (route: Route) => boolean,
   fallback: Route,
 ): NavigationState {
+  if (![...state.back, state.current, ...state.forward].some(gone)) return state;
   const back = dedupe(state.back.filter((route) => !gone(route)));
   const forward = dedupe(state.forward.filter((route) => !gone(route)));
   if (!gone(state.current)) return trimAround({ back, current: state.current, forward });

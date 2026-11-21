@@ -75,7 +75,8 @@ export function pageFlag(
     () => pages.is(id),
     (open) => {
       if (open) pages.navigate(route());
-      else if (pages.is(id)) pages.replace(CHAT_ROUTE);
+      // Closing is a visit to the chat, so Back can reopen the page.
+      else if (pages.is(id)) pages.navigate(CHAT_ROUTE);
     },
   ];
 }

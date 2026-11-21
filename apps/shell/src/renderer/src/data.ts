@@ -29,6 +29,8 @@ export interface BotMessage {
   author: "you" | "bot";
   body: string;
   time: string;
+  /** C20: when the message was made, as an ISO time, for the day rail. */
+  createdAt?: string;
   streaming?: boolean;
   animate?: boolean;
   itemType?: string;
