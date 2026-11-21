@@ -266,3 +266,26 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* B1: the agent's kept browser profile. */
+.agent-browser-profile {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-browser-profile-value {
+  min-width: 0;
+  color: rgb(var(--ink) / calc(0.86 * var(--ink-text-boost)));
+  font-size: 12px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
+
+.agent-browser-profile .zb-kit-button {
+  flex: none;
+  min-width: 0;
+  padding-inline: 12px;
+}

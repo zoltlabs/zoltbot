@@ -213,6 +213,10 @@ const openbotApi: OpenBotDesktopApi = {
     archive: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryArchive, input),
     decide: (input) => ipcRenderer.invoke(IPC_CHANNELS.memoryDecide, input),
   },
+  agentBrowser: {
+    profile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserProfile, input),
+    clearProfile: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentBrowserClearProfile, input),
+  },
   spend: {
     list: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendList, input),
     setBudget: (input) => ipcRenderer.invoke(IPC_CHANNELS.spendSetBudget, input),

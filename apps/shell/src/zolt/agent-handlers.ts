@@ -26,6 +26,7 @@ import { linkHandlers } from "./links-service";
 import { outboxHandlers } from "./outbox-service";
 import { pinHandlers } from "./pins-service";
 import { queueOrderHandlers } from "./queue-order-service";
+import { agentBrowserHandlers } from "./agent-browser-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
@@ -84,6 +85,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...threadActionHandlers(service.client),
     ...memoryHandlers(service.client),
     ...spendHandlers(service.client),
+    ...agentBrowserHandlers(service.client),
     ...artifactRepositoryHandlers(service.client),
     ...queueOrderHandlers(service.client),
     ...asideHandlers(service.client),

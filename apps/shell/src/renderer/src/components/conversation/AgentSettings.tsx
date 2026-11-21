@@ -15,6 +15,7 @@ import { Select } from "../../kit";
 import { AgentAvatar } from "../AgentAvatar";
 import { PanelResizer } from "../PanelResizer";
 import { ProviderModelPicker } from "../ProviderModelPicker";
+import { AgentBrowserProfile } from "./AgentBrowserProfile";
 import { AgentUsage } from "./AgentUsage";
 import {
   AVATAR_COLOR_LABELS,
@@ -328,6 +329,9 @@ export function AgentSettings(props: {
           </div>
         </Show>
         <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
+        <Show when={props.bot?.profileId}>
+          {(agentId) => <AgentBrowserProfile agentId={agentId()} agentName={props.bot?.name ?? ""} />}
+        </Show>
         <Show when={props.bot?.id}>{(botId) => <RepositoryMode botId={botId()} />}</Show>
         <Show when={props.bot?.id}>{(botId) => <CoAuthorLine botId={botId()} />}</Show>
       </div>

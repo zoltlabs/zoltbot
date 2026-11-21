@@ -17,8 +17,28 @@ export const browserMethods = {
     }),
     result: Json,
   },
+  /** B1: the agent's kept browser profile, or null. */
+  "browser.profile.get": { params: object({ agentId: Id }), result: Json },
+  /** B1: signs the agent out of every site by deleting its profile folder. */
+  "browser.profile.clear": {
+    params: object({ agentId: Id, confirmed: Type.Boolean() }),
+    result: Json,
+  },
 };
-export const browserMacOnlyMethods = ["browser.setup", "browser.action"] as const;
+export const browserMacOnlyMethods = [
+  "browser.setup",
+  "browser.action",
+  "browser.profile.clear",
+] as const;
+
+/** B1: a profile an agent keeps between browser launches, in the daemon's data folder. */
+export interface BrowserProfile {
+  id: string;
+  agentId: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string;
+}
 
 export interface BrowserSelection {
   mode: "visible" | "background";
@@ -36,4 +56,6 @@ export interface BrowserBinding extends BrowserSelection {
   browsers: string;
   guidanceText: string;
   guidanceHash: string;
+  /** B1: the agent's kept profile folder; the launcher falls back to isolated when it is gone. */
+  profile?: { id: string; dir: string };
 }

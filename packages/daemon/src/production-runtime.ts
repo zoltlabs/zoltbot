@@ -13,6 +13,7 @@ import {
 } from "./backup-models/records.js";
 import { ownedBrowser } from "./browser/evidence.js";
 import { browserObserver } from "./browser/observation.js";
+import { profileApi } from "./browser/profiles.js";
 import { browserBinding, browserReadiness } from "./browser/runtime.js";
 import { inChannel } from "./channel-tools.js";
 import { isChief } from "./chief/identity.js";
@@ -209,7 +210,17 @@ export function productionRuntime(
             throw new Error("browser_requires_shell_workspace_write_profile");
           if ((await browserReadiness(directory)).state !== "ready")
             throw new Error("browser_setup_required");
-          return browserBinding(directory, cwd, selection);
+          // B1: the agent's kept profile, or isolated (asking the owner the first time).
+          const profile = profileApi({
+            store: context.store,
+            dataDir: directory,
+            publish: (events) => context.publish(events),
+          }).forLaunch({
+            agentId: String(input.profile.id),
+            agentName: String(input.profile.name ?? "This agent"),
+            threadId: String(input.thread.id),
+          });
+          return browserBinding(directory, cwd, selection, profile);
         },
         extensions: connectionsRuntime(context.store, context.secrets, (secret) =>
           context.privacy.remember(secret),

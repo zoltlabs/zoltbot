@@ -4,6 +4,7 @@ import { handle } from "@zoltbot/core";
 import type { DomainEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { browserGeneration, frozenBrowser } from "./evidence.js";
+import { profileApi } from "./profiles.js";
 import { type BrowserBinding, browserCommand, browserReadiness, setupBrowser } from "./runtime.js";
 export function browserApi(
   store: Store,
@@ -15,6 +16,11 @@ export function browserApi(
   } = {},
 ) {
   const pending = new Set<string>();
+  const profiles = profileApi({
+    store,
+    dataDir: directory,
+    ...(options.publish ? { publish: options.publish } : {}),
+  });
   const audit = async (
     action: string,
     target: string,
@@ -58,6 +64,9 @@ export function browserApi(
   ) => {
     if (!method.startsWith("browser.")) return undefined;
     if (method === "browser.readiness") return browserReadiness(directory);
+    if (method === "browser.profile.get") return profiles.get(String(p.agentId));
+    if (method === "browser.profile.clear")
+      return profiles.clear(String(p.agentId), p.confirmed === true);
     if (method === "browser.setup") {
       if (p.confirmed !== true) throw Error("confirmation_required");
       if (pending.has("setup")) throw Error("browser_setup_running");

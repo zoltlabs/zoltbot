@@ -8,6 +8,7 @@ export type * from "./artifact-share";
 export type * from "./aside";
 export type * from "./co-author";
 export type * from "./branches";
+export * from "./agent-browser";
 export * from "./browser";
 export * from "./company";
 export * from "./dictation";
@@ -36,6 +37,7 @@ import type {
   BranchRequest,
   BranchResult,
 } from "./branches";
+import { AGENT_BROWSER_CHANNELS, type AgentBrowserDesktopApi } from "./agent-browser";
 import type { BrowserControlState, BrowserDesktopApi, BrowserTab } from "./browser";
 import type {
   ChannelDetail,
@@ -124,6 +126,7 @@ export const IPC_CHANNELS = {
   ...MODEL_CHANNELS,
   ...MEMORY_CHANNELS,
   ...SPEND_CHANNELS,
+  ...AGENT_BROWSER_CHANNELS,
   ...ARTIFACT_SHARE_CHANNELS,
   ...ARTIFACT_REPOSITORY_CHANNELS,
   ...QUEUE_ORDER_CHANNELS,
@@ -785,6 +788,7 @@ export interface OpenBotDesktopApi {
   models: ModelsDesktopApi;
   memory: MemoryDesktopApi;
   spend: SpendDesktopApi;
+  agentBrowser: AgentBrowserDesktopApi;
   share: ArtifactShareDesktopApi;
   repository: ArtifactRepositoryDesktopApi;
   queue: QueueOrderDesktopApi;

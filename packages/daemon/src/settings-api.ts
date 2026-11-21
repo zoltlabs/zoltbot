@@ -21,6 +21,8 @@ function reserved(key: string) {
     key.startsWith("view.") ||
     // A9: caps change only through limits.set, which asks for confirmation and audits.
     key.startsWith("limits.") ||
+    // B1: a kept browser profile changes only through browser.profile.*, which audits a clear.
+    key.startsWith("browser.profile.") ||
     key.startsWith("fork.") ||
     (key.startsWith("models.") && key !== STARRED_MODELS_SETTING) ||
     key.startsWith("routine.handoff.") ||

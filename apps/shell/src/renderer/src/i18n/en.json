@@ -334,5 +334,14 @@
   "agent.continue.note": "Keeps going once when a reply ends with a plan, like “I’ll run the tests.”",
   "chat.waiting.label": "Waiting to send",
   "chat.waiting.sendNow": "Send now",
-  "chat.waiting.delete": "Delete"
+  "chat.waiting.delete": "Delete",
+  "browser.profile.title": "Browser profile",
+  "browser.profile.value": "Signed in",
+  "browser.profile.clearLabel": "Clear browser profile",
+  "browser.profile.clear": "Clear",
+  "browser.profile.clearTitle": "Clear browser profile?",
+  "browser.profile.clearBody": "{agent} will be signed out of every site.",
+  "browser.profile.clearing": "Clearing…",
+  "browser.profile.clearFailed": "Couldn’t clear the profile. Try again.",
+  "browser.profile.inUse": "Its browser is still open. Try again when the task ends."
 }

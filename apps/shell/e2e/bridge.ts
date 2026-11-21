@@ -316,6 +316,10 @@ export async function openShell(page: Page, service: ZoltService): Promise<void>
         archive: call(channels.memoryArchive),
         decide: call(channels.memoryDecide),
       },
+      agentBrowser: {
+        profile: call(channels.agentBrowserProfile),
+        clearProfile: call(channels.agentBrowserClearProfile),
+      },
       spend: {
         list: call(channels.spendList),
         setBudget: call(channels.spendSetBudget),
