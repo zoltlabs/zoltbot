@@ -111,6 +111,8 @@
   "memory.writer.agent": "An agent",
   "memory.writer.app": "Zoltbot",
   "memory.writer.you": "You",
+  "nav.back": "Back",
+  "nav.forward": "Forward",
   "palette.command.newChat": "New chat",
   "palette.empty": "Nothing matches “{query}”",
   "palette.group.agents": "Agents",

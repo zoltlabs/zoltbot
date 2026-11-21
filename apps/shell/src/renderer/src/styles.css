@@ -649,6 +649,25 @@ textarea {
   color: var(--openbot-muted);
 }
 
+/* Back and forward sit after the window controls, and after Show sidebar when the sidebar hides. */
+.nav-buttons {
+  position: absolute;
+  z-index: 100;
+  top: 6px;
+  left: 74px;
+  display: flex;
+  gap: 2px;
+}
+
+.app-frame-sidebar-collapsed .nav-buttons {
+  left: 106px;
+}
+
+.nav-button:disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
 .sidebar-search-wrap {
   padding: 8px 11px 6px;
 }
@@ -1365,7 +1384,7 @@ textarea {
 }
 
 .app-frame-sidebar-collapsed .conversation-header {
-  padding-left: 112px;
+  padding-left: 176px;
 }
 
 .conversation-title[aria-label="View agent settings"]:hover {
