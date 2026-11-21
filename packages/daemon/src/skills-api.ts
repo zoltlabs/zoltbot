@@ -14,6 +14,7 @@ import {
   SkillsLibrary,
 } from "../../skills/src/index.js";
 import { fetchGithubSkill, type GithubFetchOptions, isGithubSource } from "./skill-github.js";
+import { decideSkillProposal, skillProposalList } from "./skill-proposals.js";
 
 // Reserved built-ins are conservative; provider-reported names must be added by the launch resolver.
 export const reservedSkillNames = [
@@ -119,6 +120,7 @@ export function skillsApi(options: {
       "skill.remove",
       "skill.access",
       "skill.update.apply",
+      "skill.proposal.decide",
     ].includes(method);
     if (mutate && !commandId) throw new Error("command_id_required");
     if (mutate) {
@@ -133,6 +135,9 @@ export function skillsApi(options: {
     }
     await check({ params: p, ...(commandId ? { commandId } : {}) });
     let operation: () => unknown;
+    // M6: a decided proposal's own events, in the same transaction as the library change.
+    let proposalEvents: ((result: unknown, at: string) => DomainEvent[]) | undefined;
+    let libraryChanged = true;
     switch (method) {
       case "skill.list":
         return { skills: library.list() };
@@ -190,6 +195,17 @@ export function skillsApi(options: {
           p.id
             ? library.save(string(p, "id"), Number(p.expectedRevision), bundle)
             : library.add(bundle);
+        break;
+      }
+      case "skill.proposal.list":
+        return { proposals: skillProposalList(options.store, library) };
+      case "skill.proposal.decide": {
+        const decision = decideSkillProposal(options.store, library, p);
+        if (decision.bundle) await check(decision.bundle);
+        operation = decision.apply;
+        proposalEvents = (result, at) =>
+          decision.events(result, { commandId: commandId as string, at });
+        libraryChanged = !!decision.bundle;
         break;
       }
       case "skill.remove":
@@ -339,23 +355,29 @@ export function skillsApi(options: {
     const receipt = options.store.dispatch(commandId as string, (state) => {
       for (const guard of guards) guard(state);
       const result = operation(),
-        eventId = randomUUID();
+        eventId = randomUUID(),
+        at = new Date().toISOString();
       return {
         result,
         events: [
-          {
-            eventId,
-            aggregateType: "settings",
-            aggregateId: "skills.libraryRevision",
-            type: "settings.updated",
-            occurredAt: new Date().toISOString(),
-            payload: { key: "skills.libraryRevision", value: eventId },
-          },
+          ...(proposalEvents?.(result, at) ?? []),
+          ...(libraryChanged
+            ? [
+                {
+                  eventId,
+                  aggregateType: "settings",
+                  aggregateId: "skills.libraryRevision",
+                  type: "settings.updated",
+                  occurredAt: at,
+                  payload: { key: "skills.libraryRevision", value: eventId },
+                },
+              ]
+            : []),
         ],
       };
     });
     options.publish?.(options.store.eventsSince(before));
-    options.onChanged?.();
+    if (libraryChanged) options.onChanged?.();
     return receipt.result;
   };
 }

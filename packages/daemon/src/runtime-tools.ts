@@ -13,6 +13,7 @@ import type { CuaRuntime } from "./cua/runtime.js";
 import { eventRoutineToolDefinition, eventRoutineTools } from "./event-routine-tools.js";
 import { knowledgeToolDefinition, knowledgeTools } from "./knowledge-tools.js";
 import { knowledgeWrites, knowledgeWriteToolDefinition } from "./knowledge-writes.js";
+import { skillProposals, skillProposalToolDefinition } from "./skill-proposals.js";
 import {
   currentTeamToolDefinitions,
   legacyTeamToolDefinitions,
@@ -66,6 +67,7 @@ export function runtimeTools(
   const workspace = workspaceTools(context);
   const knowledge = knowledgeTools(context);
   const knowledgeWrite = knowledgeWrites(context);
+  const skillProposal = skillProposals(context);
   const browser = browserTools(context);
   const artifacts = artifactTools(context);
   const views = viewTools(context);
@@ -94,6 +96,7 @@ export function runtimeTools(
     if (thread?.fork && name !== "team_get_knowledge") return false;
     if (name === "chat_wake") return !thread?.fork;
     if (name === "chat_signal") return !thread?.fork && !thread?.taskId;
+    if (name === "team_propose_skill") return skillProposal.authorize(actor);
     if (name === "routine_draft") return eventRoutine.authorize(actor);
     if (name === "native_app") {
       const frozen = context.store.record("settings", `runtime.configuration.${actor.sessionId}`)
@@ -141,6 +144,7 @@ export function runtimeTools(
       ["team_browser_evidence", browser.register],
       ["team_get_knowledge", knowledge.read],
       ["team_write_knowledge", knowledgeWrite.call],
+      ["team_propose_skill", skillProposal.call],
       ...team.tools,
       ...teamWait.tools,
       ...channel.tools,
@@ -231,6 +235,8 @@ const artifactDescriptions: Record<string, string> = {
   chat_signal: "emoji react, not filler; status: doing-now line; progress: milestone note",
   routine_draft: "Scoped routines. get explains authorization; stable key.",
   team_write_knowledge: "Write durable shared facts; daemon applies or proposes.",
+  team_propose_skill:
+    "Only after a task took several attempts or the owner corrected you: propose a skill (SKILL.md body; basedOn updates a library skill id). Owner reviews.",
   team_get_knowledge:
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
@@ -316,6 +322,16 @@ const compactSchemas: Record<string, Record<string, unknown>> = {
     },
     required: ["op", "evidence", "reason"],
   },
+  team_propose_skill: {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      body: { type: "string" },
+      basedOn: { type: "string" },
+      description: { type: "string" },
+    },
+    required: ["name", "body"],
+  },
   workspace_write: {
     type: "object",
     properties: {
@@ -393,8 +409,14 @@ export const indirectRuntimeToolDefinitions = [
   compactTool(wakeToolDefinition),
   viewToolHint,
 ];
-/** A compact hint for chats the owner talks in directly; task and fork chats have no owner turns. */
-export const chatSignalIndirectToolDefinitions = [compactTool(chatSignalToolDefinition)];
+/**
+ * Compact hints for chats the owner talks in directly; task and fork chats have no owner turns.
+ * M6: proposing a skill lives here, where the owner can correct the agent.
+ */
+export const chatSignalIndirectToolDefinitions = [
+  compactTool(chatSignalToolDefinition),
+  compactTool(skillProposalToolDefinition),
+];
 /** Compact hints for chats that delegate: managers and chats accountable for open tasks. */
 export const managerIndirectToolDefinitions = teamWaitToolDefinitions.map(compactTool);
 /** A compact hint for chats that belong to a team channel. */
@@ -454,5 +476,6 @@ export const allRuntimeToolDefinitions = [
   cuaToolDefinition,
   ...browserRuntimeToolDefinitions,
   knowledgeWriteToolDefinition,
+  skillProposalToolDefinition,
   artifactToolDefinition,
 ];

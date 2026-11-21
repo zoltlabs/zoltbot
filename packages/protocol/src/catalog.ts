@@ -96,7 +96,7 @@ import {
   ShippingSchema,
   shippingMethods,
 } from "./shipping.js";
-import { skillMethods } from "./skills.js";
+import { SkillProposalSchema, skillMethods } from "./skills.js";
 import { staffMethods } from "./staff.js";
 import { terminalMethods } from "./terminal.js";
 
@@ -148,6 +148,7 @@ export const entitySchemas = {
   knowledge: KnowledgeItemSchema,
   contextPack: ContextPackSchema,
   knowledgeProposal: KnowledgeProposalSchema,
+  skillProposal: SkillProposalSchema,
   deliverable: DeliverableSchema,
   workflow: PipelineVersionSchema,
   workflowRun: WorkflowRunSchema,

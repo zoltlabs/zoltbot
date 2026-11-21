@@ -4,6 +4,7 @@ import type {
   MemoryAgent,
   MemoryEntry,
   MemoryProposal,
+  MemorySkillProposal,
   MemoryView,
   MemoryWriter,
 } from "../shared/memory";
@@ -105,5 +106,25 @@ export function toMemoryView(snapshot: { entities: Entities }): MemoryView {
   const tidy = memoryTidyOn(
     (entities.settings ?? []).find((row) => row.key === MEMORY_TIDY_SETTING)?.value,
   );
-  return { entries, proposals, tidy };
+  return { entries, proposals, skills: [], tidy };
+}
+
+/** M6: the daemon's pending skill proposals, newest first, with the agent that proposed each. */
+export function toSkillProposals(entities: Entities, rows: Row[]): MemorySkillProposal[] {
+  return rows
+    .map((row): MemorySkillProposal => {
+      const writer = writerOf(entities, { kind: "agent", id: row.agentId });
+      return {
+        id: text(row.id),
+        title: text(row.name),
+        body: text(row.content),
+        base: typeof row.base === "string" ? row.base : null,
+        projectId: null,
+        projectName: "",
+        writer,
+        agent: agentOf(writer),
+        createdAt: text(row.createdAt),
+      };
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

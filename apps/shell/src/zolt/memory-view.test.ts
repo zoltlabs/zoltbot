@@ -103,6 +103,52 @@ describe("memory view", () => {
 });
 
 describe("memory service", () => {
+  it("lists skill proposals with the agent's name, and still lists memory when that fails", async () => {
+    const call = vi.fn(async () => ({
+      proposals: [
+        {
+          id: "sp1",
+          name: "release-checklist",
+          content: "---\nname: release-checklist\n---\nTag it.\n",
+          base: null,
+          agentId: "agent-1",
+          createdAt: "2026-01-04T00:00:00Z",
+        },
+      ],
+    }));
+    const service = memoryService({ call, snapshot: { entities } } as unknown as DaemonClient);
+    const view = await service.list();
+    expect(call).toHaveBeenCalledWith("skill.proposal.list", {});
+    expect(view.skills).toEqual([
+      expect.objectContaining({
+        id: "sp1",
+        title: "release-checklist",
+        base: null,
+        projectId: null,
+        writer: { kind: "agent", id: "agent-1", name: expect.any(String) },
+      }),
+    ]);
+    call.mockRejectedValueOnce(new Error("offline"));
+    expect((await service.list()).skills).toEqual([]);
+  });
+
+  it("turns a skill decision error into its sentence", async () => {
+    const call = vi.fn(async () => {
+      throw new Error(
+        "skill_changed: This skill changed after the agent proposed this. Discard it and ask the agent to propose again.",
+      );
+    });
+    const service = memoryService({ call, snapshot: { entities } } as unknown as DaemonClient);
+    await expect(service.decideSkill({ id: "sp1", decision: "save" })).rejects.toThrow(
+      /^This skill changed after the agent proposed this/,
+    );
+    expect(call).toHaveBeenCalledWith(
+      "skill.proposal.decide",
+      { id: "sp1", decision: "save" },
+      expect.any(String),
+    );
+  });
+
   it("refuses to save over a newer revision", async () => {
     const call = vi.fn(async () => ({ id: "k1", revision: 3, title: "x", body: "y" }));
     const service = memoryService({ call, snapshot: { entities } } as unknown as DaemonClient);
