@@ -58,6 +58,7 @@ function configuration(state: DomainState, threadId: string) {
       "effort",
       "instructions",
       "roleText",
+      "style",
       "archived",
     ]),
     definition,

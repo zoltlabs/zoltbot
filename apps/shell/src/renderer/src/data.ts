@@ -10,6 +10,7 @@ import {
   type BotAvatarColor,
   type BotAvatarShape,
   type ContextFullAction,
+  type TalkingStyle,
   type ConversationNotice,
   type ManagerCard,
   type MessageReaction,
@@ -80,6 +81,7 @@ export interface BotProfile {
   parentId?: string | null;
   projectName?: string;
   contextFull?: ContextFullAction;
+  talkingStyle?: TalkingStyle;
   branchedFrom?: BranchOrigin;
 }
 

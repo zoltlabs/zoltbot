@@ -6,7 +6,16 @@ import {
   eligibleKnowledge,
   knowledgeMatches,
 } from "@zoltbot/knowledge";
-import { ProfileSchema, parse, ScopeSchema, type Task, ThreadSchema } from "@zoltbot/protocol";
+import {
+  DEFAULT_TALKING_STYLE_KEY,
+  effectiveTalkingStyle,
+  ProfileSchema,
+  parse,
+  ScopeSchema,
+  type Task,
+  ThreadSchema,
+  talkingStyleLine,
+} from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { createArtifactBinding } from "./artifacts/binding.js";
 import { chiefThreadId, leadIdeasInstruction } from "./chief/identity.js";
@@ -85,6 +94,12 @@ export function taskLaunchReadiness(
   const instructions = [
     profile?.roleText,
     profile?.instructions,
+    talkingStyleLine(
+      effectiveTalkingStyle(
+        profile?.style,
+        state.settings?.find((row) => row.key === DEFAULT_TALKING_STYLE_KEY)?.value,
+      ),
+    ),
     artifactGuidance,
     [workspaceText, ideas].filter(Boolean).join("\n\n"),
   ]

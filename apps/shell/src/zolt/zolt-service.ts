@@ -357,6 +357,14 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           ),
         );
     }
+    if (input.talkingStyle !== undefined)
+      calls.push(
+        this.client.call(
+          "agent.update",
+          { id: thread.agentId, changes: { style: input.talkingStyle } },
+          randomUUID(),
+        ),
+      );
     if (input.role !== undefined)
       calls.push(
         this.client.call(

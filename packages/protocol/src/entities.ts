@@ -24,6 +24,8 @@ export const ProfileSchema = object({
   template: Type.Optional(Type.Literal("artifact_designer")),
   /** A1: the agent template this profile was created from. */
   templateId: Type.Optional(Text),
+  /** A2: how the agent writes to the owner. Absent: the owner's default style. */
+  style: Type.Optional(values(["neutral", "warm", "casual", "direct"])),
   id: Id,
   name: Text,
   avatar: Text,

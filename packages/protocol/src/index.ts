@@ -38,6 +38,7 @@ export * from "./shipping.js";
 export * from "./skill-views.js";
 export * from "./staff.js";
 export * from "./stop-phrase.js";
+export * from "./talking-style.js";
 export * from "./team-waits.js";
 export * from "./terminal.js";
 export * from "./validation.js";

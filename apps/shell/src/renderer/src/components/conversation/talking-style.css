@@ -1,0 +1,7 @@
+/* A2: the note under Talking style. */
+.agent-settings-note {
+  margin: 2px 12px 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}

@@ -12,6 +12,8 @@ import {
 import {
   type AgentEvent,
   compareSessions,
+  DEFAULT_TALKING_STYLE_KEY,
+  effectiveTalkingStyle,
   type Interaction,
   ProfileSchema,
   parse,
@@ -360,6 +362,11 @@ export class SessionManager {
           | undefined,
         profile: {
           ...profile,
+          // A2: the style is resolved once here and saved with the session's configuration.
+          style: effectiveTalkingStyle(
+            profile.style,
+            state.settings?.find((row) => row.key === DEFAULT_TALKING_STYLE_KEY)?.value,
+          ),
           permissionProfile:
             comparePermission(state, threadId, profile) ??
             forkPermission(thread, profile.permissionProfile),

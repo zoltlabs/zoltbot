@@ -283,6 +283,9 @@ export interface AgentStatus {
   fullAccess: boolean;
 }
 
+/** A2: how an agent writes to the owner. */
+export type TalkingStyle = "neutral" | "warm" | "casual" | "direct";
+
 export interface BotSummary {
   id: string;
   name: string;
@@ -313,6 +316,8 @@ export interface BotSummary {
   projectName: string;
   /** What happens when the chat's context is nearly full; "ask" when unset. */
   contextFull?: ContextFullAction;
+  /** A2: the agent's talking style, or the owner's default when it has none. */
+  talkingStyle?: TalkingStyle;
   /** Set when this chat was branched from another one. */
   branchedFrom?: BranchOrigin;
   /** A reply came after the owner last read the chat, or they marked it unread. */
@@ -398,6 +403,7 @@ export interface UpdateBotInput {
   avatarShape?: BotAvatarShape;
   avatarColor?: BotAvatarColor;
   contextFull?: ContextFullAction;
+  talkingStyle?: TalkingStyle;
 }
 
 export type ConversationMessageAuthor = "user" | "assistant" | "agent" | "system";

@@ -1,3 +1,4 @@
+import { isTalkingStyle } from "@zoltbot/protocol";
 import {
   type BrowserBounds,
   type BrowserOpenInput,
@@ -131,6 +132,10 @@ export function parseUpdateBot(value: unknown): UpdateBotInput {
     if (value.contextFull !== "compact" && value.contextFull !== "ask")
       throw new Error("Invalid context setting.");
     result.contextFull = value.contextFull;
+  }
+  if (value.talkingStyle !== undefined) {
+    if (!isTalkingStyle(value.talkingStyle)) throw new Error("Invalid talking style.");
+    result.talkingStyle = value.talkingStyle;
   }
   return result;
 }

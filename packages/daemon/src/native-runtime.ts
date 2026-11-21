@@ -11,10 +11,12 @@ import type { ArtifactBinding } from "@zoltbot/protocol";
 import {
   type AgentDefinition,
   type AgentEvent,
+  effectiveTalkingStyle,
   type Profile,
   ProfileSchema,
   parse,
   type Thread,
+  talkingStyleLine,
 } from "@zoltbot/protocol";
 import type { LaunchContributions, LaunchManifest } from "../../connections/src/launch-manifest.js";
 import { canonicalApprovalRoot } from "./approval-paths.js";
@@ -246,6 +248,10 @@ export class NativeRuntimeHost implements RuntimeHost {
     const instructions = [
       stable.profile.roleText,
       stable.profile.instructions,
+      // A resume without a saved configuration runs on the live profile; it had no style line.
+      stable.previous && !saved
+        ? undefined
+        : talkingStyleLine(effectiveTalkingStyle(stable.profile.style, undefined)),
       artifact ? frozenArtifactGuidance(artifact) : undefined,
       saved ? (saved.workspaceInstructions as string) : workspace.instructions,
     ]

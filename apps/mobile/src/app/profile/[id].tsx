@@ -1,3 +1,8 @@
+import {
+  DEFAULT_TALKING_STYLE_KEY,
+  effectiveTalkingStyle,
+  type TalkingStyle,
+} from "@zoltbot/protocol";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ActionSheetIOS, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -6,7 +11,7 @@ import { useAction } from "../../state/actions";
 import { useClient, useSnapshot } from "../../state/link";
 import { touch, useTheme } from "../../theme";
 import { Icon } from "../../ui/icons";
-import { Avatar, Button, Txt } from "../../ui/kit";
+import { Avatar, Button, Segmented, Txt } from "../../ui/kit";
 
 /** The profile editor sheet, opened from Projects › Profiles. */
 export default function ProfileSheet() {
@@ -21,6 +26,15 @@ export default function ProfileSheet() {
   const [definitionId, setDefinitionId] = useState(text(profile?.definitionId));
   const [model, setModel] = useState(text(profile?.model));
   const [instructions, setInstructions] = useState(text(profile?.instructions));
+  // The owner's default applies until they pick a style for this agent.
+  const [initialStyle] = useState<TalkingStyle>(() =>
+    effectiveTalkingStyle(
+      profile?.style,
+      (snapshot.entities.settings ?? []).find((row) => row.key === DEFAULT_TALKING_STYLE_KEY)
+        ?.value,
+    ),
+  );
+  const [style, setStyle] = useState(initialStyle);
   if (!profile) return null;
 
   const pickTool = () => {
@@ -40,6 +54,7 @@ export default function ProfileSheet() {
         name: name.trim(),
         definitionId,
         instructions,
+        ...(style !== initialStyle ? { style } : {}),
         ...(model.trim() ? { model: model.trim() } : {}),
       },
     });
@@ -123,6 +138,24 @@ export default function ProfileSheet() {
           multiline
           accessibilityLabel="Instructions"
           style={[...field, styles.area]}
+        />
+      </View>
+      <View style={styles.labelled}>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Txt v="meta" tone="secondary">
+            Talking style
+          </Txt>
+        </View>
+        <Segmented
+          label="Talking style"
+          value={style}
+          onChange={setStyle}
+          options={[
+            { value: "neutral", label: "Neutral" },
+            { value: "warm", label: "Warm" },
+            { value: "casual", label: "Casual" },
+            { value: "direct", label: "Direct" },
+          ]}
         />
       </View>
       <Txt v="meta" tone="muted">
