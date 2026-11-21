@@ -177,7 +177,7 @@ export function Attachments({
               />
               {!access.file ? (
                 <Txt v="meta" tone="muted">
-                  Sending files from this iPhone needs Mac upload support. Photos are available.
+                  Sending files from this phone needs Mac upload support. Photos are available.
                 </Txt>
               ) : (
                 <Txt v="meta" tone="muted">

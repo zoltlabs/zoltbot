@@ -94,7 +94,7 @@ function ReviewDraft({ draft }: { draft: SharedDraft }) {
   const discard = () =>
     showConfirmSheet({
       title: sentThread ? "Remove sent draft?" : "Discard shared draft?",
-      body: "This removes the draft from this iPhone.",
+      body: "This removes the draft from this phone.",
       confirmLabel: sentThread ? "Remove draft" : "Discard draft",
       onConfirm: () => {
         if (locked.current) return;

@@ -86,7 +86,7 @@ async function noPasscode() {
   const prefs = { ...useAppLock.getState().prefs, enabled: false };
   useAppLock.setState({ prefs, ...unlocked() });
   await save(prefs).catch(() => undefined);
-  Alert.alert("Lock turned off", "This iPhone has no passcode, so Zoltbot can't lock.");
+  Alert.alert("Lock turned off", "This phone has no screen lock, so Zoltbot can't lock.");
 }
 
 let lockingNatively = false;

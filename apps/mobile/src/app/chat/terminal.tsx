@@ -184,7 +184,7 @@ export default function Terminal() {
               <Row
                 key={row.id}
                 title={`Terminal ${index + 1}`}
-                detail={`${row.owned ? "This iPhone" : "Your Mac"} · ${row.status}`}
+                detail={`${row.owned ? "This phone" : "Your Mac"} · ${row.status}`}
                 checked={row.id === chosen}
                 onPress={() => pickTerminal(row.id)}
                 last={index === terminals.length - 1}

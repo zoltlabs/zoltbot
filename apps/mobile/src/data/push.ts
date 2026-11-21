@@ -12,19 +12,29 @@ export interface PushApi {
   requestPermissionsAsync(): Promise<PushPermission>;
   getDevicePushTokenAsync(): Promise<{ type: string; data: string | number[] }>;
 }
-export async function inspectPush(api: PushApi, ask: boolean) {
+/** Where the relay sends this phone's pushes: APNs on an iPhone, FCM on Android. */
+export type PushPlatform = "apns" | "apns-sandbox" | "fcm";
+
+/** The relay platform of a device token, or undefined for a token type it can't use. */
+export function pushPlatform(type: string, development: boolean): PushPlatform | undefined {
+  if (type === "ios") return development ? "apns-sandbox" : "apns";
+  if (type === "android") return "fcm";
+  return undefined;
+}
+
+export async function inspectPush(api: PushApi, ask: boolean, development = false) {
   let permission = await api.getPermissionsAsync();
   if (ask && !permission.granted && permission.canAskAgain)
     permission = await api.requestPermissionsAsync();
-  if (!permission.granted) return { permission, token: undefined };
+  if (!permission.granted) return { permission, token: undefined, platform: undefined };
   try {
     const token = await api.getDevicePushTokenAsync();
-    return {
-      permission,
-      token: token.type === "ios" && typeof token.data === "string" ? token.data : undefined,
-    };
+    const platform = pushPlatform(token.type, development);
+    return platform && typeof token.data === "string" && token.data
+      ? { permission, token: token.data, platform }
+      : { permission, token: undefined, platform: undefined };
   } catch {
-    return { permission, token: undefined };
+    return { permission, token: undefined, platform: undefined };
   }
 }
 
@@ -55,11 +65,20 @@ export function readPushTarget(content: {
   const raw = content.data && typeof content.data === "object" ? (content.data as Row) : {};
   const nested = raw.body && typeof raw.body === "object" ? (raw.body as Row) : {};
   const data = { ...nested, ...raw };
+  // P9: FCM data values are strings, so an Android push carries the scope as JSON text.
+  const scopeOf = (value: unknown) => {
+    if (typeof value !== "string") return value;
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  };
   if (Object.hasOwn(raw, "scope") || Object.hasOwn(nested, "scope")) {
     try {
-      const cloud = parse(CloudPushContextSchema, data.scope);
+      const cloud = parse(CloudPushContextSchema, scopeOf(data.scope));
       if (Object.hasOwn(raw, "scope") && Object.hasOwn(nested, "scope")) {
-        const inner = parse(CloudPushContextSchema, nested.scope);
+        const inner = parse(CloudPushContextSchema, scopeOf(nested.scope));
         if (inner.orgId !== cloud.orgId || inner.notificationId !== cloud.notificationId)
           throw new Error();
       }

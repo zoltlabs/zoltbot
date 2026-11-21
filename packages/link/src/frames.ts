@@ -79,7 +79,8 @@ export const RevokeFrame = object({ t: Type.Literal("revoke"), deviceId: LinkId 
 /** Device → relay: where to send pushes. The relay keeps it beside the device record. */
 export const PushRegisterFrame = object({
   t: Type.Literal("push.register"),
-  platform: values(["apns", "apns-sandbox"]),
+  /** P9: `fcm` is an Android phone's Firebase token. */
+  platform: values(["apns", "apns-sandbox", "fcm"]),
   token: Type.String({ minLength: 1, maxLength: 400 }),
 });
 /**

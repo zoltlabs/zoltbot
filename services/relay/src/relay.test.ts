@@ -326,6 +326,23 @@ describe("frame checks", () => {
 });
 
 describe("push", () => {
+  it("takes an Android phone's FCM token for pushes, but not for a Live Activity", async () => {
+    const { url, registry, push } = await start();
+    const mac = await signIn(url, "mac");
+    const identity = createIdentity();
+    await registry.allowDevice(mac.id, linkId(identity.publicKey));
+    const phone = await signIn(url, "device", { identity, macId: mac.id });
+    phone.client.send({ t: "activity.register", platform: "fcm", token: "act" });
+    phone.client.send({ t: "push.register", platform: "fcm", token: "android" });
+    await expect
+      .poll(async () => (await registry.getDevice(mac.id, phone.id))?.pushToken)
+      .toBe("android");
+    expect((await registry.getDevice(mac.id, phone.id))?.activityToken).toBeUndefined();
+    mac.client.send({ t: "push", deviceId: phone.id, kind: "task_done", count: 1 });
+    await expect.poll(() => push.sent.length).toBe(1);
+    expect(push.sent[0]).toMatchObject({ platform: "fcm", token: "android" });
+  });
+
   it("sends through the push sender and forgets a dead token", async () => {
     const { url, registry, push } = await start();
     const mac = await signIn(url, "mac");

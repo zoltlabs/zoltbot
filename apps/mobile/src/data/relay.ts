@@ -174,10 +174,17 @@ export class RelayTransport implements Transport {
    */
   register(
     kind: "push.register" | "activity.register",
-    platform: "apns" | "apns-sandbox",
+    platform: "apns" | "apns-sandbox" | "fcm",
     token: string,
   ) {
-    this.registrations.set(kind, { t: kind, platform, token });
+    // A Live Activity is iPhone only, so its token is never an FCM one.
+    if (kind === "activity.register" && platform === "fcm") return;
+    this.registrations.set(
+      kind,
+      kind === "push.register"
+        ? { t: kind, platform, token }
+        : { t: kind, platform: platform as "apns" | "apns-sandbox", token },
+    );
     if (this.allowed && this.session) this.sendRegistrations();
   }
   private readonly registrations = new Map<string, ClientFrame>();

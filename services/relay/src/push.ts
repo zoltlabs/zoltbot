@@ -165,11 +165,12 @@ export interface ApnsOptions {
   teamId: string;
   /** The app's bundle id. */
   topic: string;
-  origins?: Partial<Record<PushPlatform, string>>;
+  origins?: Partial<Record<ApnsPlatform, string>>;
   now?: () => number;
 }
 
-const defaultOrigins: Record<PushPlatform, string> = {
+type ApnsPlatform = Exclude<PushPlatform, "fcm">;
+const defaultOrigins: Record<ApnsPlatform, string> = {
   apns: "https://api.push.apple.com",
   "apns-sandbox": "https://api.sandbox.push.apple.com",
 };
@@ -188,7 +189,7 @@ export function apnsJwt(key: string, keyId: string, teamId: string, issuedAt: nu
 
 /** HTTP/2 APNs client with one cached session per origin. */
 export class ApnsPush implements PushSender {
-  private readonly origins: Record<PushPlatform, string>;
+  private readonly origins: Record<ApnsPlatform, string>;
   private readonly sessions = new Map<string, http2.ClientHttp2Session>();
   private readonly now: () => number;
   private jwt?: { value: string; issuedAt: number };
@@ -266,6 +267,8 @@ export class ApnsPush implements PushSender {
     body: string,
     headers: Record<string, string>,
   ): Promise<PushResult> {
+    if (platform === "fcm")
+      return Promise.resolve({ ok: false, gone: false, reason: "platform_unsupported" });
     return new Promise((resolve) => {
       let stream: http2.ClientHttp2Stream;
       try {

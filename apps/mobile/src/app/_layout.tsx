@@ -7,6 +7,7 @@ import { startAppLock, useAppLock } from "../state/app-lock";
 import { useLink } from "../state/link";
 import { startLiveActivity } from "../state/live-activity";
 import { startNotificationActions } from "../state/notifications";
+import { startPushRegistration } from "../state/push-registration";
 import { useTextSize } from "../state/text-size";
 import { loadVoicePrefs } from "../state/voice-prefs";
 import { useTheme } from "../theme";
@@ -27,7 +28,9 @@ export default function RootLayout() {
   // Notification taps and Allow/Reject buttons, once screens can be navigated to.
   useEffect(() => (booted ? startNotificationActions() : undefined), [booted]);
   useEffect(() => {
-    if (booted) startLiveActivity();
+    if (!booted) return;
+    startLiveActivity();
+    startPushRegistration();
   }, [booted]);
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(c["bg-page"]);

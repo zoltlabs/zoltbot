@@ -11,7 +11,7 @@ export function LockSettings() {
     const result = await setPrefs({ enabled });
     if (result === "failed") Alert.alert("The lock wasn't changed", "Try again.");
     if (result === "unavailable")
-      Alert.alert("Set a passcode first", "Turn on a passcode in the iPhone's Settings app.");
+      Alert.alert("Set a passcode first", "Turn on a screen lock in your phone's settings.");
   };
   return (
     <Group>

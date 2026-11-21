@@ -11,13 +11,22 @@ interface ShareBridge {
   markDraftSent(id: string, threadId: string): Promise<void>;
   removeDraft(id: string): Promise<void>;
   donate(recipient: ShareRecipient): Promise<void>;
+  /** P9, Android: a share the app was opened with, saved as a draft for this Mac. Once. */
+  takeIncoming?(macId: string): Promise<string | null>;
 }
+// P9: Android implements the same bridge (native/android/share).
 const bridge =
-  Platform.OS === "ios" ? (NativeModules.ZoltShare as ShareBridge | undefined) : undefined;
+  Platform.OS === "ios" || Platform.OS === "android"
+    ? (NativeModules.ZoltShare as ShareBridge | undefined)
+    : undefined;
 /** P4: Siri learns agent names from the share directory once it changes. */
 const shortcuts = NativeModules.ZoltShortcuts as
   | { refresh(): Promise<void>; takeOpenDraft(): Promise<string | null> }
   | undefined;
+
+/** Android: a share the app was opened with, as a new draft's id. Throws the reason it failed. */
+export const takeIncomingShare = async () =>
+  (await bridge?.takeIncoming?.(useLink.getState().mac?.macId ?? "")) ?? undefined;
 
 /** The draft a Siri or Shortcuts action saved for the app to open, taken once. */
 export const takeOpenDraft = async () =>
@@ -71,17 +80,17 @@ export async function donateBotConversation(threadId: string) {
 }
 
 export async function updateSharedDraft(id: string, recipientId: string, message: string) {
-  if (!bridge) throw new Error("Sharing requires an iOS development or production build.");
+  if (!bridge) throw new Error("Sharing needs a development or store build of the app.");
   await bridge.updateDraft(id, recipientId, message);
   await useSharing.getState().refresh();
 }
 export async function removeSharedDraft(id: string) {
-  if (!bridge) throw new Error("Sharing requires an iOS development or production build.");
+  if (!bridge) throw new Error("Sharing needs a development or store build of the app.");
   await bridge.removeDraft(id);
   await useSharing.getState().refresh();
 }
 
 export async function markSharedDraftSent(id: string, threadId: string) {
-  if (!bridge) throw new Error("Sharing requires an iOS development or production build.");
+  if (!bridge) throw new Error("Sharing needs a development or store build of the app.");
   await bridge.markDraftSent(id, threadId);
 }

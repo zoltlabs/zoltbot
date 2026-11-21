@@ -68,7 +68,7 @@ export function VoiceSettings() {
             value={engine}
             onChange={(next) => prefs.set({ engine: next })}
             options={[
-              { value: "phone", label: "This iPhone" },
+              { value: "phone", label: "This phone" },
               { value: "elevenlabs", label: "ElevenLabs" },
             ]}
           />

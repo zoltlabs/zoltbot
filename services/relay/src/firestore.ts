@@ -2,6 +2,7 @@ import {
   type DeviceRecord,
   type OfferRecord,
   type PushPlatform,
+  pushPlatforms,
   type Registry,
   type TokenSlot,
   tokenFields,
@@ -124,9 +125,9 @@ export class FirestoreRegistry implements Registry {
     const pushToken = text(doc.fields.pushToken);
     const platform = text(doc.fields.platform);
     if (publicKey) record.publicKey = publicKey;
-    if (pushToken && (platform === "apns" || platform === "apns-sandbox")) {
+    if (pushToken && pushPlatforms.includes(platform as PushPlatform)) {
+      record.platform = platform as PushPlatform;
       record.pushToken = pushToken;
-      record.platform = platform;
     }
     const activityToken = text(doc.fields.activityToken);
     const activityPlatform = text(doc.fields.activityPlatform);

@@ -1,7 +1,9 @@
 // The device registry: which devices each Mac allowed, their keys and push tokens, and live
 // pairing offers. It never holds messages. Firestore backs it in production (firestore.ts).
 
-export type PushPlatform = "apns" | "apns-sandbox";
+/** P9: `fcm` is an Android phone. Live Activity tokens are APNs only. */
+export type PushPlatform = "apns" | "apns-sandbox" | "fcm";
+export const pushPlatforms: readonly PushPlatform[] = ["apns", "apns-sandbox", "fcm"];
 
 export interface DeviceRecord {
   macId: string;

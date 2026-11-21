@@ -1,6 +1,7 @@
 import { linkId } from "@zoltbot/link";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { create, useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { type Client, type ClientState, createClient } from "../data/client";
@@ -123,7 +124,11 @@ export const useLink = create<LinkState>((set, get) => {
       socket,
       ...(pairing
         ? {
-            pairing: { ...pairing, deviceName: Constants.deviceName ?? "iPhone" },
+            pairing: {
+              ...pairing,
+              deviceName:
+                Constants.deviceName ?? (Platform.OS === "android" ? "Android phone" : "iPhone"),
+            },
             paired: () => void paired(mac, client),
           }
         : {}),
