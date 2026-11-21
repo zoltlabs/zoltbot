@@ -27,7 +27,7 @@ import {
   type ExportResult,
   IPC_CHANNELS,
 } from "../shared/ipc";
-import { PREFERENCE_CHANNELS } from "../shared/preferences";
+import { normalizePreferences, PREFERENCE_CHANNELS } from "../shared/preferences";
 import { agentHandlers } from "../zolt/agent-handlers";
 import { DaemonClient } from "../zolt/daemon-client";
 import { checkAttachmentSize } from "../zolt/draft-store";
@@ -62,7 +62,7 @@ import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
-import { followWindowTheme, windowBackground } from "./window-theme";
+import { appearanceFollower, followWindowTheme, windowBackground } from "./window-theme";
 import { connectNotifications } from "./zolt-notifications";
 
 if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), "Zoltbot Shell Dev"));
@@ -197,6 +197,7 @@ let shutdownStarted = false;
 
 const SETUP_FILE = "zoltbot-shell-setup-v1.json";
 const PREFERENCES_FILE = "zoltbot-preferences.json";
+const appearance = appearanceFollower(nativeTheme);
 
 // The desktop build compiles the speech helper; ZOLTBOT_SPEECH_HELPER points tests at a fake.
 const speechHelperPath =
@@ -345,6 +346,7 @@ function registerIpcHandlers(setupFile: string): void {
       update: (patch) => updatePreferences(preferencesFile, patch),
     },
     (saved) => {
+      appearance.apply(saved, BrowserWindow.getAllWindows());
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send(PREFERENCE_CHANNELS.preferencesEvent, saved);
     },
@@ -497,6 +499,7 @@ function createWindow(): BrowserWindow {
     },
   });
   const stopFollowingTheme = followWindowTheme(window, nativeTheme);
+  appearance.attach(window);
   window.once("ready-to-show", () => window.show());
   window.on("close", (event) => {
     if (process.platform === "darwin" && !isQuitting) {
@@ -647,6 +650,11 @@ if (!hasSingleInstanceLock) {
       );
       configureViewProtocol();
       viewHost.start();
+      appearance.apply(
+        await readPreferences(join(app.getPath("userData"), PREFERENCES_FILE)).catch(() =>
+          normalizePreferences({}),
+        ),
+      );
       mainWindow = createWindow();
       service.on("event", forwardAgentEvent);
       const requests = connectNotifications(client, {

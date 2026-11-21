@@ -8,13 +8,27 @@ export const PREFERENCE_CHANNELS = {
 } as const;
 
 export type ThemePreference = "system" | "light" | "dark";
-export type TextSizePreference = "default" | "large" | "larger";
+export type TextSizePreference = "small" | "default" | "large" | "larger";
+/** D1: the interface font, from the stacks the app bundles or the system has. */
+export type FontPreference = "system" | "geist" | "serif";
+/** D1: the fill behind a chat's messages. */
+export type ChatBackgroundPreference = "none" | "tint" | "dots" | "grid";
+
+/** D1: each text size as a scale of the whole interface. */
+export const TEXT_SCALE: Readonly<Record<TextSizePreference, number>> = Object.freeze({
+  small: 0.875,
+  default: 1,
+  large: 1.125,
+  larger: 1.25,
+});
 /** C14: which key sends a message; the other adds a new line. */
 export type SendKeyPreference = "enter" | "mod-enter";
 
 export interface Preferences {
   theme: ThemePreference;
   textSize: TextSizePreference;
+  font: FontPreference;
+  chatBackground: ChatBackgroundPreference;
   sounds: boolean;
   /** Shortcut id → key combination, only for shortcuts the owner rebound. */
   keyBindings: Record<string, string>;
@@ -27,6 +41,8 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   theme: "system",
   textSize: "default",
+  font: "system",
+  chatBackground: "none",
   sounds: true,
   keyBindings: Object.freeze({}) as Record<string, string>,
   showInDock: true,
@@ -35,7 +51,14 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
-const TEXT_SIZES: readonly TextSizePreference[] = ["default", "large", "larger"];
+const TEXT_SIZES = Object.keys(TEXT_SCALE) as TextSizePreference[];
+export const FONTS: readonly FontPreference[] = ["system", "geist", "serif"];
+export const CHAT_BACKGROUNDS: readonly ChatBackgroundPreference[] = [
+  "none",
+  "tint",
+  "dots",
+  "grid",
+];
 
 type Validators = { [K in keyof Preferences]: (value: unknown) => value is Preferences[K] };
 
@@ -43,6 +66,9 @@ const VALIDATORS: Validators = {
   theme: (value): value is ThemePreference => THEMES.includes(value as ThemePreference),
   textSize: (value): value is TextSizePreference =>
     TEXT_SIZES.includes(value as TextSizePreference),
+  font: (value): value is FontPreference => FONTS.includes(value as FontPreference),
+  chatBackground: (value): value is ChatBackgroundPreference =>
+    CHAT_BACKGROUNDS.includes(value as ChatBackgroundPreference),
   sounds: (value): value is boolean => typeof value === "boolean",
   keyBindings: (value): value is Record<string, string> =>
     isRecord(value) &&

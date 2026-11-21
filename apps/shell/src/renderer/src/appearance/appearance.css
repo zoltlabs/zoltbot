@@ -1,0 +1,36 @@
+/*
+ * D1: Settings › Appearance. appearance.ts sets the attributes on <html>.
+ * Text size is the window's zoom factor, set by main.
+ */
+@import "../../../../../../packages/ui/src/theme/fonts.css";
+
+:root[data-font="geist"] {
+  font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root[data-font="serif"] {
+  font-family: ui-serif, "New York", Georgia, "Times New Roman", serif;
+}
+
+/*
+ * Chat backgrounds: ink over the page at low strength. Measured against the faintest transcript
+ * text (--text-time-marker), the worst pixel of each keeps 4.5:1 or better in both themes:
+ * tint 4.83, dots 4.63 (dark) / 4.65 (light), grid 4.77 / 4.74.
+ */
+:root[data-chat-background="tint"] .conversation-scroll {
+  background-color: color-mix(in srgb, var(--openbot-main) 96%, rgb(var(--ink)));
+}
+
+:root[data-chat-background="dots"] .conversation-scroll {
+  background-image: radial-gradient(rgb(var(--ink) / 0.1) 1px, transparent 1.5px);
+  background-size: 16px 16px;
+  background-attachment: local;
+}
+
+:root[data-chat-background="grid"] .conversation-scroll {
+  background-image:
+    linear-gradient(rgb(var(--ink) / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--ink) / 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: local;
+}

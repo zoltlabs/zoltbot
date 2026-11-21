@@ -1,5 +1,6 @@
 import { render } from "solid-js/web";
 import { App } from "./App";
+import { followAppearance } from "./appearance/appearance";
 import { ToastRegion } from "./kit";
 import "./theme.css";
 import "./styles.css";
@@ -12,8 +13,10 @@ import "./tasks.css";
 import "./models.css";
 import "./channels.css";
 import "./account.css";
+import "./appearance/appearance.css";
 
 const root = document.getElementById("root");
+followAppearance();
 
 if (!root) {
   throw new Error("Renderer root element was not found.");

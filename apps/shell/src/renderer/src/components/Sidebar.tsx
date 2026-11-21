@@ -18,12 +18,14 @@ import type {
 } from "../../../shared/ipc";
 import type { TaskSummary } from "../../../shared/tasks";
 import type { ThreadAction } from "../../../shared/thread-actions";
+import { createAppearanceEntry } from "../appearance/AppearanceEntry";
 import type { BotProfile } from "../data";
 import { Menu, type MenuItem } from "../kit";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
-import { SidebarEmployeeRow } from "./SidebarEmployee";
 import { createBridgesEntry } from "./bridges/BridgesEntry";
+import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
+import { SidebarEmployeeRow } from "./SidebarEmployee";
 import {
   AccountIcon,
   CloseIcon,
@@ -37,6 +39,7 @@ import {
   UpdateIcon,
   UsageIcon,
 } from "./SidebarIcons";
+import { chooseSendKey, sendKey } from "./send-key";
 import {
   SidebarAgentIndicator,
   type SidebarAgentState,
@@ -52,8 +55,6 @@ import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
 import { SidebarViews } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
-import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
-import { chooseSendKey, sendKey } from "./send-key";
 
 export type { SidebarAgentState };
 export { SidebarToggleIcon };
@@ -352,6 +353,7 @@ export function Sidebar(props: SidebarProps) {
   }
 
   const bridges = createBridgesEntry();
+  const appearanceEntry = createAppearanceEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -448,6 +450,7 @@ export function Sidebar(props: SidebarProps) {
           run: props.onOpenPermissions,
         },
         bridges.item(),
+        appearanceEntry.item(),
       ],
       [
         {
@@ -778,6 +781,7 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       <bridges.Dialog />
+      <appearanceEntry.Dialog />
       <Show when={contextMenu()}>
         {(menu) => (
           <AgentContextMenu
