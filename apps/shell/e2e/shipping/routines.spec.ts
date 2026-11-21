@@ -3,7 +3,7 @@ import { parseEvent } from "@zoltbot/protocol";
 import { compareFixture } from "../../../../tools/fakes/src/compare-fixture";
 import { axeViolations, shellSession } from "../harness";
 
-/** R1, R3, R4, R6: the Routines page runs a routine now, pauses it, makes it one-time, adds it to Calendar and shows it on the calendar. */
+/** R1, R2, R3, R4, R6: the Routines page runs a routine now, pauses it, makes it one-time, adds it to Calendar and shows it on the calendar. */
 test("routines run now, pause, reschedule once and show on the calendar", async ({ page }) => {
   const fixture = await compareFixture();
   const at = new Date().toISOString();
@@ -41,6 +41,21 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     createdAt: at,
     updatedAt: at,
   };
+  // R2: a webhook routine stays a paused draft until the cloud gives it an address.
+  const hook = {
+    ...routine,
+    id: "routine-hook",
+    name: "Deploy notes",
+    paused: true,
+    event: {
+      source: { kind: "webhook.received", resource: "webhook/deploys" },
+      revision: 1,
+      phase: "draft",
+      proposedBy: "profile",
+      location: "local",
+      dailyLimit: 5,
+    },
+  };
   fixture.daemon.store.dispatch("seed-routine", () => ({
     result: {},
     events: [
@@ -60,6 +75,14 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
         occurredAt: at,
         payload: routine,
       }),
+      parseEvent({
+        eventId: "seed-routine:hook",
+        aggregateType: "routine",
+        aggregateId: hook.id,
+        type: "routine.created",
+        occurredAt: at,
+        payload: hook,
+      }),
     ],
   }));
   const shell = await shellSession(fixture.daemon);
@@ -72,6 +95,9 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     const row = main.getByRole("listitem").filter({ hasText: "Morning check" });
     await expect(row).toContainText("Daily at 9:00 AM · First");
     await expect(row).toContainText(/Next /);
+    await expect(main.getByRole("listitem").filter({ hasText: "Deploy notes" })).toContainText(
+      "When the deploys web address is called",
+    );
     expect(await axeViolations(page)).toEqual([]);
 
     // R4: the Mac stays awake shortly before a routine is due, once the owner says so.

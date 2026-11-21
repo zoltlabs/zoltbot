@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { draftOf, fromWallClock, scheduleOf, scheduleText, statusText } from "./routine-format";
+import {
+  draftOf,
+  fromWallClock,
+  scheduleOf,
+  scheduleText,
+  statusText,
+  triggerText,
+} from "./routine-format";
 
 describe("routine schedules in the editor", () => {
   it("round-trips the shapes the editor shows", () => {
@@ -49,5 +56,11 @@ describe("routine schedules in the editor", () => {
     expect(statusText(item, "en-US")).toBe("Next Fri, Nov 6, 9:00 AM");
     expect(statusText({ ...item, paused: true })).toBe("Paused");
     expect(statusText({ ...item, doneAt: item.nextRunAt })).toBe("Done");
+  });
+
+  it("names a webhook routine by its address name", () => {
+    expect(triggerText({ kind: "webhook.received", resource: "webhook/deploys" })).toBe(
+      "When the deploys web address is called",
+    );
   });
 });

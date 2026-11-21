@@ -20,6 +20,7 @@ export interface RoutineSchedule {
 export type RoutineTrigger =
   | "github.ci_failed"
   | "sentry.issue_created"
+  | "webhook.received"
   | "github.review_requested";
 
 export interface RoutineItem {

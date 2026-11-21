@@ -41,6 +41,7 @@ import { prepareTaskWorktree } from "./prepare-task-worktree.js";
 import type { PublicWriteCheck } from "./private-input.js";
 import { routineScheduler } from "./routine-scheduler.js";
 import type { Runner } from "./runner/interface.js";
+import { webhookEventSource } from "./webhook-event-source.js";
 import { worktreeApi } from "./worktree-api.js";
 import type { worktreeService } from "./worktree-service.js";
 
@@ -53,6 +54,7 @@ export interface TaskRunnerOptions {
   now?(): string;
   routinePollMs?: number;
   eventRoutineTransport?: import("../../github/src/transport.js").GitHubTransport;
+  hookCloud?: import("./webhook-event-source.js").HookCloud;
   stopUnattended?(threadId: string): Promise<void>;
   worktrees?: ReturnType<typeof worktreeService>;
   requestApproval?(draft: InteractionDraft, commandId: string): Promise<unknown>;
@@ -144,6 +146,7 @@ export function taskRunner(options: TaskRunnerOptions) {
   const events = eventRoutines({
     checkPublic: options.checkPublic,
     ...(options.eventRoutineTransport ? { transport: options.eventRoutineTransport } : {}),
+    ...(options.hookCloud ? { adapters: [webhookEventSource(options.hookCloud)] } : {}),
     store,
     now: () => options.now?.() ?? new Date().toISOString(),
     run: (id, work) => run(id, system, work),

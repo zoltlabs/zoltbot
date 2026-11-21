@@ -133,10 +133,16 @@ const TRIGGERS: Record<NonNullable<RoutineItem["trigger"]>["kind"], MessageKey> 
   "github.ci_failed": "routines.trigger.ciFailed",
   "github.review_requested": "routines.trigger.reviewRequested",
   "sentry.issue_created": "routines.trigger.sentryIssue",
+  "webhook.received": "routines.trigger.webhook",
 };
 
 export function triggerText(trigger: NonNullable<RoutineItem["trigger"]>): string {
-  return t(TRIGGERS[trigger.kind], { resource: trigger.resource });
+  // A webhook's resource is "webhook/<name>"; people only ever see the name.
+  const resource =
+    trigger.kind === "webhook.received"
+      ? trigger.resource.replace(/^webhook\//, "")
+      : trigger.resource;
+  return t(TRIGGERS[trigger.kind], { resource });
 }
 
 /** Where a routine stands: paused, done, or when it runs next. */

@@ -19,6 +19,8 @@ export interface RuntimeContext {
   store: Store;
   secrets?: PrivateVault;
   privacy: PrivateInputGuard;
+  /** R2: the cloud relay for webhook routines; absent until a cloud account is connected. */
+  hookCloud?: import("./webhook-event-source.js").HookCloud;
   publish(events: DomainEvent[]): void;
   wake(threadId: string): Promise<void>;
   /** Stops a running turn, for host tools acting on another chat after approval. */
@@ -56,6 +58,7 @@ export interface DaemonOptions {
   routineClock?: () => string;
   routinePollMs?: number;
   eventRoutineTransport?: import("../../github/src/transport.js").GitHubTransport;
+  hookCloud?: import("./webhook-event-source.js").HookCloud;
   redactor?: Redactor;
   origins?: string[];
   replayLimit?: number;

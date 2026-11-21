@@ -202,6 +202,7 @@ async function startOwnedDaemon(
   let interactions: InteractionEngine | undefined;
   let loadingInteractions: Promise<InteractionEngine> | undefined;
   const runtimeContext: RuntimeContext = {
+    ...(options.hookCloud ? { hookCloud: options.hookCloud } : {}),
     store,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     privacy,
@@ -299,6 +300,7 @@ async function startOwnedDaemon(
     ...(options.eventRoutineTransport
       ? { eventRoutineTransport: options.eventRoutineTransport }
       : {}),
+    ...(options.hookCloud ? { hookCloud: options.hookCloud } : {}),
     worktrees: worktreeService(options.dataDir, store),
     requestApproval: async (draft, commandId) =>
       (await loadInteractions()).request(draft, commandId),

@@ -489,6 +489,7 @@
   "routines.trigger.ciFailed": "When CI fails on {resource}",
   "routines.trigger.reviewRequested": "When a review is requested on {resource}",
   "routines.trigger.sentryIssue": "When Sentry reports an issue in {resource}",
+  "routines.trigger.webhook": "When the {resource} web address is called",
   "routines.status.paused": "Paused",
   "routines.status.done": "Done",
   "routines.status.waiting": "Waiting for events",

@@ -25,6 +25,7 @@ import { wakeToolDefinition, wakeTools } from "./wake-tools.js";
 
 export { cloudMacToolDefinitions, cloudMacTools } from "./cloud-runner/mac-tools.js";
 
+import { webhookEventSource } from "./webhook-event-source.js";
 import {
   workspaceToolDefinitions,
   workspaceToolNames,
@@ -62,7 +63,10 @@ export function runtimeTools(
   }
   const chatWake = wakeTools(context);
   const chatSignal = chatSignalTools(context);
-  const eventRoutine = eventRoutineTools(context);
+  const eventRoutine = eventRoutineTools(
+    context,
+    context.hookCloud ? [webhookEventSource(context.hookCloud)] : undefined,
+  );
   const workspace = workspaceTools(context);
   const knowledge = knowledgeTools(context);
   const knowledgeWrite = knowledgeWrites(context);
