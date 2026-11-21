@@ -13,6 +13,7 @@ import {
   RoutineOccurrenceSchema,
 } from "@zoltbot/protocol";
 import { Notification, powerMonitor } from "electron";
+import { bridgeRefusalNotice } from "./bridge-notices";
 
 export function desktopNotifications(host: {
   focusedThread(): string | undefined;
@@ -182,6 +183,8 @@ export function desktopNotifications(host: {
       tick();
     },
     event(kind: string, payload: Record<string, unknown>) {
+      const refused = kind === "settings" ? bridgeRefusalNotice(payload) : undefined;
+      if (refused) notices.set(refused.id, refused);
       apply(kind, payload);
       tick();
     },

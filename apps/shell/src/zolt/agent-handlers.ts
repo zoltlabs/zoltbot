@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from "../shared/ipc";
 import { agentTemplateHandlers } from "./agent-templates-service";
 import { artifactRepositoryHandlers } from "./artifact-repository-service";
 import { asideHandlers } from "./aside-service";
+import { bridgeHandlers } from "./bridges-service";
 import { coAuthorHandlers } from "./co-author-service";
 import { branchHandlers } from "./branch-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
@@ -93,6 +94,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...hiddenHandlers(service.client),
     ...agentTemplateHandlers(service),
     ...coAuthorHandlers(service.client),
+    ...bridgeHandlers(service.client),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

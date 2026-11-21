@@ -1,5 +1,6 @@
 import type { TSchema } from "@sinclair/typebox";
 import { backupModelMacOnlyMethods } from "./backup-models.js";
+import { bridgeMacOnlyMethods } from "./bridges.js";
 import { browserMacOnlyMethods } from "./browser.js";
 import type { MethodName } from "./catalog.js";
 import { quickChatMacOnlyMethods } from "./quick-chat.js";
@@ -16,6 +17,7 @@ const localDesktopOnlyMethods: readonly MethodName[] = [
   ...browserMacOnlyMethods,
   ...quickChatMacOnlyMethods,
   ...backupModelMacOnlyMethods,
+  ...bridgeMacOnlyMethods,
   "routine.checkSource",
   "routine.connectionHandoff",
   "routine.prepare",

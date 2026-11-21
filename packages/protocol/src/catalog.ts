@@ -10,6 +10,7 @@ import {
   OutputModeSchema,
 } from "./artifacts.js";
 import { backupModelMethods } from "./backup-models.js";
+import { bridgeMethods } from "./bridges.js";
 import { BrowserSelectionSchema, browserMethods } from "./browser.js";
 import {
   ChannelPostSchema,
@@ -212,6 +213,7 @@ const rawMethodCatalog = {
   ...backupModelMethods,
   ...staffMethods,
   ...agentTemplateMethods,
+  ...bridgeMethods,
   hello: entry(
     object({ protocolVersion: Type.Integer({ minimum: 1 }), token: Text }),
     object({ protocolVersion: Type.Integer(), version: Text }),

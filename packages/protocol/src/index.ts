@@ -2,6 +2,7 @@ export * from "./adapter-events.js";
 export * from "./agent-templates.js";
 export * from "./artifacts.js";
 export * from "./backup-models.js";
+export * from "./bridges.js";
 export * from "./browser.js";
 export * from "./catalog.js";
 export * from "./channels.js";
