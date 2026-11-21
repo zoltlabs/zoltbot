@@ -34,3 +34,9 @@
   background-size: 24px 24px;
   background-attachment: local;
 }
+
+/* D9: Japanese and Chinese don't start a line with closing punctuation or small kana. */
+:root:lang(ja) body,
+:root:lang(zh-CN) body {
+  line-break: strict;
+}

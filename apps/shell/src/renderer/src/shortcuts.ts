@@ -9,7 +9,8 @@ export interface Shortcut {
   /** For example "Mod+Shift+T". Mod is ⌘ on the Mac and Ctrl elsewhere. */
   keys: string;
   when: ShortcutContext;
-  label: string;
+  /** A function when the label is interface text, so it follows the language (D9). */
+  label: string | (() => string);
   /** Return false to let the event continue to the next match. */
   run: (event: KeyboardEvent) => undefined | boolean;
 }
@@ -109,7 +110,7 @@ export interface ShortcutRegistry {
   setBindings: (bindings: Readonly<Record<string, string>>) => void;
   keysFor: (id: string) => string | undefined;
   /** Each shortcut with the keys it answers to now and the keys it shipped with. */
-  list: () => readonly (Shortcut & { keys: string; defaultKeys: string })[];
+  list: () => readonly (Shortcut & { keys: string; defaultKeys: string; label: string })[];
   handle: (event: KeyboardEvent) => boolean;
 }
 
@@ -145,6 +146,7 @@ export function createShortcutRegistry(options: { isMac: boolean }): ShortcutReg
     list: () =>
       [...shortcuts.values()].map((shortcut) => ({
         ...shortcut,
+        label: typeof shortcut.label === "function" ? shortcut.label() : shortcut.label,
         defaultKeys: shortcut.keys,
         keys: keysFor(shortcut.id) ?? shortcut.keys,
       })),

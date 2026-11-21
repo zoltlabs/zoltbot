@@ -34,7 +34,7 @@ export function StartFreshDialog(props: { onClose: () => void }) {
   }
 
   async function run() {
-    if (!fresh || !confirmsStartFresh(typed()) || busy()) return;
+    if (!fresh || !confirmsStartFresh(typed(), t("fresh.phrase")) || busy()) return;
     setBusy(true);
     setFailed(false);
     try {
@@ -67,7 +67,7 @@ export function StartFreshDialog(props: { onClose: () => void }) {
               <button
                 type="button"
                 class="zb-kit-button danger"
-                disabled={busy() || !confirmsStartFresh(typed())}
+                disabled={busy() || !confirmsStartFresh(typed(), t("fresh.phrase"))}
                 onClick={() => void run()}
               >
                 {t("fresh.confirm")}
@@ -78,7 +78,7 @@ export function StartFreshDialog(props: { onClose: () => void }) {
           <Stack gap={3}>
             <p>{t("fresh.body")}</p>
             <Field
-              label={t("fresh.typeToConfirm")}
+              label={t("fresh.typeToConfirm", { phrase: t("fresh.phrase") })}
               error={failed() ? t("fresh.failed") : null}
               input={(id, describedBy) => (
                 <input

@@ -23,6 +23,12 @@ export const TEXT_SCALE: Readonly<Record<TextSizePreference, number>> = Object.f
   large: 1.125,
   larger: 1.25,
 });
+/** D9: the languages the interface comes in, as BCP 47 tags. */
+export const LANGUAGES = ["en", "es", "de", "fr", "ja", "pt-BR", "zh-CN"] as const;
+export type Language = (typeof LANGUAGES)[number];
+/** D9: "system" follows the system's preferred languages. */
+export type LanguagePreference = "system" | Language;
+
 /** C14: which key sends a message; the other adds a new line. */
 export type SendKeyPreference = "enter" | "mod-enter";
 
@@ -47,6 +53,7 @@ export interface Preferences {
   /** D4: the agent dock, a small always-on-top bar of working agents. */
   agentDock: boolean;
   agentDockPosition: DockPosition;
+  language: LanguagePreference;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -65,6 +72,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   sendKey: "enter",
   agentDock: false,
   agentDockPosition: "right",
+  language: "system",
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -101,6 +109,8 @@ const VALIDATORS: Validators = {
   agentDock: (value): value is boolean => typeof value === "boolean",
   agentDockPosition: (value): value is DockPosition =>
     DOCK_POSITIONS.includes(value as DockPosition),
+  language: (value): value is LanguagePreference =>
+    value === "system" || LANGUAGES.includes(value as Language),
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

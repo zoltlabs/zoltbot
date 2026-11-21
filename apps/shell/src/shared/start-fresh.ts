@@ -15,7 +15,12 @@ export interface StartFreshDesktopApi {
   restart: () => Promise<void>;
 }
 
-/** Whether the typed text confirms. Case and outer spaces don't matter. */
-export function confirmsStartFresh(typed: string): boolean {
-  return typed.trim().toLowerCase() === START_FRESH_PHRASE;
+/**
+ * Whether the typed text confirms: the phrase in the interface's language, or in English.
+ * Case and outer spaces don't matter.
+ */
+export function confirmsStartFresh(typed: string, shown: string = START_FRESH_PHRASE): boolean {
+  // NFC, so a phrase with accents matches however the keyboard composed them.
+  const text = typed.normalize("NFC").trim().toLowerCase();
+  return text === START_FRESH_PHRASE || text === shown.normalize("NFC").trim().toLowerCase();
 }

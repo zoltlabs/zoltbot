@@ -5,11 +5,14 @@ import {
   type ChatBackgroundPreference,
   FONTS,
   type FontPreference,
+  LANGUAGES,
+  type LanguagePreference,
   TEXT_SCALE,
   type TextSizePreference,
   type ThemePreference,
 } from "../../../shared/preferences";
-import { t } from "../i18n";
+import { LANGUAGE_NAMES, t } from "../i18n";
+import { chooseLanguage, languagePreference } from "../i18n/language";
 import { Dialog, type MenuItem, Select, SettingsRow, Stack } from "../kit";
 import { appearance, setAppearance } from "./appearance";
 
@@ -51,29 +54,40 @@ function options(values: readonly string[], labels: Labels) {
 }
 
 export function AppearanceDialog(props: { onClose: () => void }) {
+  // Labels are functions, so the dialog changes language with the setting.
   const rows = [
     {
-      label: t("appearance.theme"),
+      label: () => t("appearance.language"),
+      value: () => languagePreference(),
+      // Each language in its own name, so the owner finds theirs whatever is showing.
+      options: () => [
+        { value: "system", label: t("appearance.system") },
+        ...LANGUAGES.map((language) => ({ value: language, label: LANGUAGE_NAMES[language] })),
+      ],
+      set: (language: string) => chooseLanguage(language as LanguagePreference),
+    },
+    {
+      label: () => t("appearance.theme"),
       value: () => appearance().theme,
-      options: options(Object.keys(THEME_LABELS) as ThemePreference[], THEME_LABELS),
+      options: () => options(Object.keys(THEME_LABELS) as ThemePreference[], THEME_LABELS),
       set: (theme: string) => setAppearance({ theme: theme as ThemePreference }),
     },
     {
-      label: t("appearance.textSize"),
+      label: () => t("appearance.textSize"),
       value: () => appearance().textSize,
-      options: options(Object.keys(TEXT_SCALE) as TextSizePreference[], SIZE_LABELS),
+      options: () => options(Object.keys(TEXT_SCALE) as TextSizePreference[], SIZE_LABELS),
       set: (textSize: string) => setAppearance({ textSize: textSize as TextSizePreference }),
     },
     {
-      label: t("appearance.font"),
+      label: () => t("appearance.font"),
       value: () => appearance().font,
-      options: options(FONTS, FONT_LABELS),
+      options: () => options(FONTS, FONT_LABELS),
       set: (font: string) => setAppearance({ font: font as FontPreference }),
     },
     {
-      label: t("appearance.chatBackground"),
+      label: () => t("appearance.chatBackground"),
       value: () => appearance().chatBackground,
-      options: options(CHAT_BACKGROUNDS, BACKGROUND_LABELS),
+      options: () => options(CHAT_BACKGROUNDS, BACKGROUND_LABELS),
       set: (chatBackground: string) =>
         setAppearance({ chatBackground: chatBackground as ChatBackgroundPreference }),
     },
@@ -93,12 +107,12 @@ export function AppearanceDialog(props: { onClose: () => void }) {
         <For each={rows}>
           {(row) => (
             <SettingsRow
-              label={row.label}
+              label={row.label()}
               control={() => (
                 <Select
-                  label={row.label}
+                  label={row.label()}
                   value={row.value()}
-                  options={row.options}
+                  options={row.options()}
                   onChange={row.set}
                 />
               )}
