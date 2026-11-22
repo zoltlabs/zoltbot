@@ -106,10 +106,11 @@ test("models settings and the switch to another provider stay usable", async ({ 
     await models.getByRole("button", { name: "Add account" }).click();
     // Only tools that can hold another sign-in are offered.
     const tool = models.getByRole("button", { name: /^Tool:/ });
-    await expect(tool).toHaveAccessibleDescription("Other tools use only their own sign-in.");
+    await expect(tool).toHaveAccessibleDescription("Antigravity allows only one account.");
+    await expect(tool).toHaveAccessibleName("Tool: Claude");
     await tool.click();
     await expect(page.getByRole("listbox", { name: "Tool" }).getByRole("option")).toHaveText([
-      "Claude",
+      /Claude$/,
       "Codex",
     ]);
     await page.keyboard.press("Escape");

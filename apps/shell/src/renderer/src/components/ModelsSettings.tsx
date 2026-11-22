@@ -39,6 +39,9 @@ function accountStatus(account: ModelAccountView): string {
     : login;
 }
 
+const listNames = (names: string[]) =>
+  names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : (names[0] ?? "");
+
 /** Accounts for each coding tool and the order chats fall back through at usage limits. */
 export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar: () => void }) {
   const models = window.openbot.models;
@@ -65,8 +68,11 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
   const tools = createMemo(() =>
     accounts().filter((account) => account.isDefault && account.canAddAccounts),
   );
+  const chosenTool = () => tool() || tools()[0]?.definitionId || "";
   const singleSignIn = () =>
-    accounts().some((account) => account.isDefault && !account.canAddAccounts);
+    accounts()
+      .filter((account) => account.isDefault && !account.canAddAccounts)
+      .map((account) => account.providerName);
   const byId = (id: string) => accounts().find((account) => account.id === id);
   const own = () => (role() === "employee" ? null : (overview()?.orders[role()] ?? null));
   const order = (): BackupEntryView[] => own() ?? overview()?.orders.employee ?? [];
@@ -124,7 +130,7 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
 
   async function addAccount(event: SubmitEvent) {
     event.preventDefault();
-    const definitionId = tool() || tools()[0]?.definitionId;
+    const definitionId = chosenTool();
     if (!definitionId || !label().trim()) return;
     await run(async () => {
       const result = await models.addAccount({ definitionId, label: label().trim() });
@@ -311,8 +317,8 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                 <span aria-hidden="true">Tool</span>
                 <Select
                   label="Tool"
-                  value={tool()}
-                  describedBy={singleSignIn() ? "models-tool-note" : undefined}
+                  value={chosenTool()}
+                  describedBy={singleSignIn().length ? "models-tool-note" : undefined}
                   options={tools().map((item) => ({
                     value: item.definitionId,
                     label: item.providerName,
@@ -341,9 +347,10 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
                   Add
                 </button>
               </div>
-              <Show when={singleSignIn()}>
+              <Show when={singleSignIn().length}>
                 <p id="models-tool-note" class="models-form-note">
-                  Other tools use only their own sign-in.
+                  {listNames(singleSignIn())} {singleSignIn().length > 1 ? "allow" : "allows"} only
+                  one account.
                 </p>
               </Show>
             </form>
