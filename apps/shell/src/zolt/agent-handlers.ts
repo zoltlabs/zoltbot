@@ -1,4 +1,5 @@
 import { IPC_CHANNELS } from "../shared/ipc";
+import { agentBrowserHandlers } from "./agent-browser-service";
 import { agentTemplateHandlers } from "./agent-templates-service";
 import { artifactRepositoryHandlers } from "./artifact-repository-service";
 import { asideHandlers } from "./aside-service";
@@ -32,10 +33,9 @@ import { routineHandlers } from "./routines-service";
 import { spendHandlers } from "./spend-service";
 import { parseStaffAction } from "./staff-view";
 import { threadActionHandlers } from "./thread-actions";
-import { workflowHandlers } from "./workflows-service";
-import { agentBrowserHandlers } from "./agent-browser-service";
 import { vaultHandlers } from "./vault-service";
 import { voiceHandlers } from "./voice-service";
+import { workflowHandlers } from "./workflows-service";
 import type { ZoltService } from "./zolt-service";
 
 export type Handler = (input: unknown) => unknown;

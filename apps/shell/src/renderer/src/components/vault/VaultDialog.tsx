@@ -211,9 +211,7 @@ export function VaultDialog(props: {
           {(name) => (
             <Field
               label={t("vault.field.username")}
-              input={(id) => (
-                <input id={id} class="zb-kit-input" readOnly value={name()} />
-              )}
+              input={(id) => <input id={id} class="zb-kit-input" readOnly value={name()} />}
             />
           )}
         </Show>
@@ -233,50 +231,50 @@ export function VaultDialog(props: {
           />
         </Show>
         <Show when={!managed()}>
-        <Field
-          label={t(login() ? "vault.field.password" : "vault.field.key")}
-          error={errors().value}
-          input={(id, describedBy) => (
-            <div class="vault-value-row">
-              <input
-                id={id}
-                class="zb-kit-input"
-                type={login() && !shown() ? "password" : "text"}
-                aria-describedby={describedBy}
-                aria-invalid={!!errors().value || undefined}
-                autocomplete="new-password"
-                spellcheck={false}
-                placeholder={editing() ? "••••••••" : undefined}
-                value={value()}
-                onInput={(event) => {
-                  setValue(event.currentTarget.value);
-                  setEdited(true);
-                }}
-              />
-              <Show when={editing()}>
-                <button
-                  type="button"
-                  class="zb-kit-button"
-                  disabled={revealing()}
-                  onClick={() => void reveal()}
-                >
-                  {t("vault.show")}
-                </button>
-              </Show>
-              <Show when={!login()}>
-                <label class="zb-kit-button vault-qr">
-                  {t("vault.chooseQr")}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp"
-                    class="sr-only"
-                    onChange={(event) => void chooseQr(event.currentTarget.files?.[0])}
-                  />
-                </label>
-              </Show>
-            </div>
-          )}
-        />
+          <Field
+            label={t(login() ? "vault.field.password" : "vault.field.key")}
+            error={errors().value}
+            input={(id, describedBy) => (
+              <div class="vault-value-row">
+                <input
+                  id={id}
+                  class="zb-kit-input"
+                  type={login() && !shown() ? "password" : "text"}
+                  aria-describedby={describedBy}
+                  aria-invalid={!!errors().value || undefined}
+                  autocomplete="new-password"
+                  spellcheck={false}
+                  placeholder={editing() ? "••••••••" : undefined}
+                  value={value()}
+                  onInput={(event) => {
+                    setValue(event.currentTarget.value);
+                    setEdited(true);
+                  }}
+                />
+                <Show when={editing()}>
+                  <button
+                    type="button"
+                    class="zb-kit-button"
+                    disabled={revealing()}
+                    onClick={() => void reveal()}
+                  >
+                    {t("vault.show")}
+                  </button>
+                </Show>
+                <Show when={!login()}>
+                  <label class="zb-kit-button vault-qr">
+                    {t("vault.chooseQr")}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      class="sr-only"
+                      onChange={(event) => void chooseQr(event.currentTarget.files?.[0])}
+                    />
+                  </label>
+                </Show>
+              </div>
+            )}
+          />
         </Show>
         <fieldset class="vault-agents">
           <legend class="zb-kit-field-label">{t("vault.field.agents")}</legend>

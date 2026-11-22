@@ -14,10 +14,10 @@ export type * from "./co-author";
 export * from "./company";
 export type * from "./data";
 export * from "./dictation";
-export type * from "./manager-cards";
-export type * from "./memory";
 export type * from "./hidden";
 export type * from "./links";
+export type * from "./manager-cards";
+export type * from "./memory";
 export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
@@ -53,12 +53,12 @@ import type {
   ReadEarlierPostsInput,
 } from "./channels";
 import type { CloudDesktopApi } from "./cloud";
-import type { CompanyOverview, DecidePlanInput } from "./company";
-import type { DictationDesktopApi } from "./dictation";
 import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
+import type { CompanyOverview, DecidePlanInput } from "./company";
+import { DATA_CHANNELS, type DataDesktopApi } from "./data";
+import type { DictationDesktopApi } from "./dictation";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
-import { DATA_CHANNELS, type DataDesktopApi } from "./data";
 import { MEMORY_CHANNELS, type MemoryDesktopApi } from "./memory";
 import { MODEL_CHANNELS, type ModelSwitchDialog, type ModelsDesktopApi } from "./models";
 import { OUTBOX_CHANNELS, type OutboxDesktopApi } from "./outbox";
@@ -71,8 +71,8 @@ import type { ReviewTaskInput, TaskSummary } from "./tasks";
 import type { ThreadActionInput } from "./thread-actions";
 import { VAULT_CHANNELS, type VaultDesktopApi } from "./vault";
 import type { ViewsDesktopApi } from "./views";
-import { WORKFLOW_CHANNELS, type WorkflowsDesktopApi } from "./workflows";
 import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
+import { WORKFLOW_CHANNELS, type WorkflowsDesktopApi } from "./workflows";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",

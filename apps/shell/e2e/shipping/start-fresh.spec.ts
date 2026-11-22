@@ -52,7 +52,9 @@ test("Start fresh asks for the typed phrase, lists kept project folders and rest
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/d6-confirm.png` });
     await confirm.click();
 
-    const kept = page.getByRole("dialog", { name: "Delete these folders in your projects by hand" });
+    const kept = page.getByRole("dialog", {
+      name: "Delete these folders in your projects by hand",
+    });
     await expect(kept).toContainText("/Projects/site/.zoltbot");
     // Past the point of no return, Escape doesn't close it.
     await page.keyboard.press("Escape");

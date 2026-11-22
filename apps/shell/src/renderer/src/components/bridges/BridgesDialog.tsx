@@ -5,14 +5,7 @@ import { BRIDGE_DIRECT } from "@zoltbot/protocol";
 import { createResource, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
 import { t } from "../../i18n";
 import { ConfirmDialog, Dialog, EmptyState, Field, Select, Stack } from "../../kit";
-import {
-  appName,
-  newId,
-  placeLabel,
-  problemText,
-  statusLabel,
-  toInput,
-} from "./bridge-model";
+import { appName, newId, placeLabel, problemText, statusLabel, toInput } from "./bridge-model";
 import { PairingNote } from "./PairingNote";
 import { RouteEditor } from "./RouteEditor";
 import { BRIDGE_SETUPS, type BridgeSetupSpec } from "./setup";
@@ -232,13 +225,13 @@ export function BridgesDialog(props: { onClose: () => void }) {
                               view(),
                               view().bridge.routes.filter((row) => row.id !== routeId),
                             ),
-                          ).then(
-                            (saved) => saved && go({ name: "bridge", id: view().bridge.id }),
-                          ),
+                          ).then((saved) => saved && go({ name: "bridge", id: view().bridge.id })),
                         "danger",
                       )}
                     </Show>
-                    {button(t("bridges.cancel"), () => go({ name: "bridge", id: view().bridge.id }))}
+                    {button(t("bridges.cancel"), () =>
+                      go({ name: "bridge", id: view().bridge.id }),
+                    )}
                     {button(t("route.save"), () => void saveRoute(view(), routeId), "primary")}
                   </>
                 );
@@ -456,7 +449,9 @@ function BridgeDetail(props: {
           <span class="bridge-dot" aria-hidden="true" />
           {statusLabel(props.view.status)}
         </span>
-        <Show when={problemText(props.view.status, props.view.bridge.kind) ?? props.view.status.account}>
+        <Show
+          when={problemText(props.view.status, props.view.bridge.kind) ?? props.view.status.account}
+        >
           {(line) => (
             <span class="bridge-muted">
               <span aria-hidden="true">· </span>
@@ -557,4 +552,3 @@ function BridgeDetail(props: {
     </Stack>
   );
 }
-

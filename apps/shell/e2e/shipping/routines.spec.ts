@@ -167,9 +167,9 @@ test("routines run now, pause, reschedule once and show on the calendar", async 
     await page.getByRole("menuitem", { name: "Send test request" }).click();
     await expect(toast("Test request sent to Deploy notes.")).toBeVisible();
     const bound = await relay.cloud.hook("webhook/deploys");
-    expect(await relay.cloud.requests(bound?.hookId ?? "", "2000-01-01T00:00:00.000Z")).toHaveLength(
-      1,
-    );
+    expect(
+      await relay.cloud.requests(bound?.hookId ?? "", "2000-01-01T00:00:00.000Z"),
+    ).toHaveLength(1);
     await hookActions.click();
     await page.getByRole("menuitem", { name: "Rotate web address…" }).click();
     const rotate = page.getByRole("alertdialog", {

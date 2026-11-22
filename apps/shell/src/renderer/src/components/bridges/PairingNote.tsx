@@ -49,9 +49,10 @@ export function PairingNote(props: { view: BridgeView; busy: boolean; renew: () 
                   bot: props.view.status.account ?? t("bridges.telegram.yourBot"),
                 })}
               </p>
-              <code class="bridge-code" aria-label={`/start ${code().split("").join(" ")}`}>
+              <code class="bridge-code" aria-hidden="true">
                 {`/start ${code()}`}
               </code>
+              <span class="sr-only">{`/start ${code().split("").join(" ")}`}</span>
             </>
           )}
         </Show>

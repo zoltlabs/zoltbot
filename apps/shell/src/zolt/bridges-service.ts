@@ -1,7 +1,7 @@
 // I1: the Mac's bridge settings, passed through to the daemon's bridge.* methods.
 import { randomUUID } from "node:crypto";
 import type { BridgeView } from "@zoltbot/protocol";
-import { BRIDGE_CHANNELS as C, type BridgeTargets } from "../shared/bridges";
+import { type BridgeTargets, BRIDGE_CHANNELS as C } from "../shared/bridges";
 import type { DaemonClient } from "./daemon-client";
 import { isObject, requireString } from "./parsers";
 

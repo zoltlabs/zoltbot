@@ -187,7 +187,9 @@ export function routineHandlers(client: Client): Record<string, (input: unknown)
         .filter((row) => row.archived !== true && row.hidden !== true);
       // The agent picked in setup, else the one a new chat in that project would get.
       const profile =
-        profiles.find((row) => row.kind === "profile" && provider && row.definitionId === provider) ??
+        profiles.find(
+          (row) => row.kind === "profile" && provider && row.definitionId === provider,
+        ) ??
         chooseAgent(profiles, {
           defaultAgentId: projects.find((row) => row.id === job?.projectId)?.defaultAgentId,
         });

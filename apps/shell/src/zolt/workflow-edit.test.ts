@@ -119,7 +119,9 @@ describe("R7 workflow edits", () => {
 
   it("refuses bad fields, unknown edits and removing the start", () => {
     expect(() =>
-      applyWorkflowEdit(workflow, { op: "rename" } as unknown as Parameters<typeof applyWorkflowEdit>[1]),
+      applyWorkflowEdit(workflow, { op: "rename" } as unknown as Parameters<
+        typeof applyWorkflowEdit
+      >[1]),
     ).toThrow("workflow_edit_invalid");
     expect(() => applyWorkflowEdit(workflow, { op: "remove", stepId: "start" })).toThrow(
       "workflow_trigger_required",

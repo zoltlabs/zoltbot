@@ -214,9 +214,7 @@ describe("bundles", () => {
       snapshot: {
         knowledge: [{ id: "k", title: "Old", revision: 3 }],
         routine: [{ id: "r", name: "Morning", paused: false }],
-        project: [
-          { id: "p", name: "Site", roots: [{ path: "/srv/site", label: "site" }] },
-        ],
+        project: [{ id: "p", name: "Site", roots: [{ path: "/srv/site", label: "site" }] }],
       },
       skills: [],
       connections: [],

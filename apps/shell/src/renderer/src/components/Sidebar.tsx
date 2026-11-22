@@ -20,22 +20,22 @@ import type {
 import type { TaskSummary } from "../../../shared/tasks";
 import type { ThreadAction } from "../../../shared/thread-actions";
 import { createAppearanceEntry } from "../appearance/AppearanceEntry";
+import { createMoveEntry } from "../bundle/MoveEntry";
 import type { BotProfile } from "../data";
-import { t } from "../i18n";
-import { Menu, type MenuItem } from "../kit";
 import { createDockEntry } from "../dock/DockEntry";
 import { createStartFreshEntry } from "../fresh/StartFreshEntry";
-import { createMoveEntry } from "../bundle/MoveEntry";
+import { t } from "../i18n";
 import { createKeyboardEntry } from "../keyboard/KeyboardEntry";
+import { Menu, type MenuItem } from "../kit";
 import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
+import { createBridgesEntry } from "./bridges/BridgesEntry";
+import { createCliEntry } from "./cli/CliEntry";
 import { requestCall } from "./conversation/call";
 import { linkPreviewsEnabled, setLinkPreviewsEnabled } from "./conversation/link-cards";
 import { openVoiceSettings, VoiceSettingsHost } from "./conversation/VoiceSettings";
 import { SidebarEmployeeRow } from "./SidebarEmployee";
-import { createBridgesEntry } from "./bridges/BridgesEntry";
-import { createCliEntry } from "./cli/CliEntry";
 import {
   AccountIcon,
   CloseIcon,

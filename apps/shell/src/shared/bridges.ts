@@ -16,7 +16,10 @@ export interface BridgeTargets {
 
 export interface BridgesDesktopApi {
   list: () => Promise<BridgeView[]>;
-  save: (input: { bridge: BridgeInput; credentials?: Record<string, string> }) => Promise<BridgeView>;
+  save: (input: {
+    bridge: BridgeInput;
+    credentials?: Record<string, string>;
+  }) => Promise<BridgeView>;
   remove: (id: string) => Promise<void>;
   /** Chats and channels a route can lead to. */
   targets: () => Promise<BridgeTargets>;

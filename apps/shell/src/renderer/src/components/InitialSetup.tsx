@@ -116,13 +116,13 @@ export function InitialSetup(props: InitialSetupProps) {
     setError("");
     if (!props.reviewing && starters() === null) {
       // Setup goes on without them if they can't be read.
-      const jobs = await window.openbot.routines
-        ?.starters?.()
-        .catch(() => [] as StarterJobItem[]);
+      const jobs = await window.openbot.routines?.starters?.().catch(() => [] as StarterJobItem[]);
       setStarters(jobs ?? []);
       if (jobs?.length) {
         setSaving(false);
-        queueMicrotask(() => starterList?.querySelector("button.primary")?.focus());
+        queueMicrotask(() =>
+          starterList?.querySelector<HTMLButtonElement>("button.primary")?.focus(),
+        );
         return;
       }
     }
@@ -140,7 +140,10 @@ export function InitialSetup(props: InitialSetupProps) {
     if (add) {
       setStarterBusy(id);
       try {
-        await window.openbot.routines?.addStarter?.({ id, provider: selectedProvider() ?? undefined });
+        await window.openbot.routines?.addStarter?.({
+          id,
+          provider: selectedProvider() ?? undefined,
+        });
       } catch (cause) {
         setError(errorMessage(cause, "Zoltbot could not add it."));
         return;
@@ -150,7 +153,10 @@ export function InitialSetup(props: InitialSetupProps) {
     }
     const left = (starters() ?? []).filter((job) => job.id !== id);
     setStarters(left);
-    if (left.length) queueMicrotask(() => starterList?.querySelector("button.primary")?.focus());
+    if (left.length)
+      queueMicrotask(() =>
+        starterList?.querySelector<HTMLButtonElement>("button.primary")?.focus(),
+      );
     else await save();
   }
 
@@ -233,72 +239,71 @@ export function InitialSetup(props: InitialSetupProps) {
         </Show>
 
         <Show when={!starters()?.length}>
-        <Show
-          when={providerOptions().length > 0}
-          fallback={
-            <p class="agent-setup-empty" role="status">
-              {props.agentStatus.phase === "ready"
-                ? "No coding agents found."
-                : (props.agentStatus.message ?? "Connecting to Zoltbot…")}
-            </p>
-          }
-        >
-          <ProviderPicker
-            value={selectedProvider()}
-            options={providerOptions()}
-            ariaLabel="Default agent"
-            label="Default agent"
-            disabled={saving()}
-            allowUnavailableSelection
-            focusFirst
-            onChange={setSelectedProvider}
-          />
-          <Show when={selected()}>
-            {(provider) => <AgentSetupStep provider={provider()} onOpenUrl={openUrl} />}
+          <Show
+            when={providerOptions().length > 0}
+            fallback={
+              <p class="agent-setup-empty" role="status">
+                {props.agentStatus.phase === "ready"
+                  ? "No coding agents found."
+                  : (props.agentStatus.message ?? "Connecting to Zoltbot…")}
+              </p>
+            }
+          >
+            <ProviderPicker
+              value={selectedProvider()}
+              options={providerOptions()}
+              ariaLabel="Default agent"
+              label="Default agent"
+              disabled={saving()}
+              allowUnavailableSelection
+              focusFirst
+              onChange={setSelectedProvider}
+            />
+            <Show when={selected()}>
+              {(provider) => <AgentSetupStep provider={provider()} onOpenUrl={openUrl} />}
+            </Show>
           </Show>
-        </Show>
 
-        <Show when={props.platform === "darwin"}>
-          <section class="mac-permissions" aria-labelledby="mac-permissions-title">
-            <div class="mac-permissions-heading">
-              <div>
-                <h2 id="mac-permissions-title">Mac permissions</h2>
-                <p>Optional. Computer Use needs both permissions.</p>
+          <Show when={props.platform === "darwin"}>
+            <section class="mac-permissions" aria-labelledby="mac-permissions-title">
+              <div class="mac-permissions-heading">
+                <div>
+                  <h2 id="mac-permissions-title">Mac permissions</h2>
+                  <p>Optional. Computer Use needs both permissions.</p>
+                </div>
               </div>
-            </div>
-            <div class="mac-permission-list">
-              <For each={PERMISSIONS}>
-                {(permission) => {
-                  const state = () => permissionState(permissions(), permission.id);
-                  return (
-                    <div class="mac-permission-row">
-                      <span class="mac-permission-copy">
-                        <strong>{permission.title}</strong>
-                        <small>{permission.description}</small>
-                      </span>
-                      <button
-                        type="button"
-                        class="mac-permission-action"
-                        classList={{ "mac-permission-allowed": state() === "granted" }}
-                        disabled={
-                          permissionBusy() !== null ||
-                          state() === "granted" ||
-                          state() === "restricted"
-                        }
-                        onClick={() => void requestPermission(permission.id)}
-                      >
-                        {permissionBusy() === permission.id
-                          ? "Checking…"
-                          : permissionLabel(state())}
-                      </button>
-                    </div>
-                  );
-                }}
-              </For>
-            </div>
-          </section>
-        </Show>
-
+              <div class="mac-permission-list">
+                <For each={PERMISSIONS}>
+                  {(permission) => {
+                    const state = () => permissionState(permissions(), permission.id);
+                    return (
+                      <div class="mac-permission-row">
+                        <span class="mac-permission-copy">
+                          <strong>{permission.title}</strong>
+                          <small>{permission.description}</small>
+                        </span>
+                        <button
+                          type="button"
+                          class="mac-permission-action"
+                          classList={{ "mac-permission-allowed": state() === "granted" }}
+                          disabled={
+                            permissionBusy() !== null ||
+                            state() === "granted" ||
+                            state() === "restricted"
+                          }
+                          onClick={() => void requestPermission(permission.id)}
+                        >
+                          {permissionBusy() === permission.id
+                            ? "Checking…"
+                            : permissionLabel(state())}
+                        </button>
+                      </div>
+                    );
+                  }}
+                </For>
+              </div>
+            </section>
+          </Show>
         </Show>
 
         <Show when={error()}>
@@ -308,39 +313,39 @@ export function InitialSetup(props: InitialSetupProps) {
         </Show>
 
         <Show when={!starters()?.length}>
-        <div class="initial-setup-actions">
-          <Show
-            when={props.reviewing}
-            fallback={
-              <button
-                type="button"
-                class="initial-setup-secondary"
-                disabled={checking() || props.agentStatus.phase !== "ready"}
-                onClick={() => void checkAgents()}
-              >
-                {checking() ? "Checking…" : "Check again"}
+          <div class="initial-setup-actions">
+            <Show
+              when={props.reviewing}
+              fallback={
+                <button
+                  type="button"
+                  class="initial-setup-secondary"
+                  disabled={checking() || props.agentStatus.phase !== "ready"}
+                  onClick={() => void checkAgents()}
+                >
+                  {checking() ? "Checking…" : "Check again"}
+                </button>
+              }
+            >
+              <button type="button" class="initial-setup-secondary" onClick={props.onClose}>
+                Cancel
               </button>
-            }
-          >
-            <button type="button" class="initial-setup-secondary" onClick={props.onClose}>
-              Cancel
+            </Show>
+            <button
+              type="button"
+              class="initial-setup-save"
+              disabled={saving() || !selected()}
+              onClick={() => void save()}
+            >
+              {saving()
+                ? "Saving…"
+                : props.reviewing
+                  ? "Save changes"
+                  : selected()
+                    ? `Continue with ${selected()?.name || selected()?.id}`
+                    : "Choose an agent"}
             </button>
-          </Show>
-          <button
-            type="button"
-            class="initial-setup-save"
-            disabled={saving() || !selected()}
-            onClick={() => void save()}
-          >
-            {saving()
-              ? "Saving…"
-              : props.reviewing
-                ? "Save changes"
-                : selected()
-                  ? `Continue with ${selected()?.name || selected()?.id}`
-                  : "Choose an agent"}
-          </button>
-        </div>
+          </div>
         </Show>
       </section>
     </main>

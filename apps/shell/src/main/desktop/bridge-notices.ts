@@ -12,13 +12,17 @@ export function bridgeRefusalNotice(
   if (bridgeRow(payload.key)?.row !== "refused" || !Array.isArray(payload.value)) return undefined;
   // The daemon puts the new refusal first.
   const entry = payload.value[0] as
-    | { id?: unknown; at?: unknown; person?: { id?: unknown; name?: unknown }; place?: { id?: unknown; label?: unknown } }
+    | {
+        id?: unknown;
+        at?: unknown;
+        person?: { id?: unknown; name?: unknown };
+        place?: { id?: unknown; label?: unknown };
+      }
     | undefined;
   if (typeof entry?.id !== "string" || typeof entry.at !== "string") return undefined;
   if (now - Date.parse(entry.at) > FRESH_MS) return undefined;
   const name = String(entry.person?.name || entry.person?.id || "Someone");
   const label = String(entry.place?.label ?? "");
-  const place =
-    entry.place?.id === BRIDGE_DIRECT || !label ? "direct messages" : label;
+  const place = entry.place?.id === BRIDGE_DIRECT || !label ? "direct messages" : label;
   return { id: entry.id, threadId: "bridges", text: `${name} isn’t on the list for ${place}.` };
 }

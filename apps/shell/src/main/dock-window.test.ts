@@ -131,7 +131,14 @@ describe("DockController", () => {
     const { dock, windows } = setup();
     dock.apply(ON);
     dock.handle({ type: "turn-started", botId: "a", threadId: "t", turnId: "1" });
-    dock.handle({ type: "prompt", requestId: 1, botId: "gone", threadId: "t", turnId: "1", questions: [] });
+    dock.handle({
+      type: "prompt",
+      requestId: 1,
+      botId: "gone",
+      threadId: "t",
+      turnId: "1",
+      questions: [],
+    });
     dock.handle({ type: "bots-changed", bots: [bot("a", "Research")] });
     expect(dock.state().needsYou).toBe(0);
     dock.handle({ type: "status", status: { phase: "restarting" } as never });

@@ -330,7 +330,9 @@ export function AgentSettings(props: {
         </Show>
         <Show when={props.bot?.id}>{(botId) => <AgentUsage botId={botId()} />}</Show>
         <Show when={props.bot?.profileId}>
-          {(agentId) => <AgentBrowserProfile agentId={agentId()} agentName={props.bot?.name ?? ""} />}
+          {(agentId) => (
+            <AgentBrowserProfile agentId={agentId()} agentName={props.bot?.name ?? ""} />
+          )}
         </Show>
         <Show when={props.bot?.id}>{(botId) => <RepositoryMode botId={botId()} />}</Show>
         <Show when={props.bot?.id}>{(botId) => <CoAuthorLine botId={botId()} />}</Show>

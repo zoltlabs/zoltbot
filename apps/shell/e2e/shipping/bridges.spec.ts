@@ -160,7 +160,9 @@ test("Adding Slack walks through the manifest and tokens, and keeps the tokens i
     await expect(detail.getByText("Connected")).toBeVisible();
     await expect(detail.getByText("Direct messages → Support desk")).toBeVisible();
     expect(credentials).toEqual({ appToken: "xapp-test", botToken: "xoxb-test" });
-    const views = ((await shell.rpc.call("bridge.list", {})) as { items: { bridge: { id: string } }[] }).items;
+    const views = (
+      (await shell.rpc.call("bridge.list", {})) as { items: { bridge: { id: string } }[] }
+    ).items;
     const saved = fixture.daemon.store.record("settings", `bridge.record.${views[0]?.bridge.id}`);
     expect(saved).toBeTruthy();
     expect(JSON.stringify([views, saved])).not.toContain("xoxb-test");

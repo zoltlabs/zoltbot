@@ -269,8 +269,7 @@ export function ProviderDialog(props: {
             }}
           >
             <p class="vault-provider-note">
-              {t("vault.provider.lockedBody", { name: name() })}{" "}
-              <code>{UNLOCK}</code>
+              {t("vault.provider.lockedBody", { name: name() })} <code>{UNLOCK}</code>
             </p>
             <Show when={provider().path}>
               {(program) => (
@@ -298,8 +297,7 @@ export function ProviderDialog(props: {
         </Match>
         <Match when={provider().state === "signed_out"}>
           <p class="vault-provider-note">
-            {t("vault.provider.signedOut", { name: name() })}{" "}
-            <code>{SIGN_IN[provider().id]}</code>
+            {t("vault.provider.signedOut", { name: name() })} <code>{SIGN_IN[provider().id]}</code>
           </p>
         </Match>
         <Match when={true}>

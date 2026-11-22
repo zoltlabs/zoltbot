@@ -52,9 +52,7 @@ export function toInput(bridge: Bridge): BridgeInput {
 }
 
 export const placeLabel = (route: Pick<BridgeRoute, "from">) =>
-  route.from.id === BRIDGE_DIRECT
-    ? t("route.direct")
-    : route.from.label.trim() || route.from.id;
+  route.from.id === BRIDGE_DIRECT ? t("route.direct") : route.from.label.trim() || route.from.id;
 
 /** Places the owner may want to route: existing routes and where refused people wrote. */
 export function knownPlaces(view: BridgeView) {

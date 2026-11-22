@@ -5,7 +5,9 @@ import { routineHandlers } from "./routines-service";
 function client() {
   const call = vi.fn(async (method: string, _params?: unknown, _commandId?: string) =>
     method === "routine.starters"
-      ? { items: [{ id: "weekly-inbox", name: "Weekly inbox summary", projectId: "p" }, { bad: 1 }] }
+      ? {
+          items: [{ id: "weekly-inbox", name: "Weekly inbox summary", projectId: "p" }, { bad: 1 }],
+        }
       : {},
   );
   const rows = (kind: string) =>

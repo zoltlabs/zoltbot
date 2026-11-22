@@ -21,6 +21,7 @@ import {
   systemPreferences,
   type WebContents,
 } from "electron";
+import { DOCK_CHANNELS } from "../shared/dock";
 import {
   type AgentEvent,
   type AppInfo,
@@ -47,16 +48,12 @@ import { ZoltService } from "../zolt/zolt-service";
 import { notificationForAgentEvent } from "./agent-notifications";
 import { runAttachmentAction } from "./attachment-actions";
 import { ATTACHMENT_SCHEME, attachmentId, attachmentResponse } from "./attachment-protocol";
-import { DaemonHost, daemonPaths } from "./daemon-host";
-import { DOCK_CHANNELS } from "../shared/dock";
-import { dockHandlers, electronDock } from "./dock-window";
 import { electronBundleHandlers } from "./bundle-handlers";
-import { startFreshHandlers } from "./start-fresh";
+import { DaemonHost, daemonPaths } from "./daemon-host";
 import { accountHandlers } from "./desktop/account-handlers";
 import { ARTIFACT_FILE_BYTES, artifactProtocol, artifactScheme } from "./desktop/artifact-protocol";
 import { artifactShareHandlers, daemonShareRecords } from "./desktop/artifact-share";
 import { calendarHandlers } from "./desktop/calendar-handlers";
-import { webAddressHandlers } from "./desktop/web-address-handlers";
 import { cliHandlers } from "./desktop/cli-handlers";
 import { cloudAccount } from "./desktop/cloud-account";
 import { cloudHandlers } from "./desktop/cloud-handlers";
@@ -69,10 +66,13 @@ import { desktopKitAsset } from "./desktop/kit-assets";
 import { desktopAccountClient } from "./desktop/native-account-client";
 import { preferenceHandlers } from "./desktop/preferences-handlers";
 import { desktopViewProtocol, viewScheme } from "./desktop/view-protocol";
+import { webAddressHandlers } from "./desktop/web-address-handlers";
+import { dockHandlers, electronDock } from "./dock-window";
 import { keepAwakeController } from "./keep-awake";
 import { readMacPermissions, requestMacPermission } from "./mac-permissions";
 import { readPreferences, updatePreferences } from "./preferences";
 import { readSetupState, writeSetupState } from "./setup-store";
+import { startFreshHandlers } from "./start-fresh";
 import { handleTrusted } from "./trusted-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
 import { electronUpdateFeed } from "./update-feed";
@@ -447,7 +447,11 @@ function registerIpcHandlers(setupFile: string): void {
   ))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(
-    webAddressHandlers({ client, copy: (text) => clipboard.writeText(text), commandId: randomUUID }),
+    webAddressHandlers({
+      client,
+      copy: (text) => clipboard.writeText(text),
+      commandId: randomUUID,
+    }),
   ))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(dockHandlers(dock, showChat)))
@@ -463,7 +467,8 @@ function registerIpcHandlers(setupFile: string): void {
       await service.stop();
       await daemonHost.stop(true);
     },
-    appFiles: () => [SETUP_FILE, PREFERENCES_FILE].map((name) => join(app.getPath("userData"), name)),
+    appFiles: () =>
+      [SETUP_FILE, PREFERENCES_FILE].map((name) => join(app.getPath("userData"), name)),
     clearStorage: () => session.defaultSession.clearStorageData(),
     relaunch: () => {
       isQuitting = shutdownStarted = true;

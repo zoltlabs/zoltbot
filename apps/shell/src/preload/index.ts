@@ -1,8 +1,7 @@
-import { BUNDLE_CHANNELS } from "../shared/bundle";
-import { START_FRESH_CHANNELS } from "../shared/start-fresh";
-import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { BUNDLE_CHANNELS } from "../shared/bundle";
 import { CLI_CHANNELS } from "../shared/cli";
+import { DOCK_CHANNELS, type DockState } from "../shared/dock";
 import {
   type AgentBrowserFrame,
   type AgentEvent,
@@ -15,6 +14,7 @@ import {
   type ViewHostEvent,
 } from "../shared/ipc";
 import { PREFERENCE_CHANNELS, type Preferences } from "../shared/preferences";
+import { START_FRESH_CHANNELS } from "../shared/start-fresh";
 
 /** ATTACHMENT_MAX_BYTES, kept here so the preload stays free of the protocol package. */
 const PASTE_MAX_BYTES = 100 * 1024 * 1024;

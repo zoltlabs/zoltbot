@@ -167,7 +167,11 @@ export function AgentBrowserPanel(props: {
       } else {
         setControl(false);
         setTeach(null);
-        setAnnounce(t(result.sent ? "browser.teach.sent" : "browser.teach.stopped", { agent: props.agentName }));
+        setAnnounce(
+          t(result.sent ? "browser.teach.sent" : "browser.teach.stopped", {
+            agent: props.agentName,
+          }),
+        );
       }
       requestAnimationFrame(() =>
         (action === "start" ? canvas : (teachButton ?? closeButton))?.focus(),
@@ -301,49 +305,49 @@ export function AgentBrowserPanel(props: {
         <h2>{t("browser.view.title")}</h2>
         <div class="agent-browser-control">
           <Show when={teach() === null}>
-          <Show
-            when={control()}
-            fallback={
-              <Show when={running()}>
-                <button
-                  ref={teachButton}
-                  type="button"
-                  class="zb-kit-button agent-browser-control-button"
-                  aria-describedby="agent-browser-teach-hint"
-                  title={t("browser.teach.hint", { agent: props.agentName })}
-                  disabled={busy()}
-                  onClick={() => void teachAction("start")}
-                >
-                  {t("browser.teach.start")}
-                </button>
-                <span id="agent-browser-teach-hint" class="sr-only">
-                  {t("browser.teach.hint", { agent: props.agentName })}
-                </span>
-                <button
-                  ref={takeButton}
-                  type="button"
-                  class="zb-kit-button agent-browser-control-button"
-                  disabled={busy()}
-                  onClick={() => void setTakeover(true)}
-                >
-                  {t("browser.view.takeOver")}
-                </button>
-              </Show>
-            }
-          >
-            <span class="agent-browser-control-status" aria-hidden="true">
-              {t("browser.view.inControl")}
-            </span>
-            <button
-              ref={handButton}
-              type="button"
-              class="zb-kit-button primary agent-browser-control-button"
-              disabled={busy()}
-              onClick={() => void setTakeover(false)}
+            <Show
+              when={control()}
+              fallback={
+                <Show when={running()}>
+                  <button
+                    ref={teachButton}
+                    type="button"
+                    class="zb-kit-button agent-browser-control-button"
+                    aria-describedby="agent-browser-teach-hint"
+                    title={t("browser.teach.hint", { agent: props.agentName })}
+                    disabled={busy()}
+                    onClick={() => void teachAction("start")}
+                  >
+                    {t("browser.teach.start")}
+                  </button>
+                  <span id="agent-browser-teach-hint" class="sr-only">
+                    {t("browser.teach.hint", { agent: props.agentName })}
+                  </span>
+                  <button
+                    ref={takeButton}
+                    type="button"
+                    class="zb-kit-button agent-browser-control-button"
+                    disabled={busy()}
+                    onClick={() => void setTakeover(true)}
+                  >
+                    {t("browser.view.takeOver")}
+                  </button>
+                </Show>
+              }
             >
-              {t("browser.view.handBack")}
-            </button>
-          </Show>
+              <span class="agent-browser-control-status" aria-hidden="true">
+                {t("browser.view.inControl")}
+              </span>
+              <button
+                ref={handButton}
+                type="button"
+                class="zb-kit-button primary agent-browser-control-button"
+                disabled={busy()}
+                onClick={() => void setTakeover(false)}
+              >
+                {t("browser.view.handBack")}
+              </button>
+            </Show>
           </Show>
         </div>
         <button
