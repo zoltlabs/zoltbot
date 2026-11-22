@@ -2,19 +2,12 @@ import { Value } from "@sinclair/typebox/value";
 import {
   chatCallsKey,
   type DomainEvent,
-  isReactionEmoji,
   type MethodName,
   macOnlyMethods,
-  messageHiddenKey,
-  messagePinsKey,
-  messageReactionsKey,
   methodCatalog,
   queueOrderKey,
   unservedMethods,
   withCall,
-  withHiddenMessage,
-  withMessagePin,
-  withMessageReaction,
 } from "@zoltbot/protocol";
 import { searchSampleFiles } from "./attachments.js";
 import { answerAgentTemplates } from "./fake-agent-templates.js";
@@ -23,6 +16,7 @@ import { answerChannel } from "./fake-channels.js";
 import { addSampleCompany } from "./fake-company.js";
 import { SampleManagement, sampleManagement } from "./fake-manage.js";
 import { answerManager, seedManagerSample } from "./fake-manager.js";
+import { answerMessageState } from "./fake-message-state.js";
 import { sampleSnapshot } from "./sample.js";
 import { modeWidens } from "./session.js";
 import type { Row, Snapshot, Transport, TransportHandlers } from "./transport.js";
@@ -473,41 +467,6 @@ export class FakeTransport implements Transport {
       case "voice.voices":
       case "voice.speak":
         throw new Error("voice_not_set_up");
-      case "message.pin":
-      case "message.unpin": {
-        // As zoltd (message-pins-api): one settings row per chat, newest pin first.
-        this.find("thread", p.threadId);
-        const key = messagePinsKey(String(p.threadId));
-        const prior = this.rows("settings").find((row) => row.key === key)?.value;
-        const pins = withMessagePin(prior, String(p.itemId), method === "message.pin", now);
-        this.put("settings", { key, value: pins });
-        return { pins };
-      }
-      case "message.hide":
-      case "message.unhide": {
-        // As zoltd (message-hidden-api): display only; the item itself is unchanged.
-        this.find("thread", p.threadId);
-        const key = messageHiddenKey(String(p.threadId));
-        const prior = this.rows("settings").find((row) => row.key === key)?.value;
-        const hidden = withHiddenMessage(prior, String(p.itemId), method === "message.hide");
-        this.put("settings", { key, value: hidden });
-        return { hidden };
-      }
-      case "message.react": {
-        // As zoltd (message-reactions-api): the owner's reaction, in one settings row per chat.
-        this.find("thread", p.threadId);
-        const key = messageReactionsKey(String(p.threadId));
-        const prior = this.rows("settings").find((row) => row.key === key)?.value;
-        const emoji = isReactionEmoji(p.emoji) ? p.emoji : null;
-        const reactions = withMessageReaction(prior, {
-          itemId: String(p.itemId),
-          actor: "owner",
-          emoji,
-          at: now,
-        });
-        this.put("settings", { key, value: reactions });
-        return { reactions };
-      }
       case "thread.continueAside":
         return this.put("thread", { ...this.find("thread", p.id), kind: "side" });
       case "turn.interrupt": {
@@ -556,6 +515,7 @@ export class FakeTransport implements Transport {
       }
       default: {
         const managed =
+          answerMessageState(this.manage.store, method, p, now) ??
           this.manage.answer(method, p) ??
           answerChannel(this.manage.store, method, p) ??
           answerManager(method, p, this.manage.store) ??

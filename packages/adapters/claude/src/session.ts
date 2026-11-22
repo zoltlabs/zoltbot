@@ -55,7 +55,6 @@ const ended = (request: Record<string, unknown>) =>
   request.subtype === "elicitation"
     ? { action: "cancel" }
     : { behavior: "deny", message: "Request ended." };
-
 export class ClaudeSession implements AgentSession {
   readonly capabilities: Capabilities = claudeCapabilities();
   private readonly queue = new AsyncQueue<AgentEvent>();
@@ -205,7 +204,6 @@ export class ClaudeSession implements AgentSession {
         throw spawned?.failure ?? error;
       }
       this.process = spawned;
-
       this.providerVersion = string(initialized.claude_code_version);
       if (this.providerVersion === "2.1.319")
         this.capabilities.nativeFork = {
@@ -718,10 +716,7 @@ export class ClaudeSession implements AgentSession {
       throw new Error("provider_protocol_error");
     return { used: Number(result.totalTokens), size: Number(result.maxTokens) };
   }
-  /**
-   * Sends one control request with the session timeout. When an ordinary request times out, a
-   * context usage probe decides whether the process is stuck; a probe timeout fails the session.
-   */
+  /** Time out control requests and probe context usage before declaring the provider stuck. */
   private async control<T>(run: (query: Query) => Promise<T>, probe = false): Promise<T> {
     const query = this.query;
     if (!query || this.closed || this.dead) throw new Error("session_closed");

@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { AgentTemplateSchema, parse } from "@zoltbot/protocol";
 import { describe, expect, it } from "vitest";
-import { agentTemplate, agentTemplates } from "./index.js";
+import { agentTemplate, agentTemplates } from "../packages/core/src/agent-templates/index.js";
+import { AgentTemplateSchema, parse } from "../packages/protocol/src/index.js";
 
-const dir = fileURLToPath(new URL(".", import.meta.url));
+const dir = fileURLToPath(new URL("../packages/core/src/agent-templates/", import.meta.url));
 // Sentence-case names, ids that match the file name.
 const files = readdirSync(dir).filter((name) => name.endsWith(".json"));
 

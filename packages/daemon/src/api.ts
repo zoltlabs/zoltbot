@@ -1,4 +1,6 @@
 import { activityNotifier } from "./activity-push.js";
+import { apiObservers } from "./api-observers.js";
+import { apiTransports, listenApi } from "./api-transports.js";
 import type { Daemon, DaemonOptions, RuntimeContext } from "./api-types.js";
 import { bundleApi, bundleSkills } from "./bundle.js";
 import { companyApi } from "./company-api.js";
@@ -17,7 +19,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, rmSync } from "node:fs";
 import path from "node:path";
 import { type Command, handle } from "@zoltbot/core/commands";
-import { pairingOfferTtlMs } from "@zoltbot/link";
 import {
   type DomainEvent,
   githubAppInstallUrl,
@@ -25,25 +26,20 @@ import {
   ImportReceiptSchema,
   type Interaction,
   type InteractionAnswer,
-  localCommandActor,
   macOnlyMethods,
   methodCatalog,
   parse,
-  parseRequest,
+  type parseRequest,
   protocolVersion,
 } from "@zoltbot/protocol";
 import { openStore } from "@zoltbot/store";
-import { WebSocket, WebSocketServer } from "ws";
 import { redactedHookCloud } from "./account-session/hook-cloud.js";
-import { assetServer } from "./api-assets.js";
-import { equalToken } from "./api-token.js";
 import { artifactsApi } from "./artifacts/api.js";
 import { artifactRepositorySync } from "./artifacts/repository-sync.js";
 import { asideApi } from "./aside-api.js";
 import { attachmentPreviewApi } from "./attachment-preview-api.js";
 import { startBridges } from "./bridges/service.js";
 import { browserApi } from "./browser/api.js";
-import { frozenBrowser } from "./browser/evidence.js";
 import { TAKEOVER_PREFIX } from "./browser/takeover.js";
 import { channelApi } from "./channel-service.js";
 import { chiefWaker } from "./chief/proactive.js";
@@ -65,7 +61,6 @@ import { interactionApi } from "./interaction-api.js";
 import type { InteractionEngine } from "./interaction-engine.js";
 import { knowledgeApi } from "./knowledge-api.js";
 import { knowledgeHygieneTimer } from "./knowledge-hygiene.js";
-import { taintObserver } from "./knowledge-taint.js";
 import { macIdentity } from "./link-identity.js";
 import { linkPreviewApi } from "./link-preview.js";
 import { Logger, Redactor } from "./logging.js";
@@ -79,7 +74,7 @@ import { ProjectDatabases } from "./project-data/databases.js";
 import { projectFilesApi } from "./project-files.js";
 import { pushNotifier } from "./push.js";
 import { recover } from "./recovery.js";
-import { type LinkClient, type RelayLink, relayLink } from "./relay-link.js";
+import type { LinkClient, RelayLink } from "./relay-link.js";
 import { ruleApi } from "./rule-api.js";
 import { createInProcessRuntime, publishRuntimeStream, type Runner } from "./runner/index.js";
 import { runtimeApi } from "./runtime-api.js";
@@ -123,7 +118,6 @@ async function startOwnedDaemon(
     startMacCloud.accountLocation && options.nativeAccount
       ? githubAccountTokens(startMacCloud.accountLocation, options.nativeAccount.origin, logger)
       : undefined;
-  // I8: the cloud's install page for the GitHub App, which the settings link opens.
   const githubInstallUrl = githubAppInstallUrl(options.nativeAccount?.origin);
   // R2: routine web addresses go through the signed-in account; the log redacts each one.
   const hookCloud =
@@ -134,35 +128,15 @@ async function startOwnedDaemon(
   recover(store, bootId);
   const origins = new Set(options.origins ?? ["zoltbot://desktop"]);
   let views: ViewRegistry | undefined;
-  const assets = assetServer(store, token, origins, () => views);
-  const server = new WebSocketServer({
-    server: assets,
-    maxPayload: 1_048_576,
-    verifyClient: (info: { origin: string }) => !info.origin || origins.has(info.origin),
+  const { server, url } = await listenApi({
+    store,
+    token,
+    origins,
+    getViews: () => views,
+    resources,
   });
-  resources.push(async () => {
-    for (const socket of server.clients) socket.terminate();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  });
-  assets.listen(0, "127.0.0.1");
-  resources.push(
-    () =>
-      new Promise<void>((resolve) => {
-        for (const socket of server.clients) socket.terminate();
-        assets.closeAllConnections();
-        assets.close(() => resolve());
-      }),
-  );
-  await new Promise<void>((resolve, reject) => {
-    server.once("listening", resolve);
-    server.once("error", reject);
-  });
-  const address = server.address();
-  if (!address || typeof address === "string") throw new Error("invalid listen address");
-  const url = `ws://127.0.0.1:${address.port}`;
   const connectionFile = path.join(options.dataDir, "daemon.json");
   resources.push(() => rmSync(connectionFile, { force: true }));
-  /** Signed in clients: desktop sockets and paired phones over the relay. */
   const clients = new Set<LinkClient>();
   let closed = false;
   let closing: Promise<void> | undefined;
@@ -601,7 +575,6 @@ async function startOwnedDaemon(
     onError: (code) => logger.write("warn", code),
   });
   resources.push(() => bridges.close());
-  // D7: move to another computer.
   const bundles = bundleApi({
     snapshot: () => store.snapshot() as Record<string, unknown[] | undefined>,
     skills: bundleSkills(store.database),
@@ -772,156 +745,34 @@ async function startOwnedDaemon(
       }
     }
   };
-  const respond = async (text: string, client: LinkClient): Promise<string> => {
-    let id: string | number | null = null;
-    try {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(text);
-      } catch {
-        throw new Error("malformed_json");
-      }
-      if (
-        raw &&
-        typeof raw === "object" &&
-        "id" in raw &&
-        (typeof raw.id === "string" || typeof raw.id === "number")
-      )
-        id = raw.id;
-      const request = parseRequest(raw, localCommandActor(client.deviceId));
-      const result = await call(request, client);
-      if (request.method !== "browser.input")
-        logger.write("info", "API request", {
-          method: request.method,
-          ...(client.deviceId ? { from: "phone" } : {}),
-        });
-      return JSON.stringify({ jsonrpc: "2.0", id, result });
-    } catch (error) {
-      const message = redactor.text(error instanceof Error ? error.message : "internal");
-      logger.write("warn", "Rejected API request", { message });
-      return JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32602, message } });
-    }
-  };
-  server.on("connection", (socket) => {
-    let authenticated = false;
-    const client: LinkClient = {
-      subscribed: false,
-      send(text) {
-        if (socket.readyState === WebSocket.OPEN) socket.send(text);
-      },
-    };
-    const authTimer = setTimeout(() => {
-      if (!authenticated) socket.close(4401, "unauthorized");
-    }, 5000);
-    authTimer.unref();
-    socket.on("close", () => {
-      clearTimeout(authTimer);
-      terminals.detach(client);
-      clients.delete(client);
-    });
-    socket.on("error", (error) =>
-      logger.write("warn", "Client connection error", { message: error.message }),
-    );
-    socket.on("message", async (data) => {
-      const text = data.toString();
-      if (!authenticated) {
-        let raw: { id?: unknown; method?: unknown; params?: { token?: unknown } } | undefined;
-        try {
-          raw = JSON.parse(text);
-        } catch {}
-        if (raw?.method !== "hello" || !equalToken(String(raw.params?.token), token)) {
-          const id = typeof raw?.id === "string" || typeof raw?.id === "number" ? raw.id : null;
-          socket.send(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              id,
-              error: { code: -32001, message: "unauthorized" },
-            }),
-          );
-          socket.close(4401, "unauthorized");
-          return;
-        }
-        authenticated = true;
-        clearTimeout(authTimer);
-        clients.add(client);
-      }
-      client.send(await respond(text, client));
-    });
-  });
-  link = relayLink({
+  const transports = apiTransports({
+    server,
+    token,
+    call,
+    redactor,
+    logger,
+    clients,
+    terminals,
     identity,
-    answer: (hello, from) => devices.answer(hello, from),
-    allowed: (deviceId) => devices.allowed(deviceId),
-    serve: (text, client) => respond(text, client),
-    attach: (client) => clients.add(client),
-    detach: (client) => {
-      terminals.detach(client);
-      clients.delete(client);
-    },
-    ready: () => devices.ready(),
-    presence: (deviceId, online, lastSeenAt) =>
-      devices.seen(deviceId, online ? undefined : (lastSeenAt ?? new Date().toISOString())),
-    log: (level, message, detail) => logger.write(level, message, detail),
-    ...(options.relay?.retry ? { retry: options.relay.retry } : {}),
-    ...(options.relay?.pingMs ? { pingMs: options.relay.pingMs } : {}),
+    devices,
+    relay: options.relay,
+    store,
+    secrets: Boolean(options.secrets),
   });
-  const ownedLink = link;
-  resources.push(() => ownedLink.close());
-  const relaySetting = () => {
-    const value = store
-      .snapshot(["settings"])
-      .settings?.find((row) => row.key === "link.relayUrl")?.value;
-    return typeof value === "string" ? value : undefined;
-  };
-  // A chosen address stays connected. The build's default relay serves only Macs that have
-  // a phone paired, waiting, or about to scan a code, so idle installs hold no socket.
-  const syncRelay = () => {
-    if (!options.secrets) return;
-    const chosen = relaySetting()?.trim();
-    const fallback = devices.wanted() ? options.relay?.defaultUrl : undefined;
-    ownedLink.configure(chosen || fallback);
-  };
-  const wakeRelay = async () => {
-    syncRelay();
-    // Let the link close again if the code expires unscanned.
-    setTimeout(syncRelay, pairingOfferTtlMs + 1000).unref();
-    await ownedLink.online(10_000);
-  };
-  const taint = taintObserver(store);
-  observers = (events) => {
-    companyWatch.observe();
-    finish.observe(events);
-    bridges.observe(events);
-    push.observe(events);
-    activity.observe(events);
-    taint(events);
-    browser.observe(events);
-    for (const event of events)
-      if (
-        event.aggregateType === "task" &&
-        ["completed", "cancelled"].includes(String((event.payload as { state?: string }).state))
-      ) {
-        try {
-          frozenBrowser(store, event.aggregateId);
-          void browser(
-            "browser.action",
-            {
-              id: event.aggregateId,
-              action: "stop",
-              confirmed: true,
-            },
-            "task_policy",
-          ).catch(() => logger.write("warn", "Owned browser cleanup needs attention"));
-        } catch {}
-      }
-    // Without the Keychain there is no Mac identity, so the link stays off.
-    if (
-      events.some(
-        (event) => event.aggregateId === "link.relayUrl" || event.aggregateType === "device",
-      )
-    )
-      syncRelay();
-  };
+  link = transports.link;
+  const { syncRelay, wakeRelay } = transports;
+  resources.push(() => transports.link.close());
+  observers = apiObservers({
+    companyWatch,
+    finish,
+    bridges,
+    push,
+    activity,
+    browser,
+    store,
+    syncRelay,
+    logger,
+  });
   syncRelay();
   writeConnectionFile(
     connectionFile,
