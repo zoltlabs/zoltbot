@@ -11,6 +11,9 @@ allowBuilds:
   electron-winstaller: false
   node-pty: true
   workerd: true
+  # Boat SSH uses the pure JavaScript transport.
+  cpu-features: false
+  ssh2: false
 # Zoltbot always launches the user's own Claude Code; the SDK's bundled binaries are unused.
 ignoredOptionalDependencies:
   - '@anthropic-ai/claude-agent-sdk-darwin-arm64'

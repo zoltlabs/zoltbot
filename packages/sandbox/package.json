@@ -10,9 +10,15 @@
     "./conformance": "./src/conformance/index.ts",
     "./fake": "./src/targets/fake/index.ts",
     "./docker": "./src/targets/docker/index.ts",
-    "./e2b": "./src/targets/e2b/index.ts"
+    "./e2b": "./src/targets/e2b/index.ts",
+    "./boat": "./src/targets/boat/index.ts"
   },
   "dependencies": {
-    "e2b": "2.62.2"
+    "@boatdev/sdk": "^1.13.0",
+    "e2b": "2.62.2",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@types/ssh2": "^1.15.6"
   }
 }

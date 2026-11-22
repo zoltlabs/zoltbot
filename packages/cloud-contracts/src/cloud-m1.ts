@@ -82,7 +82,7 @@ export const SandboxRecordSchema = object({
   userId: Id,
   taskId: Id,
   sandboxId: Id,
-  target: Type.Literal("e2b"),
+  target: values(["boat", "e2b"]),
   state: values(["creating", "running", "sleeping", "destroyed", "failed"]),
   sleepKeepsProcesses: Type.Boolean(),
   createdAt: At,

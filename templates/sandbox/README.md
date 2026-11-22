@@ -46,6 +46,25 @@ The production-dependency install sets `CI=true` for that command only, so pnpm
 can replace the build-time modules without a TTY. The agent runtime does not
 inherit that build-only setting.
 
+Docker and Boat build the worker with `install.sh`. Run the shared runtime
+checks against a local image with Docker networking disabled.
+
+```sh
+docker run --rm --network none --entrypoint sh zoltbot-base /opt/zoltbot/templates/sandbox/verify.sh
+```
+
+With the approved Boat account available, build the managed snapshot from
+the approved public commit. The builder reads `BOAT_API_KEY` from the
+environment and verifies a fresh sandbox from the saved snapshot.
+
+```sh
+node --import tsx packages/sandbox/acceptance/boat-template.ts <published-public-commit>
+node --import tsx packages/sandbox/acceptance/boat.ts --native --us-region <us-runner-region>
+```
+
+The acceptance run also needs the Claude Code and Codex API keys in the
+environment. Its report is stored under `.cache/sandbox-acceptance`.
+
 ## The agent's desktop (B8)
 
 The image also ships Xvfb, Openbox and x11vnc. `zolt-desktop` starts a virtual screen, the

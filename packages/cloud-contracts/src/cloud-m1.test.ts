@@ -6,6 +6,7 @@ import {
   CloudRunnerGrantInputSchema,
   CloudRunnerGrantResultSchema,
   SandboxCreateSchema,
+  SandboxRecordSchema,
   WorkerTokenRequestSchema,
 } from "./cloud-m1.js";
 
@@ -54,6 +55,24 @@ it("keeps secret values outside cell-to-orchestrator create calls", () => {
   expect(() =>
     parse(SandboxCreateSchema, { ...request, apiKey: "synthetic-forbidden-value" }),
   ).toThrow();
+  expect(() => parse(SandboxCreateSchema, { ...request, target: "boat" })).toThrow();
+});
+
+it("reports either managed sandbox target in lifecycle responses", () => {
+  const record = {
+    orgId: "org",
+    userId: "user",
+    taskId: "task",
+    sandboxId: "sandbox",
+    state: "sleeping",
+    sleepKeepsProcesses: false,
+    createdAt: "2026-11-11T00:00:00Z",
+    updatedAt: "2026-11-11T00:00:01Z",
+  };
+  for (const target of ["boat", "e2b"]) {
+    expect(parse(SandboxRecordSchema, { ...record, target })).toEqual({ ...record, target });
+  }
+  expect(() => parse(SandboxRecordSchema, { ...record, target: "fake" })).toThrow();
 });
 
 it("requires explicit runner capabilities without accepting client-supplied authority", () => {

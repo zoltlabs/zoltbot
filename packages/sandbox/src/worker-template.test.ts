@@ -16,7 +16,13 @@ it("converts the base worker Dockerfile through the pinned E2B SDK without an ac
   const definition = await Template.toJSON(template, false);
   expect(definition).toContain("ubuntu:24.04");
   expect(definition).toContain("/usr/local/bin/zolt-worker");
-  expect(definition).toContain("pnpm build:worker");
+  expect(definition).toContain("zoltbot-install.sh runtime");
+  expect(definition).toContain("zoltbot-install.sh worker");
+  const installScript = await readFile(
+    new URL("../../../templates/sandbox/install.sh", import.meta.url),
+    "utf8",
+  );
+  expect(installScript).toContain("pnpm build:worker");
   for (const [provider, name] of [
     ["claude", "@anthropic-ai/claude-code"],
     ["codex", "@openai/codex"],
@@ -27,7 +33,7 @@ it("converts the base worker Dockerfile through the pinned E2B SDK without an ac
         "utf8",
       ),
     ) as { testedVersions: string };
-    expect(dockerfile).toContain(`${name}@${pinned.testedVersions}`);
+    expect(installScript).toContain(`${name}@${pinned.testedVersions}`);
   }
 });
 it("keeps warm-up idle and can launch from an environment-only refresh capability", async () => {
