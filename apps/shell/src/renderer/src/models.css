@@ -98,28 +98,6 @@
   text-align: right;
 }
 
-.models-pill {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--surface-pill);
-  padding: 2px 8px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 560;
-}
-
-.models-pill-limit {
-  color: var(--text-danger);
-}
-
-.models-pill-use {
-  color: var(--text-info);
-}
-
-.models-pill-ready {
-  color: var(--text-success);
-}
-
 .models-row-actions,
 .models-actions {
   display: flex;
@@ -146,10 +124,6 @@
 .models-link:disabled {
   cursor: default;
   opacity: 0.48;
-}
-
-.models-link-danger {
-  color: var(--text-danger);
 }
 
 .models-button {
@@ -185,6 +159,8 @@
 
 .models-link:focus-visible,
 .models-button:focus-visible,
+.models-icon-button:focus-visible,
+.models-add-row:focus-visible,
 .models-role:focus-within,
 .models-field input:focus-visible,
 .switch-dialog-remember input:focus-visible {
@@ -280,6 +256,133 @@
   color: var(--text-muted);
 }
 
+/* Accounts: the tool's logo, one status, and one action when the account needs one. */
+.models-account + .models-account {
+  border-top: 1px solid var(--openbot-line);
+}
+
+.models-account-row {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+}
+
+.models-account-logo {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-pill);
+  color: var(--text-primary);
+}
+
+.models-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 16px;
+}
+
+.models-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-top: 4.5px;
+  border-radius: 999px;
+  background: var(--text-muted);
+}
+
+.models-status[data-tone="ready"] .models-status-dot {
+  background: var(--text-success);
+}
+
+.models-status[data-tone="use"] .models-status-dot {
+  background: var(--text-info);
+}
+
+.models-status[data-tone="limit"] .models-status-dot {
+  background: var(--text-warning);
+}
+
+.models-status[data-tone="out"] .models-status-dot {
+  border: 1.5px solid var(--text-muted);
+  background: transparent;
+}
+
+.models-button-small {
+  min-height: 28px;
+  flex: none;
+  white-space: nowrap;
+  align-self: center;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.models-icon-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  fill: currentColor;
+}
+
+.models-icon-button:hover,
+.models-icon-button[aria-expanded="true"] {
+  background: var(--openbot-hover);
+  color: var(--text-primary);
+}
+
+.models-add-row {
+  width: 100%;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+}
+
+.models-add-row:hover:not(:disabled) {
+  background: var(--openbot-hover);
+  color: var(--text-primary);
+}
+
+.models-add-logo {
+  border: 1px dashed var(--openbot-line-strong);
+  background: transparent;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.models-account .models-signin {
+  margin: 0 12px 12px 54px;
+}
+
+.models-account .models-form {
+  padding: 12px;
+}
+
+.models-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.models-command-row .models-command {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 /* A move between accounts, centered in the chat like a time marker. */
 .model-notice {
   display: flex;
@@ -352,7 +455,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .models-button,
-  .models-link {
+  .models-link,
+  .models-icon-button,
+  .models-add-row {
     transition: none;
   }
 }

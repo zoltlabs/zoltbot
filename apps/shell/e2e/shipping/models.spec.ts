@@ -28,12 +28,13 @@ function fakeAccounts(): ModelsDesktopApi & { orders: BackupOrdersView } {
   });
   const accounts: ModelAccountView[] = [
     account("claude", "Claude", { limitResetsAt: resets, atLimit: true }),
-    account("codex", "Codex"),
+    account("codex", "Codex", { login: "signed_out" }),
     account("claude-work", "Claude · Work", { inUse: 1 }),
     account("antigravity", "Antigravity", {
       definitionId: "antigravity",
       providerName: "Antigravity",
       canAddAccounts: false,
+      login: "unknown",
     }),
   ];
   const fake = {
@@ -55,7 +56,13 @@ function fakeAccounts(): ModelsDesktopApi & { orders: BackupOrdersView } {
       };
     },
     signIn: async () => ({ command: "claude auth login", configDirectory: "/example/folder" }),
-    check: async (id: string) => accounts.find((row) => row.id === id) as ModelAccountView,
+    checked: [] as string[],
+    async check(id: string) {
+      fake.checked.push(id);
+      const row = accounts.find((item) => item.id === id) as ModelAccountView;
+      if (row.login === "unknown") row.login = "signed_in";
+      return row;
+    },
     remove: async () => undefined,
     async setOrder(input: SetBackupOrderInput) {
       if (input.role === "employee") fake.orders.employee = input.entries ?? [];
@@ -78,10 +85,38 @@ test("models settings and the switch to another provider stay usable", async ({ 
 
     await page.getByRole("button", { name: "Models", exact: true }).click();
     const models = page.getByRole("main", { name: "Models" });
-    await expect(models.getByLabel("Accounts").getByText("Claude · Work")).toBeVisible();
-    await expect(models.getByText("At limit")).toBeVisible();
-    await expect(models.getByText("In use")).toBeVisible();
-    await expect(models.getByLabel("Accounts").getByText("Antigravity")).toBeVisible();
+    const accounts = models.getByLabel("Accounts");
+    const row = (name: string) =>
+      accounts.getByRole("listitem").filter({ has: page.getByText(name, { exact: true }) });
+    await expect(row("Claude · Work")).toContainText("In use · 1 chat");
+    await expect(row("Claude")).toContainText(/At limit · resets \d/);
+    // Sign-ins nobody has checked are checked when the page opens.
+    await expect(row("Antigravity")).toContainText("Ready");
+    expect(fake.checked).toEqual(["antigravity"]);
+    // Only a signed-out account offers Sign in; the steps open under it.
+    await expect(accounts.getByRole("button", { name: "Sign in", exact: true })).toHaveCount(1);
+    await row("Codex").getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(row("Codex")).toContainText("Run this in Terminal to sign in:");
+    await row("Codex").getByRole("button", { name: "Done" }).click();
+    await expect(row("Codex")).not.toContainText("Run this in Terminal");
+    // Everything else is in the account's menu; removing asks first.
+    await accounts.getByRole("button", { name: "Claude · Work options" }).click();
+    const menu = page.getByRole("menu", { name: "Claude · Work options" });
+    await expect(menu.getByRole("menuitem")).toHaveText([
+      "Check sign-in",
+      "Sign in again",
+      "Remove…",
+    ]);
+    await menu.getByRole("menuitem", { name: "Remove…" }).click();
+    const remove = page.getByRole("alertdialog", { name: "Remove Claude · Work?" });
+    await expect(remove).toContainText("It's taken out of every backup order.");
+    await remove.getByRole("button", { name: "Cancel" }).click();
+    await expect(remove).toHaveCount(0);
+    await accounts.getByRole("button", { name: "Claude options" }).click();
+    await expect(
+      page.getByRole("menu", { name: "Claude options" }).getByRole("menuitem"),
+    ).toHaveText(["Check sign-in", "Sign in again"]);
+    await page.keyboard.press("Escape");
     await expect(models.getByRole("heading", { name: "Backup order for employees" })).toBeVisible();
 
     // Reorder: move the work account first.
@@ -116,9 +151,7 @@ test("models settings and the switch to another provider stay usable", async ({ 
     await page.keyboard.press("Escape");
     await models.getByRole("textbox", { name: "Name" }).fill("Personal");
     await models.getByRole("button", { name: "Add", exact: true }).click();
-    await expect(
-      models.getByText("Run this in Terminal to sign in to Claude · Personal:"),
-    ).toBeVisible();
+    await expect(row("Claude · Personal")).toContainText("Run this in Terminal to sign in:");
 
     // The running-task limit is saved to the real daemon; values outside 1 to 20 aren't.
     const limit = models.getByRole("spinbutton", { name: "Tasks each employee runs at once" });

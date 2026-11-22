@@ -8,7 +8,7 @@ import {
   missingFreeModels,
   RUNNING_LIMIT,
 } from "../../../shared/models";
-import { Select } from "../kit";
+import { AgentLogo, ConfirmDialog, Menu, Select } from "../kit";
 import { SidebarToggleIcon } from "./Sidebar";
 
 const ROLES: { id: BackupRole; label: string; title: string }[] = [
@@ -27,16 +27,29 @@ function message(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function accountStatus(account: ModelAccountView): string {
-  const login =
-    account.login === "signed_in"
-      ? "Signed in"
-      : account.login === "signed_out"
-        ? "Signed out"
-        : "Sign-in not checked";
-  return account.limitResetsAt
-    ? `${login} · limit resets ${timeOfDay(account.limitResetsAt)}`
-    : login;
+type AccountTone = "ready" | "use" | "limit" | "out" | "unknown";
+
+/** One status per account: the state that decides whether a chat can run on it now. */
+function accountStatus(
+  account: ModelAccountView,
+  checking: boolean,
+): { text: string; tone: AccountTone } {
+  if (checking) return { text: "Checking…", tone: "unknown" };
+  if (account.atLimit)
+    return {
+      text: account.limitResetsAt
+        ? `At limit · resets ${timeOfDay(account.limitResetsAt)}`
+        : "At limit",
+      tone: "limit",
+    };
+  if (account.login === "signed_out") return { text: "Signed out", tone: "out" };
+  if (account.inUse > 0)
+    return {
+      text: `In use · ${account.inUse} ${account.inUse === 1 ? "chat" : "chats"}`,
+      tone: "use",
+    };
+  if (account.login === "signed_in") return { text: "Ready", tone: "ready" };
+  return { text: "Not checked", tone: "unknown" };
 }
 
 const listNames = (names: string[]) =>
@@ -51,9 +64,12 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
   const [adding, setAdding] = createSignal(false);
   const [tool, setTool] = createSignal("");
   const [label, setLabel] = createSignal("");
-  const [signIn, setSignIn] = createSignal<{ account: string; info: ModelSignIn } | null>(null);
+  const [signIn, setSignIn] = createSignal<{ accountId: string; info: ModelSignIn } | null>(null);
   const [copied, setCopied] = createSignal(false);
-  const [removing, setRemoving] = createSignal("");
+  const [removing, setRemoving] = createSignal<ModelAccountView | null>(null);
+  const [removeError, setRemoveError] = createSignal<string | null>(null);
+  const [checking, setChecking] = createSignal<ReadonlySet<string>>(new Set());
+  const [menu, setMenu] = createSignal<{ account: ModelAccountView; anchor: Element } | null>(null);
   const [role, setRole] = createSignal<BackupRole>("employee");
   const [candidate, setCandidate] = createSignal("");
   const [limit, setLimit] = createSignal<number | null>(null);
@@ -97,7 +113,28 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
       setBusy(false);
     }
   }
-  onMount(() => void run(async () => undefined, "Accounts couldn't load. Try again."));
+  /** Checks sign-ins in parallel; each row shows "Checking…" until its own check returns. */
+  async function check(ids: string[]) {
+    if (!ids.length) return;
+    setChecking((current) => new Set([...current, ...ids]));
+    const results = await Promise.allSettled(ids.map((id) => models.check(id)));
+    setChecking((current) => new Set([...current].filter((id) => !ids.includes(id))));
+    if (results.some((result) => result.status === "rejected"))
+      setError("A sign-in couldn't be checked. Try again from its menu.");
+    try {
+      setOverview(await models.read());
+    } catch {
+      setError("Accounts couldn't load. Try again.");
+    }
+  }
+  onMount(async () => {
+    await run(async () => undefined, "Accounts couldn't load. Try again.");
+    await check(
+      accounts()
+        .filter((account) => account.login === "unknown")
+        .map((a) => a.id),
+    );
+  });
   onMount(() => {
     void models
       .runningLimit()
@@ -134,7 +171,7 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
     if (!definitionId || !label().trim()) return;
     await run(async () => {
       const result = await models.addAccount({ definitionId, label: label().trim() });
-      setSignIn({ account: result.account.name, info: result.signIn });
+      setSignIn({ accountId: result.account.id, info: result.signIn });
       setCopied(false);
       setAdding(false);
       setLabel("");
@@ -143,9 +180,53 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
 
   const showSignIn = (account: ModelAccountView) =>
     run(async () => {
-      setSignIn({ account: account.name, info: await models.signIn(account.id) });
+      setSignIn({ accountId: account.id, info: await models.signIn(account.id) });
       setCopied(false);
     }, "The sign-in command isn't available.");
+
+  async function removeAccount() {
+    const account = removing();
+    if (!account) return;
+    setBusy(true);
+    setRemoveError(null);
+    try {
+      await models.remove(account.id);
+      if (signIn()?.accountId === account.id) setSignIn(null);
+      setRemoving(null);
+      setOverview(await models.read());
+    } catch (caught) {
+      setRemoveError(message(caught, "The account couldn't be removed. Try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const menuGroups = (account: ModelAccountView) => [
+    [
+      {
+        id: "check",
+        label: "Check sign-in",
+        disabled: checking().has(account.id),
+        run: () => void check([account.id]),
+      },
+      ...(account.login === "signed_out"
+        ? []
+        : [{ id: "sign-in", label: "Sign in again", run: () => void showSignIn(account) }]),
+    ],
+    account.isDefault
+      ? []
+      : [
+          {
+            id: "remove",
+            label: "Remove…",
+            danger: true,
+            run: () => {
+              setRemoveError(null);
+              setRemoving(account);
+            },
+          },
+        ],
+  ];
 
   return (
     <main aria-label="Models" class="map-panel">
@@ -175,185 +256,200 @@ export function ModelsSettings(props: { sidebarCollapsed: boolean; onShowSidebar
           <h2 id="models-accounts" class="models-heading">
             Accounts
           </h2>
-          <ul class="models-list">
-            <For each={accounts()}>
-              {(account) => (
-                <li class="models-row">
-                  <div class="models-row-copy">
-                    <strong>{account.name}</strong>
-                    <span>{accountStatus(account)}</span>
-                  </div>
-                  <span
-                    class="models-pill"
-                    classList={{
-                      "models-pill-limit": account.atLimit,
-                      "models-pill-use": !account.atLimit && account.inUse > 0,
-                      "models-pill-ready":
-                        !account.atLimit && account.inUse === 0 && account.login === "signed_in",
-                    }}
-                  >
-                    {account.atLimit ? "At limit" : account.inUse > 0 ? "In use" : "Ready"}
-                  </span>
-                  <div class="models-row-actions">
-                    <Show
-                      when={removing() === account.id}
-                      fallback={
-                        <>
-                          <button
-                            type="button"
-                            class="models-link"
-                            disabled={busy()}
-                            onClick={() => void showSignIn(account)}
-                          >
-                            Sign in
-                          </button>
-                          <button
-                            type="button"
-                            class="models-link"
-                            disabled={busy()}
-                            onClick={() =>
-                              void run(
-                                () => models.check(account.id),
-                                "The sign-in couldn't be checked.",
-                              )
-                            }
-                          >
-                            Check
-                          </button>
-                          <Show when={!account.isDefault}>
-                            <button
-                              type="button"
-                              class="models-link"
-                              disabled={busy()}
-                              onClick={() => setRemoving(account.id)}
-                            >
-                              Remove
-                            </button>
-                          </Show>
-                        </>
-                      }
-                    >
-                      <button
-                        type="button"
-                        class="models-link"
-                        disabled={busy()}
-                        onClick={() => setRemoving("")}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        class="models-link models-link-danger"
-                        disabled={busy()}
-                        onClick={() =>
-                          void run(async () => {
-                            await models.remove(account.id);
-                            setRemoving("");
-                          }, "The account couldn't be removed.")
-                        }
-                      >
-                        Remove {account.name}
-                      </button>
-                    </Show>
-                  </div>
-                </li>
-              )}
-            </For>
-          </ul>
           <Show when={overview() && !accounts().length}>
             <p class="models-empty">No coding tools are set up yet. Add an agent first.</p>
           </Show>
-          <Show when={signIn()}>
-            {(current) => (
-              <div class="models-signin">
-                <p>Run this in Terminal to sign in to {current().account}:</p>
-                <code class="models-command">{current().info.command}</code>
-                <Show when={current().info.slashCommand}>
-                  {(typed) => (
-                    <p>
-                      Then type <code>{typed()}</code>.
-                    </p>
-                  )}
+          <ul class="models-list">
+            <For each={accounts()}>
+              {(account) => {
+                const status = () => accountStatus(account, checking().has(account.id));
+                const current = () =>
+                  signIn()?.accountId === account.id ? signIn()?.info : undefined;
+                return (
+                  <li class="models-account">
+                    <div class="models-account-row">
+                      <span class="models-account-logo">
+                        <AgentLogo
+                          agent={{ id: account.definitionId, name: account.providerName }}
+                          size={18}
+                        />
+                      </span>
+                      <div class="models-row-copy">
+                        <strong>{account.name}</strong>
+                        <span class="models-status" data-tone={status().tone}>
+                          <span class="models-status-dot" aria-hidden="true" />
+                          {status().text}
+                        </span>
+                      </div>
+                      <Show when={account.login === "signed_out" && !current()}>
+                        <button
+                          type="button"
+                          class="models-button models-button-small"
+                          disabled={busy()}
+                          onClick={() => void showSignIn(account)}
+                        >
+                          Sign in
+                        </button>
+                      </Show>
+                      <button
+                        type="button"
+                        class="models-icon-button"
+                        aria-label={`${account.name} options`}
+                        aria-haspopup="menu"
+                        aria-expanded={menu()?.account.id === account.id}
+                        onClick={(event) =>
+                          setMenu(
+                            menu()?.account.id === account.id
+                              ? null
+                              : { account, anchor: event.currentTarget },
+                          )
+                        }
+                      >
+                        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                          <circle cx="3.5" cy="8" r="1.25" />
+                          <circle cx="8" cy="8" r="1.25" />
+                          <circle cx="12.5" cy="8" r="1.25" />
+                        </svg>
+                      </button>
+                    </div>
+                    <Show when={current()}>
+                      {(info) => (
+                        <div class="models-signin">
+                          <p>Run this in Terminal to sign in:</p>
+                          <div class="models-command-row">
+                            <code class="models-command">{info().command}</code>
+                            <button
+                              type="button"
+                              class="models-button models-button-small"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(info().command);
+                                  setCopied(true);
+                                } catch {
+                                  setError("Couldn't copy. Select the command to copy it.");
+                                }
+                              }}
+                            >
+                              {copied() ? "Copied" : "Copy"}
+                            </button>
+                          </div>
+                          <Show when={info().slashCommand}>
+                            {(typed) => (
+                              <p>
+                                Then type <code>{typed()}</code>.
+                              </p>
+                            )}
+                          </Show>
+                          <div class="models-actions">
+                            <button
+                              type="button"
+                              class="models-button models-button-small"
+                              onClick={() => {
+                                setSignIn(null);
+                                void check([account.id]);
+                              }}
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </Show>
+                  </li>
+                );
+              }}
+            </For>
+            <Show when={tools().length}>
+              <li class="models-account">
+                <Show
+                  when={adding()}
+                  fallback={
+                    <button
+                      type="button"
+                      class="models-account-row models-add-row"
+                      disabled={busy()}
+                      onClick={() => setAdding(true)}
+                    >
+                      <span class="models-account-logo models-add-logo" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                          <path d="M8 3v10M3 8h10" />
+                        </svg>
+                      </span>
+                      Add account
+                    </button>
+                  }
+                >
+                  <form class="models-form" onSubmit={(event) => void addAccount(event)}>
+                    <div class="models-field">
+                      <span aria-hidden="true">Tool</span>
+                      <Select
+                        label="Tool"
+                        value={chosenTool()}
+                        describedBy={singleSignIn().length ? "models-tool-note" : undefined}
+                        options={tools().map((item) => ({
+                          value: item.definitionId,
+                          label: item.providerName,
+                        }))}
+                        onChange={setTool}
+                      />
+                    </div>
+                    <label class="models-field">
+                      <span>Name</span>
+                      <input
+                        value={label()}
+                        maxLength={80}
+                        placeholder="Work"
+                        onInput={(event) => setLabel(event.currentTarget.value)}
+                      />
+                    </label>
+                    <div class="models-actions">
+                      <button type="button" class="models-button" onClick={() => setAdding(false)}>
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        class="models-button models-button-primary"
+                        disabled={busy() || !label().trim()}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <Show when={singleSignIn().length}>
+                      <p id="models-tool-note" class="models-form-note">
+                        {listNames(singleSignIn())} {singleSignIn().length > 1 ? "allow" : "allows"}{" "}
+                        only one account.
+                      </p>
+                    </Show>
+                  </form>
                 </Show>
-                <div class="models-actions">
-                  <button
-                    type="button"
-                    class="models-button"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(current().info.command);
-                        setCopied(true);
-                      } catch {
-                        setError("Couldn't copy. Select the command to copy it.");
-                      }
-                    }}
-                  >
-                    {copied() ? "Copied" : "Copy command"}
-                  </button>
-                  <button type="button" class="models-button" onClick={() => setSignIn(null)}>
-                    Done
-                  </button>
-                </div>
-              </div>
+              </li>
+            </Show>
+          </ul>
+          <Show when={menu()}>
+            {(open) => (
+              <Menu
+                anchor={open().anchor}
+                label={`${open().account.name} options`}
+                placement="bottom-end"
+                groups={menuGroups(open().account)}
+                onClose={() => setMenu(null)}
+              />
             )}
           </Show>
-          <Show
-            when={adding()}
-            fallback={
-              <Show when={tools().length}>
-                <button
-                  type="button"
-                  class="models-button"
-                  disabled={busy()}
-                  onClick={() => setAdding(true)}
-                >
-                  Add account
-                </button>
-              </Show>
-            }
-          >
-            <form class="models-form" onSubmit={(event) => void addAccount(event)}>
-              <div class="models-field">
-                <span aria-hidden="true">Tool</span>
-                <Select
-                  label="Tool"
-                  value={chosenTool()}
-                  describedBy={singleSignIn().length ? "models-tool-note" : undefined}
-                  options={tools().map((item) => ({
-                    value: item.definitionId,
-                    label: item.providerName,
-                  }))}
-                  onChange={setTool}
-                />
-              </div>
-              <label class="models-field">
-                <span>Name</span>
-                <input
-                  value={label()}
-                  maxLength={80}
-                  placeholder="Work"
-                  onInput={(event) => setLabel(event.currentTarget.value)}
-                />
-              </label>
-              <div class="models-actions">
-                <button type="button" class="models-button" onClick={() => setAdding(false)}>
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  class="models-button models-button-primary"
-                  disabled={busy() || !label().trim()}
-                >
-                  Add
-                </button>
-              </div>
-              <Show when={singleSignIn().length}>
-                <p id="models-tool-note" class="models-form-note">
-                  {listNames(singleSignIn())} {singleSignIn().length > 1 ? "allow" : "allows"} only
-                  one account.
-                </p>
-              </Show>
-            </form>
+          <Show when={removing()}>
+            {(account) => (
+              <ConfirmDialog
+                title={`Remove ${account().name}?`}
+                body="It's taken out of every backup order."
+                confirmLabel="Remove account"
+                busyLabel="Removing…"
+                danger
+                busy={busy()}
+                error={removeError()}
+                onConfirm={() => void removeAccount()}
+                onCancel={() => setRemoving(null)}
+              />
+            )}
           </Show>
         </section>
 

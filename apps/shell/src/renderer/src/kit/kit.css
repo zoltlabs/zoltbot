@@ -602,6 +602,16 @@
   flex: none;
 }
 
+.zb-kit-logo-initial {
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgb(var(--ink) / 0.12);
+  font-size: 0.7em;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .zb-kit-logo.mono {
   background: currentColor;
   mask-position: center;

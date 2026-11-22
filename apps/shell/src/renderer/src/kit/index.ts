@@ -11,7 +11,7 @@ export {
   Suggestions,
   type SuggestionsProps,
 } from "./Menu";
-export { ModelLogo, modelLogoKey } from "./ModelLogo";
+export { AgentLogo, ModelLogo, modelLogoKey } from "./ModelLogo";
 export { Combobox, type ComboboxProps, type PickerOption, Select } from "./Picker";
 export { Cluster, EmptyState, Field, SettingsRow, Stack } from "./Settings";
 export { dismissToast, showToast, type ToastInput, ToastRegion } from "./Toast";
