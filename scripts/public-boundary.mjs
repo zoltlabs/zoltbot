@@ -20,6 +20,7 @@ const publicAccountRoutes = new Set([
   "/api/cloud",
   "/api/cloud/",
   "/api/cloud/push",
+  "/api/cloud/hooks",
   "/api/cloud/devices",
   "/api/cloud/cell-token",
   "/api/cloud/jwks.json",

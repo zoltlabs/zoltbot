@@ -65,3 +65,11 @@ it("checks public Cloud source and allows its local client imports", () => {
     ),
   ).toThrow();
 });
+
+it("allows the public hook endpoint without allowing private module imports", () => {
+  const route = ["", "api", "cloud", "hooks"].join("/");
+  expect(check(`export const route = ${JSON.stringify(route)};`)).toContain(
+    "Public dependency boundary passed",
+  );
+  expect(() => check(`import value from ${JSON.stringify(route)};`)).toThrow();
+});
