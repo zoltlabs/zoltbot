@@ -476,6 +476,7 @@
   "models.default": "Standard",
   "models.older": "Ältere Modelle",
   "models.noModels": "Modelle erscheinen hier nach dem ersten Chat mit diesem Agenten.",
+  "models.loading": "Modelle werden geladen…",
   "models.setUp": "Einrichten",
   "models.effort": "Aufwand",
   "models.speed": "Tempo",

@@ -131,6 +131,7 @@ const openbotApi: OpenBotDesktopApi = {
     refreshAgents: () => ipcRenderer.invoke(IPC_CHANNELS.agentRefreshAgents),
     getUsage: () => ipcRenderer.invoke(IPC_CHANNELS.agentGetUsage),
     listModels: () => ipcRenderer.invoke(IPC_CHANNELS.agentListModels),
+    refreshModels: (providers) => ipcRenderer.invoke(IPC_CHANNELS.agentRefreshModels, providers),
     listBots: () => ipcRenderer.invoke(IPC_CHANNELS.agentListBots),
     createBot: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentCreateBot, input),
     createProject: () => ipcRenderer.invoke(IPC_CHANNELS.agentCreateProject),

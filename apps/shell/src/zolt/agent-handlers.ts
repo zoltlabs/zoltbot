@@ -51,6 +51,10 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     [IPC_CHANNELS.agentRefreshAgents]: () => service.refreshAgents(),
     [IPC_CHANNELS.agentGetUsage]: () => service.getUsage(),
     [IPC_CHANNELS.agentListModels]: () => service.listModels(),
+    [IPC_CHANNELS.agentRefreshModels]: (providers) =>
+      service.refreshModels(
+        (Array.isArray(providers) ? providers : []).map((id) => requireString(id, "provider")),
+      ),
     [IPC_CHANNELS.agentListBots]: () => service.listBots(),
     [IPC_CHANNELS.agentCreateBot]: (input) => service.createBot(parseCreateBot(input)),
     [IPC_CHANNELS.agentUpdateBot]: (input) => service.updateBot(parseUpdateBot(input)),

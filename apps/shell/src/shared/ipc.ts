@@ -106,6 +106,7 @@ export const IPC_CHANNELS = {
   agentRefreshAgents: "agent:refresh-agents",
   agentGetUsage: "agent:get-usage",
   agentListModels: "agent:list-models",
+  agentRefreshModels: "agent:refresh-models",
   agentListBots: "agent:list-bots",
   agentCreateBot: "agent:create-bot",
   agentCreateProject: "agent:create-project",
@@ -671,6 +672,7 @@ export type AgentEvent =
   | { type: "status"; status: AgentStatus }
   | { type: "usage-changed"; usage: AccountUsage }
   | { type: "bots-changed"; bots: BotSummary[] }
+  | { type: "models-changed"; models: AgentModelOption[] }
   | { type: "conversation"; snapshot: ConversationSnapshot }
   | {
       type: "conversation-delta";
@@ -718,6 +720,8 @@ export interface AgentDesktopApi {
   refreshAgents: () => Promise<AgentStatus>;
   getUsage: () => Promise<AccountUsage>;
   listModels: () => Promise<AgentModelOption[]>;
+  /** Asks these agents for their models without starting a chat, then lists every model. */
+  refreshModels: (providers: AgentProviderId[]) => Promise<AgentModelOption[]>;
   listBots: () => Promise<BotSummary[]>;
   createBot: (input?: CreateBotInput) => Promise<BotSummary>;
   /** Asks for a folder, then creates a project for it with its CEO. Null when cancelled. */

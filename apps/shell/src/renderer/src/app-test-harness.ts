@@ -177,6 +177,7 @@ export function setUpAppTest() {
             },
           ],
         }),
+        refreshModels: vi.fn().mockResolvedValue([]),
         listModels: vi.fn().mockResolvedValue([
           {
             id: "gpt-5.6-luna",

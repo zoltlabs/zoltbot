@@ -476,6 +476,7 @@
   "models.default": "デフォルト",
   "models.older": "以前のモデル",
   "models.noModels": "このエージェントと最初にチャットすると、ここにモデルが表示されます。",
+  "models.loading": "モデルを読み込み中…",
   "models.setUp": "設定する",
   "models.effort": "推論レベル",
   "models.speed": "速度",

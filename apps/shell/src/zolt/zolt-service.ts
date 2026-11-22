@@ -116,6 +116,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   private readonly pagesDirty = new Set<"memory-changed" | "spend-changed">();
   private flushScheduled = false;
   private models: AgentModelOption[] = [];
+  /** When each agent was last asked for its models, so reopening the picker doesn't ask again. */
+  private readonly modelsAsked = new Map<string, number>();
   private agentChecks: AgentChecks;
   private checking: Promise<AgentStatus> | undefined;
 
@@ -251,6 +253,28 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       }));
     });
     return this.models;
+  }
+
+  /**
+   * Asks agents with no models yet for their list (Claude Code and Codex answer without a chat),
+   * then lists every model and tells the windows. Each agent is asked at most once a minute.
+   */
+  async refreshModels(providers: string[]): Promise<AgentModelOption[]> {
+    if (this.client.status !== "online") return this.models;
+    const now = Date.now();
+    const due = [...new Set(providers)].filter(
+      (id) => now - (this.modelsAsked.get(id) ?? 0) > 60_000,
+    );
+    if (!due.length) return this.models;
+    for (const id of due) this.modelsAsked.set(id, now);
+    await Promise.all(
+      due.map((definitionId) =>
+        this.client.call("model.refresh", { definitionId }).catch(() => undefined),
+      ),
+    );
+    const models = await this.listModels();
+    this.emit("event", { type: "models-changed", models });
+    return models;
   }
 
   /** Creates a project for a folder and its CEO, the manager accountable for the whole project. */

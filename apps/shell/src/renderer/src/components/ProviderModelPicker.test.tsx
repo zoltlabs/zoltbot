@@ -169,3 +169,43 @@ it("offers the model's effort levels and shows the effort on the button", () => 
   fireEvent.click(screen.getByRole("option", { name: "High" }));
   expect(change).toHaveBeenCalledWith("high");
 });
+
+it("asks a ready agent with no models for them when the picker opens", async () => {
+  let answer!: () => void;
+  const refreshModels = vi.fn(
+    () =>
+      new Promise<AgentModelOption[]>((resolve) => {
+        answer = () => resolve([]);
+      }),
+  );
+  Object.assign(window, {
+    openbot: { models: { starred: async () => [], setStarred: vi.fn() }, agent: { refreshModels } },
+  });
+  const withCodex = {
+    ...status,
+    providers: [
+      ...(status.providers ?? []),
+      { id: "codex", name: "Codex", state: "available", version: "0.164.0", message: null },
+      { id: "cursor", name: "Cursor", state: "missing", version: null, message: null },
+    ],
+  } as unknown as AgentStatus;
+  open({ agentStatus: withCodex });
+  expect(refreshModels).toHaveBeenCalledWith(["codex"]);
+  fireEvent.click(screen.getByRole("tab", { name: "Codex" }));
+  expect(screen.getByRole("status").textContent).toBe("Loading models…");
+  answer();
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toBe(
+      "Models show here after this agent's first chat.",
+    ),
+  );
+});
+
+it("does not ask for models when every ready agent has them", () => {
+  const refreshModels = vi.fn(async () => []);
+  Object.assign(window, {
+    openbot: { models: { starred: async () => [], setStarred: vi.fn() }, agent: { refreshModels } },
+  });
+  open();
+  expect(refreshModels).not.toHaveBeenCalled();
+});

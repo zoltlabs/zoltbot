@@ -476,6 +476,7 @@
   "models.default": "默认",
   "models.older": "较早的模型",
   "models.noModels": "与此智能体首次聊天后，模型会显示在这里。",
+  "models.loading": "正在加载模型…",
   "models.setUp": "设置",
   "models.effort": "推理强度",
   "models.speed": "速度",

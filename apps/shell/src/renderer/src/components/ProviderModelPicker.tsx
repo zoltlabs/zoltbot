@@ -5,7 +5,9 @@ import {
   createUniqueId,
   For,
   type JSX,
+  on,
   Show,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type {
@@ -70,6 +72,22 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   const agents = createMemo(() => listAgents(props.modelOptions, props.agentStatus));
   const current = createMemo(() => findModel(agents(), props.value));
   const field = () => props.variant === "field";
+  // Agents asked for their models since the picker last opened, until the answer arrives.
+  const [loading, setLoading] = createSignal<AgentProviderId[]>([]);
+  createEffect(
+    on(open, (isOpen) => {
+      if (!isOpen) return;
+      const missing = untrack(agents)
+        .filter((row) => row.status.state === "available" && !row.models.length)
+        .map((row) => row.id);
+      const refresh = window.openbot?.agent?.refreshModels;
+      if (!missing.length || !refresh) return;
+      setLoading(missing);
+      void refresh(missing)
+        .catch(() => undefined)
+        .finally(() => setLoading([]));
+    }),
+  );
   const reasonId = createUniqueId();
   const effortId = createUniqueId();
   const reason = () => (props.disabled ? props.disabledReason : undefined);
@@ -129,6 +147,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
             anchor={anchor()}
             picker={props}
             agents={agents()}
+            loading={loading()}
             initialAgent={current()?.agent.id ?? agents()[0]?.id}
             onClose={() => setOpen(false)}
           />
@@ -148,6 +167,8 @@ function ModelPanel(props: {
   picker: ProviderModelPickerProps;
   agents: Agent[];
   initialAgent: AgentProviderId | undefined;
+  /** Agents whose models are being fetched. */
+  loading: AgentProviderId[];
   onClose(): void;
 }) {
   let element: HTMLDivElement | undefined;
@@ -457,7 +478,13 @@ function ModelPanel(props: {
                 >
                   <Show
                     when={sorted().length}
-                    fallback={<p class="model-panel-note">{t("models.noModels")}</p>}
+                    fallback={
+                      <p class="model-panel-note" role="status">
+                        {props.loading.includes(agentId() as AgentProviderId)
+                          ? t("models.loading")
+                          : t("models.noModels")}
+                      </p>
+                    }
                   >
                     <For each={recent()}>{(model) => row({ model })}</For>
                     <Show when={older().length}>

@@ -388,6 +388,9 @@ export function App() {
       case "usage-changed":
         setAccountUsage(event.usage);
         return;
+      case "models-changed":
+        setModelOptions(event.models);
+        return;
       case "bots-changed":
         applyStoredBots(event.bots);
         return;
