@@ -277,7 +277,7 @@ test("a manager's chat shows assigned work, results and waits, and acts on them"
   try {
     await shell.open(page);
     const sidebar = page.getByRole("complementary", { name: "Bot navigation" });
-    await sidebar.getByRole("button", { name: /Payments/ }).click();
+    await sidebar.getByRole("button", { name: /^Payments(?: |$)/ }).click();
 
     // One delegation card for the turn that assigned the work.
     const assigned = page.getByRole("region", { name: "Assigned tasks" });

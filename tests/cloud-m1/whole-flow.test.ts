@@ -137,7 +137,8 @@ for (const { target, provider } of targets.flatMap((target) =>
                   );
                 return !!found;
               },
-              { timeout: 30000 },
+              // Three Docker workers start concurrently before any interaction can arrive.
+              { timeout: target === "docker" ? 60_000 : 30_000 },
             )
             .toBe(true);
           if (!found) throw new Error("fixture_interaction_missing");

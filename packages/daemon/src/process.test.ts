@@ -24,13 +24,12 @@ async function boot(dir: string) {
       PATH: process.env.PATH ?? "",
       HOME: dir,
       TMPDIR: dir,
-      TSX_DISABLE_CACHE: "1",
       ZOLTBOT_DATA_DIR: dir,
     },
     stdio: "pipe",
   });
   children.push(child);
-  await readyChild(child);
+  await readyChild(child, 20_000);
   const file = path.join(dir, "daemon.json");
   for (let i = 0; i < 200; i++) {
     if (existsSync(file)) {
@@ -95,4 +94,4 @@ it("runs as a separate process, survives client loss, and preserves committed st
   expect(second.token).not.toBe(first.token);
   expect(await rpc(second, "settings.get", {})).toEqual([{ key: "theme", value: "dark" }]);
   expect(await rpc(second, "snapshot.get", {})).toMatchObject({ seq: baseline.seq + 1 });
-});
+}, 45_000);

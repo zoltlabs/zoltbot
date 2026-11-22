@@ -1,10 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type {
-  ChannelMember,
-  ChannelPostView,
-  ChannelRequestView,
-} from "../../data/channels";
+import type { ChannelMember, ChannelPostView, ChannelRequestView } from "../../data/channels";
 import { recipientLabel } from "../../data/channels";
 import { touch, type as typography, useTheme } from "../../theme";
 import { BotAvatar } from "../BotAvatar";

@@ -17,8 +17,8 @@ test("agent row context menu renames and deletes, from the mouse and the keyboar
     const beta = await shell.service.createBot({ profileId: "profile", title: "Beta chat" });
     await shell.open(page);
     const sidebar = page.getByRole("complementary", { name: "Bot navigation" });
-    const alphaRow = sidebar.getByRole("button", { name: /Alpha chat/ });
-    const betaRow = sidebar.getByRole("button", { name: /Beta chat/ });
+    const alphaRow = sidebar.getByRole("button", { name: /^Alpha chat(?: |$)/ });
+    const betaRow = sidebar.getByRole("button", { name: /^Beta chat(?: |$)/ });
     await expect(alphaRow).toBeVisible();
     await expect(betaRow).toBeVisible();
 
@@ -33,7 +33,7 @@ test("agent row context menu renames and deletes, from the mouse and the keyboar
     const name = page.getByRole("textbox", { name: "Agent name" });
     await name.fill("Alpha renamed");
     await name.blur();
-    await expect(sidebar.getByRole("button", { name: /Alpha renamed/ })).toBeVisible();
+    await expect(sidebar.getByRole("button", { name: /^Alpha renamed(?: |$)/ })).toBeVisible();
     await expect
       .poll(() => fixture.daemon.store.record("thread", alpha.id)?.title)
       .toBe("Alpha renamed");

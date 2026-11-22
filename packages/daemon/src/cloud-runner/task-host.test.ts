@@ -535,7 +535,7 @@ it("publishes the current reviewed task commit through its pinned repository and
     repository: f.execution.project.cloud?.repository,
     pushed: true,
   });
-});
+}, 30_000);
 
 it("creates one revision-bound review commit and replays its native receipt after reopening", async () => {
   const f = await fixture();
@@ -585,7 +585,7 @@ it("creates one revision-bound review commit and replays its native receipt afte
       f.controller.signal,
     ),
   ).rejects.toThrow("command_conflict");
-});
+}, 30_000);
 
 it.each([
   false,

@@ -100,4 +100,4 @@ it("starts a headless daemon with a private account broker and connects its opte
     await new Promise<void>((resolve) => global.close(() => resolve()));
     await rm(root, { recursive: true, force: true });
   }
-}, 45000);
+}, 75000);

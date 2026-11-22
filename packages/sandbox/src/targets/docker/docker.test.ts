@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runConformance, scenarios } from "../../conformance/index.js";
 import { createDockerTarget, dockerAvailable } from "./index.js";
@@ -6,7 +7,7 @@ import { createDockerTarget, dockerAvailable } from "./index.js";
 // missing daemon fails the run instead of skipping it.
 const required = process.env.ZOLTBOT_TEST_DOCKER === "1";
 const available = required || (await dockerAvailable());
-const target = createDockerTarget({ label: "conformance" });
+const target = createDockerTarget({ label: `conformance-${randomUUID()}` });
 
 describe.skipIf(!available)("docker execution target", () => {
   beforeAll(async () => {

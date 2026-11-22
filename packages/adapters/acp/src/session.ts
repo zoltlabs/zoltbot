@@ -162,7 +162,8 @@ export class AcpSession implements AgentSession {
           };
         }
         const hostAllow = hostToolAllowOption(params);
-        if (hostAllow) return { outcome: { outcome: "selected" as const, optionId: hostAllow.optionId } };
+        if (hostAllow)
+          return { outcome: { outcome: "selected" as const, optionId: hostAllow.optionId } };
         clearTimeout(this.stallTimer);
         const id = randomUUID();
         const answer = new Promise<InteractionAnswer | undefined>((resolve) =>

@@ -50,7 +50,7 @@ const run = async (args: string[], options: { timeout?: number; missingImage?: b
   }
 };
 
-/** Only local image layers and uploaded test bytes; no host mounts, pulls or provider calls. */
+/** Only local image layers and fixture bytes; no host mounts, pulls or provider calls. */
 export async function dockerFixture(options: { remote: string; certificate: string }) {
   const base = process.env.ZOLTBOT_M1_DOCKER_IMAGE ?? "zoltbot-base";
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.:/@-]{0,199}$/.test(base))
@@ -70,23 +70,15 @@ export async function dockerFixture(options: { remote: string; certificate: stri
     await rm(journal, { force: true });
   };
   const context = await mkdtemp("/private/tmp/zoltbot-m1-image-");
-  try {
-    await writeFile(
-      path.join(context, "Dockerfile"),
-      `FROM ${base}\nUSER root\nRUN rm -f /usr/local/bin/claude /usr/local/bin/codex\nCOPY worker.mjs /opt/zoltbot/apps/worker/dist/main.mjs\nUSER user\nENTRYPOINT []\n`,
-    );
-    await copyFile("apps/worker/dist/main.mjs", path.join(context, "worker.mjs"));
-    await run(["build", "--pull=false", "--network=none", "--tag", image, context]);
-  } catch (error) {
-    await removeImage().catch(() => {});
-    throw error;
-  } finally {
-    await rm(context, { recursive: true, force: true });
-  }
   const raw = createDockerTarget({ image, label });
   const home = "/home/user/fixture",
-    bin = `${home}/bin`;
-  const files = new Map<string, string | Uint8Array>();
+    bin = `${home}/bin`,
+    fixture = path.join(context, "fixture");
+  const writeFixture = async (relative: string, data: string | Uint8Array, mode = 0o644) => {
+    const destination = path.join(fixture, relative);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, data, { mode });
+  };
   try {
     for (const provider of ["claude", "codex"] as const) {
       const bundle = await build({
@@ -103,48 +95,51 @@ export async function dockerFixture(options: { remote: string; certificate: stri
       });
       const source = bundle.outputFiles[0]?.text;
       if (!source) throw new Error("fixture_provider_build_failed");
-      files.set(`${home}/tools/fakes/src/${provider}-conformance-provider.mjs`, source);
-      files.set(
-        `${bin}/${provider}`,
+      await writeFixture(`tools/fakes/src/${provider}-conformance-provider.mjs`, source);
+      await writeFixture(
+        `bin/${provider}`,
         `#!/usr/bin/env node
 const fs=require("node:fs"),args=process.argv.slice(2);
 if(${JSON.stringify(provider)}==="codex"&&args[0]==="app-server"&&args[1]==="generate-json-schema"){const out=args[args.indexOf("--out")+1];if(!out||!require("node:path").isAbsolute(out))process.exit(1);fs.copyFileSync(${JSON.stringify(`${home}/fixtures/codex/0.164.0/protocol-experimental.schema.json`)},require("node:path").join(out,"codex_app_server_protocol.schemas.json"));process.exit(0);}
 if(args.includes("--version")){process.stdout.write(${JSON.stringify(provider === "claude" ? "2.1.299 (Claude Code)\n" : "codex-cli 0.164.0\n")});process.exit(0);}
 const child=require("node:child_process").spawn(process.execPath,[${JSON.stringify(`${home}/tools/fakes/src/${provider}-conformance-provider.mjs`)},...args],{stdio:"inherit",env:process.env});child.once("error",()=>process.exitCode=1);child.once("exit",code=>process.exitCode=code??1);
 `,
+        0o700,
       );
     }
     for (const name of ["protocol-experimental.schema.json", "thread-start-no-auth.jsonl"])
-      files.set(
-        `${home}/fixtures/codex/0.164.0/${name}`,
+      await writeFixture(
+        `fixtures/codex/0.164.0/${name}`,
         await readFile(`fixtures/codex/0.164.0/${name}`),
       );
-    files.set(
-      `${bin}/git`,
+    await writeFixture(
+      "bin/git",
       `#!/usr/bin/env node\n${gitShim(options.remote, "/usr/bin/git", `${home}/ca.pem`)}\n`,
+      0o700,
     );
-    files.set(`${home}/trust.mjs`, await readFile("tests/cloud-m1/trust.mjs"));
-    files.set(`${home}/ca.pem`, options.certificate);
+    await writeFixture("trust.mjs", await readFile("tests/cloud-m1/trust.mjs"));
+    await writeFixture("ca.pem", options.certificate);
+    // A retry can discover the labeled container as soon as Docker creates it.
+    // Put all fixture files in the image so discovery cannot race an upload.
+    await writeFile(
+      path.join(context, "Dockerfile"),
+      `FROM ${base}\nUSER root\nRUN rm -f /usr/local/bin/claude /usr/local/bin/codex\nCOPY worker.mjs /opt/zoltbot/apps/worker/dist/main.mjs\nCOPY --chown=user:user fixture/ ${home}/\nUSER user\nENTRYPOINT []\n`,
+    );
+    await copyFile("apps/worker/dist/main.mjs", path.join(context, "worker.mjs"));
+    // Each fixture owns its image even when BuildKit reuses its layers.
+    await run([
+      "build",
+      "--pull=false",
+      "--network=none",
+      "--label",
+      `ai.zoltbot.m1-fixture=${label}`,
+      "--tag",
+      image,
+      context,
+    ]);
     const target: ExecutionTarget = {
       ...raw,
-      async create(spec) {
-        const ref = await raw.create({ ...spec, template: image });
-        try {
-          for (const [file, data] of files) await raw.files.write(ref, file, data);
-          const setup = await raw.exec(ref, [
-            "chmod",
-            "700",
-            `${bin}/claude`,
-            `${bin}/codex`,
-            `${bin}/git`,
-          ]);
-          if ((await setup.exit).code !== 0) throw new Error("fixture_provider_setup_failed");
-          return ref;
-        } catch {
-          await raw.destroy(ref);
-          throw new Error("fixture_provider_setup_failed");
-        }
-      },
+      create: (spec) => raw.create({ ...spec, template: image }),
     };
     return Object.freeze({
       target,
@@ -165,8 +160,11 @@ const child=require("node:child_process").spawn(process.execPath,[${JSON.stringi
         await removeImage();
       },
     });
-  } catch {
+  } catch (error) {
     await removeImage().catch(() => {});
+    if (error instanceof DockerFixtureError) throw error;
     throw new Error("fixture_docker_setup_failed");
+  } finally {
+    await rm(context, { recursive: true, force: true });
   }
 }

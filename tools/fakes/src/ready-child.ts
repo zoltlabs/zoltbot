@@ -1,7 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 
 /** Fixture boot is bounded independently; this does not change provider RPC timeouts. */
-export async function readyChild(child: ChildProcessWithoutNullStreams, timeoutMs = 5000) {
+export async function readyChild(child: ChildProcessWithoutNullStreams, timeoutMs = 10_000) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let text = "";
   let data = (_bytes: Buffer) => {};

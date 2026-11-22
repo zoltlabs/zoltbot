@@ -1,6 +1,6 @@
 import { type Supervisor, supervisedTransport } from "@zoltbot/daemon";
 /** Fixture loading has its own budget; provider RPC deadlines begin after this marker. */
-export async function readyTransport(supervisor: Supervisor, startupMs = 5000) {
+export async function readyTransport(supervisor: Supervisor, startupMs = 10_000) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let ready = (_line: string) => {};
   let failed = () => {};

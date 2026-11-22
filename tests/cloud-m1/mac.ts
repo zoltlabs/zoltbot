@@ -19,7 +19,6 @@ export async function startTestMac(input: {
     execArgv: ["--import", import.meta.resolve("tsx")],
     env: {
       PATH: [path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
-      TSX_DISABLE_CACHE: "1",
       ...input.tls.childEnvironment(),
     },
     stdio: ["ignore", "ignore", "ignore", "ipc"],
@@ -41,16 +40,19 @@ export async function startTestMac(input: {
     }));
   try {
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("fixture_mac_start_timeout")), 20000);
-      const fail = () => {
+      // A cold tsx load compiles the daemon before it can acknowledge the IPC frame.
+      const timer = setTimeout(() => reject(new Error("fixture_mac_start_timeout")), 40000);
+      const fail = (reason: string) => {
         clearTimeout(timer);
-        reject(new Error("fixture_mac_start_failed"));
+        reject(new Error(`fixture_mac_start_failed: ${reason}`));
       };
-      child.once("error", fail);
-      child.once("exit", fail);
+      const processError = () => fail("child_process");
+      const processExit = () => fail("child_exit");
+      child.once("error", processError);
+      child.once("exit", processExit);
       child.on("message", (message: unknown) => {
         if (!message || typeof message !== "object") return;
-        const frame = message as { type?: unknown; code?: unknown };
+        const frame = message as { type?: unknown; code?: unknown; phase?: unknown };
         if (
           frame.type === "status" &&
           typeof frame.code === "string" &&
@@ -58,22 +60,31 @@ export async function startTestMac(input: {
           statuses.length < 128
         )
           statuses.push(frame.code);
-        if (frame.type === "failed") fail();
+        if (frame.type === "failed") {
+          const phase = [
+            "configuration",
+            "broker_start",
+            "broker_save",
+            "runner_grant",
+            "daemon_start",
+          ].find((known) => known === frame.phase);
+          fail(phase ?? "child_start");
+        }
         if (frame.type === "ready") {
           clearTimeout(timer);
-          child.removeListener("error", fail);
-          child.removeListener("exit", fail);
+          child.removeListener("error", processError);
+          child.removeListener("exit", processExit);
           resolve();
         }
       });
       const { tls: _tls, ...configuration } = input;
       child.send({ operation: "start", ...configuration }, (error) => {
-        if (error) fail();
+        if (error) fail("send_configuration");
       });
     });
     return Object.freeze({ statuses: () => [...statuses], close });
-  } catch {
+  } catch (error) {
     await close();
-    throw new Error("fixture_mac_start_failed");
+    throw error;
   }
 }
