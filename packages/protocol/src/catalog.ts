@@ -58,8 +58,8 @@ import {
   SessionSchema,
   SettingSchema,
   SubprojectSchema,
-  TASK_DOCUMENT_MAX_TEXT,
-  TaskDocumentSchema,
+  TaskDocumentChangesSchema,
+  TaskDocumentInputSchema,
   TaskResultSchema,
   TaskSchema,
   ThreadSchema,
@@ -610,17 +610,7 @@ const rawMethodCatalog = {
   ...browserMethods,
   "task.create": entry(
     object({
-      /**
-       * Makes a document task: the daemon keeps `before` so the Mac and the phone can show what
-       * the agent changed in `file`, the document's absolute path on the Mac.
-       */
-      document: Type.Optional(
-        object({
-          path: TaskDocumentSchema.properties.path,
-          file: Type.String({ minLength: 1, maxLength: 4096 }),
-          before: Type.String({ maxLength: TASK_DOCUMENT_MAX_TEXT }),
-        }),
-      ),
+      document: Type.Optional(TaskDocumentInputSchema),
       location: Type.Optional(TaskLocationSchema),
       outputMode: Type.Optional(OutputModeSchema),
       title: Type.String({ minLength: 1, maxLength: 150 }),
@@ -636,15 +626,7 @@ const rawMethodCatalog = {
   ),
   "task.prepareWorkspace": entry(idParams, TaskSchema),
   "task.changes": entry(idParams, Json),
-  /** A document task's text before the agent started and now; `after` is null once it's gone. */
-  "document.changes": entry(
-    idParams,
-    object({
-      path: Text,
-      before: Type.String({ maxLength: TASK_DOCUMENT_MAX_TEXT }),
-      after: Type.Union([Type.String({ maxLength: TASK_DOCUMENT_MAX_TEXT }), Type.Null()]),
-    }),
-  ),
+  "document.changes": entry(idParams, TaskDocumentChangesSchema),
   "task.reviewCommitPreview": entry(idParams, Json),
   "task.reviewCommit": entry(
     object({ id: Id, fingerprint: Text, message: OptionalText, confirmed: Type.Boolean() }),

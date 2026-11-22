@@ -107,7 +107,6 @@ async function startOwnedDaemon(
   const token = randomBytes(32).toString("hex");
   const redactor = options.redactor ?? new Redactor();
   redactor.register(token);
-  // D6: a Start fresh asked for last time empties the data folder before anything opens.
   await finishFreshStart(options.dataDir);
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
@@ -640,8 +639,6 @@ async function startOwnedDaemon(
       case "document.changes":
         return documents.changes(String(params.id));
       case "hello":
-        // D3: the app that started this daemon names its version, so a newer app can tell the
-        // daemon is older and replace it.
         return {
           protocolVersion,
           version: process.env.ZOLTBOT_APP_VERSION || null,
@@ -779,10 +776,8 @@ async function startOwnedDaemon(
     logger,
   });
   syncRelay();
-  writeConnectionFile(
-    connectionFile,
-    JSON.stringify({ url, token, pid: process.pid, protocolVersion }),
-  );
+  const connection = { url, token, pid: process.pid, protocolVersion };
+  writeConnectionFile(connectionFile, JSON.stringify(connection));
   chmodSync(connectionFile, 0o600);
   logger.write("info", "Daemon ready", { recovered: true });
   return {

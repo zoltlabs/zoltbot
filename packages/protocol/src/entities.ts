@@ -208,6 +208,21 @@ export const TaskDocumentSchema = object({ path: Type.String({ minLength: 1, max
 export type TaskDocument = Static<typeof TaskDocumentSchema>;
 /** The largest document text a document task keeps for review, in characters. */
 export const TASK_DOCUMENT_MAX_TEXT = 1_000_000;
+const documentText = Type.String({ maxLength: TASK_DOCUMENT_MAX_TEXT });
+
+/** The daemon saves the original text so the Mac and iPhone can review the agent's edits. */
+export const TaskDocumentInputSchema = object({
+  path: TaskDocumentSchema.properties.path,
+  file: Type.String({ minLength: 1, maxLength: 4096 }),
+  before: documentText,
+});
+
+export const TaskDocumentChangesSchema = object({
+  path: Text,
+  before: documentText,
+  after: Type.Union([documentText, Type.Null()]),
+});
+
 export const TaskSchema = object({
   document: Type.Optional(TaskDocumentSchema),
   location: Type.Optional(TaskLocationSchema),
