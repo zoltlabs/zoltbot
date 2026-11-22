@@ -103,7 +103,13 @@
         row = Math.floor(plan.index / columns) * step,
         offset = (column * step + (Math.floor(plan.index / columns) % 2 ? step / 2 : 0)) | 0;
       const center = { q: offset - Math.floor(row / 2), r: row };
-      cities.push({ id: plan.id, name: plan.name, index: plan.index, radius: plan.radius, ...center });
+      cities.push({
+        id: plan.id,
+        name: plan.name,
+        index: plan.index,
+        radius: plan.radius,
+        ...center,
+      });
       const tiles = area(center, plan.radius);
       for (const hex of tiles) land.push({ ...hex, city: plan.id });
       const taken = new Set([key(center.q, center.r)]);

@@ -93,7 +93,9 @@
       `<rect x="${x}" y="${y - 14}" width="13" height="14" fill="#4b5560"/>` +
       `<path d="M${x - 15} ${y - 14}h30l-4 -6h-22Z" fill="#3e4851"/>` +
       `<rect x="${x + 6}" y="${y - 28}" width="5" height="10" fill="#3e4851"/>` +
-      (active ? `<circle class="smoke" cx="${x + 8}" cy="${y - 31}" r="3" fill="rgba(230,230,230,0.6)"/>` : "") +
+      (active
+        ? `<circle class="smoke" cx="${x + 8}" cy="${y - 31}" r="3" fill="rgba(230,230,230,0.6)"/>`
+        : "") +
       `<rect x="${x - 9}" y="${y - 10}" width="6" height="5" fill="${lamp}"/>` +
       `<rect x="${x + 2}" y="${y - 10}" width="6" height="5" fill="${lamp}"/>`
     );
@@ -154,7 +156,8 @@
           top = this.at(tile.q, tile.r);
         xs.push(base.x);
         ys.push(base.y);
-        if (look.lift) ground += `<polygon points="${hexPoints(base.x, base.y)}" fill="${shade(look.tops[0], 0.55)}"/>`;
+        if (look.lift)
+          ground += `<polygon points="${hexPoints(base.x, base.y)}" fill="${shade(look.tops[0], 0.55)}"/>`;
         ground += `<polygon points="${hexPoints(top.x, top.y)}" fill="${look.tops[tile.tone > 0.5 ? 0 : 1]}" stroke="rgba(0,0,0,0.14)"/>`;
         ground += decor(tile, top.x, top.y);
         if (!tile.city) continue;
@@ -171,7 +174,12 @@
       }
       this.ground.innerHTML = ground + borders;
       this.bounds = xs.length
-        ? { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) }
+        ? {
+            left: Math.min(...xs),
+            right: Math.max(...xs),
+            top: Math.min(...ys),
+            bottom: Math.max(...ys),
+          }
         : { left: 0, right: 0, top: 0, bottom: 0 };
       // Cities, districts and walkers, drawn back to front.
       const items = [

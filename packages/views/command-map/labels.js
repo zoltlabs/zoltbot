@@ -7,7 +7,8 @@
   const stateWords = (chat, requests) => {
     const { state, problem } = map.unitState(chat),
       words = [map.statusLabels[chat.status] ?? map.statusLabels[state]];
-    if (state === "needs_you") words.push(`waiting ${map.waited(map.waitingSince(chat, requests)).long}`);
+    if (state === "needs_you")
+      words.push(`waiting ${map.waited(map.waitingSince(chat, requests)).long}`);
     if (problem) words.push(chat.problem ? "has a problem" : "last turn failed");
     return words.join(", ").toLowerCase();
   };
@@ -57,7 +58,11 @@
         banner.style.setProperty("--city", map.cityColor(city));
         banner.onclick = () => this.host.city(city.id);
         const top = world.at(city.q, city.r);
-        items.push({ element: banner, point: { x: top.x, y: top.y - 64 }, anchor: "translate(-50%, -100%)" });
+        items.push({
+          element: banner,
+          point: { x: top.x, y: top.y - 64 },
+          anchor: "translate(-50%, -100%)",
+        });
       }
       for (const district of world.layout.districts) {
         const point = world.at(district.q, district.r);
@@ -80,7 +85,11 @@
             state === "needs_you" ||
             selected.has(chat.id) ||
             (!quiet && (state === "review" || problem));
-        const ribbon = el("span", { class: "ribbon" }, el("span", { class: "unit-name" }, chat.title));
+        const ribbon = el(
+          "span",
+          { class: "ribbon" },
+          el("span", { class: "unit-name" }, chat.title),
+        );
         if (state === "needs_you")
           ribbon.append(
             el("span", { class: "wait" }, map.waited(map.waitingSince(chat, requests)).short),
@@ -101,13 +110,19 @@
         flag.style.setProperty("--agent", map.providerColor(chat));
         flag.onclick = (event) => this.host.select(chat.id, event.shiftKey || event.metaKey);
         const top = world.at(unit.q, unit.r);
-        items.push({ element: flag, point: { x: top.x + 4, y: top.y - 22 }, anchor: "translate(-13px, -100%)" });
+        items.push({
+          element: flag,
+          point: { x: top.x + 4, y: top.y - 22 },
+          anchor: "translate(-13px, -100%)",
+        });
       }
       this.items = items;
       this.container.replaceChildren(...items.map((item) => item.element));
       this.place();
       if (focused)
-        this.container.querySelector(`[data-label="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
+        this.container
+          .querySelector(`[data-label="${CSS.escape(focused)}"]`)
+          ?.focus({ preventScroll: true });
     }
     // Moves every label to its spot for the current camera. Called on every camera change.
     place() {
@@ -130,7 +145,9 @@
         if (unit.chat.status !== "needs_you") continue;
         const flag = this.container.querySelector(`.flag[data-chat="${CSS.escape(unit.chat.id)}"]`);
         if (!flag) continue;
-        flag.querySelector(".wait").textContent = map.waited(map.waitingSince(unit.chat, requests)).short;
+        flag.querySelector(".wait").textContent = map.waited(
+          map.waitingSince(unit.chat, requests),
+        ).short;
         flag.setAttribute("aria-label", `${unit.chat.title}, ${stateWords(unit.chat, requests)}`);
       }
     }

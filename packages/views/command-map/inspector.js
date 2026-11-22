@@ -32,12 +32,23 @@
     render(layout, requests) {
       const selected = this.host.selected(),
         units = layout.units.filter((unit) => selected.has(unit.chat.id));
-      const city = !units.length && this.city ? layout.cities.find((c) => c.id === this.city) : null;
+      const city =
+        !units.length && this.city ? layout.cities.find((c) => c.id === this.city) : null;
       if (!city) this.city = null;
       const signature = JSON.stringify([
-        units.map(({ chat }) => [chat.id, chat.title, chat.status, chat.activity, chat.problem, chat.lastTurn]),
+        units.map(({ chat }) => [
+          chat.id,
+          chat.title,
+          chat.status,
+          chat.activity,
+          chat.problem,
+          chat.lastTurn,
+        ]),
         requests.filter((request) => selected.has(request.chatId)),
-        city && layout.units.filter((unit) => unit.city === city.id).map(({ chat }) => [chat.id, chat.status]),
+        city &&
+          layout.units
+            .filter((unit) => unit.city === city.id)
+            .map(({ chat }) => [chat.id, chat.status]),
         window.zolt.granted,
         this.host.actions.busy,
         this.host.actions.saved.presets,
@@ -98,7 +109,11 @@
       for (const request of requests.filter((r) => r.chatId === chat.id))
         this.container.append(this.host.actions.request(request, chat));
       const row = el("div", { class: "actions" });
-      const open = el("button", { type: "button", "aria-label": `Open chat: ${chat.title}` }, "Open chat");
+      const open = el(
+        "button",
+        { type: "button", "aria-label": `Open chat: ${chat.title}` },
+        "Open chat",
+      );
       open.onclick = () => this.host.open(chat.id);
       row.append(open);
       this.container.append(row);
@@ -112,7 +127,12 @@
       this.container.setAttribute("aria-label", `${chats.length} chats selected`);
       const list = el("ul", { class: "picked" });
       for (const chat of chats) {
-        const item = el("button", { type: "button", "aria-label": `Show ${chat.title}` }, map.stateIcon(chat), chat.title);
+        const item = el(
+          "button",
+          { type: "button", "aria-label": `Show ${chat.title}` },
+          map.stateIcon(chat),
+          chat.title,
+        );
         item.onclick = () => this.host.find(chat.id);
         list.append(el("li", {}, item));
       }

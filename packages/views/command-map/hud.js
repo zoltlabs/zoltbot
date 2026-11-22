@@ -16,7 +16,13 @@
     }
     renderStats({ usage, checks, chats }) {
       const stat = (icon, strong, text, tone = "") =>
-        el("li", { class: `stat ${tone}` }, el("span", { class: `gem ${icon}` }, map.icon(icon)), el("strong", {}, strong), text);
+        el(
+          "li",
+          { class: `stat ${tone}` },
+          el("span", { class: `gem ${icon}` }, map.icon(icon)),
+          el("strong", {}, strong),
+          text,
+        );
       if (!usage) {
         this.stats.replaceChildren(el("li", { class: "stat" }, "Loading…"));
         return;
@@ -55,7 +61,11 @@
       const notes = [
         ...chats
           .filter((chat) => map.unitState(chat).problem && chat.status !== "needs_you")
-          .map((chat) => ({ id: chat.id, icon: "problem", text: `${chat.problem ? "Problem" : "Failed"}: ${chat.title}` })),
+          .map((chat) => ({
+            id: chat.id,
+            icon: "problem",
+            text: `${chat.problem ? "Problem" : "Failed"}: ${chat.title}`,
+          })),
         ...chats
           .filter((chat) => chat.status === "review")
           .map((chat) => ({ id: chat.id, icon: "review", text: `Done: ${chat.title}` })),
@@ -86,10 +96,17 @@
       const count = requests.length;
       this.next.classList.toggle("calm", !count);
       this.next.disabled = !count;
-      this.next.setAttribute("aria-label", count ? `Next request, ${count} waiting` : "Nothing needs you");
+      this.next.setAttribute(
+        "aria-label",
+        count ? `Next request, ${count} waiting` : "Nothing needs you",
+      );
       this.next.replaceChildren(
         ...(count
-          ? [el("strong", {}, String(count)), el("span", {}, count === 1 ? "request" : "requests"), el("kbd", {}, "Space")]
+          ? [
+              el("strong", {}, String(count)),
+              el("span", {}, count === 1 ? "request" : "requests"),
+              el("kbd", {}, "Space"),
+            ]
           : [el("span", {}, "All clear")]),
       );
     }

@@ -69,7 +69,12 @@
     }
     answer(request, extra) {
       return this.perform(
-        () => window.zolt.requests.answer({ requestId: request.id, version: request.version, ...extra }),
+        () =>
+          window.zolt.requests.answer({
+            requestId: request.id,
+            version: request.version,
+            ...extra,
+          }),
         "Answer sent.",
       );
     }
@@ -86,24 +91,38 @@
         "data-request": request.id,
         "data-since": request.createdAt,
       });
-      const head = el("div", { class: "ask-head" }, map.icon("needs_you"), el("h3", {}, request.title));
+      const head = el(
+        "div",
+        { class: "ask-head" },
+        map.icon("needs_you"),
+        el("h3", {}, request.title),
+      );
       head.append(
-        el("span", { class: "wait" }, map.waited(Date.parse(request.createdAt) || Date.now()).short),
+        el(
+          "span",
+          { class: "wait" },
+          map.waited(Date.parse(request.createdAt) || Date.now()).short,
+        ),
       );
       card.append(head);
       if (options.who && chat) {
-        const who = button(chat.title, { class: "who", "aria-label": `Show ${chat.title} on the map` }, () =>
-          options.who(chat.id),
+        const who = button(
+          chat.title,
+          { class: "who", "aria-label": `Show ${chat.title} on the map` },
+          () => options.who(chat.id),
         );
         card.append(who);
       }
       if (request.context?.command) card.append(el("pre", {}, request.context.command));
-      if (request.context?.markdown) card.append(el("p", { class: "context" }, request.context.markdown));
+      if (request.context?.markdown)
+        card.append(el("p", { class: "context" }, request.context.markdown));
       const open = () => this.host.open(request.chatId);
       const row = el("div", { class: "actions" });
       card.append(row);
       if (!this.can("approve") || request.answerInChat) {
-        row.append(button("Open chat", { "aria-label": `Open chat: ${chat?.title ?? request.title}` }, open));
+        row.append(
+          button("Open chat", { "aria-label": `Open chat: ${chat?.title ?? request.title}` }, open),
+        );
         return card;
       }
       (request.choices ?? []).forEach((choice, index) => {
@@ -128,7 +147,10 @@
     form(request) {
       if (!request.questions?.length) return null;
       const form = el("form", { "aria-label": `Answer: ${request.title}` });
-      const fields = request.questions.map((question) => [question.id, this.question(form, question, request.type)]);
+      const fields = request.questions.map((question) => [
+        question.id,
+        this.question(form, question, request.type),
+      ]);
       if (fields.some(([, read]) => !read)) return null;
       const submit = () => {
         if (form.reportValidity())
@@ -174,8 +196,7 @@
           if (schema?.minLength !== undefined) input.minLength = schema.minLength;
           if (schema?.maxLength !== undefined) input.maxLength = schema.maxLength;
         }
-        read = () =>
-          input.value === "" ? undefined : number ? Number(input.value) : input.value;
+        read = () => (input.value === "" ? undefined : number ? Number(input.value) : input.value);
       }
       input.required = required;
       label.append(input);
@@ -219,13 +240,15 @@
       if (question.freeText) {
         other = el("textarea", { maxlength: "8000", rows: "2" });
         other.oninput = () => {
-          if (!question.multi && other.value.trim()) for (const option of options) option.checked = false;
+          if (!question.multi && other.value.trim())
+            for (const option of options) option.checked = false;
         };
         group.append(el("label", {}, options.length ? "Other" : "Response", other));
       }
       return () => {
         const chosen = options.filter((option) => option.checked).map((option) => option.value);
-        if (other?.value.trim()) return { options: question.multi ? chosen : [], other: other.value };
+        if (other?.value.trim())
+          return { options: question.multi ? chosen : [], other: other.value };
         return question.multi ? chosen : (chosen[0] ?? "");
       };
     }
@@ -234,7 +257,8 @@
       const section = el("section", { class: "orders", "aria-label": "Orders" });
       if (!this.can("act")) return null;
       const many = chatIds.length > 50;
-      if (many) section.append(el("p", { class: "hint" }, "Select up to 50 chats to send a message."));
+      if (many)
+        section.append(el("p", { class: "hint" }, "Select up to 50 chats to send a message."));
       const count = chatIds.length === 1 ? "this chat" : `all ${chatIds.length}`;
       const text = el("textarea", { rows: "2", maxlength: "8000", "data-keep": "message" });
       text.value = this.draft ?? "";
@@ -273,8 +297,10 @@
           });
         },
       );
-      const stop = button(chatIds.length === 1 ? "Stop" : "Stop all", { class: "danger", "data-action": "" }, () =>
-        this.stop(chatIds),
+      const stop = button(
+        chatIds.length === 1 ? "Stop" : "Stop all",
+        { class: "danger", "data-action": "" },
+        () => this.stop(chatIds),
       );
       send.disabled = stop.disabled = many || this.busy;
       row.append(send, stop);

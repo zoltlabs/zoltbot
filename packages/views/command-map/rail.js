@@ -44,7 +44,14 @@
         .map(({ chat }) => ({ chat, ...map.unitState(chat) }))
         .filter(({ state }) => state !== "needs_you");
       const signature = JSON.stringify([
-        rows.map(({ chat, problem }) => [chat.id, chat.title, chat.status, problem, chat.activity, chat.updatedAt]),
+        rows.map(({ chat, problem }) => [
+          chat.id,
+          chat.title,
+          chat.status,
+          problem,
+          chat.activity,
+          chat.updatedAt,
+        ]),
         [...selected],
       ]);
       this.empty.hidden = units.length > 0 || requests.length > 0;
@@ -82,7 +89,9 @@
       });
       this.lists.replaceChildren(...sections.filter(Boolean));
       if (focused)
-        this.lists.querySelector(`[data-row="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
+        this.lists
+          .querySelector(`[data-row="${CSS.escape(focused)}"]`)
+          ?.focus({ preventScroll: true });
     }
     row({ chat, problem }, selected) {
       const when =

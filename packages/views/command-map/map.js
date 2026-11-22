@@ -87,7 +87,8 @@
         const before = known.get(id);
         if (!before) continue;
         if (state.problem && !before.problem) sound.play("failed");
-        else if (state.state === "needs_you" && before.state !== "needs_you") sound.play("needsYou");
+        else if (state.state === "needs_you" && before.state !== "needs_you")
+          sound.play("needsYou");
         else if (state.state === "review" && before.state !== "review") sound.play("finished");
       }
     known = now;
@@ -100,7 +101,14 @@
     const signature = JSON.stringify([
       layout.cities,
       layout.districts,
-      layout.units.map(({ chat, q, r }) => [chat.id, chat.status, chat.provider?.id, map.unitState(chat).problem, q, r]),
+      layout.units.map(({ chat, q, r }) => [
+        chat.id,
+        chat.status,
+        chat.provider?.id,
+        map.unitState(chat).problem,
+        q,
+        r,
+      ]),
     ]);
     if (signature !== drawn) {
       drawn = signature;
@@ -133,7 +141,13 @@
     actions.save();
   };
   window.addEventListener("keydown", (event) => {
-    if (event.target.matches("input,textarea,select") || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (
+      event.target.matches("input,textarea,select") ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    )
+      return;
     if (event.code === "Space" && !event.target.matches("button,summary,a")) {
       event.preventDefault();
       next();
@@ -212,11 +226,16 @@
         inspector.signature = "";
         refresh();
       });
-      window.zolt.subscribe(["chats", "requests", "workspaces", "usage", "checks"], (topic, value) => {
-        topics[topic] = value;
-        render();
-      });
-      window.zolt.on("visibility", (visible) => document.documentElement.classList.toggle("paused", !visible));
+      window.zolt.subscribe(
+        ["chats", "requests", "workspaces", "usage", "checks"],
+        (topic, value) => {
+          topics[topic] = value;
+          render();
+        },
+      );
+      window.zolt.on("visibility", (visible) =>
+        document.documentElement.classList.toggle("paused", !visible),
+      );
       window.zolt.on("shortcut", (id) => {
         if (id === "next-alert") next();
       });
@@ -224,7 +243,9 @@
       setInterval(() => {
         labels.tick();
         for (const card of document.querySelectorAll("[data-since] .wait"))
-          card.textContent = map.waited(Date.parse(card.closest("[data-since]").dataset.since)).short;
+          card.textContent = map.waited(
+            Date.parse(card.closest("[data-since]").dataset.since),
+          ).short;
       }, 30000);
     })
     .catch(showError);

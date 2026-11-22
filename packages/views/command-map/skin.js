@@ -19,7 +19,16 @@
       mountain: { tops: ["#7c7a74", "#87857e"], lift: 12 },
     },
     // Workspace colors, in order. Each is dark enough for white text on its banner.
-    workspaces: ["#2f62c8", "#7d3fb8", "#a8325a", "#1f7a5a", "#9a5a12", "#2c6f8f", "#8a3f9a", "#5a6472"],
+    workspaces: [
+      "#2f62c8",
+      "#7d3fb8",
+      "#a8325a",
+      "#1f7a5a",
+      "#9a5a12",
+      "#2c6f8f",
+      "#8a3f9a",
+      "#5a6472",
+    ],
     // State colors on the map. Markers sit on dark plates in both themes.
     states: {
       needs_you: "#ff9a5c",

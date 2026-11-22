@@ -110,12 +110,19 @@
         (event) => {
           event.preventDefault();
           const box = stage.getBoundingClientRect();
-          this.zoomAt(event.clientX - box.left, event.clientY - box.top, Math.exp(-event.deltaY * 0.0015));
+          this.zoomAt(
+            event.clientX - box.left,
+            event.clientY - box.top,
+            Math.exp(-event.deltaY * 0.0015),
+          );
         },
         { passive: false },
       );
       stage.addEventListener("pointerdown", (event) => {
-        if (event.button !== 0 || event.target.closest("button, a, input, textarea, select, .panel-card"))
+        if (
+          event.button !== 0 ||
+          event.target.closest("button, a, input, textarea, select, .panel-card")
+        )
           return;
         const box = stage.getBoundingClientRect();
         drag = {

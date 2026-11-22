@@ -20,7 +20,8 @@
       d = hash(xi + 1, yi + 1, seed);
     return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
   };
-  const layered = (x, y, seed) => noise(x, y, seed) * 0.65 + noise(x * 2.1, y * 2.1, seed + 7) * 0.35;
+  const layered = (x, y, seed) =>
+    noise(x, y, seed) * 0.65 + noise(x * 2.1, y * 2.1, seed + 7) * 0.35;
   map.hash = hash;
 
   // Returns every hex to draw, each with its terrain type and owning city (or null).
