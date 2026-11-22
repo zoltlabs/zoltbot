@@ -5,6 +5,8 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Improvement: On iPhone, SVG attachments show in the chat, and PDFs up to 25 MB and videos up to 50 MB open in the system viewer.
+
 - Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
 
 - Show cloud task audit records, including refused Mac commands, in their project.
