@@ -174,7 +174,7 @@ function ModelPanel(props: {
   let element: HTMLDivElement | undefined;
   let input: HTMLInputElement | undefined;
   const listId = createUniqueId();
-  const headingId = createUniqueId();
+  const panelId = createUniqueId();
   const [agentId, setAgentId] = createSignal(props.initialAgent);
   const [query, setQuery] = createSignal("");
   const [olderOpen, setOlderOpen] = createSignal(false);
@@ -226,6 +226,11 @@ function ModelPanel(props: {
       /[^A-Za-z0-9_-]/g,
       (char) => `_${char.charCodeAt(0)}`,
     );
+
+  const activeOptionId = () => {
+    const entry = activeRow();
+    return entry && optionId(entry);
+  };
 
   useFloatingPosition({
     anchor: () => props.anchor,
@@ -353,7 +358,7 @@ function ModelPanel(props: {
                   classList={{ unready: row.status.state !== "available" }}
                   data-agent={row.id}
                   aria-selected={row.id === agentId()}
-                  aria-controls={listId}
+                  aria-controls={panelId}
                   aria-label={
                     row.status.state === "available"
                       ? row.name
@@ -388,12 +393,10 @@ function ModelPanel(props: {
             </button>
           </Show>
         </div>
-        <div class="model-panel-main" role="tabpanel" aria-labelledby={headingId}>
+        <div id={panelId} class="model-panel-main" role="tabpanel" aria-label={agent()?.name}>
           <Show when={!searching()}>
             <div class="model-panel-head">
-              <div id={headingId} class="model-panel-title">
-                {agent()?.name}
-              </div>
+              <div class="model-panel-title">{agent()?.name}</div>
               <Show when={agent()?.status.version}>
                 <div class="model-panel-version">{agent()?.status.version}</div>
               </Show>
@@ -405,10 +408,10 @@ function ModelPanel(props: {
               role="combobox"
               aria-label={t("models.search")}
               placeholder={t("models.search")}
-              aria-expanded="true"
+              aria-expanded={visible().length > 0}
               aria-controls={listId}
               aria-autocomplete="list"
-              aria-activedescendant={activeRow() ? optionId(activeRow() as never) : undefined}
+              aria-activedescendant={activeOptionId()}
               value={query()}
               onInput={(event) => {
                 setQuery(event.currentTarget.value);
@@ -449,7 +452,17 @@ function ModelPanel(props: {
                         ? t("models.unstar", { name: name() })
                         : t("models.star", { name: name() })
                     }
-                    onClick={() => toggleStarredModel(row().model.id)}
+                    onClick={() => {
+                      const current = row();
+                      toggleStarredModel(current.model.id);
+                      if (!searching() && older().includes(current.model)) setOlderOpen(true);
+                      setActive(
+                        Math.max(
+                          0,
+                          visible().findIndex((entry) => optionId(entry) === optionId(current)),
+                        ),
+                      );
+                    }}
                   >
                     <StarGlyph filled={starred()} />
                   </button>
@@ -457,73 +470,70 @@ function ModelPanel(props: {
               }}
             </Show>
           </div>
-          <div id={listId} class="model-panel-list" role="listbox" aria-label={t("models.search")}>
-            <Show
-              when={searching()}
-              fallback={
+          <div class="model-panel-list">
+            <div
+              id={listId}
+              role="listbox"
+              aria-label={t("models.search")}
+              hidden={!visible().length}
+            >
+              <For each={visible()}>{row}</For>
+            </div>
+            <Show when={searching() && !results().length}>
+              <div class="zb-kit-empty-row" role="status">
+                {t("models.noMatch")}
+              </div>
+            </Show>
+            <Show when={!searching()}>
+              <Show
+                when={ready()}
+                fallback={
+                  <div class="model-panel-note">
+                    <p>{agent() ? agentStatusText(agent()?.status as AgentProviderStatus) : ""}</p>
+                    <Show when={props.picker.onSetUpAgent}>
+                      <button type="button" class="zb-kit-button" onClick={setUp}>
+                        {t("models.setUp")}
+                      </button>
+                    </Show>
+                  </div>
+                }
+              >
                 <Show
-                  when={ready()}
+                  when={sorted().length}
                   fallback={
-                    <div class="model-panel-note">
-                      <p>
-                        {agent() ? agentStatusText(agent()?.status as AgentProviderStatus) : ""}
-                      </p>
-                      <Show when={props.picker.onSetUpAgent}>
-                        <button type="button" class="zb-kit-button" onClick={setUp}>
-                          {t("models.setUp")}
-                        </button>
-                      </Show>
-                    </div>
+                    <p class="model-panel-note" role="status">
+                      {props.loading.includes(agentId() as AgentProviderId)
+                        ? t("models.loading")
+                        : t("models.noModels")}
+                    </p>
                   }
                 >
-                  <Show
-                    when={sorted().length}
-                    fallback={
-                      <p class="model-panel-note" role="status">
-                        {props.loading.includes(agentId() as AgentProviderId)
-                          ? t("models.loading")
-                          : t("models.noModels")}
-                      </p>
-                    }
-                  >
-                    <For each={recent()}>{(model) => row({ model })}</For>
-                    <Show when={older().length}>
-                      <button
-                        type="button"
-                        class="model-panel-older"
-                        aria-expanded={olderOpen()}
-                        onClick={() => setOlderOpen(!olderOpen())}
+                  <Show when={older().length}>
+                    <button
+                      type="button"
+                      class="model-panel-older"
+                      aria-expanded={olderOpen()}
+                      onClick={() => setOlderOpen(!olderOpen())}
+                    >
+                      <span>{t("models.older")}</span>
+                      <span class="model-panel-badge">{older().length}</span>
+                      <svg
+                        class="zb-kit-chevron"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        aria-hidden="true"
                       >
-                        <span>{t("models.older")}</span>
-                        <span class="model-panel-badge">{older().length}</span>
-                        <svg
-                          class="zb-kit-chevron"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 12 12"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d={olderOpen() ? "m3 7.5 3-3 3 3" : "m3 4.5 3 3 3-3"}
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.4"
-                          />
-                        </svg>
-                      </button>
-                      <Show when={olderOpen()}>
-                        <For each={older()}>{(model) => row({ model })}</For>
-                      </Show>
-                    </Show>
+                        <path
+                          d={olderOpen() ? "m3 7.5 3-3 3 3" : "m3 4.5 3 3 3-3"}
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.4"
+                        />
+                      </svg>
+                    </button>
                   </Show>
                 </Show>
-              }
-            >
-              <For each={results()}>{(entry) => row(entry)}</For>
-              <Show when={results().length === 0}>
-                <div class="zb-kit-empty-row" role="status">
-                  {t("models.noMatch")}
-                </div>
               </Show>
             </Show>
           </div>
