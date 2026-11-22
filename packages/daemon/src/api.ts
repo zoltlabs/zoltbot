@@ -34,7 +34,6 @@ import {
 } from "@zoltbot/protocol";
 import { openStore } from "@zoltbot/store";
 import { WebSocket, WebSocketServer } from "ws";
-import { daemonAccountOwner } from "./account-session/daemon.js";
 import { redactedHookCloud } from "./account-session/hook-cloud.js";
 import { assetServer } from "./api-assets.js";
 import { equalToken } from "./api-token.js";
@@ -48,6 +47,7 @@ import { frozenBrowser } from "./browser/evidence.js";
 import { TAKEOVER_PREFIX } from "./browser/takeover.js";
 import { channelApi } from "./channel-service.js";
 import { chiefWaker } from "./chief/proactive.js";
+import { ownCloudHosts } from "./cloud-runner/daemon-host.js";
 import { compareApi } from "./compare-api.js";
 import { writeConnectionFile } from "./connection-file.js";
 import { connectionsApi } from "./connections-api.js";
@@ -116,32 +116,20 @@ async function startOwnedDaemon(
   const logger = new Logger(path.join(options.dataDir, "daemon.log"), redactor);
   const store = await openStore(path.join(options.dataDir, "zoltbot.db"));
   resources.push(() => store.close());
-  let hookCloud = options.hookCloud;
-  let botTokens: ReturnType<typeof githubAccountTokens> | undefined;
+  const startMacCloud = await ownCloudHosts(options, resources, (code) =>
+    logger.write("warn", /^[a-z_]{1,100}$/.test(code) ? code : "cloud_runner_unavailable"),
+  );
+  const botTokens =
+    startMacCloud.accountLocation && options.nativeAccount
+      ? githubAccountTokens(startMacCloud.accountLocation, options.nativeAccount.origin, logger)
+      : undefined;
   // I8: the cloud's install page for the GitHub App, which the settings link opens.
   const githubInstallUrl = githubAppInstallUrl(options.nativeAccount?.origin);
-  if (options.nativeAccount) {
-    const account = await daemonAccountOwner(options.nativeAccount, options.dataDir, () =>
-      logger.write("warn", "native_account_unavailable"),
-    );
-    if (account) resources.push(() => account.close());
-    // R2: routine web addresses go through the signed-in account; the log redacts each one.
-    hookCloud ??= account && redactedHookCloud(account.hookCloud, (url) => redactor.register(url));
-    if (account)
-      botTokens = githubAccountTokens(account.location(), options.nativeAccount.origin, logger);
-  }
-  if (options.cloudRunner) {
-    try {
-      const cloud = options.cloudRunner({
-        dataDir: path.join(options.dataDir, "cloud"),
-        status: (code) =>
-          logger.write("warn", /^[a-z_]{1,100}$/.test(code) ? code : "cloud_runner_unavailable"),
-      });
-      resources.push(() => cloud.close());
-    } catch {
-      logger.write("warn", "cloud_runner_unavailable");
-    }
-  }
+  // R2: routine web addresses go through the signed-in account; the log redacts each one.
+  const hookCloud =
+    options.hookCloud ??
+    (startMacCloud.accountHookCloud &&
+      redactedHookCloud(startMacCloud.accountHookCloud, (url) => redactor.register(url)));
   const bootId = `boot:${randomBytes(12).toString("hex")}`;
   recover(store, bootId);
   const origins = new Set(options.origins ?? ["zoltbot://desktop"]);
@@ -562,6 +550,7 @@ async function startOwnedDaemon(
     return receipt.result;
   };
   const identity = macIdentity({ store, vault: options.secrets, publish });
+  startMacCloud(identity);
   let link: RelayLink | undefined;
   const devices = deviceBook({
     store,

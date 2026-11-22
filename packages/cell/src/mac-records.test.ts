@@ -500,6 +500,39 @@ it("keeps core resolution and approval state atomic and requires the authenticat
   f.resolve(pending.interactionId, f.answer(pending.interactionId));
   expect((await f.records.request(f.source, f.request, f.mac)).state).toBe("running");
 });
+it.each([
+  "allow_once",
+  "allow_task_prefix",
+] as const)("refuses a different desktop and accepts the target Mac for %s", async (choice) => {
+  const f = fixture();
+  const request = { ...f.request, command: "pnpm test --filter core" };
+  const mac = { ...f.mac, allowListedCommands: true };
+  const pending = await f.records.request(f.source, request, mac);
+  if (pending.state !== "pending") throw new Error("fixture_pending_missing");
+  const answer = f.answer(pending.interactionId);
+  if (!answer.signedApproval) throw new Error("fixture_approval_missing");
+  answer.choice = choice;
+  if (choice === "allow_task_prefix") {
+    const interaction = parse(
+      InteractionSchema,
+      f.store.record("interaction", pending.interactionId),
+    );
+    const prefix = interaction.items[0]?.choices?.find((entry) => entry.id === choice);
+    if (!prefix) throw new Error("fixture_prefix_missing");
+    answer.signedApproval.payload.scope = "prefix";
+    answer.signedApproval.payload.command = prefix.prefix;
+  }
+  const desktop = { ...f.client, surface: "desktop" as const, device: "other-mac" };
+  answer.signedApproval.payload.signerDeviceId = desktop.device;
+  expect(() => f.resolve(pending.interactionId, answer, desktop)).toThrow("forbidden");
+  expect(f.store.record("interaction", pending.interactionId)?.state).toBe("pending");
+  expect((await f.records.request(f.source, request, mac)).state).toBe("pending");
+
+  const target = { ...desktop, device: mac.deviceId };
+  answer.signedApproval.payload.signerDeviceId = target.device;
+  f.resolve(pending.interactionId, answer, target);
+  expect((await f.records.request(f.source, request, mac)).state).toBe("running");
+});
 it("accepts one result only from the target Mac and audits metadata without output", async () => {
   const f = fixture(),
     pending = await f.records.request(f.source, f.request, f.mac);
@@ -524,6 +557,7 @@ it("accepts one result only from the target Mac and audits metadata without outp
     mac: "Test Mac",
   };
   expect(() => f.records.finish({ ...macClaims, device: "other" }, result)).toThrow("forbidden");
+  expect(() => f.records.finish({ ...macClaims, surface: "desktop" }, result)).toThrow("forbidden");
   expect(() => f.records.finish(f.source.claims, result)).toThrow("forbidden");
   f.records.finish(macClaims, result);
   f.records.finish(macClaims, result);

@@ -3,6 +3,10 @@ import { request } from "node:http";
 import path from "node:path";
 import { type Credentials, parseCredentials } from "@zoltbot/cloud-contracts";
 
+import { type MacApprovalPayload, parse, SignedMacApprovalSchema } from "@zoltbot/protocol";
+
+import { isSecretReference } from "../secrets.js";
+
 const maximumResponse = 8 * 1024 * 1024;
 const sessionPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 /** Native callers only. No raw bearer can be loaded through this endpoint. */
@@ -179,6 +183,34 @@ export function accountBrokerClient(options: {
                 : { encoding: "text", data: payload },
             }),
       });
+    },
+    cloudMacGithub: async (value: string, reference?: string) => {
+      const result = (await call("cloud_mac_github", { github: { value, reference } })) as {
+        reference?: unknown;
+      } | null;
+      if (typeof result?.reference !== "string" || !isSecretReference(result.reference))
+        throw new Error("native_account_unavailable");
+      return result.reference;
+    },
+    cloudSign: async (approval: MacApprovalPayload) =>
+      parse(
+        SignedMacApprovalSchema,
+        await call("cloud_sign", { approval: structuredClone(approval) }),
+      ),
+    cloudDevice: async () => {
+      const value = (await call("cloud_device")) as {
+        deviceId?: unknown;
+        publicKey?: unknown;
+      } | null;
+      if (
+        !value ||
+        typeof value.deviceId !== "string" ||
+        !/^[A-Za-z0-9_-]{22}$/.test(value.deviceId) ||
+        typeof value.publicKey !== "string" ||
+        !/^[A-Za-z0-9_-]{43}$/.test(value.publicKey)
+      )
+        throw new Error("native_account_unavailable");
+      return { deviceId: value.deviceId, publicKey: value.publicKey };
     },
     cloudRequest: (route: string, method = "GET", payload?: string, signal?: AbortSignal) => {
       if (payload !== undefined && Buffer.byteLength(payload) > 1048576)

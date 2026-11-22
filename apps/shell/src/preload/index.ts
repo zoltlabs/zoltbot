@@ -110,6 +110,22 @@ const openbotApi: OpenBotDesktopApi = {
     signOut: () => ipcRenderer.invoke(IPC_CHANNELS.accountSignOut),
     cancel: () => ipcRenderer.invoke(IPC_CHANNELS.accountCancel),
   },
+  cloud: {
+    settings: () => ipcRenderer.invoke(IPC_CHANNELS.cloudSettings),
+    update: (setting) => ipcRenderer.invoke(IPC_CHANNELS.cloudUpdate, setting),
+    saveSecret: (input) => ipcRenderer.invoke(IPC_CHANNELS.cloudSaveSecret, input),
+    workspace: () => ipcRenderer.invoke(IPC_CHANNELS.cloudWorkspace),
+    answer: (input) => ipcRenderer.invoke(IPC_CHANNELS.cloudAnswer, input),
+    onWorkspace(listener) {
+      const receive = (_event: unknown, state: Parameters<typeof listener>[0]) => listener(state);
+      ipcRenderer.on(IPC_CHANNELS.cloudWorkspaceEvent, receive);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.cloudWorkspaceEvent, receive);
+      };
+    },
+    call: (owner, method, params, commandId) =>
+      ipcRenderer.invoke(IPC_CHANNELS.cloudCall, { owner, method, params, commandId }),
+  },
   agent: {
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.agentGetStatus),
     refreshAgents: () => ipcRenderer.invoke(IPC_CHANNELS.agentRefreshAgents),

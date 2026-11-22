@@ -14,10 +14,10 @@ export type * from "./co-author";
 export * from "./company";
 export type * from "./data";
 export * from "./dictation";
-export type * from "./hidden";
-export type * from "./links";
 export type * from "./manager-cards";
 export type * from "./memory";
+export type * from "./hidden";
+export type * from "./links";
 export type * from "./outbox";
 export type * from "./pins";
 export type * from "./queue-order";
@@ -52,9 +52,10 @@ import type {
   PostChannelInput,
   ReadEarlierPostsInput,
 } from "./channels";
-import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
+import type { CloudDesktopApi } from "./cloud";
 import type { CompanyOverview, DecidePlanInput } from "./company";
 import type { DictationDesktopApi } from "./dictation";
+import { CO_AUTHOR_CHANNELS, type CoAuthorDesktopApi } from "./co-author";
 import { HIDDEN_CHANNELS, type HiddenDesktopApi } from "./hidden";
 import { LINK_CHANNELS, type LinksDesktopApi } from "./links";
 import { DATA_CHANNELS, type DataDesktopApi } from "./data";
@@ -93,6 +94,13 @@ export const IPC_CHANNELS = {
   accountSignIn: "account:sign-in",
   accountSignOut: "account:sign-out",
   accountCancel: "account:cancel",
+  cloudSettings: "cloud:settings",
+  cloudUpdate: "cloud:update-settings",
+  cloudSaveSecret: "cloud:save-secret",
+  cloudWorkspace: "cloud:workspace",
+  cloudWorkspaceEvent: "cloud:workspace-event",
+  cloudCall: "cloud:call",
+  cloudAnswer: "cloud:answer",
   agentGetStatus: "agent:get-status",
   agentRefreshAgents: "agent:refresh-agents",
   agentGetUsage: "agent:get-usage",
@@ -799,6 +807,7 @@ export interface OpenBotDesktopApi {
   setVisibleBot: (botId: string | null) => void;
   agent: AgentDesktopApi;
   account: AccountDesktopApi;
+  cloud?: CloudDesktopApi;
   browser: BrowserDesktopApi;
   update: UpdateDesktopApi;
   maintenance: MaintenanceDesktopApi;

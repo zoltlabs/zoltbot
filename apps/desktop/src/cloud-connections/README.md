@@ -9,9 +9,10 @@ methods from reaching the daemon. No request falls back to a different owner.
 The manager's Cloud factory is a native-only port. `cellConnection` acquires a
 scoped Cell token through `brokerCellCredentials`, using the selected native
 account owner. Its authenticated WebSocket stays in main; the renderer receives
-projections and status. Packaged startup, preload integration and view selection
-remain unfinished. This module does not
-select the new credential broker or change the existing sign-in flow.
+projections and status. The packaged shell selects a personal org after explicit
+Cloud opt-in, subscribes through the authenticated preload bridge and chooses
+the connection from the project's owner. The shell supplies the broker and
+device identity after the existing sign-in flow completes.
 
 Implementation choices:
 
@@ -38,5 +39,6 @@ delayed old-account replies, late callbacks, revoked authority and an offline
 mutation. The transport tests use the actual private Unix broker, a memory
 keychain, a fake account service and the real Cell over verified localhost TLS.
 They follow project changes, keep credentials out of view state and refuse new
-calls after losing the Cell. No test launches a native application. Packaged
-connection routing remains unfinished.
+calls after losing the Cell. Packaged native-port and headless renderer tests
+verify settings, selection and read-only offline projects. The Electron
+end-to-end check remains pending.

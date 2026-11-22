@@ -30,6 +30,7 @@ interface Row {
   fingerprint: string;
   body: string;
   interaction_id: string;
+  mac_id: string;
   state: "pending" | "approved" | "sent" | "complete" | "denied";
   approval: string | null;
   result: string | null;
@@ -139,7 +140,11 @@ export class CellMacRecords {
     const current = this.store.database
       .prepare("SELECT connection_id FROM cell_runner_connections WHERE runner_id=?")
       .get(claims.device) as { connection_id: string } | undefined;
-    if (claims.kind !== "mac_runner" || current?.connection_id !== connectionId)
+    if (
+      claims.kind !== "mac_runner" ||
+      claims.surface !== "runner" ||
+      current?.connection_id !== connectionId
+    )
       throw new Error("forbidden");
   }
   streamScope(claims: CellTokenClaims, connectionId: string, taskId: string, requestId: string) {
@@ -526,6 +531,9 @@ export class CellMacRecords {
     if (
       !approval ||
       !expected ||
+      expected.targetDeviceId !== row.mac_id ||
+      (claims.surface !== "phone" &&
+        (claims.surface !== "desktop" || claims.device !== expected.targetDeviceId)) ||
       (answer.choice !== "allow_once" && !prefix) ||
       approval.payload.signerDeviceId !== claims.device ||
       approval.payload.issuedAt > this.now() + 30000 ||
@@ -579,6 +587,7 @@ export class CellMacRecords {
       throw new Error("forbidden");
     if (
       claims.kind !== "mac_runner" ||
+      claims.surface !== "runner" ||
       !row ||
       !["approved", "sent", "complete"].includes(row.state) ||
       (JSON.parse(row.body) as MacExecRequest).targetDeviceId !== claims.device

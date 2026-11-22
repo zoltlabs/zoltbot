@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createMutable } from "solid-js/store";
+import type { CloudWorkspace } from "../../shared/cloud";
 import type {
   AccountUsage,
   AgentEvent,
@@ -38,6 +39,8 @@ import { createChannelsStore } from "./channels-store";
 import { ChannelPage } from "./components/ChannelPage";
 import { CommandPalette } from "./components/CommandPalette";
 import { Conversation } from "./components/Conversation";
+import { CloudProjects } from "./components/cloud/CloudProjects";
+import { CloudSettings } from "./components/cloud/CloudSettings";
 import { DataPage } from "./components/DataPage";
 import { InitialSetup } from "./components/InitialSetup";
 import { MapView } from "./components/MapView";
@@ -160,6 +163,10 @@ export function App() {
   const [setupLoaded, setSetupLoaded] = createSignal(false);
   const [permissionsOpen, setPermissionsOpen] = createSignal(false);
   const [cloudAccount, setCloudAccount] = createSignal<CloudAccountStatus | null>(null);
+  const [cloudWorkspace, setCloudWorkspace] = createSignal<CloudWorkspace>();
+  const [cloudView, setCloudView] = createSignal<
+    { kind: "settings" } | { kind: "project"; id?: string }
+  >();
   const usableAgent = createMemo(() =>
     agentStatus().providers?.find((provider) => provider.state === "available"),
   );
@@ -180,6 +187,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setCloudView(undefined);
     setRoutinesOpen(false);
     setDataOpen(false);
     setAgentPickerOpen(false);
@@ -206,6 +214,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setCloudView(undefined);
     setRoutinesOpen(false);
     setDataOpen(false);
     setAgentPickerOpen(false);
@@ -239,9 +248,26 @@ export function App() {
     // D4: the agent dock opens a chat here.
     onCleanup(window.openbot.dock?.onShowChat(selectBot) ?? (() => undefined));
     const unsubscribeUpdate = window.openbot.update.onEvent(setUpdateStatus);
+    const cloudApi = window.openbot.cloud;
+    let cloudGeneration = 0;
+    const watchCloud = (state: CloudWorkspace | undefined) => {
+      cloudGeneration++;
+      setCloudWorkspace(state);
+      if (!state && cloudView()?.kind === "project") setCloudView(undefined);
+    };
+    const unsubscribeCloud = cloudApi?.onWorkspace(watchCloud);
+    const initial = cloudGeneration;
+    void cloudApi
+      ?.workspace()
+      .then((state) => {
+        if (cloudGeneration === initial) watchCloud(state);
+      })
+      .catch(() => undefined);
     onCleanup(() => {
       unsubscribe();
       unsubscribeUpdate();
+      cloudGeneration++;
+      unsubscribeCloud?.();
       conversationState.dispose();
     });
     void window.openbot.update
@@ -427,6 +453,7 @@ export function App() {
   function openMemory(agentId: string | null = null) {
     closePages();
     setMemoryAgent(agentId);
+    setCloudView(undefined);
     setAgentPickerOpen(false);
     setMemoryOpen(true);
   }
@@ -475,6 +502,7 @@ export function App() {
     setModelsOpen(false);
     setMemoryOpen(false);
     setUsageOpen(false);
+    setCloudView(undefined);
     setRoutinesOpen(false);
     setVaultOpen(false);
     setDataOpen(false);
@@ -732,6 +760,16 @@ export function App() {
     setAgentStatus(await window.openbot.agent.refreshAgents());
   }
 
+  function openCloud(view: { kind: "settings" } | { kind: "project"; id?: string }) {
+    channels.open(null);
+    setMapOpen(false);
+    setTasksOpen(false);
+    setModelsOpen(false);
+    setMemoryOpen(false);
+    setUsageOpen(false);
+    setCloudView(view);
+  }
+
   async function signIn(): Promise<void> {
     setCloudAccount(await window.openbot.account.signIn());
   }
@@ -797,7 +835,8 @@ export function App() {
                 routinesOpen() ||
                 vaultOpen() ||
                 dataOpen() ||
-                channelOpen()
+                channelOpen() ||
+                cloudView()
                   ? ""
                   : (activeBot()?.id ?? "")
               }
@@ -814,6 +853,7 @@ export function App() {
                     setModelsOpen(false);
                     setMemoryOpen(false);
                     setUsageOpen(false);
+                    setCloudView(undefined);
                     setRoutinesOpen(false);
                     setVaultOpen(false);
                     setDataOpen(false);
@@ -828,6 +868,7 @@ export function App() {
                 setModelsOpen(false);
                 setMemoryOpen(false);
                 setUsageOpen(false);
+                setCloudView(undefined);
                 setRoutinesOpen(false);
                 setDataOpen(false);
                 setMapOpen(true);
@@ -838,6 +879,7 @@ export function App() {
                 channels.open(null);
                 setMapOpen(false);
                 setTasksOpen(false);
+                setCloudView(undefined);
                 setModelsOpen(true);
               }}
               memoryOpen={memoryOpen()}
@@ -855,6 +897,11 @@ export function App() {
               agentStatus={agentStatus()}
               accountUsage={accountUsage()}
               cloudAccount={cloudAccount()}
+              cloudWorkspace={cloudWorkspace()}
+              onOpenCloudSettings={
+                window.openbot.cloud ? () => openCloud({ kind: "settings" }) : undefined
+              }
+              onOpenCloudProject={(id) => openCloud({ kind: "project", ...(id ? { id } : {}) })}
               onSignIn={signIn}
               onSignOut={signOut}
               onCancelSignIn={() => void window.openbot.account.cancel()}
@@ -901,6 +948,7 @@ export function App() {
               vaultOpen() ||
               dataOpen() ||
               channelOpen() ||
+              !!cloudView() ||
               undefined
             }
           >
@@ -974,6 +1022,42 @@ export function App() {
                 else setMapOpen(false);
               }}
             />
+          </Show>
+          <Show when={window.openbot.cloud}>
+            {(api) => (
+              <>
+                <Show when={cloudView()?.kind === "settings"}>
+                  <CloudSettings
+                    api={api()}
+                    accountSignedIn={cloudAccount()?.signedIn === true}
+                    online={cloudWorkspace()?.state.status === "online"}
+                    sidebarCollapsed={leftPanelCollapsed()}
+                    onShowSidebar={() => setSidebarCollapsed(false)}
+                    onSignIn={signIn}
+                    onCancelSignIn={() => void window.openbot.account.cancel()}
+                  />
+                </Show>
+                <Show when={cloudView()?.kind === "project" && cloudWorkspace()}>
+                  {(workspace) => {
+                    const activeProject = () => {
+                      const view = cloudView();
+                      return view?.kind === "project" ? view.id : undefined;
+                    };
+                    return (
+                      <CloudProjects
+                        api={api()}
+                        workspace={workspace()}
+                        projectId={activeProject()}
+                        onOpenProject={(id) => openCloud({ kind: "project", id })}
+                        onOpenLink={(url) => void window.openbot.openUrl(url)}
+                        sidebarCollapsed={leftPanelCollapsed()}
+                        onShowSidebar={() => setSidebarCollapsed(false)}
+                      />
+                    );
+                  }}
+                </Show>
+              </>
+            )}
           </Show>
           <Show when={routinesOpen()}>
             <RoutinesPage

@@ -33,6 +33,7 @@ export interface PickerOption<T extends string = string> {
 }
 
 interface PickerProps<T extends string> {
+  id?: string;
   /** What is being picked, for example "Model". Part of the trigger's accessible name. */
   label: string;
   value: T | null;
@@ -66,6 +67,7 @@ function Trigger<T extends string>(props: {
   return (
     <button
       ref={props.ref}
+      id={props.picker.id}
       type="button"
       class={`zb-kit-trigger ${props.picker.class ?? ""}`}
       aria-haspopup={props.popup}

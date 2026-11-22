@@ -43,6 +43,12 @@ const run = (command, args, cwd = root) => {
 
 const signing = signingPlan();
 const hostedOrigin = hostedServiceOrigin();
+const cellOrigin = process.env.ZOLTBOT_CELL_ORIGIN;
+if (cellOrigin) {
+  const cell = new URL(cellOrigin);
+  if (cell.protocol !== "https:" || cell.origin !== cellOrigin)
+    throw new Error("ZOLTBOT_CELL_ORIGIN must be an https origin.");
+}
 const relayUrl = process.env.ZOLTBOT_RELAY_URL;
 if (relayUrl && !/^wss:\/\/[^\s/]+$/.test(relayUrl))
   throw new Error("ZOLTBOT_RELAY_URL must be a wss:// host, such as wss://relay.zoltbot.ai.");
@@ -91,11 +97,12 @@ writeFileSync(
       main: "out/main/index.js",
       // The shell's main bundle is an ES module.
       type: "module",
-      ...(hostedOrigin || relayUrl
+      ...(hostedOrigin || relayUrl || cellOrigin
         ? {
             zoltbot: {
               ...(hostedOrigin ? { hostedOrigin } : {}),
               ...(relayUrl ? { relayUrl } : {}),
+              ...(cellOrigin ? { cellOrigin } : {}),
             },
           }
         : {}),

@@ -4,7 +4,9 @@ import { createServer, type IncomingMessage } from "node:http";
 import { createConnection } from "node:net";
 import path from "node:path";
 import { parseCredentials } from "@zoltbot/cloud-contracts";
+import { MacApprovalPayloadSchema, parse } from "@zoltbot/protocol";
 import { acquireOwnerLock } from "@zoltbot/store";
+import { isSecretReference } from "../secrets.js";
 import { accountHookCloud } from "./hook-cloud.js";
 import { type AccountSessionOptions, accountSession } from "./index.js";
 
@@ -23,8 +25,18 @@ const routes: Record<string, RegExp> = {
 };
 interface BrokerRequest {
   origin: string;
-  operation: "status" | "save" | "clear" | "request" | "cloud_request";
+  operation:
+    | "status"
+    | "save"
+    | "clear"
+    | "request"
+    | "cloud_request"
+    | "cloud_device"
+    | "cloud_sign"
+    | "cloud_mac_github";
   credentials?: unknown;
+  approval?: unknown;
+  github?: { value?: unknown; reference?: unknown };
   expectedSessionId?: string | null;
   path?: string;
   method?: string;
@@ -91,6 +103,8 @@ export async function startAccountBroker(
     directory: string;
     /** Local cleanup only: do not call this broker recursively from the callback. */
     onSessionChanged?(sessionId: string | undefined): Promise<void> | void;
+    cloudDevice?(): Promise<{ deviceId: string; publicKey: string }>;
+    cloudSign?: import("./daemon.js").DaemonAccountOptions["cloudSign"];
   },
 ) {
   const origin = options.origin,
@@ -150,6 +164,8 @@ export async function startAccountBroker(
           version?: unknown;
           origin?: unknown;
           credentials?: unknown;
+          approval?: unknown;
+          github?: { value?: unknown; reference?: unknown };
         } | null;
         // Legacy credentials have no trustworthy origin binding. Require explicit sign-in.
         if (!value || value.version !== 1 || value.origin !== origin)
@@ -175,6 +191,9 @@ export async function startAccountBroker(
       save: ["origin", "operation", "credentials", "expectedSessionId"],
       request: ["origin", "operation", "path", "method", "payload", "expectedSessionId"],
       cloud_request: ["origin", "operation", "path", "method", "payload", "expectedSessionId"],
+      cloud_device: ["origin", "operation", "expectedSessionId"],
+      cloud_sign: ["origin", "operation", "approval", "expectedSessionId"],
+      cloud_mac_github: ["origin", "operation", "github", "expectedSessionId"],
     };
     if (typeof input.operation !== "string" || !Object.hasOwn(fields, input.operation))
       throw new Error("native_account_request_invalid");
@@ -213,6 +232,50 @@ export async function startAccountBroker(
             return { signedIn: false };
           throw error;
         }
+      }
+      if (input.operation === "cloud_mac_github") {
+        const { value, reference } = input.github ?? {};
+        if (
+          !input.expectedSessionId ||
+          typeof value !== "string" ||
+          !value.trim() ||
+          Buffer.byteLength(value) > 8192 ||
+          /[\0\r\n]/.test(value) ||
+          (reference !== undefined &&
+            (typeof reference !== "string" || !isSecretReference(reference)))
+        )
+          throw new Error("native_account_request_invalid");
+        const record = { version: 1, sessionId: input.expectedSessionId, keyName: "github", value };
+        try {
+          if (typeof reference === "string") {
+            const existing = (await secretStore.read(reference)) as {
+              version?: unknown;
+              sessionId?: unknown;
+              keyName?: unknown;
+            } | null;
+            if (
+              existing?.version !== 1 ||
+              existing.sessionId !== input.expectedSessionId ||
+              existing.keyName !== "github"
+            )
+              throw new Error("native_account_request_invalid");
+            await secretStore.replace(reference, record);
+            return { reference };
+          }
+          return await secretStore.put(record);
+        } catch {
+          throw new Error("native_account_unavailable");
+        }
+      }
+      if (input.operation === "cloud_sign") {
+        if (!input.expectedSessionId || !options.cloudSign)
+          throw new Error("native_account_unavailable");
+        return options.cloudSign(parse(MacApprovalPayloadSchema, input.approval));
+      }
+      if (input.operation === "cloud_device") {
+        if (!input.expectedSessionId || !options.cloudDevice)
+          throw new Error("native_account_unavailable");
+        return options.cloudDevice();
       }
       if (input.operation === "save") {
         const value = parseCredentials(input.credentials);

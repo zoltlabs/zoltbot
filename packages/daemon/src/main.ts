@@ -23,6 +23,7 @@ const daemon = await startDaemon({
   ...(secrets && process.env.ZOLTBOT_CLOUD_ORIGIN
     ? {
         nativeAccount: { origin: process.env.ZOLTBOT_CLOUD_ORIGIN, secrets },
+        macCloudRunner: true,
       }
     : {}),
   // Quick Chat runs on the coding tools the person signed in to on this Mac.

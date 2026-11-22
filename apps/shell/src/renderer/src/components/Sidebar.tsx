@@ -8,6 +8,7 @@ import {
   onMount,
   Show,
 } from "solid-js";
+import type { CloudWorkspace } from "../../../shared/cloud";
 import type {
   AccountUsage,
   AgentStatus,
@@ -84,6 +85,9 @@ interface SidebarProps {
   agentStatus: AgentStatus;
   accountUsage: AccountUsage | null;
   cloudAccount: CloudAccountStatus | null;
+  cloudWorkspace?: CloudWorkspace | undefined;
+  onOpenCloudSettings?: (() => void) | undefined;
+  onOpenCloudProject?: (id?: string) => void;
   updateStatus: UpdateStatus;
   agentStates: Record<string, SidebarAgentState>;
   onSelectBot: (botId: string) => void;
@@ -428,6 +432,16 @@ export function Sidebar(props: SidebarProps) {
           ];
     return [
       account,
+      props.onOpenCloudSettings
+        ? [
+            {
+              id: "cloud-settings",
+              label: "Cloud settings",
+              icon: <AccountIcon />,
+              run: props.onOpenCloudSettings,
+            },
+          ]
+        : [],
       update,
       [
         {
@@ -570,6 +584,11 @@ export function Sidebar(props: SidebarProps) {
         }}
         onScroll={() => updateScrollFade()}
       >
+        <Show when={props.cloudWorkspace}>
+          <div class="bot-group-header">
+            <span class="bot-group-name">This Mac</span>
+          </div>
+        </Show>
         <Show
           when={filteredBots().length > 0}
           fallback={
@@ -755,6 +774,42 @@ export function Sidebar(props: SidebarProps) {
             </span>
             <span class="bot-row-copy">New project</span>
           </button>
+        </Show>
+        <Show when={props.cloudWorkspace && !query().trim() ? props.cloudWorkspace : undefined}>
+          {(workspace) => (
+            <div role="group" aria-label={workspace().name}>
+              <div class="bot-group-header">
+                <span class="bot-group-name">{workspace().name}</span>
+                <Show when={workspace().readOnly}>
+                  <span>Offline</span>
+                </Show>
+              </div>
+              <For each={workspace().state.snapshot.entities.project ?? []}>
+                {(project) => (
+                  <Show when={typeof project.id === "string" && typeof project.name === "string"}>
+                    <button
+                      type="button"
+                      class="bot-row"
+                      onClick={() => props.onOpenCloudProject?.(String(project.id))}
+                    >
+                      <span class="bot-row-copy">{String(project.name)}</span>
+                    </button>
+                  </Show>
+                )}
+              </For>
+              <button
+                type="button"
+                class="bot-row bot-new-project"
+                disabled={workspace().readOnly}
+                onClick={() => props.onOpenCloudProject?.()}
+              >
+                <span class="bot-new-project-icon">
+                  <PlusIcon />
+                </span>
+                <span class="bot-row-copy">New Cloud project</span>
+              </button>
+            </div>
+          )}
         </Show>
       </nav>
 

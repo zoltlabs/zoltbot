@@ -31,7 +31,10 @@ export function publicAccountStatus(raw: unknown): CloudAccountStatus {
 }
 
 /** The renderer's cloud account calls and what main does for each. */
-export function accountHandlers(account: Account): Record<string, Handler> {
+export function accountHandlers(
+  account: Account,
+  onSigningOut: () => void = () => undefined,
+): Record<string, Handler> {
   return {
     [IPC_CHANNELS.accountGetStatus]: async () => publicAccountStatus(await account.status()),
     [IPC_CHANNELS.accountSignIn]: async () => {
@@ -46,6 +49,7 @@ export function accountHandlers(account: Account): Record<string, Handler> {
       }
     },
     [IPC_CHANNELS.accountSignOut]: async () => {
+      onSigningOut();
       await account.signOut();
       return publicAccountStatus(await account.status());
     },

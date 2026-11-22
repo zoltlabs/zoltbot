@@ -16,7 +16,7 @@ export interface DaemonAddress {
  * Connects a `ZoltService` to a fixture daemon the way Electron main does. `rpc` is a second
  * daemon connection for steps the test performs as an agent or another client.
  */
-export async function shellSession(daemon: DaemonAddress) {
+export async function shellSession(daemon: DaemonAddress, cloud?: Parameters<typeof openShell>[2]) {
   const connect = async () => ({ url: daemon.url, token: daemon.token });
   const client = new DaemonClient(connect);
   const service = new ZoltService(client, mkdtempSync(join(tmpdir(), "zoltbot-shell-e2e-")));
@@ -34,7 +34,7 @@ export async function shellSession(daemon: DaemonAddress) {
      */
     async open(page: Page, path?: string) {
       page.on("pageerror", (error) => errors.push(error.message));
-      await openShell(page, service, path);
+      await openShell(page, service, cloud, path);
     },
     async close() {
       rpc.stop();

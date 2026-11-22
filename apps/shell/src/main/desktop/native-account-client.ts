@@ -30,6 +30,12 @@ export function desktopAccountClient(options: {
     if (native.sessionId() !== expected) throw new Error("account_session_changed");
     return action();
   };
+  const cloudCall = <T>(sessionId: string, action: (owner: typeof native) => Promise<T>) => {
+    if (native.sessionId() !== sessionId)
+      return Promise.reject(new Error("account_session_changed"));
+    const owner = accountBrokerClient({ ...options, expectedSessionId: sessionId });
+    return protectedCall(() => action(owner));
+  };
   return Object.freeze({
     async status() {
       await ready();
@@ -43,6 +49,22 @@ export function desktopAccountClient(options: {
     request(route: string, method = "GET", payload?: string | Buffer) {
       const frozen = Buffer.isBuffer(payload) ? Buffer.from(payload) : payload;
       return protectedCall(() => native.request(route, method, frozen));
+    },
+    cloudDevice: (sessionId: string) => cloudCall(sessionId, (owner) => owner.cloudDevice()),
+    cloudMacGithub: (sessionId: string, value: string, reference?: string) =>
+      cloudCall(sessionId, (owner) => owner.cloudMacGithub(value, reference)),
+    cloudSign(sessionId: string, approval: Parameters<typeof native.cloudSign>[0]) {
+      const frozen = structuredClone(approval);
+      return cloudCall(sessionId, (owner) => owner.cloudSign(frozen));
+    },
+    cloudRequest(
+      sessionId: string,
+      route: string,
+      method = "GET",
+      payload?: string,
+      signal?: AbortSignal,
+    ) {
+      return cloudCall(sessionId, (owner) => owner.cloudRequest(route, method, payload, signal));
     },
     sessionId: native.sessionId,
   });

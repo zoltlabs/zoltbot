@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { MacApprovalPayload, SignedMacApproval } from "@zoltbot/protocol";
 import { startAccountBroker } from "./broker.js";
 import type { AccountSessionOptions } from "./index.js";
 
@@ -7,6 +8,8 @@ export interface DaemonAccountOptions {
   secrets: AccountSessionOptions["secrets"];
   fetch?: typeof fetch;
   onSessionChanged?(sessionId: string | undefined): Promise<void> | void;
+  cloudDevice?(): Promise<{ deviceId: string; publicKey: string }>;
+  cloudSign?(payload: MacApprovalPayload): Promise<SignedMacApproval>;
 }
 /** Account startup receives no Local store or runtime and cannot prevent Local startup. */
 export async function daemonAccountOwner(

@@ -148,9 +148,10 @@ export async function openKitGallery(page: Page): Promise<void> {
 export async function openShell(
   page: Page,
   service: ZoltService,
+  cloud?: Record<string, Handler>,
   path = "index.html",
 ): Promise<void> {
-  const handlers = shellHandlers(service);
+  const handlers = { ...shellHandlers(service), ...cloud };
   await serveRenderer(page);
   await page.exposeFunction("__zoltInvoke", async (channel: string, input: unknown) => {
     const handler = handlers[channel];
@@ -172,6 +173,7 @@ export async function openShell(
       .evaluate((payload) => (window as unknown as ZoltWindow).__zoltEmit(payload), event)
       .catch(() => undefined);
   });
+  const setup = { ...IPC_CHANNELS, withCloud: !!cloud };
   await page.addInitScript((channels) => {
     const listeners = new Set<(event: unknown) => void>();
     const frameListeners = new Set<(frame: unknown) => void>();
@@ -222,6 +224,24 @@ export async function openShell(
         signOut: call(channels.accountSignOut),
         cancel: call(channels.accountCancel),
       },
+      ...(channels.withCloud
+        ? {
+            cloud: {
+              settings: call(channels.cloudSettings),
+              update: call(channels.cloudUpdate),
+              saveSecret: call(channels.cloudSaveSecret),
+              workspace: call(channels.cloudWorkspace),
+              answer: call(channels.cloudAnswer),
+              call: (owner: unknown, method: string, params: unknown, commandId?: string) =>
+                call(channels.cloudCall)({ owner, method, params, commandId }),
+              onWorkspace: (listener: (state: unknown) => void) => {
+                const event = (update: Event) => listener((update as CustomEvent).detail);
+                window.addEventListener("zoltbot-cloud-fixture", event);
+                return () => window.removeEventListener("zoltbot-cloud-fixture", event);
+              },
+            },
+          }
+        : {}),
       agent: {
         getStatus: call(channels.agentGetStatus),
         refreshAgents: call(channels.agentRefreshAgents),
@@ -487,7 +507,7 @@ export async function openShell(
         onEvent: () => () => undefined,
       },
     };
-  }, IPC_CHANNELS);
+  }, setup);
   await page.goto(`${SHELL_ORIGIN}/${path}`);
 }
 

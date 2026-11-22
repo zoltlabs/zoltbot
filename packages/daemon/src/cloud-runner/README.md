@@ -2,8 +2,7 @@
 
 This package is in progress. It contains the durable event journal for the Mac
 runner and sandbox worker, plus their reconnecting transport, managed checkouts and
-native Claude/Codex task hosts. Daemon opt-in and the signed Mac bridge are not complete. W5 is not
-signed off, and this code does not connect a Local project to a cell.
+native Claude/Codex task hosts. The daemon starts the Mac runner after Cloud sign-in and Mac opt-in. Packaged settings and full milestone verification are pending.
 
 ## Event journal
 
@@ -498,3 +497,19 @@ client may explicitly refresh its status for a new account; work tied to one
 session can pin `expectedSessionId` when constructing its native client. Runner
 ports also retain the session they were created for and withdraw access when
 that binding changes. Refresh rotation within the same session keeps working.
+## Starting the Mac runner in the daemon
+
+The daemon reads owner-only preferences from `desktop/mac-runner.json` in its
+data directory. Without that file or an enabled capability, it leaves the Mac
+runner off. Each configuration binds the runner to the native account session
+and its personal organization. The runner uses the daemon's existing Ed25519
+device identity and obtains its token through the daemon-owned account broker.
+Startup uses the existing grant. A revoked grant requires a new opt-in.
+
+Task execution and Run on my Mac are independently configurable. The daemon
+closes the runner when the native account session changes or the configuration
+is replaced. It keeps workspaces, journals, and approval state under a separate
+directory for each account and org. Provider and GitHub keys, if configured,
+are read from scoped Keychain references. Linked folders are resolved on this
+Mac, with `Zoltbot Scratch` in the home directory as the default. The packaged
+Settings controls are part of W10.

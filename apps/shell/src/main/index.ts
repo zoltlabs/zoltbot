@@ -59,6 +59,8 @@ import { calendarHandlers } from "./desktop/calendar-handlers";
 import { webAddressHandlers } from "./desktop/web-address-handlers";
 import { cliHandlers } from "./desktop/cli-handlers";
 import { cloudAccount } from "./desktop/cloud-account";
+import { cloudHandlers } from "./desktop/cloud-handlers";
+import { desktopCloudSettings } from "./desktop/cloud-settings";
 import { createDictationController, type DictationStartOptions } from "./desktop/dictation";
 import { folderPicker } from "./desktop/folder-picker";
 import { frameRequestAllowed } from "./desktop/frame-isolation";
@@ -210,16 +212,14 @@ const viewHost = new ViewHost({
   },
 });
 // The daemon owns the account credentials; main only starts sign-in and reads who is signed in.
+const nativeAccount = hosted.cloud
+  ? desktopAccountClient({
+      origin: hosted.cloud,
+      socketPath: resolve(paths.dataDir, "account-ipc", "broker.sock"),
+    })
+  : undefined;
 const account = cloudAccount({
-  ...(hosted.cloud
-    ? {
-        origin: hosted.cloud,
-        nativeSession: desktopAccountClient({
-          origin: hosted.cloud,
-          socketPath: resolve(paths.dataDir, "account-ipc", "broker.sock"),
-        }),
-      }
-    : {}),
+  ...(hosted.cloud && nativeAccount ? { origin: hosted.cloud, nativeSession: nativeAccount } : {}),
   referenceFile: join(paths.dataDir, "shell", "account-keychain-reference"),
   // Publishing an artifact (S1) reads its files from the daemon and copies the link.
   readArtifact: async (kind, hash) => Buffer.from(await artifacts.asset(kind, hash)),
@@ -228,6 +228,37 @@ const account = cloudAccount({
   deviceName: hostname(),
 });
 let mainWindow: BrowserWindow | null = null;
+const cloud = desktopCloudSettings({
+  account,
+  ...(nativeAccount ? { native: nativeAccount } : {}),
+  ...(hosted.cell ? { cellOrigin: hosted.cell } : {}),
+  dataDir: paths.dataDir,
+  local: {
+    subscribe(listener) {
+      const publish = () => listener({ status: client.status, snapshot: client.snapshot });
+      publish();
+      return client.onChange(publish);
+    },
+    async start() {},
+    stop() {},
+    call: (method, params, commandId) => client.call(method, params, commandId),
+  },
+  async pickFolder() {
+    const options: OpenDialogOptions = {
+      title: "Choose the folder to link",
+      buttonLabel: "Link folder",
+      properties: ["openDirectory"],
+    };
+    const result = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options);
+    if (!result.canceled) return result.filePaths[0];
+  },
+});
+const stopCloudUpdates = cloud.subscribe((workspace) => {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send(IPC_CHANNELS.cloudWorkspaceEvent, workspace);
+});
 let visibleBotId: string | undefined;
 let isQuitting = false;
 let shutdownStarted = false;
@@ -459,7 +490,10 @@ function registerIpcHandlers(setupFile: string): void {
         // A malformed one-way message is dropped; nothing waits for a reply.
       }
     });
-  for (const [channel, handler] of Object.entries(accountHandlers(account)))
+  for (const [channel, handler] of Object.entries({
+    ...accountHandlers(account, cloud.invalidate),
+    ...cloudHandlers(cloud),
+  }))
     handleTrusted(channel, handler);
   for (const [channel, handler] of Object.entries(
     artifactShareHandlers(account, daemonShareRecords(client)),
@@ -795,6 +829,7 @@ if (!hasSingleInstanceLock) {
       configureApplicationMenu();
       await loadRenderer(mainWindow);
       await daemonHost.start();
+      void cloud.restore().catch(() => undefined);
       await service.initialize();
       dock.apply(startPreferences);
       app.on("activate", () => {
@@ -826,6 +861,8 @@ app.on("before-quit", (event) => {
   dictation.cancel();
   dock.close();
   viewHost.stop();
+  stopCloudUpdates();
+  cloud.close();
   account.close();
   void service
     .stop()

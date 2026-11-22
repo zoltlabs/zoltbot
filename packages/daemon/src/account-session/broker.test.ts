@@ -378,3 +378,24 @@ it("refuses a native client's old-session requests and cleanup after another cli
   expect(await stale.request("/me")).toEqual({ ok: true });
   expect(requests).toBe(1);
 });
+
+it("stores a Mac GitHub value only in the native vault and fences checkout credentials by session", async () => {
+  const f = await fixture();
+  const { client } = await f.start();
+  const first = credentials();
+  const value = randomBytes(32).toString("base64url");
+  const updated = randomBytes(32).toString("base64url");
+  await expect(client.cloudMacGithub(value)).rejects.toThrow();
+  await client.save(first);
+  const reference = await client.cloudMacGithub(value);
+  expect(f.entries.get(reference)).toMatchObject({
+    version: 1,
+    sessionId: first.sessionId,
+    keyName: "github",
+  });
+  expect(await client.cloudMacGithub(updated, reference)).toBe(reference);
+  await scan(f.root, [value, updated]);
+  await client.save(credentials());
+  await expect(client.cloudMacGithub(value, reference)).rejects.toThrow();
+  expect((f.entries.get(reference) as { value?: string }).value === updated).toBe(true);
+});

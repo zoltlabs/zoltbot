@@ -38,6 +38,7 @@ export function connectionManager(options: {
   cloud(account: Readonly<CloudAccountBinding>): NativeConnection;
 }) {
   const listeners = new Set<(states: OwnedConnectionState[]) => void>();
+  const cloudListeners = new Set<(state: OwnedConnectionState | undefined) => void>();
   let local: Entry | undefined,
     cloud: Entry | undefined,
     account: CloudAccountBinding | undefined,
@@ -53,8 +54,17 @@ export function connectionManager(options: {
           readOnly: entry.readOnly,
         })),
     );
-  const notify = () => {
+  const cloudState = () =>
+    cloud &&
+    structuredClone({
+      owner: cloud.owner,
+      name: cloud.name,
+      state: cloud.state,
+      readOnly: cloud.readOnly,
+    });
+  const notify = (owner?: ConnectionOwner["kind"]) => {
     for (const listener of listeners) listener(states());
+    if (owner !== "local") for (const listener of cloudListeners) listener(cloudState());
   };
   const dispose = (entry: Entry | undefined) => {
     if (!entry) return;
@@ -75,7 +85,7 @@ export function connectionManager(options: {
       }
       entry.state = structuredClone(state);
       entry.readOnly = entry.owner.kind === "cloud" && state.status !== "online";
-      notify();
+      notify(entry.owner.kind);
     });
     if (!current() || closed) {
       entry.unsubscribe();
@@ -86,7 +96,7 @@ export function connectionManager(options: {
       if (!current() || closed) return;
       entry.state = { ...entry.state, status: "offline", error: "connection_unavailable" };
       entry.readOnly = entry.owner.kind === "cloud";
-      notify();
+      notify(entry.owner.kind);
     });
   };
   const requireEntry = (owner: ConnectionOwner): Entry => {
@@ -118,6 +128,14 @@ export function connectionManager(options: {
   attach(ownedLocal, () => local === ownedLocal);
   return Object.freeze({
     states,
+    cloudState,
+    subscribeCloud(listener: (state: OwnedConnectionState | undefined) => void) {
+      cloudListeners.add(listener);
+      listener(cloudState());
+      return () => {
+        cloudListeners.delete(listener);
+      };
+    },
     subscribe(listener: (states: OwnedConnectionState[]) => void) {
       listeners.add(listener);
       listener(states());
@@ -186,6 +204,7 @@ export function connectionManager(options: {
       dispose(previousLocal);
       notify();
       listeners.clear();
+      cloudListeners.clear();
     },
   });
 }
