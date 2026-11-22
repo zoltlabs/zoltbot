@@ -49,6 +49,7 @@
     "@zoltbot/daemon": "workspace:*",
     "@zoltbot/daemon-client": "workspace:*",
     "@zoltbot/protocol": "workspace:*",
+    "@zoltbot/ui": "workspace:*",
     "electron-updater": "^6.8.11",
     "mdast-util-from-markdown": "2.1.0",
     "mdast-util-gfm": "3.1.0",

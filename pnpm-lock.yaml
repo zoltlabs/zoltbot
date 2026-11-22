@@ -236,6 +236,9 @@ importers:
       '@zoltbot/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@zoltbot/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       electron-updater:
         specifier: ^6.8.11
         version: 6.8.11(supports-color@10.2.2)
