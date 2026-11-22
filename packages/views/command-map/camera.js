@@ -1,111 +1,208 @@
-// The camera: a narrow perspective view from above at an angle. Pan and zoom ease toward
-// their targets; with reduced motion they jump instead.
+// The camera: drag to pan, scroll or pinch to zoom, Shift+drag to box-select, and keys for
+// moving (arrows), zooming (+ and −) and showing everything (0). Glides unless reduced motion.
 (() => {
-  const map = window.CommandMap,
-    T = window.THREE;
+  const map = window.CommandMap;
+  const MIN = 0.45,
+    MAX = 2;
   map.Camera = class {
-    constructor(skin, reducedMotion) {
-      this.settings = skin.camera;
-      this.reducedMotion = reducedMotion;
-      this.lens = new T.PerspectiveCamera(skin.camera.fov, 1, 20, 1400);
-      this.goal = { x: 0, z: 0, zoom: 1 }; // where the camera is heading
-      this.now = { x: 0, z: 0, zoom: 1 }; // where it is
-      this.width = this.height = 1;
-      this.ray = new T.Raycaster();
-      this.plane = new T.Plane(new T.Vector3(0, 1, 0), 0);
-      this.point = new T.Vector3();
+    // host: { stage, world, onMove(), onBox(rect) , reducedMotion }
+    constructor(host) {
+      this.host = host;
+      this.stage = host.stage;
+      this.x = 0;
+      this.y = 0;
+      this.zoom = 1;
+      this.moving = false;
+      this.dragged = false;
+      this.box = document.querySelector("#box");
+      this.bind();
     }
-    get distance() {
-      return this.settings.distance / this.now.zoom;
-    }
-    resize(width, height) {
-      this.width = width;
-      this.height = height;
-      this.lens.aspect = width / height;
-      this.lens.updateProjectionMatrix();
-    }
-    lookAt(x, z, zoom = this.goal.zoom) {
-      const { minZoom, maxZoom } = this.settings;
-      Object.assign(this.goal, { x, z, zoom: Math.min(maxZoom, Math.max(minZoom, zoom)) });
-    }
-    // Moves the view by screen pixels: positive dx looks further right, positive dy further down.
-    pan(dx, dy, instant = false) {
-      const { fov, distance, yaw, pitch } = this.settings,
-        perPixel = (2 * Math.tan((fov * Math.PI) / 360) * distance) / this.goal.zoom / this.height,
-        across = dx * perPixel,
-        along = (dy * perPixel) / Math.sin(pitch);
-      this.lookAt(
-        this.goal.x + across * Math.cos(yaw) + along * Math.sin(yaw),
-        this.goal.z - across * Math.sin(yaw) + along * Math.cos(yaw),
+    apply() {
+      this.host.world.camera.setAttribute(
+        "transform",
+        `translate(${this.x.toFixed(1)},${this.y.toFixed(1)}) scale(${this.zoom.toFixed(4)})`,
       );
-      if (instant) Object.assign(this.now, { x: this.goal.x, z: this.goal.z });
+      this.host.onMove();
     }
-    jump() {
-      Object.assign(this.now, this.goal);
-      this.apply();
+    // Screen position, inside the stage, of a world point.
+    screen(point) {
+      return { x: point.x * this.zoom + this.x, y: point.y * this.zoom + this.y };
     }
-    // Moves toward the goal. Returns true while the camera is still travelling.
-    update(delta) {
-      const { now, goal } = this,
-        blend = this.reducedMotion ? 1 : 1 - Math.exp(-delta / this.settings.ease);
-      now.x += (goal.x - now.x) * blend;
-      now.z += (goal.z - now.z) * blend;
-      now.zoom *= (goal.zoom / now.zoom) ** blend;
-      const moving =
-        Math.abs(goal.x - now.x) + Math.abs(goal.z - now.z) > 0.01 ||
-        Math.abs(goal.zoom / now.zoom - 1) > 0.002;
-      if (!moving) Object.assign(now, goal);
-      this.apply();
-      return moving;
+    // Moves so that a world point sits at a spot on screen (default: a little above center).
+    goTo(point, zoom = this.zoom, across = 0.5, down = 0.42) {
+      const width = this.stage.clientWidth,
+        height = this.stage.clientHeight;
+      const goal = {
+        x: width * across - point.x * zoom,
+        y: height * down - point.y * zoom,
+        zoom: Math.min(MAX, Math.max(MIN, zoom)),
+      };
+      cancelAnimationFrame(this.frame);
+      if (this.host.reducedMotion || document.hidden) {
+        Object.assign(this, goal);
+        this.moving = false;
+        this.apply();
+        return;
+      }
+      const from = { x: this.x, y: this.y, zoom: this.zoom },
+        start = performance.now();
+      this.moving = true;
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / 450),
+          e = 1 - (1 - t) ** 3;
+        this.x = from.x + (goal.x - from.x) * e;
+        this.y = from.y + (goal.y - from.y) * e;
+        this.zoom = from.zoom + (goal.zoom - from.zoom) * e;
+        this.apply();
+        if (t < 1) this.frame = requestAnimationFrame(step);
+        else this.moving = false;
+      };
+      this.frame = requestAnimationFrame(step);
     }
-    apply(extra = 0) {
-      const { yaw, pitch } = this.settings,
-        reach = this.distance * (1 + extra);
-      this.lens.position.set(
-        this.now.x + Math.sin(yaw) * Math.cos(pitch) * reach,
-        Math.sin(pitch) * reach,
-        this.now.z + Math.cos(yaw) * Math.cos(pitch) * reach,
-      );
-      this.lens.lookAt(this.now.x, 0, this.now.z);
-      // Keep the depth range tight around the scene; ambient occlusion needs the precision.
-      this.lens.near = Math.max(2, reach * 0.25);
-      this.lens.far = reach * 3 + 300;
-      this.lens.updateProjectionMatrix();
-      this.lens.updateMatrixWorld();
-    }
-    // World position to screen pixels inside the map.
-    project(x, y, z) {
-      const value = this.point.set(x, y, z).project(this.lens);
-      return [((value.x + 1) / 2) * this.width, ((1 - value.y) / 2) * this.height];
-    }
-    // Screen pixels to the point on the ground under them.
-    ground(sx, sy) {
-      this.ray.setFromCamera(
-        new T.Vector2((sx / this.width) * 2 - 1, 1 - (sy / this.height) * 2),
-        this.lens,
-      );
-      return this.ray.ray.intersectPlane(this.plane, new T.Vector3());
-    }
-    // The four ground points at the corners of the screen, for the minimap.
-    corners() {
-      return [
-        [0, 0],
-        [this.width, 0],
-        [this.width, this.height],
-        [0, this.height],
-      ].map(([x, y]) => this.ground(x, y));
-    }
-    // Zoom and center that show a rectangle of ground with some room around it.
-    frame(bounds, margin = 1.15) {
-      const { fov, distance, pitch } = this.settings,
-        tall = 2 * Math.tan((fov * Math.PI) / 360) * distance,
-        wide = tall * this.lens.aspect;
-      // Ground depth is foreshortened by the camera's pitch.
+    // Fits every territory on screen.
+    fit() {
+      const land = this.host.world.layout.land;
+      if (!land.length) return;
+      const points = land.map((hex) => this.host.world.at(hex.q, hex.r));
+      const xs = points.map((p) => p.x),
+        ys = points.map((p) => p.y);
+      const width = Math.max(...xs) - Math.min(...xs) + 160,
+        height = Math.max(...ys) - Math.min(...ys) + 200;
       const zoom = Math.min(
-        wide / (bounds.w * margin + bounds.d * 0.3),
-        tall / ((bounds.d * Math.sin(pitch) + bounds.w * 0.25) * margin),
+        1.4,
+        Math.max(
+          MIN,
+          Math.min(this.stage.clientWidth / width, (this.stage.clientHeight - 120) / height),
+        ),
       );
-      this.lookAt(bounds.x + bounds.w / 2, bounds.z + bounds.d / 2, zoom);
+      const center = {
+        x: (Math.max(...xs) + Math.min(...xs)) / 2,
+        y: (Math.max(...ys) + Math.min(...ys)) / 2,
+      };
+      this.goTo(center, zoom, 0.5, 0.48);
+    }
+    zoomAt(sx, sy, factor) {
+      cancelAnimationFrame(this.frame);
+      this.moving = false;
+      const zoom = Math.min(MAX, Math.max(MIN, this.zoom * factor));
+      const wx = (sx - this.x) / this.zoom,
+        wy = (sy - this.y) / this.zoom;
+      this.zoom = zoom;
+      this.x = sx - wx * zoom;
+      this.y = sy - wy * zoom;
+      this.apply();
+    }
+    scale(factor) {
+      this.zoomAt(this.stage.clientWidth / 2, this.stage.clientHeight / 2, factor);
+    }
+    pan(dx, dy) {
+      cancelAnimationFrame(this.frame);
+      this.moving = false;
+      this.x += dx;
+      this.y += dy;
+      this.apply();
+    }
+    bind() {
+      const stage = this.stage;
+      let drag = null;
+      stage.addEventListener(
+        "wheel",
+        (event) => {
+          event.preventDefault();
+          const box = stage.getBoundingClientRect();
+          this.zoomAt(event.clientX - box.left, event.clientY - box.top, Math.exp(-event.deltaY * 0.0015));
+        },
+        { passive: false },
+      );
+      stage.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || event.target.closest("button, a, input, textarea, select, .panel-card"))
+          return;
+        const box = stage.getBoundingClientRect();
+        drag = {
+          id: event.pointerId,
+          sx: event.clientX,
+          sy: event.clientY,
+          x: this.x,
+          y: this.y,
+          left: box.left,
+          top: box.top,
+          select: event.shiftKey,
+        };
+        this.dragged = false;
+      });
+      window.addEventListener("pointermove", (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        const dx = event.clientX - drag.sx,
+          dy = event.clientY - drag.sy;
+        if (!this.dragged && Math.abs(dx) + Math.abs(dy) < 5) return;
+        if (!this.dragged) stage.setPointerCapture?.(drag.id);
+        this.dragged = true;
+        if (drag.select) {
+          const x = Math.min(event.clientX, drag.sx) - drag.left,
+            y = Math.min(event.clientY, drag.sy) - drag.top;
+          Object.assign(this.box.style, {
+            left: `${x}px`,
+            top: `${y}px`,
+            width: `${Math.abs(dx)}px`,
+            height: `${Math.abs(dy)}px`,
+          });
+          this.box.hidden = false;
+          return;
+        }
+        stage.classList.add("dragging");
+        cancelAnimationFrame(this.frame);
+        this.moving = false;
+        this.x = drag.x + dx;
+        this.y = drag.y + dy;
+        this.apply();
+      });
+      const end = (event) => {
+        if (!drag || event.pointerId !== drag.id) return;
+        if (drag.select && this.dragged) {
+          const rect = this.box.getBoundingClientRect();
+          this.box.hidden = true;
+          this.host.onBox(rect);
+        }
+        drag = null;
+        stage.classList.remove("dragging");
+        // A drag is not a click: swallow the click that follows it.
+        if (this.dragged) setTimeout(() => (this.dragged = false), 0);
+      };
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+      stage.addEventListener(
+        "click",
+        (event) => {
+          if (this.dragged) {
+            event.stopPropagation();
+            event.preventDefault();
+          }
+        },
+        true,
+      );
+      window.addEventListener("keydown", (event) => {
+        if (
+          event.target.matches("input,textarea,select") ||
+          event.target.closest(".rail") ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.altKey
+        )
+          return;
+        const step = 80,
+          moves = {
+            ArrowLeft: [step, 0],
+            ArrowRight: [-step, 0],
+            ArrowUp: [0, step],
+            ArrowDown: [0, -step],
+          };
+        if (moves[event.key]) {
+          event.preventDefault();
+          this.pan(...moves[event.key]);
+        } else if (event.key === "+" || event.key === "=") this.scale(1.25);
+        else if (event.key === "-" || event.key === "_") this.scale(0.8);
+        else if (event.key === "0") this.fit();
+      });
     }
   };
 })();

@@ -1,86 +1,97 @@
-// The heads-up display over the map: today's numbers along the top and the control group
-// chips along the bottom. (The minimap, alerts and name tags have their own files.)
+// The top bar (today's spend, working and done chats, failing checks) and, at the bottom right
+// of the map, the stack of notifications and the round button that jumps to the next request.
 (() => {
   const map = window.CommandMap,
     { el } = map;
   const money = (value) => `$${value.toFixed(2)}`,
     plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
   map.Hud = class {
-    // host: { selected(): Set, groups(): saved groups, recallGroup(id), saveGroup(id) }
+    // host: { next(), find(id) }
     constructor(host) {
       this.host = host;
-      this.stats = document.querySelector("#resources");
-      this.groups = document.querySelector("#groups");
+      this.stats = document.querySelector("#stats");
+      this.notes = document.querySelector("#notes");
+      this.next = document.querySelector("#next");
+      this.next.onclick = () => this.host.next();
     }
-    // Spend against the budget, active chats, pending requests, failing required checks.
-    renderStats({ usage, requests, checks }) {
-      const stat = (icon, text, tone) =>
-        el("li", { class: `stat ${tone ?? ""}` }, map.icon(icon), text);
+    renderStats({ usage, checks, chats }) {
+      const stat = (icon, strong, text, tone = "") =>
+        el("li", { class: `stat ${tone}` }, el("span", { class: `gem ${icon}` }, map.icon(icon)), el("strong", {}, strong), text);
       if (!usage) {
         this.stats.replaceChildren(el("li", { class: "stat" }, "Loading…"));
         return;
       }
       const spent = usage.today.costUsd,
         limit = usage.budget?.limitUsd;
-      const spend = stat(
-        "spend",
-        `${usage.today.costKnown ? "" : "About "}${money(spent)}${limit ? ` of ${money(limit)}` : ""} today`,
-        limit && spent >= limit ? "over" : "",
-      );
-      if (limit) {
-        const meter = el("span", { class: "meter", "aria-hidden": "true" }, el("span"));
-        meter.firstChild.style.width = `${Math.min(100, (spent / limit) * 100)}%`;
-        spend.append(meter);
+      const working = chats.filter((chat) => chat.status === "working").length,
+        done = chats.filter((chat) => chat.status === "review").length,
+        failing = checks.filter((check) => check.required && check.state === "failing");
+      const items = [
+        stat(
+          "spend",
+          `${usage.today.costKnown ? "" : "About "}${money(spent)}`,
+          limit ? ` of ${money(limit)} today` : " today",
+          limit && spent >= limit ? "over" : "",
+        ),
+        stat("working", String(working), " working"),
+        stat("review", String(done), " done"),
+      ];
+      if (failing.length) {
+        const names = [...new Set(failing.map((check) => check.name))];
+        items.push(
+          stat(
+            "problem",
+            failing.length === 1 ? `${names[0]} failing` : plural(failing.length, "failing check"),
+            "",
+            "failing",
+          ),
+        );
       }
-      const failing = checks.filter((check) => check.required && check.state === "failing").length;
-      this.stats.replaceChildren(
-        spend,
-        stat("active", plural(usage.activeChats, "active chat")),
-        stat("requests", plural(requests.length, "request"), requests.length ? "waiting" : ""),
-        ...(failing ? [stat("checks", plural(failing, "failing check"), "failing")] : []),
-      );
+      this.stats.replaceChildren(...items);
     }
-    // One chip per control group: select it, or save the current selection into it.
-    renderGroups() {
-      const focused = document.activeElement?.dataset?.group,
-        selected = this.host.selected(),
-        groups = this.host.groups();
-      this.groups.replaceChildren(
-        ...["1", "2", "3"].map((id) => {
-          const size = groups[id]?.length ?? 0;
-          const select = el(
+    // One disc per thing to look at: problems, finished chats, and requests (newest on top).
+    renderNotes(units, requests) {
+      const chats = units.map((unit) => unit.chat);
+      const notes = [
+        ...chats
+          .filter((chat) => map.unitState(chat).problem && chat.status !== "needs_you")
+          .map((chat) => ({ id: chat.id, icon: "problem", text: `${chat.problem ? "Problem" : "Failed"}: ${chat.title}` })),
+        ...chats
+          .filter((chat) => chat.status === "review")
+          .map((chat) => ({ id: chat.id, icon: "review", text: `Done: ${chat.title}` })),
+        ...requests
+          .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map((request) => {
+            const chat = chats.find((c) => c.id === request.chatId);
+            return {
+              id: request.chatId,
+              icon: "needs_you",
+              text: `${request.title} ${chat ? `(${chat.title})` : ""}`.trim(),
+              loud: true,
+            };
+          }),
+      ].slice(-7);
+      this.notes.replaceChildren(
+        ...notes.map((note) => {
+          const button = el(
             "button",
-            {
-              type: "button",
-              "aria-label": `Select group ${id}`,
-              title: `Press ${id}`,
-              "data-group": `select-${id}`,
-            },
-            el("kbd", {}, id),
-            size ? el("span", { class: "size" }, plural(size, "chat")) : undefined,
+            { type: "button", class: `note ${note.loud ? "loud" : ""}`, "aria-label": note.text },
+            el("span", { class: "text", "aria-hidden": "true" }, note.text),
+            el("span", { class: `disc ${note.icon}` }, map.icon(note.icon)),
           );
-          select.disabled = !size;
-          select.onclick = () => this.host.recallGroup(id);
-          const save = el(
-            "button",
-            {
-              type: "button",
-              "aria-label": `Save group ${id}`,
-              title: `Save the selection as group ${id} (Shift+${id})`,
-              "data-group": `save-${id}`,
-            },
-            map.icon("save"),
-          );
-          save.disabled = !selected.size;
-          save.onclick = () => this.host.saveGroup(id);
-          return el("div", { class: "group" }, select, save);
+          button.onclick = () => this.host.find(note.id);
+          return el("li", {}, button);
         }),
       );
-      if (focused)
-        this.groups
-          .querySelector(`[data-group="${focused}"]:not(:disabled)`)
-          ?.focus({ preventScroll: true });
+      const count = requests.length;
+      this.next.classList.toggle("calm", !count);
+      this.next.disabled = !count;
+      this.next.setAttribute("aria-label", count ? `Next request, ${count} waiting` : "Nothing needs you");
+      this.next.replaceChildren(
+        ...(count
+          ? [el("strong", {}, String(count)), el("span", {}, count === 1 ? "request" : "requests"), el("kbd", {}, "Space")]
+          : [el("span", {}, "All clear")]),
+      );
     }
   };
 })();

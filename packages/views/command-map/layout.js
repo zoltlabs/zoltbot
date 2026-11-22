@@ -1,33 +1,48 @@
-// Turns chats and workspaces into positions: one region (island) per workspace, one base
-// (workshop) per worktree, and one slot per chat in front of its base. Pure data, no drawing.
+// Turns chats and workspaces into hex positions: one city per workspace, one district per
+// worktree next to it, and one hex per chat near its district. Pure data, no drawing.
+//
+// Hexes use axial coordinates (q, r) with pointy tops; r grows downward on screen.
 (() => {
-  const SLOT = 4, // spacing between units
-    BUILDING = { w: 5, d: 4 }, // workshop footprint
-    SIGN = 2.5, // room beside the workshop for its sign
-    MARGIN = 3.5, // grass around the cells of a region
-    GAP = 3, // between cells
-    REGION_GAP = 12; // water between regions
-  // Places boxes left to right in rows no wider than `width`. Returns the size used.
-  function shelves(boxes, width, gap) {
-    let x = 0,
-      z = 0,
-      depth = 0,
-      used = 0;
-    for (const box of boxes) {
-      if (x > 0 && x + box.w > width) {
-        x = 0;
-        z += depth + gap;
-        depth = 0;
-      }
-      box.x = x;
-      box.z = z;
-      x += box.w + gap;
-      depth = Math.max(depth, box.d);
-      used = Math.max(used, x - gap);
-    }
-    return { w: used, d: z + depth };
+  const DIRS = [
+    [1, 0],
+    [1, -1],
+    [0, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, 1],
+  ];
+  const key = (q, r) => `${q},${r}`;
+  const dist = (a, b) =>
+    (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
+  // Screen position of a hex center in hex-size units, before tilt.
+  const spot = (q, r) => ({ x: Math.sqrt(3) * (q + r / 2), y: 1.5 * r });
+  // Every hex within `radius` of the center, nearest first.
+  function area(center, radius) {
+    const list = [];
+    for (let dq = -radius; dq <= radius; dq++)
+      for (let dr = Math.max(-radius, -dq - radius); dr <= Math.min(radius, -dq + radius); dr++)
+        list.push({ q: center.q + dq, r: center.r + dr });
+    return list.sort((a, b) => dist(a, center) - dist(b, center));
   }
-  window.commandMapLayout = (chats, workspaces, saved = {}, now = Date.now()) => {
+  // The two rows above a city stay empty so its banner never covers a unit.
+  const reserved = (center, hex) =>
+    (hex.r === center.r - 1 || hex.r === center.r - 2) &&
+    hex.q - center.q >= -2 &&
+    hex.q - center.q <= 3;
+  // Nearest first; ties go to the same row, then lower rows, then right before left.
+  const order = (anchor) => (a, b) => {
+    const pa = spot(a.q - anchor.q, a.r - anchor.r),
+      pb = spot(b.q - anchor.q, b.r - anchor.r);
+    return (
+      dist(a, anchor) - dist(b, anchor) ||
+      Math.abs(pa.y) - Math.abs(pb.y) ||
+      pb.y - pa.y ||
+      pb.x - pa.x
+    );
+  };
+  window.CommandMapHex = { DIRS, key, dist, spot, area };
+
+  window.commandMapLayout = (chats, workspaces, now = Date.now()) => {
     const visible = chats.filter(
       (chat) =>
         chat.status !== "settled" &&
@@ -42,88 +57,83 @@
       list.push(chat);
       groups.set(id, list);
     }
-    const regions = [],
-      units = [],
-      bases = [],
-      cells = [];
-    for (const [id, list] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
-      // One cell per worktree. A chat with no worktree stands alone, without a workshop.
-      const byBase = new Map();
-      for (const chat of list.toSorted((a, b) => a.id.localeCompare(b.id))) {
-        const key = chat.worktree?.id ?? chat.id;
-        const group = byBase.get(key) ?? [];
-        group.push(chat);
-        byBase.set(key, group);
-      }
-      const regionCells = [...byBase].map(([key, group]) => {
-        const built = !!group[0].worktree,
-          columns = Math.min(8, Math.max(built ? 2 : 1, Math.ceil(Math.sqrt(group.length * 1.6)))),
-          rows = Math.ceil(group.length / columns);
+    // Size each city first: enough land for its districts and units, plus a little room.
+    const plans = [...groups]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, list], index) => {
+        const bases = new Map(),
+          loose = [];
+        for (const chat of list.toSorted((a, b) => a.id.localeCompare(b.id))) {
+          if (!chat.worktree) {
+            loose.push(chat);
+            continue;
+          }
+          const group = bases.get(chat.worktree.id) ?? [];
+          group.push(chat);
+          bases.set(chat.worktree.id, group);
+        }
+        const need = bases.size + list.length,
+          origin = { q: 0, r: 0 };
+        let radius = 2;
+        while (
+          area(origin, radius).filter((hex) => dist(hex, origin) > 0 && !reserved(origin, hex))
+            .length <
+          Math.ceil(need * 1.15) + 1
+        )
+          radius++;
         return {
-          key,
-          group,
-          built,
-          columns,
-          w: Math.max(built ? BUILDING.w + SIGN : 0, columns * SLOT) + 1,
-          d: (built ? BUILDING.d + 1 : 0) + rows * SLOT + 0.5,
+          id,
+          index,
+          name: workspaces.find((workspace) => workspace.id === id)?.name ?? "Other",
+          bases,
+          loose,
+          radius,
         };
       });
-      const area = regionCells.reduce((sum, cell) => sum + (cell.w + GAP) * (cell.d + GAP), 0);
-      const size = shelves(
-        regionCells,
-        Math.max(...regionCells.map((cell) => cell.w), Math.sqrt(area) * 1.3),
-        GAP,
-      );
-      regions.push({
-        id,
-        name: workspaces.find((workspace) => workspace.id === id)?.name ?? "Other",
-        w: Math.max(16, size.w + MARGIN * 2),
-        d: Math.max(14, size.d + MARGIN * 2 + 1),
-        cells: regionCells,
+    // Place cities on a staggered grid wide enough that no two territories touch.
+    const widest = Math.max(2, ...plans.map((plan) => plan.radius)),
+      step = widest * 2 + 4,
+      columns = Math.max(1, Math.ceil(Math.sqrt(plans.length * 1.5)));
+    const cities = [],
+      districts = [],
+      units = [],
+      land = [];
+    for (const plan of plans) {
+      const column = plan.index % columns,
+        row = Math.floor(plan.index / columns) * step,
+        offset = (column * step + (Math.floor(plan.index / columns) % 2 ? step / 2 : 0)) | 0;
+      const center = { q: offset - Math.floor(row / 2), r: row };
+      cities.push({ id: plan.id, name: plan.name, index: plan.index, radius: plan.radius, ...center });
+      const tiles = area(center, plan.radius);
+      for (const hex of tiles) land.push({ ...hex, city: plan.id });
+      const taken = new Set([key(center.q, center.r)]);
+      for (const hex of tiles) if (reserved(center, hex)) taken.add(key(hex.q, hex.r));
+      const free = (anchor) =>
+        tiles.filter((hex) => !taken.has(key(hex.q, hex.r))).sort(order(anchor))[0];
+      const claim = (anchor) => {
+        const hex = free(anchor) ?? center;
+        taken.add(key(hex.q, hex.r));
+        return hex;
+      };
+      // Districts take the nearest open hexes around the city, side by side first.
+      const placed = [...plan.bases].map(([id, group]) => {
+        const hex = claim(center),
+          worktree = group[0].worktree;
+        const district = {
+          id,
+          city: plan.id,
+          ...hex,
+          name: worktree.branch ?? (worktree.kind === "folder" ? "Main folder" : "Worktree"),
+          active: group.some((chat) => chat.status === "working"),
+        };
+        districts.push(district);
+        return { district, group };
       });
+      for (const { district, group } of placed)
+        for (const chat of group)
+          units.push({ chat, city: plan.id, district: district.id, ...claim(district) });
+      for (const chat of plan.loose) units.push({ chat, city: plan.id, ...claim(center) });
     }
-    // Pack regions into rows, then let saved positions override.
-    const total = regions.reduce(
-      (sum, region) => sum + (region.w + REGION_GAP) * (region.d + REGION_GAP),
-      0,
-    );
-    shelves(
-      regions,
-      Math.max(...regions.map((region) => region.w), Math.sqrt(total) * 1.45),
-      REGION_GAP,
-    );
-    for (const region of regions) {
-      const position = saved[region.id];
-      if (Number.isFinite(position?.x)) region.x = position.x;
-      if (Number.isFinite(position?.z)) region.z = position.z;
-      for (const cell of region.cells) {
-        const x = region.x + MARGIN + cell.x,
-          z = region.z + MARGIN + cell.z;
-        cells.push({ x, z, w: cell.w, d: cell.d, region: region.id });
-        const worktree = cell.group[0].worktree;
-        if (cell.built)
-          bases.push({
-            id: cell.key,
-            region: region.id,
-            x: x + 0.5 + BUILDING.w / 2,
-            z: z + BUILDING.d / 2,
-            name: worktree.branch ?? (worktree.kind === "folder" ? "Main folder" : "Worktree"),
-            active: cell.group.some((chat) => chat.status === "working"),
-          });
-        const front = z + (cell.built ? BUILDING.d + 1 : 0),
-          inset = (cell.w - cell.columns * SLOT) / 2;
-        cell.group.forEach((chat, index) => {
-          units.push({
-            chat,
-            region: region.id,
-            base: cell.built ? cell.key : undefined,
-            x: x + inset + SLOT / 2 + (index % cell.columns) * SLOT,
-            z: front + SLOT / 2 + Math.floor(index / cell.columns) * SLOT,
-          });
-        });
-      }
-      delete region.cells;
-    }
-    return { regions, units, bases, cells };
+    return { cities, districts, units, land };
   };
 })();
