@@ -5,6 +5,42 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- New: Pin, hide or reply to a message, ask about a selected passage, and branch a chat from any message or edit it.
+- New: Ask a side question without interrupting the agent, send a queued message now or reorder the queue, and stop an agent by sending a stop phrase such as "stop".
+- New: Agents react to messages and show a one-line status and short progress notes while they work.
+- New: When a reply ends with a promise such as "I'll check the tests", the agent continues by itself. Turn this off for each agent.
+- New: Messages written while the Mac can't be reached wait in an outbox and send when it reconnects.
+- New: Preview files in a chat, browse them in a gallery and attach files up to 100 MB. A long paste becomes an attachment.
+- New: Links show previews, which you can turn off. Choose whether Enter or ⌘ Enter sends.
+- New: Go back and forward between chats, jump to a day in a long chat, and open any page from the command palette.
+- New: The sidebar can sort and filter chats and marks unread ones.
+- New: Plans show as a checklist. A meter shows how full the context is, with a button to compact it.
+- New: The Memory page lists what agents remember. Search finds more, facts carry dates, and saying "forget that" asks you to confirm.
+- New: A nightly tidy-up merges duplicate memories, and you can import memories from a ChatGPT, Claude or Gemini export.
+- New: Add skills from GitHub. Agents propose new skills and show updates as a diff. Teach a task by doing it in the agent's browser.
+- New: Each project has a shared database on the Data page, with CSV export.
+- New: The Usage page shows spend and tokens by day, chat and model, and sets a budget for each project.
+- New: Publish an artifact as a link or save it to a repository, and open artifacts on iPhone.
+- New: The Routines page shows scheduled runs on a calendar, with Run now and one-time runs. Add upcoming runs to Calendar. With a Zoltbot account, routines can also start from a web address.
+- New: Workflows chain agent, condition, wait and approval steps on a canvas, with a total budget. Run them and answer their approvals from iPhone.
+- New: The `zolt` command asks agents questions, starts tasks and follows their progress from a terminal. Install it from the account menu.
+- Improvement: The Mac stays awake while agents work and before a routine runs.
+- New: After setup, Zoltbot suggests starter jobs for the apps you connected, such as a weekly inbox summary.
+- New: Each agent has its own browser profile. Watch its browser live, take over, or let it ask you for help. It dismisses cookie banners and waits for you before it pays.
+- New: The vault keeps logins and two-step codes in the Keychain. Agents sign in with them after you allow it. Import from a password manager, and save a pasted key to the vault instead of the chat.
+- New: Talk to agents from Slack, Telegram and Discord, and send from WhatsApp. New senders need your approval.
+- New: Find tools in the MCP registry, sign in to more apps, and let a GitHub bot work on your repositories.
+- New: Have replies read aloud, call an agent, or hold a key to dictate. Calls and read aloud also work on iPhone.
+- New: Agent templates, a talking style for each agent, muting an agent, and a co-author line on the agent's commits.
+- New: Fast mode, Gemini CLI and Mistral Vibe, free backup models, starred models, and cost caps for routines. Change the model after a reply.
+- New: Appearance settings for theme, text size, font and chat background. Sounds, an agent dock with a mini chat, and a keyboard shortcuts page.
+- New: Updates download in the app and restart with their notes. Start fresh or move Zoltbot to another computer from Settings.
+- New: Zoltbot is available in Spanish, German, French, Japanese, Brazilian Portuguese and Simplified Chinese. Run the daemon on your own Linux server, with a Docker setup and a pairing link for your phone.
+- New: The iPhone app connects to several Macs, locks with Face ID, shows running work as a Live Activity, and works with Siri and Shortcuts.
+- New: On iPhone, swipe a message to reply, set the text size, pick an app icon, watch the agent's browser, and change an agent's role and model.
+- New: Sign in to app connections from iPhone.
+- New: An Android app.
+
 - Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
 
 - Show cloud task audit records, including refused Mac commands, in their project.
