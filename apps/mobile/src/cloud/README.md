@@ -32,9 +32,10 @@ Implementation choices:
 - Hold no offline account content cache. An outage reports offline; a revoked
   refresh removes account custody. Unexpected API fields are not projected to UI.
 
-The account owner and Expo adapter are not yet selected by the phone screens.
-Device-key registration, Cloud transport/Needs you, signed approval UI, push and
-simulator verification remain W11 work. This module is not W11 sign-off.
+The packaged phone routes select the account and Cell transport. Cloud Needs you
+uses the phone's existing Keychain identity for device registration and signs
+Run on my Mac approvals from the pending request. Walk the native Google sign-in,
+notification delivery and screen states in an isolated iOS simulator for W11.
 
 ## Notification routing
 
@@ -45,10 +46,9 @@ Local action or chat navigation. Equivalent nested scopes are accepted regardles
 of JSON property order. Existing paired-Mac approvals and thread taps keep their
 previous behavior.
 
-The native notification handler does not yet dispatch `open_cloud`. Cloud account
-validation, navigation, registration and signed approval UI still need integration.
-The tests check the actual relay payload and phone decoder together, with no real
-APNs traffic or native notification registration.
+The native notification handler validates the selected session and personal org
+before it opens Cloud Needs you. The tests check the relay payload and the phone
+decoder. Live APNs delivery still needs verification.
 
 
 ## Native Cloud API port
@@ -69,21 +69,28 @@ signed expiry. This decoding is not signature verification: the Cell verifies th
 signature and current account/device authority. A malformed successful
 account refresh clears uncertain custody rather than retrying a consumed value.
 
-These methods are not yet selected by Cloud screens or transport. Tests use the
-loopback fake broker, RAM-only keys/store and fake Cloud responses. No phone app,
-keychain, real Google account or hosted service was contacted.
+The account tests use the loopback fake broker and in-memory credentials. The
+packaged account and Needs you screens obtain their state from the native owner.
 
 A refused Cloud permission returns `account_access_refused`, so the Cloud owner
 can discard its projections without signing the person out of their account.
 Rejected native refresh authority clears account custody before any Cloud retry.
 
 
-## Work-in-progress checkpoint
+## Phone Cell transport
 
-The owner requested this checkpoint before the milestone checks passed. The
-account API tests last printed `28 passed` before adding the connection's owner
-metadata. Mobile typecheck passed with that metadata and `connection.ts`. The
-new connection has no transport tests or native adapter yet, and no screen selects
-it. Verify reconnect races, authority loss, read-only caches, command outcomes,
-subscription isolation and teardown before connecting it to the phone. This is
-unverified implementation work, not W11 sign-off.
+The native adapter uses the phone account's short-lived bearer in the TLS
+WebSocket handshake. The connection keeps its last snapshot in memory and
+marks it read-only during reconnect. It renews credentials before expiry and
+resubscribes from the previously observed sequence. If a command loses its
+reply, the caller gets an unknown outcome. Reconnect sends only subscription
+and snapshot requests.
+
+When the account owner loses its session or the Cell revokes access, the
+connection clears the credential handle and cached snapshot and stops trying
+to reconnect. Local pairing has its own transport and storage.
+
+The transport tests cover late credentials and frames, subscription
+listeners, close errors, offline commands, renewal and revocation. The
+headless Cloud M1 harness also uses the phone account with a real Cell over
+localhost TLS. The simulator run remains part of W11.

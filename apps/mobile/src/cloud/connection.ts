@@ -28,6 +28,7 @@ export function phoneCloudConnection(options: {
   owner: PhoneCellConnection["owner"];
   credentials(): Promise<PhoneCellConnection>;
   socket(url: string, headers: Readonly<Record<string, string>>): PhoneCloudSocket;
+  watchAuthority?(refuse: () => void): () => void;
 }) {
   const owner = Object.freeze({ ...options.owner });
   let state: PhoneCloudState = { status: "connecting", readOnly: true, snapshot: blank() };
@@ -44,6 +45,7 @@ export function phoneCloudConnection(options: {
   let retry: ReturnType<typeof setTimeout> | undefined,
     renewal: ReturnType<typeof setTimeout> | undefined,
     deadline: ReturnType<typeof setTimeout> | undefined;
+  let unwatch: (() => void) | undefined;
   const listeners = new Set<(state: PhoneCloudState) => void>();
   const pending = new Map<
     number,
@@ -54,12 +56,17 @@ export function phoneCloudConnection(options: {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+  const notify = (listener: (state: PhoneCloudState) => void) => {
+    try {
+      listener(clone(state));
+    } catch {}
+  };
   const publish = (next: PhoneCloudState) => {
     state = next;
-    for (const listener of listeners)
-      try {
-        listener(clone(state));
-      } catch {}
+    for (const listener of [...listeners]) {
+      if (state !== next) break;
+      if (listeners.has(listener)) notify(listener);
+    }
   };
   const rejectPending = () => {
     for (const request of pending.values()) {
@@ -72,8 +79,7 @@ export function phoneCloudConnection(options: {
     }
     pending.clear();
   };
-  const disconnect = (refused = false) => {
-    if (stopped) return;
+  const closeAttempt = () => {
     generation++;
     clearTimeout(deadline);
     clearTimeout(renewal);
@@ -82,12 +88,24 @@ export function phoneCloudConnection(options: {
     socket = undefined;
     authority?.clear();
     authority = undefined;
-    previous?.close();
     rejectPending();
     refreshing = false;
     dirty = false;
+    try {
+      previous?.close();
+    } catch {}
+  };
+  const stopWatching = () => {
+    const unsubscribe = unwatch;
+    unwatch = undefined;
+    unsubscribe?.();
+  };
+  const disconnect = (refused = false) => {
+    if (stopped) return;
+    closeAttempt();
     if (refused) {
       stopped = true;
+      stopWatching();
       publish({
         status: "offline",
         readOnly: true,
@@ -95,13 +113,13 @@ export function phoneCloudConnection(options: {
         error: "cloud_authority_refused",
       });
     } else {
+      retry = setTimeout(() => void connect(), Math.min(30000, 500 * 2 ** Math.min(failures++, 6)));
       publish({
         status: "offline",
         readOnly: true,
         snapshot: state.snapshot,
         error: "cloud_unavailable",
       });
-      retry = setTimeout(() => void connect(), Math.min(30000, 500 * 2 ** Math.min(failures++, 6)));
     }
   };
   const request = (method: string, params: unknown, commandId?: string): Promise<unknown> => {
@@ -167,10 +185,11 @@ export function phoneCloudConnection(options: {
   const connect = async () => {
     if (stopped) return;
     const current = ++generation;
-    publish({ status: "connecting", readOnly: true, snapshot: state.snapshot });
     deadline = setTimeout(() => {
       if (current === generation) disconnect();
     }, 15000);
+    publish({ status: "connecting", readOnly: true, snapshot: state.snapshot });
+    if (stopped || current !== generation) return;
     try {
       const next = await options.credentials();
       if (stopped || current !== generation) {
@@ -277,7 +296,7 @@ export function phoneCloudConnection(options: {
     state: () => clone(state),
     subscribe(listener: (state: PhoneCloudState) => void) {
       listeners.add(listener);
-      listener(clone(state));
+      notify(listener);
       return () => {
         listeners.delete(listener);
       };
@@ -285,21 +304,16 @@ export function phoneCloudConnection(options: {
     start() {
       if (started) return;
       started = true;
+      const unsubscribe = options.watchAuthority?.(() => disconnect(true));
+      if (stopped) unsubscribe?.();
+      else unwatch = unsubscribe;
       void connect();
     },
     stop() {
       if (stopped && state.snapshot.seq === 0) return;
       stopped = true;
-      generation++;
-      clearTimeout(deadline);
-      clearTimeout(retry);
-      clearTimeout(renewal);
-      const previous = socket;
-      socket = undefined;
-      authority?.clear();
-      authority = undefined;
-      previous?.close();
-      rejectPending();
+      closeAttempt();
+      stopWatching();
       publish({ status: "offline", readOnly: true, snapshot: blank() });
     },
     call(method: string, params: unknown, commandId?: string) {

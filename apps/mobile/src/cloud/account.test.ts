@@ -77,6 +77,22 @@ it("signs in through the actual fake broker with PKCE, reloads secure storage an
   expect(await f.storage.get("zoltbot.link.identity.v1")).toBe("independent-pairing-identity");
   expect(await f.storage.get("zoltbot.link.mac.v1")).toBe("independent-paired-mac");
 });
+
+it("reports loss of the active session even when secure storage cleanup fails", async () => {
+  const f = await fixture();
+  const account = phoneAccount(f.options);
+  const activeSessions: Array<string | undefined> = [];
+  const unsubscribe = account.subscribe(() => activeSessions.push(account.sessionId()));
+  const status = await account.signIn();
+  if (!status.sessionId) throw new Error("fixture_account_missing");
+  f.storage.remove = async () => {
+    throw new Error("fixture_cleanup_failed");
+  };
+  await expect(account.signOut(status.sessionId)).rejects.toThrow("account_cleanup_required");
+  expect(activeSessions).toEqual([status.sessionId, undefined]);
+  expect(account.sessionId()).toBeUndefined();
+  unsubscribe();
+});
 it.each([
   "state",
   "duplicate",

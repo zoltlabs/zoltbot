@@ -199,8 +199,10 @@ export async function createCloudM1Account(options: {
         if (path === "/api/account/me" && method === "GET")
           return reply({
             sessionId: session.credentials.sessionId,
-            user: { id: session.userId },
-            organizations: [{ id: session.orgId, role: "owner" }],
+            user: { id: session.userId, name: "Fixture member", email: "member@example.invalid" },
+            organizations: [
+              { id: session.orgId, name: "Personal organization", role: "owner", kind: "personal" },
+            ],
           });
         if (path === "/api/account/logout" && method === "POST") {
           session.active = false;

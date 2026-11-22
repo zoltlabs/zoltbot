@@ -9,7 +9,7 @@ export default defineConfig({
       "packages/**/*.test.ts",
       "tools/**/*.test.ts",
       "services/relay/**/*.test.ts",
-      "tests/**/*.test.ts",
+      "tests/**/*.test.{ts,mjs}",
     ],
     maxWorkers: 1,
     testTimeout: 15_000,

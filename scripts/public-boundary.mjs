@@ -2,11 +2,24 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(process.argv[2] ?? ".");
+const publicCloudDirectories = [
+  "apps/mobile/src/cloud",
+  "apps/mobile/src/ui/cloud",
+  "apps/shell/src/renderer/src/components/cloud",
+].map((directory) => path.join(root, directory) + path.sep);
+const publicCloudModules = new Set(
+  ["apps/mobile/src/state/cloud", "apps/shell/src/shared/cloud"].map((module) =>
+    path.join(root, module),
+  ),
+);
 // The relay is public; every other service stays in the private repository.
 const forbidden =
-  /(?:^|\/)(?:cloud|zoltbot\.ai)(?:\/|$)|(?:^|\/)services(?:\/(?!relay(?:\/|$))|$)|(?:^|\/)spikes\/do-cell(?:\/|$)/;
+  /(?:^|\/)(?:cloud|zoltbot-cloud|zoltbot\.ai)(?:\/|$)|(?:^|\/)services(?:\/(?!relay(?:\/|$))|$)|(?:^|\/)spikes\/do-cell(?:\/|$)/;
 // Public clients call these account endpoints; they are not filesystem dependencies.
 const publicAccountRoutes = new Set([
+  "/api/cloud",
+  "/api/cloud/",
+  "/api/cloud/push",
   "/api/cloud/devices",
   "/api/cloud/cell-token",
   "/api/cloud/jwks.json",
@@ -39,13 +52,13 @@ async function walk(directory) {
         ".cache",
         "output",
         "dist",
-        "cloud",
-        "zoltbot.ai",
-        "spikes",
-      ].includes(entry.name)
+      ].includes(entry.name) ||
+      (directory === root &&
+        ["cloud", "zoltbot-cloud", "zoltbot.ai", "spikes"].includes(entry.name))
     )
       continue;
     const file = path.join(directory, entry.name);
+    if (file === path.join(root, "apps/shell/out")) continue;
     if (entry.isDirectory()) await walk(file);
     else if (/\.(?:[cm]?[jt]sx?|json|ya?ml)$/.test(entry.name)) {
       const relative = path.relative(root, file).split(path.sep).join("/");
@@ -86,7 +99,29 @@ async function walk(directory) {
           );
         // Routing enums and known HTTP routes grant no permission to import private modules.
         if (!moduleReference && (value === "cloud" || publicAccountRoutes.has(value))) continue;
+        if (
+          !moduleReference &&
+          relative === "apps/mobile/src/cloud/account.test.ts" &&
+          /^(?:POST \/api\/cloud\/devices|PUT \/api\/cloud\/push|DELETE \/api\/cloud\/push\/\$\{key\.deviceId\})$/.test(
+            value,
+          )
+        )
+          continue;
+        if (
+          !moduleReference &&
+          relative === "apps/shell/src/renderer/src/i18n/jsx-text-baseline.json" &&
+          /^components\/cloud\/[A-Za-z]+\.tsx$/.test(value)
+        )
+          continue;
         if (/^https?:\/\//.test(value) || value.startsWith(".cache/spikes/")) continue;
+        if (moduleReference && value.startsWith(".")) {
+          const resolved = path.resolve(path.dirname(file), value);
+          if (
+            publicCloudModules.has(resolved.replace(/\.[cm]?[jt]sx?$/, "")) ||
+            publicCloudDirectories.some((directory) => resolved.startsWith(directory))
+          )
+            continue;
+        }
         if (forbidden.test(value) && !value.startsWith("!"))
           errors.push(`${relative}: private reference ${value}`);
       }

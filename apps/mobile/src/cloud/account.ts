@@ -118,6 +118,7 @@ export function phoneAccount(options: PhoneAccountOptions) {
     credentials = undefined;
     privateValues.clear();
     loaded = true;
+    notify();
     try {
       await options.storage.remove(phoneAccountKey);
       cleanupRequired = false;
@@ -223,7 +224,6 @@ export function phoneAccount(options: PhoneAccountOptions) {
       });
       if (refreshed.status === 401) {
         await clear();
-        notify();
         throw new Error("sign_in_required");
       }
       // Rotation must retain the account session and be persisted before bearer use.
@@ -236,12 +236,10 @@ export function phoneAccount(options: PhoneAccountOptions) {
         rotated = parseSaved(await json(refreshed));
       } catch {
         await clear();
-        notify();
         throw new Error("account_unavailable");
       }
       if (rotated.sessionId !== credentials.sessionId) {
         await clear();
-        notify();
         throw new Error("account_session_changed");
       }
       await save(rotated);
@@ -251,7 +249,6 @@ export function phoneAccount(options: PhoneAccountOptions) {
       await response.body?.cancel().catch(() => {});
       if (response.status === 401) {
         await clear();
-        notify();
         throw new Error("sign_in_required");
       }
       throw new Error("account_access_refused");
@@ -329,6 +326,7 @@ export function phoneAccount(options: PhoneAccountOptions) {
   };
   return Object.freeze({
     status: () => serialized(status),
+    sessionId: () => credentials?.sessionId,
     async registerDevice(expectedSessionId: string, input: unknown): Promise<void> {
       let payload: string;
       try {
@@ -422,6 +420,10 @@ export function phoneAccount(options: PhoneAccountOptions) {
             throw new Error("account_session_changed");
           let token: string | undefined = value.token;
           privateValues.add(token);
+          const clearToken = () => {
+            if (token) privateValues.delete(token);
+            token = undefined;
+          };
           return Object.freeze({
             owner: Object.freeze({
               userId: member.user.id,
@@ -437,13 +439,13 @@ export function phoneAccount(options: PhoneAccountOptions) {
                 cleanupRequired ||
                 credentials?.sessionId !== expectedSessionId ||
                 Date.now() >= until
-              )
+              ) {
+                clearToken();
                 throw new Error("account_session_changed");
+              }
               return token;
             },
-            clear() {
-              token = undefined;
-            },
+            clear: clearToken,
           });
         } catch (error) {
           if (
@@ -594,7 +596,6 @@ export function phoneAccount(options: PhoneAccountOptions) {
         if (cleanupRequired) {
           if (expectedSessionId !== cleanupSessionId) throw new Error("account_session_changed");
           await clear();
-          notify();
           return;
         }
         await load();
@@ -607,7 +608,6 @@ export function phoneAccount(options: PhoneAccountOptions) {
         } catch {
         } finally {
           await clear();
-          notify();
         }
         if (!confirmed) throw new Error("sign_out_unconfirmed");
       });

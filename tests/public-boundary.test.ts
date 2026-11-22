@@ -45,3 +45,23 @@ it("refuses Node-only dependencies and full snapshots inside the cell", () => {
     "passed",
   );
 });
+
+it("checks public Cloud source and allows its local client imports", () => {
+  expect(
+    check('export { client } from "../cloud/client.js";', "apps/mobile/src/state/cloud.ts"),
+  ).toContain("Public dependency boundary passed");
+  const privateCheckout = [
+    "..",
+    ["zoltbot", "cloud"].join("-"),
+    ["service", "s"].join(""),
+    "cloud",
+    "src",
+    "main.js",
+  ].join("/");
+  expect(() =>
+    check(
+      `import service from ${JSON.stringify(privateCheckout)};`,
+      path.join("apps/mobile/src", "cloud", "client.ts"),
+    ),
+  ).toThrow();
+});
