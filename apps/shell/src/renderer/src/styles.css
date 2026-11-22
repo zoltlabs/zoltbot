@@ -296,8 +296,14 @@ textarea {
   opacity: 0.62;
 }
 
-.mac-permission-allowed {
-  color: var(--text-success);
+.mac-permission-action.mac-permission-allowed {
+  border-color: transparent;
+  background: var(--fill-success);
+  color: #fff;
+}
+
+.mac-permission-action.mac-permission-allowed:disabled {
+  opacity: 1;
 }
 
 .initial-setup-error {
