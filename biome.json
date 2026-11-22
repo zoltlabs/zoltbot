@@ -8,7 +8,7 @@
       "!marketing",
       "!cloud",
       "!zoltbot.ai",
-      "!.cache",
+      "!**/.cache",
       "!.playwright-cli",
       "!test-results",
       "!playwright-report",
