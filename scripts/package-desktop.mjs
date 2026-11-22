@@ -58,6 +58,19 @@ mkdirSync(path.join(stage, "bin"), { recursive: true });
 // The app is the shell (apps/shell): electron-vite builds its main, preload and renderer into out/.
 run("pnpm", ["build:shell"]);
 cpSync(path.join(root, "apps/shell/out"), path.join(stage, "out"), { recursive: true });
+// The window preload runs sandboxed, where require() only reaches Electron's own modules. Any
+// other require leaves the window without its bridge, and the app opens to a blank screen.
+const preloadRequires = [
+  ...readFileSync(path.join(stage, "out/preload/index.cjs"), "utf8").matchAll(
+    /require\(["']([^"']+)["']\)/g,
+  ),
+]
+  .map((match) => match[1])
+  .filter((name) => name !== "electron");
+if (preloadRequires.length > 0)
+  throw new Error(
+    `The preload requires modules a sandboxed window cannot load: ${preloadRequires.join(", ")}`,
+  );
 cpSync(path.join(root, "apps/shell/build/zoltbot.png"), path.join(stage, "zoltbot.png"));
 const shellPackage = json("apps/shell/package.json");
 

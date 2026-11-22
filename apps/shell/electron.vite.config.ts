@@ -22,7 +22,9 @@ export default defineConfig({
     ],
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    // The window preload runs sandboxed and can only require Electron's own modules, so any
+    // workspace package it imports at runtime must be bundled in.
+    plugins: [externalizeDepsPlugin({ exclude: ["@zoltbot/protocol"] })],
     build: {
       rollupOptions: {
         output: {
