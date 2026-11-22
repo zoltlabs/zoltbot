@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import { type AgentAdapter, NativeWriters, type OpenOptions } from "@zoltbot/adapters-sdk";
 import type { AgentDefinition, NativeSessionInfo } from "@zoltbot/protocol";
 import { codexConnections } from "./connections.js";
@@ -211,6 +212,17 @@ export class CodexAdapter implements AgentAdapter {
       return codexModelOptions(Array.isArray(response.data) ? response.data : []);
     } catch {
       return undefined;
+    }
+  }
+  /** Reads model/list on the shared app-server; it starts no thread and writes no rollout. */
+  async listModels(definition: AgentDefinition) {
+    const peer = await this.acquire(definition, { cwd: tmpdir() });
+    try {
+      const response = object(await peer.rpc.request("model/list", {}));
+      const { list, effort } = codexModelOptions(Array.isArray(response.data) ? response.data : []);
+      return { list, effort };
+    } finally {
+      await peer.release();
     }
   }
   async listNativeSessions(

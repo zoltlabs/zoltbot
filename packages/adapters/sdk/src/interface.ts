@@ -112,6 +112,11 @@ export interface AgentSession {
   }>;
   close(opts?: { keepNative?: boolean }): Promise<void>;
 }
+/** The models an agent offers and every effort level some model accepts, lowest first. */
+export interface ModelList {
+  list: { id: string; name: string }[];
+  effort: string[];
+}
 export interface AgentAdapter {
   readonly id: string;
   manifest(): AdapterManifest;
@@ -124,4 +129,9 @@ export interface AgentAdapter {
   probe(def: AgentDefinition): Promise<ProbeResult>;
   listNativeSessions(def: AgentDefinition, filter: { cwd?: string }): Promise<NativeSessionInfo[]>;
   open(def: AgentDefinition, options: OpenOptions): Promise<AgentSession>;
+  /**
+   * The models this definition offers, read from the provider without opening a user session and
+   * without writing a native transcript or thread, for pickers shown before a first chat.
+   */
+  listModels?(def: AgentDefinition): Promise<ModelList>;
 }

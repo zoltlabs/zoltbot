@@ -82,6 +82,8 @@ export interface Preferences {
   agentDock: boolean;
   agentDockPosition: DockPosition;
   language: LanguagePreference;
+  /** Experimental: page buttons move to an icon rail that stays when the sidebar hides. */
+  sidebarRail: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
@@ -110,6 +112,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = Object.freeze({
   agentDock: false,
   agentDockPosition: "right",
   language: "system",
+  sidebarRail: false,
 });
 
 const THEMES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -162,6 +165,7 @@ const VALIDATORS: Validators = {
     DOCK_POSITIONS.includes(value as DockPosition),
   language: (value): value is LanguagePreference =>
     value === "system" || LANGUAGES.includes(value as Language),
+  sidebarRail: (value): value is boolean => typeof value === "boolean",
 };
 
 export const PREFERENCE_KEYS = Object.keys(VALIDATORS) as (keyof Preferences)[];

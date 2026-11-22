@@ -4,9 +4,11 @@ import {
   createSignal,
   For,
   type JSX,
+  mergeProps,
   onCleanup,
   onMount,
   Show,
+  splitProps,
 } from "solid-js";
 import type { CloudWorkspace } from "../../../shared/cloud";
 import type {
@@ -27,6 +29,8 @@ import { createStartFreshEntry } from "../fresh/StartFreshEntry";
 import { t } from "../i18n";
 import { createKeyboardEntry } from "../keyboard/KeyboardEntry";
 import { Menu, type MenuItem } from "../kit";
+import { createLabsEntry } from "../labs/LabsEntry";
+import { SidebarRail } from "../labs/SidebarRail";
 import { createSoundsEntry } from "../sounds/SoundsEntry";
 import { needsYouCount, type SidebarEntry, sidebarEntries, stableEntries } from "../tasks";
 import { AgentAvatar } from "./AgentAvatar";
@@ -63,7 +67,7 @@ import {
 } from "./sidebar/AgentMenus";
 import { MutedMark } from "./sidebar/ChatIcons";
 import { groupHeadingAt } from "./sidebar/organize";
-import { SidebarViews } from "./sidebar/SidebarViews";
+import { SidebarViews, type SidebarViewsProps } from "./sidebar/SidebarViews";
 import { createSidebarOrder, SortMenu } from "./sidebar/SortMenu";
 
 export type { SidebarAgentState };
@@ -122,6 +126,10 @@ interface SidebarProps {
   onSignOut: () => Promise<void>;
   onCancelSignIn: () => void;
   onCollapse: () => void;
+  /** Experimental: page buttons sit in an icon rail instead of at the top of the list. */
+  rail?: boolean;
+  /** With the rail on, the list hides and the rail stays. */
+  listHidden?: boolean;
   /** Rendered at the end of the sidebar landmark, e.g. its resize handle. */
   children?: JSX.Element;
   /** Rendered under a project's heading, e.g. its channels. */
@@ -180,6 +188,30 @@ export function Sidebar(props: SidebarProps) {
   const firstBot = (entry: SidebarEntry | undefined) =>
     entry?.kind === "employee" ? entry.employee.bots[0] : entry?.bot;
   const needsYou = createMemo(() => needsYouCount(props.tasks) + (props.staffApprovals ?? 0));
+  const [viewProps] = splitProps(props, [
+    "mapOpen",
+    "tasksOpen",
+    "modelsOpen",
+    "memoryOpen",
+    "memoryReviews",
+    "usageOpen",
+    "routinesOpen",
+    "vaultOpen",
+    "dataOpen",
+    "onOpenMap",
+    "onOpenTasks",
+    "onOpenModels",
+    "onOpenMemory",
+    "onOpenUsage",
+    "onOpenRoutines",
+    "onOpenVault",
+    "onOpenData",
+  ]);
+  const views: SidebarViewsProps = mergeProps(viewProps, {
+    get needsYou() {
+      return needsYou();
+    },
+  });
   /** Unread first, then a group wherever the project changes, unless the list is searched. */
   const groupHeading = (index: number) =>
     query().trim()
@@ -380,6 +412,7 @@ export function Sidebar(props: SidebarProps) {
   const freshEntry = createStartFreshEntry();
   const moveEntry = createMoveEntry();
   const keyboardEntry = createKeyboardEntry();
+  const labsEntry = createLabsEntry();
   function accountMenuGroups(): MenuItem[][] {
     const busy = accountBusy() !== null;
     const account: MenuItem[] = !props.cloudAccount?.configured
@@ -492,6 +525,7 @@ export function Sidebar(props: SidebarProps) {
         dockEntry.item(),
         keyboardEntry.item(),
         moveEntry.item(),
+        labsEntry.item(),
         ...[cli.item()].filter((item) => item !== undefined),
       ],
       [
@@ -515,399 +549,395 @@ export function Sidebar(props: SidebarProps) {
   }
 
   return (
-    <aside id="bot-sidebar" aria-label="Bot navigation" class="sidebar panel-edge">
-      <div class="window-drag sidebar-topbar">
-        <button
-          type="button"
-          class="sidebar-icon-button sidebar-toggle-button no-drag"
-          onClick={props.onCollapse}
-          aria-label="Hide sidebar"
-          aria-controls="bot-sidebar"
-          aria-expanded="true"
-          title="Hide sidebar"
-        >
-          <SidebarToggleIcon />
-        </button>
-        <button
-          type="button"
-          class="sidebar-icon-button sidebar-new-button no-drag"
-          onClick={props.onCreateBot}
-          aria-label="New agent"
-        >
-          <PlusIcon />
-        </button>
-      </div>
-
-      <SidebarViews
-        mapOpen={props.mapOpen}
-        tasksOpen={props.tasksOpen}
-        modelsOpen={props.modelsOpen}
-        memoryOpen={props.memoryOpen}
-        needsYou={needsYou()}
-        memoryReviews={props.memoryReviews}
-        onOpenMap={props.onOpenMap}
-        onOpenTasks={props.onOpenTasks}
-        onOpenModels={props.onOpenModels}
-        onOpenMemory={props.onOpenMemory}
-        usageOpen={props.usageOpen}
-        onOpenUsage={props.onOpenUsage}
-        routinesOpen={props.routinesOpen}
-        onOpenRoutines={props.onOpenRoutines}
-        vaultOpen={props.vaultOpen}
-        onOpenVault={props.onOpenVault}
-        dataOpen={props.dataOpen}
-        onOpenData={props.onOpenData}
-      />
-
-      <div class="sidebar-search-wrap">
-        <label class="search-field">
-          <span class="sr-only">Search chats</span>
-          <SearchIcon />
-          <input
-            type="search"
-            value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Search"
-            aria-label="Search chats"
-          />
-        </label>
-        <SortMenu order={order} />
-      </div>
-
-      <nav
-        ref={(element) => (botList = element)}
-        aria-label="Bot list"
-        class="bot-list"
-        classList={{
-          "scroll-fade-top": fadeAtTop(),
-          "scroll-fade-bottom": fadeAtBottom(),
-        }}
-        onScroll={() => updateScrollFade()}
+    <>
+      <Show when={props.rail}>
+        <SidebarRail {...views} />
+      </Show>
+      <aside
+        id="bot-sidebar"
+        aria-label="Bot navigation"
+        class="sidebar panel-edge"
+        classList={{ "sidebar-list-hidden": props.listHidden === true }}
       >
-        <Show when={props.cloudWorkspace}>
-          <div class="bot-group-header">
-            <span class="bot-group-name">This Mac</span>
-          </div>
+        <div class="window-drag sidebar-topbar">
+          <button
+            type="button"
+            class="sidebar-icon-button sidebar-toggle-button no-drag"
+            onClick={props.onCollapse}
+            aria-label="Hide sidebar"
+            aria-controls="bot-sidebar"
+            aria-expanded="true"
+            title="Hide sidebar"
+          >
+            <SidebarToggleIcon />
+          </button>
+          <button
+            type="button"
+            class="sidebar-icon-button sidebar-new-button no-drag"
+            onClick={props.onCreateBot}
+            aria-label="New agent"
+          >
+            <PlusIcon />
+          </button>
+        </div>
+
+        <Show when={!props.rail}>
+          <SidebarViews {...views} />
         </Show>
-        <Show
-          when={filteredBots().length > 0}
-          fallback={
-            <p class="empty-search">{props.bots.length ? "No matches" : "No agents yet"}</p>
-          }
+
+        <div class="sidebar-search-wrap">
+          <label class="search-field">
+            <span class="sr-only">Search chats</span>
+            <SearchIcon />
+            <input
+              type="search"
+              value={query()}
+              onInput={(event) => setQuery(event.currentTarget.value)}
+              placeholder="Search"
+              aria-label="Search chats"
+            />
+          </label>
+          <SortMenu order={order} />
+        </div>
+
+        <nav
+          ref={(element) => (botList = element)}
+          aria-label="Bot list"
+          class="bot-list"
+          classList={{
+            "scroll-fade-top": fadeAtTop(),
+            "scroll-fade-bottom": fadeAtBottom(),
+          }}
+          onScroll={() => updateScrollFade()}
         >
-          <For each={entries()}>
-            {(entry, index) => {
-              const botRow = (bot: BotProfile) => (
-                <div class="bot-row-item">
-                  <Show
-                    when={renamingId() !== bot.id}
-                    fallback={
-                      <form
-                        class="bot-row bot-row-renaming"
-                        classList={{ "bot-row-nested": (bot.depth ?? 0) > 0 }}
+          <Show when={props.cloudWorkspace}>
+            <div class="bot-group-header">
+              <span class="bot-group-name">This Mac</span>
+            </div>
+          </Show>
+          <Show
+            when={filteredBots().length > 0}
+            fallback={
+              <p class="empty-search">{props.bots.length ? "No matches" : "No agents yet"}</p>
+            }
+          >
+            <For each={entries()}>
+              {(entry, index) => {
+                const botRow = (bot: BotProfile) => (
+                  <div class="bot-row-item">
+                    <Show
+                      when={renamingId() !== bot.id}
+                      fallback={
+                        <form
+                          class="bot-row bot-row-renaming"
+                          classList={{ "bot-row-nested": (bot.depth ?? 0) > 0 }}
+                          style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const input = event.currentTarget.elements.namedItem("name");
+                            if (input instanceof HTMLInputElement)
+                              void finishRename(bot, input.value);
+                          }}
+                        >
+                          <span class="bot-row-avatar">
+                            <AgentAvatar bot={bot} />
+                          </span>
+                          <input
+                            ref={(element) =>
+                              requestAnimationFrame(() => {
+                                element.focus();
+                                element.select();
+                              })
+                            }
+                            name="name"
+                            class="bot-row-rename-input"
+                            aria-label={`Rename ${bot.name}`}
+                            value={bot.name}
+                            maxLength={80}
+                            autocomplete="off"
+                            spellcheck={false}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Escape") return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setRenamingId(null);
+                            }}
+                            onBlur={(event) => void finishRename(bot, event.currentTarget.value)}
+                          />
+                        </form>
+                      }
+                    >
+                      <button
+                        type="button"
+                        class="bot-row"
+                        classList={{
+                          "bot-row-active": props.activeBotId === bot.id,
+                          "bot-row-menu-open": contextMenu()?.botId === bot.id,
+                          "bot-row-nested": (bot.depth ?? 0) > 0,
+                        }}
                         style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
-                        onSubmit={(event) => {
+                        aria-pressed={props.activeBotId === bot.id}
+                        onClick={() => props.onSelectBot(bot.id)}
+                        onContextMenu={(event) => {
                           event.preventDefault();
-                          const input = event.currentTarget.elements.namedItem("name");
-                          if (input instanceof HTMLInputElement)
-                            void finishRename(bot, input.value);
+                          openContextMenu({
+                            botId: bot.id,
+                            anchor: { x: event.clientX, y: event.clientY },
+                            owner: event.currentTarget,
+                          });
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key !== "ContextMenu" &&
+                            !(event.shiftKey && event.key === "F10")
+                          ) {
+                            return;
+                          }
+                          event.preventDefault();
+                          openContextMenu({
+                            botId: bot.id,
+                            anchor: event.currentTarget,
+                            owner: event.currentTarget,
+                          });
                         }}
                       >
                         <span class="bot-row-avatar">
                           <AgentAvatar bot={bot} />
+                          <Show when={props.agentStates[bot.id]}>
+                            {(state) => <SidebarAgentIndicator state={state()} />}
+                          </Show>
                         </span>
-                        <input
-                          ref={(element) =>
-                            requestAnimationFrame(() => {
-                              element.focus();
-                              element.select();
-                            })
-                          }
-                          name="name"
-                          class="bot-row-rename-input"
-                          aria-label={`Rename ${bot.name}`}
-                          value={bot.name}
-                          maxLength={80}
-                          autocomplete="off"
-                          spellcheck={false}
-                          onKeyDown={(event) => {
-                            if (event.key !== "Escape") return;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setRenamingId(null);
-                          }}
-                          onBlur={(event) => void finishRename(bot, event.currentTarget.value)}
-                        />
-                      </form>
-                    }
-                  >
-                    <button
-                      type="button"
-                      class="bot-row"
-                      classList={{
-                        "bot-row-active": props.activeBotId === bot.id,
-                        "bot-row-menu-open": contextMenu()?.botId === bot.id,
-                        "bot-row-nested": (bot.depth ?? 0) > 0,
-                      }}
-                      style={{ "--bot-depth": String(Math.min(bot.depth ?? 0, 4)) }}
-                      aria-pressed={props.activeBotId === bot.id}
-                      onClick={() => props.onSelectBot(bot.id)}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        openContextMenu({
-                          botId: bot.id,
-                          anchor: { x: event.clientX, y: event.clientY },
-                          owner: event.currentTarget,
-                        });
-                      }}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key !== "ContextMenu" &&
-                          !(event.shiftKey && event.key === "F10")
-                        ) {
-                          return;
-                        }
-                        event.preventDefault();
-                        openContextMenu({
-                          botId: bot.id,
-                          anchor: event.currentTarget,
-                          owner: event.currentTarget,
-                        });
-                      }}
-                    >
-                      <span class="bot-row-avatar">
-                        <AgentAvatar bot={bot} />
-                        <Show when={props.agentStates[bot.id]}>
-                          {(state) => <SidebarAgentIndicator state={state()} />}
-                        </Show>
-                      </span>
-                      <span class="bot-row-copy">
-                        <span class="bot-row-heading">
-                          <span class="bot-row-title">
-                            <strong>{bot.name}</strong>
-                            <Show when={bot.roleLabel}>
-                              <em class="bot-row-role">{bot.roleLabel}</em>
-                            </Show>
-                            <Show when={bot.muted}>
-                              <MutedMark />
-                            </Show>
+                        <span class="bot-row-copy">
+                          <span class="bot-row-heading">
+                            <span class="bot-row-title">
+                              <strong>{bot.name}</strong>
+                              <Show when={bot.roleLabel}>
+                                <em class="bot-row-role">{bot.roleLabel}</em>
+                              </Show>
+                              <Show when={bot.muted}>
+                                <MutedMark />
+                              </Show>
+                            </span>
+                            <span class="bot-row-time">{bot.time}</span>
                           </span>
-                          <span class="bot-row-time">{bot.time}</span>
+                          <span class="bot-row-preview">{bot.preview}</span>
                         </span>
-                        <span class="bot-row-preview">{bot.preview}</span>
-                      </span>
-                      <Show when={props.agentStates[bot.id]}>
-                        {(state) => <span class="sr-only">{sidebarAgentStateLabel(state())}</span>}
-                      </Show>
-                    </button>
-                    <button
-                      type="button"
-                      class="bot-row-more"
-                      aria-label={`Actions for ${bot.name}`}
-                      aria-haspopup="menu"
-                      aria-expanded={contextMenu()?.botId === bot.id}
-                      title="More"
-                      onClick={(event) => toggleRowMenu(bot.id, event.currentTarget)}
-                    >
-                      <MoreIcon />
-                    </button>
-                  </Show>
-                </div>
-              );
-              return (
-                <>
-                  <Show when={groupHeading(index())}>
-                    {(heading) => (
-                      <div class="bot-group-header">
-                        <span class="bot-group-name" title={heading().title}>
-                          {heading().name}
-                        </span>
-                        <Show when={heading().projectId}>
-                          {(projectId) => (
-                            <button
-                              type="button"
-                              class="sidebar-icon-button bot-group-add"
-                              aria-label={`New chat in ${heading().name}`}
-                              title={`New chat in ${heading().name}`}
-                              onClick={() => props.onCreateInProject(projectId())}
-                            >
-                              <PlusIcon />
-                            </button>
+                        <Show when={props.agentStates[bot.id]}>
+                          {(state) => (
+                            <span class="sr-only">{sidebarAgentStateLabel(state())}</span>
                           )}
                         </Show>
-                      </div>
-                    )}
-                  </Show>
-                  <Show when={groupHeading(index())?.projectId}>
-                    {(projectId) =>
-                      props.projectRows?.(projectId(), groupHeading(index())?.name ?? "")
-                    }
-                  </Show>
-                  {entry.kind === "employee" ? (
-                    <SidebarEmployeeRow
-                      employee={entry.employee}
-                      expanded={expanded()[entry.employee.key] === true}
-                      activeBotId={props.activeBotId}
-                      working={entry.employee.bots.some(
-                        (bot) => props.agentStates[bot.id]?.kind === "working",
-                      )}
-                      onToggle={() =>
-                        setExpanded((current) => ({
-                          ...current,
-                          [entry.employee.key]: !current[entry.employee.key],
-                        }))
-                      }
-                      onSelectBot={props.onSelectBot}
-                    />
-                  ) : (
-                    botRow(entry.bot)
-                  )}
-                </>
-              );
-            }}
-          </For>
-        </Show>
-        <Show when={!query().trim()}>
-          <button type="button" class="bot-row bot-new-project" onClick={props.onCreateProject}>
-            <span class="bot-new-project-icon" aria-hidden="true">
-              <PlusIcon />
-            </span>
-            <span class="bot-row-copy">New project</span>
-          </button>
-        </Show>
-        <Show when={props.cloudWorkspace && !query().trim() ? props.cloudWorkspace : undefined}>
-          {(workspace) => (
-            <div role="group" aria-label={workspace().name}>
-              <div class="bot-group-header">
-                <span class="bot-group-name">{workspace().name}</span>
-                <Show when={workspace().readOnly}>
-                  <span>Offline</span>
-                </Show>
-              </div>
-              <For each={workspace().state.snapshot.entities.project ?? []}>
-                {(project) => (
-                  <Show when={typeof project.id === "string" && typeof project.name === "string"}>
-                    <button
-                      type="button"
-                      class="bot-row"
-                      onClick={() => props.onOpenCloudProject?.(String(project.id))}
-                    >
-                      <span class="bot-row-copy">{String(project.name)}</span>
-                    </button>
-                  </Show>
-                )}
-              </For>
-              <button
-                type="button"
-                class="bot-row bot-new-project"
-                disabled={workspace().readOnly}
-                onClick={() => props.onOpenCloudProject?.()}
-              >
-                <span class="bot-new-project-icon">
-                  <PlusIcon />
-                </span>
-                <span class="bot-row-copy">New Cloud project</span>
-              </button>
-            </div>
-          )}
-        </Show>
-      </nav>
-
-      <div class="sidebar-account">
-        <Show when={accountMenuOpen() && accountButton}>
-          {(anchor) => (
-            <Menu
-              anchor={anchor()}
-              label="Account menu"
-              placement="top-start"
-              header={
-                signedIn() ? (
-                  <div class="account-identity">
-                    <Show when={props.cloudAccount?.name}>
-                      {(name) => <strong>{name()}</strong>}
+                      </button>
+                      <button
+                        type="button"
+                        class="bot-row-more"
+                        aria-label={`Actions for ${bot.name}`}
+                        aria-haspopup="menu"
+                        aria-expanded={contextMenu()?.botId === bot.id}
+                        title="More"
+                        onClick={(event) => toggleRowMenu(bot.id, event.currentTarget)}
+                      >
+                        <MoreIcon />
+                      </button>
                     </Show>
-                    <span>{accountEmail()}</span>
                   </div>
-                ) : undefined
-              }
-              footer={
-                popoverError() ? (
-                  <p class="account-popover-error" role="alert">
-                    {popoverError()}
-                  </p>
-                ) : undefined
-              }
-              groups={accountMenuGroups()}
-              onClose={() => setAccountMenuOpen(false)}
+                );
+                return (
+                  <>
+                    <Show when={groupHeading(index())}>
+                      {(heading) => (
+                        <div class="bot-group-header">
+                          <span class="bot-group-name" title={heading().title}>
+                            {heading().name}
+                          </span>
+                          <Show when={heading().projectId}>
+                            {(projectId) => (
+                              <button
+                                type="button"
+                                class="sidebar-icon-button bot-group-add"
+                                aria-label={`New chat in ${heading().name}`}
+                                title={`New chat in ${heading().name}`}
+                                onClick={() => props.onCreateInProject(projectId())}
+                              >
+                                <PlusIcon />
+                              </button>
+                            )}
+                          </Show>
+                        </div>
+                      )}
+                    </Show>
+                    <Show when={groupHeading(index())?.projectId}>
+                      {(projectId) =>
+                        props.projectRows?.(projectId(), groupHeading(index())?.name ?? "")
+                      }
+                    </Show>
+                    {entry.kind === "employee" ? (
+                      <SidebarEmployeeRow
+                        employee={entry.employee}
+                        expanded={expanded()[entry.employee.key] === true}
+                        activeBotId={props.activeBotId}
+                        working={entry.employee.bots.some(
+                          (bot) => props.agentStates[bot.id]?.kind === "working",
+                        )}
+                        onToggle={() =>
+                          setExpanded((current) => ({
+                            ...current,
+                            [entry.employee.key]: !current[entry.employee.key],
+                          }))
+                        }
+                        onSelectBot={props.onSelectBot}
+                      />
+                    ) : (
+                      botRow(entry.bot)
+                    )}
+                  </>
+                );
+              }}
+            </For>
+          </Show>
+          <Show when={!query().trim()}>
+            <button type="button" class="bot-row bot-new-project" onClick={props.onCreateProject}>
+              <span class="bot-new-project-icon" aria-hidden="true">
+                <PlusIcon />
+              </span>
+              <span class="bot-row-copy">New project</span>
+            </button>
+          </Show>
+          <Show when={props.cloudWorkspace && !query().trim() ? props.cloudWorkspace : undefined}>
+            {(workspace) => (
+              <div role="group" aria-label={workspace().name}>
+                <div class="bot-group-header">
+                  <span class="bot-group-name">{workspace().name}</span>
+                  <Show when={workspace().readOnly}>
+                    <span>Offline</span>
+                  </Show>
+                </div>
+                <For each={workspace().state.snapshot.entities.project ?? []}>
+                  {(project) => (
+                    <Show when={typeof project.id === "string" && typeof project.name === "string"}>
+                      <button
+                        type="button"
+                        class="bot-row"
+                        onClick={() => props.onOpenCloudProject?.(String(project.id))}
+                      >
+                        <span class="bot-row-copy">{String(project.name)}</span>
+                      </button>
+                    </Show>
+                  )}
+                </For>
+                <button
+                  type="button"
+                  class="bot-row bot-new-project"
+                  disabled={workspace().readOnly}
+                  onClick={() => props.onOpenCloudProject?.()}
+                >
+                  <span class="bot-new-project-icon">
+                    <PlusIcon />
+                  </span>
+                  <span class="bot-row-copy">New Cloud project</span>
+                </button>
+              </div>
+            )}
+          </Show>
+        </nav>
+
+        <div class="sidebar-account">
+          <Show when={accountMenuOpen() && accountButton}>
+            {(anchor) => (
+              <Menu
+                anchor={anchor()}
+                label="Account menu"
+                placement="top-start"
+                header={
+                  signedIn() ? (
+                    <div class="account-identity">
+                      <Show when={props.cloudAccount?.name}>
+                        {(name) => <strong>{name()}</strong>}
+                      </Show>
+                      <span>{accountEmail()}</span>
+                    </div>
+                  ) : undefined
+                }
+                footer={
+                  popoverError() ? (
+                    <p class="account-popover-error" role="alert">
+                      {popoverError()}
+                    </p>
+                  ) : undefined
+                }
+                groups={accountMenuGroups()}
+                onClose={() => setAccountMenuOpen(false)}
+              />
+            )}
+          </Show>
+
+          <button
+            ref={accountButton}
+            type="button"
+            class="sidebar-footer"
+            aria-label="Open account menu"
+            aria-haspopup="menu"
+            aria-expanded={accountMenuOpen()}
+            onClick={toggleAccountMenu}
+          >
+            <span class="profile-dot">{accountInitials()}</span>
+            <span class="profile-copy">
+              <strong>{accountName()}</strong>
+              <Show when={props.appInfo}>
+                {(info) => (
+                  <span class="sr-only" data-testid="app-version">
+                    Version {info().version} · {info().platform}
+                  </span>
+                )}
+              </Show>
+            </span>
+            <Show when={updateAvailable()}>
+              <span class="sidebar-update-pill">Update</span>
+              <span class="sr-only">Zoltbot update available</span>
+            </Show>
+          </button>
+        </div>
+
+        <bridges.Dialog />
+        <appearanceEntry.Dialog />
+        <soundsEntry.Dialog />
+        <dockEntry.Dialog />
+        <freshEntry.Dialog />
+        <moveEntry.Dialog />
+        <keyboardEntry.Dialog />
+        <labsEntry.Dialog />
+        <cli.Dialog />
+        <Show when={contextMenu()}>
+          {(menu) => (
+            <AgentContextMenu
+              menu={menu()}
+              chatItems={chatItems(menu().botId)}
+              onClose={() => setContextMenu(null)}
+              onRename={startRename}
+              onEdit={props.onEditBot}
+              onDelete={setDeleteTargetId}
+              onCall={(id) => {
+                props.onSelectBot(id);
+                requestCall(id);
+              }}
             />
           )}
         </Show>
 
-        <button
-          ref={accountButton}
-          type="button"
-          class="sidebar-footer"
-          aria-label="Open account menu"
-          aria-haspopup="menu"
-          aria-expanded={accountMenuOpen()}
-          onClick={toggleAccountMenu}
-        >
-          <span class="profile-dot">{accountInitials()}</span>
-          <span class="profile-copy">
-            <strong>{accountName()}</strong>
-            <Show when={props.appInfo}>
-              {(info) => (
-                <span class="sr-only" data-testid="app-version">
-                  Version {info().version} · {info().platform}
-                </span>
-              )}
-            </Show>
-          </span>
-          <Show when={updateAvailable()}>
-            <span class="sidebar-update-pill">Update</span>
-            <span class="sr-only">Zoltbot update available</span>
-          </Show>
-        </button>
-      </div>
-
-      <bridges.Dialog />
-      <appearanceEntry.Dialog />
-      <soundsEntry.Dialog />
-      <dockEntry.Dialog />
-      <freshEntry.Dialog />
-      <moveEntry.Dialog />
-      <keyboardEntry.Dialog />
-      <cli.Dialog />
-      <Show when={contextMenu()}>
-        {(menu) => (
-          <AgentContextMenu
-            menu={menu()}
-            chatItems={chatItems(menu().botId)}
-            onClose={() => setContextMenu(null)}
-            onRename={startRename}
-            onEdit={props.onEditBot}
-            onDelete={setDeleteTargetId}
-            onCall={(id) => {
-              props.onSelectBot(id);
-              requestCall(id);
-            }}
-          />
-        )}
-      </Show>
-
-      <Show when={deleteTarget()}>
-        {(bot) => (
-          <DeleteAgentDialog
-            bot={bot()}
-            deleting={deleting()}
-            error={deleteError()}
-            onCancel={() => setDeleteTargetId(null)}
-            onConfirm={() => void confirmDelete()}
-          />
-        )}
-      </Show>
-      {props.children}
-      <VoiceSettingsHost />
-    </aside>
+        <Show when={deleteTarget()}>
+          {(bot) => (
+            <DeleteAgentDialog
+              bot={bot()}
+              deleting={deleting()}
+              error={deleteError()}
+              onCancel={() => setDeleteTargetId(null)}
+              onConfirm={() => void confirmDelete()}
+            />
+          )}
+        </Show>
+        {props.children}
+        <VoiceSettingsHost />
+      </aside>
+    </>
   );
 }

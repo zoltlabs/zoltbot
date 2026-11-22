@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import { t } from "../../i18n";
 import { MapIcon, ModelsIcon, TasksIcon } from "../SidebarIcons";
 
-function MemoryIcon() {
+export function MemoryIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <path
@@ -15,7 +15,7 @@ function MemoryIcon() {
   );
 }
 
-function UsageIcon() {
+export function UsageIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <path
@@ -27,7 +27,7 @@ function UsageIcon() {
   );
 }
 
-function RoutinesIcon() {
+export function RoutinesIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <circle cx="10" cy="10" r="6.5" stroke-width="1.4" />
@@ -36,7 +36,7 @@ function RoutinesIcon() {
   );
 }
 
-function VaultIcon() {
+export function VaultIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <circle cx="7" cy="10" r="3.5" stroke-width="1.4" />
@@ -45,7 +45,7 @@ function VaultIcon() {
   );
 }
 
-function DataIcon() {
+export function DataIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="size-4 fill-none stroke-current">
       <ellipse cx="10" cy="5" rx="6" ry="2.5" stroke-width="1.4" />
@@ -57,7 +57,7 @@ function DataIcon() {
   );
 }
 
-export function SidebarViews(props: {
+export interface SidebarViewsProps {
   mapOpen: boolean;
   tasksOpen: boolean;
   modelsOpen?: boolean;
@@ -78,7 +78,9 @@ export function SidebarViews(props: {
   onOpenRoutines?: (() => void) | undefined;
   onOpenVault?: (() => void) | undefined;
   onOpenData?: (() => void) | undefined;
-}) {
+}
+
+export function SidebarViews(props: SidebarViewsProps) {
   return (
     <div class="sidebar-views">
       <button

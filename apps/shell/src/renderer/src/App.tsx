@@ -67,6 +67,7 @@ import { VaultPage } from "./components/vault/VaultPage";
 import type { BotProfile } from "./data";
 import { OPEN_DOCUMENT_EVENT, type OpenDocumentDetail } from "./documents/ArtifactTools";
 import { SidebarDocuments } from "./documents/SidebarDocuments";
+import { sidebarRail } from "./labs/sidebar-rail";
 import { createMemoryStore } from "./memory-store";
 import { CHAT_ROUTE, createPages, PAGES, pageFlag } from "./pages";
 import { paletteItems } from "./palette-items";
@@ -865,7 +866,10 @@ export function App() {
       >
         <div
           class="app-frame"
-          classList={{ "app-frame-sidebar-collapsed": leftPanelCollapsed() }}
+          classList={{
+            "app-frame-sidebar-collapsed": leftPanelCollapsed(),
+            "app-frame-rail": sidebarRail(),
+          }}
           style={`--left-panel-width: ${leftPanelCollapsed() ? 0 : leftPanelWidth()}px`}
         >
           <NavButtons
@@ -875,8 +879,10 @@ export function App() {
             onForward={history.forward}
           />
           <UpdatePill status={updateStatus()} onRestart={() => void runUpdateAction()} />
-          <Show when={!leftPanelCollapsed()}>
+          <Show when={!leftPanelCollapsed() || sidebarRail()}>
             <Sidebar
+              rail={sidebarRail()}
+              listHidden={leftPanelCollapsed()}
               bots={botList()}
               tasks={tasks.tasks()}
               staffApprovals={staff.approvals().length}

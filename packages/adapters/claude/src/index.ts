@@ -4,6 +4,7 @@ import path from "node:path";
 import { type AgentAdapter, NativeWriters, type OpenOptions } from "@zoltbot/adapters-sdk";
 import type { AgentDefinition, NativeSessionInfo } from "@zoltbot/protocol";
 import type { ClaudeHost } from "./host.js";
+import { claudeListModels } from "./model-list.js";
 import { listClaudeSessions } from "./native-sessions.js";
 import { ClaudeSession } from "./session.js";
 
@@ -59,6 +60,13 @@ export class ClaudeAdapter implements AgentAdapter {
       definition.launch.env.CLAUDE_CONFIG_DIR ??
       path.join(definition.launch.env.HOME ?? homedir(), ".claude");
     return listClaudeSessions(root);
+  }
+  async listModels(definition: AgentDefinition) {
+    const probe = await this.probe(definition);
+    if (!probe.installed) throw new Error("binary_not_found");
+    if (probe.broken) throw new Error("binary_broken");
+    if (probe.login === "signed_out") throw new Error("auth_required");
+    return claudeListModels(this.host, definition, this.timeoutMs);
   }
   async open(definition: AgentDefinition, options: OpenOptions) {
     if (options.mode !== "new" && !options.nativeId && !options.fork?.sourceNativeId)
