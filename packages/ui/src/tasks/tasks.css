@@ -50,6 +50,7 @@
   display: flex;
   align-items: start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--zb-space-3);
 }
 .task-title {
@@ -86,7 +87,7 @@
 .task-feedback,
 .task-form {
   display: grid;
-  gap: var(--zb-space-2);
+  gap: var(--zb-space-3);
 }
 .task-form {
   padding: var(--zb-space-4);
@@ -103,7 +104,7 @@
 }
 .task-form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: var(--zb-space-3);
 }
 .task-form-row > div {
@@ -133,6 +134,29 @@
   align-items: center;
   gap: var(--zb-space-2);
   cursor: pointer;
+}
+
+.task-title {
+  flex: 1 1 12rem;
+}
+.task-title p {
+  margin-block-start: var(--zb-space-1);
+}
+.task-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zb-space-2);
+}
+.task-card .task-actions {
+  margin-block-start: var(--zb-space-1);
+}
+.task-card :is(.btn, .zb-button),
+.task-form :is(.btn, .zb-button) {
+  height: auto;
+  min-height: var(--zb-control-md);
+  max-width: 100%;
+  white-space: normal;
 }
 
 .task-card-footer {

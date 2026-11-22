@@ -33,7 +33,7 @@ export function TokenMeter({ used, budget }: { used: number; budget: number }) {
 export function SessionInputsPanel(props: ContextSectionProps) {
   return (
     <details className="zb-card session-inputs">
-      <summary>Session inputs · {contextLabels[props.mode]}</summary>
+      <summary>Session inputs{props.mode === "frozen" ? " · Since start" : ""}</summary>
       <p className="dim sm">Inputs are fixed when the native session starts.</p>
       {[...sections.values()]
         .sort((a, b) => a.id.localeCompare(b.id))
