@@ -79,3 +79,34 @@ it("keeps agents that share an adapter apart", () => {
   ]);
   expect(items.find((item) => item.definitionId === "antigravity")?.models).toEqual([]);
 });
+
+it("falls back to listed models until a session reports its own", () => {
+  const listed = new Map([
+    ["claude", { list: [{ id: "listed", name: "Listed" }], effort: ["low"] }],
+    ["codex", { list: [{ id: "gpt", name: "GPT" }], effort: ["medium"] }],
+  ]);
+  const items = modelCatalog(
+    {
+      agentDefinition: [
+        { id: "claude", adapter: "claude" },
+        { id: "codex", adapter: "codex" },
+      ],
+      agent: [{ id: "a1", definitionId: "claude" }],
+      thread: [{ id: "t1", agentId: "a1" }],
+      session: [
+        session("s", "t1", "claude", "2026-11-02T00:00:00.000Z", [{ id: "opus", name: "Opus" }]),
+      ],
+    } as never,
+    listed,
+  ).items;
+  expect(items.find((item) => item.definitionId === "claude")?.models).toEqual([
+    { id: "opus", name: "Opus" },
+  ]);
+  expect(items.find((item) => item.definitionId === "codex")).toEqual({
+    definitionId: "codex",
+    adapter: "codex",
+    selectable: true,
+    models: [{ id: "gpt", name: "GPT" }],
+    effort: ["medium"],
+  });
+});

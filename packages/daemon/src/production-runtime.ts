@@ -22,7 +22,7 @@ import { isChief } from "./chief/identity.js";
 import { connectionsRuntime } from "./connections-runtime.js";
 import { CuaRuntime } from "./cua/runtime.js";
 import { knowledgeLaunch } from "./knowledge-launch.js";
-import type { Redactor } from "./logging.js";
+import { Redactor } from "./logging.js";
 import type { providerHosts } from "./provider-hosts.js";
 import { skillsRuntime } from "./skills-runtime.js";
 
@@ -396,6 +396,14 @@ export function productionRuntime(
       const value = await hosts.definition(account(definitionId, configDirectory));
       const { login } = await hosts.probe(value);
       return login === "signed_in" || login === "signed_out" ? login : "unknown";
+    },
+    async listModels(definitionId) {
+      if (closed) throw new Error("runtime_closed");
+      const { hosts } = await load();
+      const value = await hosts.definition(account(definitionId));
+      const adapter = hosts.adapters(new Redactor()).get(value.adapter);
+      if (!adapter?.listModels) throw new Error("model_list_unavailable");
+      return adapter.listModels(value);
     },
     async close() {
       closed = true;

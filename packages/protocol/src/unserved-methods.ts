@@ -34,7 +34,6 @@ export const unservedMethods: readonly MethodName[] = [
   "routing.rules.set",
   "task.update",
   "task.checkpoints",
-  "model.refresh",
   "model.localServers",
   "workspace.list",
   "workspace.diff",

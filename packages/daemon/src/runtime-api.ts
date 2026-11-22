@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ModelList } from "@zoltbot/adapters-sdk";
 import {
   cancelQueuedInput,
   type DomainState,
@@ -34,9 +35,34 @@ export function runtimeApi(options: {
   store: Store;
   manager?: SessionManager;
   publish(events: DomainEvent[]): void;
+  /** Asks a definition's provider for its models without opening a session. */
+  listModels?(definitionId: string): Promise<ModelList>;
   onError?(code: string): void;
 }) {
   let controls: ReturnType<typeof sessionCommands> | undefined;
+  // What model.refresh last listed per definition, for definitions no session has reported yet.
+  const listed = new Map<string, ModelList>();
+  const listing = new Map<string, Promise<boolean>>();
+  const refresh = (definitionId: string) => {
+    const listModels = options.listModels;
+    if (!listModels) return Promise.resolve(false);
+    let work = listing.get(definitionId);
+    if (!work) {
+      work = listModels(definitionId)
+        .then((models) => {
+          listed.set(definitionId, models);
+          return true;
+        })
+        .catch((error: unknown) => {
+          const code = error instanceof Error ? error.message : "model_list_failed";
+          if (code !== "model_list_unavailable") options.onError?.(`model_refresh_failed:${code}`);
+          return false;
+        })
+        .finally(() => listing.delete(definitionId));
+      listing.set(definitionId, work);
+    }
+    return work;
+  };
   return (
     method: string,
     params: Record<string, unknown>,
@@ -101,7 +127,18 @@ export function runtimeApi(options: {
         ? { ok: true, delivery: receipt.result.delivery }
         : { ok: true };
     }
-    if (method === "model.catalog") return modelCatalog(options.store.snapshot());
+    if (method === "model.catalog") return modelCatalog(options.store.snapshot(), listed);
+    if (method === "model.refresh") {
+      const ids =
+        typeof params.definitionId === "string"
+          ? [params.definitionId]
+          : (options.store.snapshot(["agentDefinition"]).agentDefinition ?? [])
+              .filter((row) => row.archived !== true)
+              .map((row) => String(row.id));
+      return Promise.all(ids.map(refresh)).then((results) => ({
+        ok: results.length > 0 && results.every(Boolean),
+      }));
+    }
     const manager = options.manager;
     if (method === "session.context")
       return (manager?.contextUsage(String(params.threadId)) ?? Promise.resolve(null)).then(
