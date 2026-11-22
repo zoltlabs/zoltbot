@@ -67,32 +67,15 @@
               {
                 "fontFamily": "Geist",
                 "fontDefinitions": [
-                  {
-                    "path": "./assets/fonts/geist-400.ttf",
-                    "weight": 400
-                  },
-                  {
-                    "path": "./assets/fonts/geist-500.ttf",
-                    "weight": 500
-                  },
-                  {
-                    "path": "./assets/fonts/geist-600.ttf",
-                    "weight": 600
-                  },
-                  {
-                    "path": "./assets/fonts/geist-700.ttf",
-                    "weight": 700
-                  }
+                  { "path": "./assets/fonts/geist-400.ttf", "weight": 400 },
+                  { "path": "./assets/fonts/geist-500.ttf", "weight": 500 },
+                  { "path": "./assets/fonts/geist-600.ttf", "weight": 600 },
+                  { "path": "./assets/fonts/geist-700.ttf", "weight": 700 }
                 ]
               },
               {
                 "fontFamily": "Geist Mono",
-                "fontDefinitions": [
-                  {
-                    "path": "./assets/fonts/geist-mono.ttf",
-                    "weight": 400
-                  }
-                ]
+                "fontDefinitions": [{ "path": "./assets/fonts/geist-mono.ttf", "weight": 400 }]
               }
             ]
           }
