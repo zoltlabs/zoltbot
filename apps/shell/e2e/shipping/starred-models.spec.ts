@@ -24,7 +24,9 @@ test("the model picker searches, stars and lists starred models first", async ({
     await composer.click();
     await composer.pressSequentially("Hello");
     await composer.press("Enter");
-    await expect(first.getByText("First answer")).toBeVisible({ timeout: 15_000 });
+    await expect(first.getByLabel("Conversation").getByText("First answer")).toBeVisible({
+      timeout: 15_000,
+    });
     // The fixture's tool counts as installed, so its models can be chosen.
     (shell.service as unknown as { agentChecks: Map<string, unknown> }).agentChecks = new Map([
       ["fake", { install: { selected: { path: "/bin/fake", version: "1.0.0" } } }],

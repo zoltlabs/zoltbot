@@ -22,7 +22,9 @@ test("Add free models appends the catalog's free models to the backup order", as
     await composer.click();
     await composer.pressSequentially("Hello");
     await composer.press("Enter");
-    await expect(page.getByText("First answer")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Conversation").getByText("First answer")).toBeVisible({
+      timeout: 15_000,
+    });
     expect(bot.id).toBeTruthy();
 
     await page.getByRole("button", { name: "Models", exact: true }).click();
