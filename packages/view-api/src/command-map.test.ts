@@ -4,123 +4,85 @@ import vm from "node:vm";
 import { expect, it } from "vitest";
 import type { Chat } from "./topics.js";
 
-it("packs workspaces, shares bases, filters settled and old chats, and retains all active states", () => {
-  const window = {} as {
-    commandMapLayout: (
+const viewFolder = new URL("../../views/command-map/", import.meta.url);
+
+function loadScripts(...names: string[]) {
+  const window = { CommandMap: {} } as {
+    CommandMap: {
+      skin: { sounds: Record<string, unknown> };
+      unitState(chat: Partial<Chat>): { state: string; problem: boolean };
+      waited(since: number, now: number): { short: string; long: string };
+      waitingSince(chat: Partial<Chat>, requests: { chatId: string; createdAt: string }[]): number;
+      statusLabels: Record<string, string>;
+    };
+    commandMapSaved(input: unknown): { presets: string[]; sound?: boolean };
+    commandMapLayout(
       chats: Partial<Chat>[],
       workspaces: { id: string; name: string }[],
-      positions?: object,
       now?: number,
-    ) => {
-      regions: { id: string; x: number; z: number }[];
-      units: { chat: Partial<Chat> }[];
-      bases: { id: string }[];
+    ): {
+      cities: { id: string; name: string; q: number; r: number }[];
+      districts: { id: string; city: string; q: number; r: number }[];
+      units: { chat: Partial<Chat>; city: string; q: number; r: number }[];
+      land: { city: string; q: number; r: number }[];
     };
   };
-  vm.runInNewContext(
-    readFileSync(new URL("../../views/command-map/layout.js", import.meta.url), "utf8"),
-    { window },
-  );
-  const now = Date.parse("2026-01-02T12:00:00Z"),
-    updatedAt = new Date(now).toISOString();
-  const chats: Partial<Chat>[] = ["needs_you", "working", "review", "later", "settled", "idle"].map(
-    (status, index) => ({
-      id: String(index),
-      title: status,
-      status: status as Chat["status"],
-      workspaceId: "project",
-      worktree: { id: "shared", kind: "folder" },
-      updatedAt,
-    }),
-  );
-  chats.push(
-    { id: "old", status: "idle", updatedAt: "2025-01-01T00:00:00Z" },
-    { id: "other", status: "working", updatedAt },
-  );
-  const layout = window.commandMapLayout(
-    chats,
-    [{ id: "project", name: "Example" }],
-    { project: { x: 20, z: 30 } },
-    now,
-  );
-  expect(layout.units.map((unit) => unit.chat.id).sort()).toEqual([
-    "0",
-    "1",
-    "2",
-    "3",
-    "5",
-    "other",
-  ]);
-  expect(layout.bases).toHaveLength(1);
-  expect(layout.bases[0]?.id).toBe("shared");
-  expect(layout.regions.find((region) => region.id === "project")).toMatchObject({ x: 20, z: 30 });
-  expect(layout.regions.some((region) => region.id === "other")).toBe(true);
-});
-it("loads bounded saved layout, groups and editable presets without accepting malformed state", () => {
-  const window = {} as {
-    commandMapSaved(input: unknown): {
-      regions: Record<string, { x: number; z: number }>;
-      groups: Record<string, string[]>;
-      presets: string[];
-    };
-  };
-  vm.runInNewContext(
-    readFileSync(new URL("../../views/command-map/panels.js", import.meta.url), "utf8"),
-    { window },
-  );
-  expect(window.commandMapSaved(null)).toEqual({
-    regions: {},
-    groups: {},
-    presets: ["Rebase on main", "Run the tests"],
-  });
-  const saved = window.commandMapSaved({
-    regions: { valid: { x: -10, z: 200 }, invalid: { x: Infinity, z: 0 } },
-    groups: { 1: ["chat", "chat", 2] },
-    presets: ["Check the working tree", "Run unit tests"],
-  });
-  expect(saved).toEqual({
-    regions: { valid: { x: -10, z: 200 } },
-    groups: { 1: ["chat"] },
-    presets: ["Check the working tree", "Run unit tests"],
-  });
-});
-
-const viewFolder = new URL("../../views/command-map/", import.meta.url);
-function loadScripts(...names: string[]) {
-  const window = {} as Record<string, unknown> & { CommandMap: Record<string, never> };
   for (const name of names)
     vm.runInNewContext(readFileSync(new URL(name, viewFolder), "utf8"), { window });
-  return window.CommandMap as unknown as {
-    skin: {
-      palettes: Record<string, Record<string, unknown>>;
-      quality: Record<string, Record<string, unknown>> & { slowMs: number; sampleFrames: number };
-      builders: Record<string, string>;
-      sounds: Record<string, unknown>;
-    };
-    unitState(chat: Partial<Chat>): { state: string; problem: boolean };
-    waited(since: number, now: number): { short: string; long: string };
-    waitingSince(chat: Partial<Chat>, requests: { chatId: string; createdAt: string }[]): number;
-    statusLabels: Record<string, string>;
-    Quality: new (
-      skin: unknown,
-      renderer: unknown,
-      onChange: (level: string) => void,
-    ) => {
-      level: string;
-      choose(choice: string): void;
-      measure(elapsed: number, continuous: boolean): void;
-    };
-  };
+  return window;
 }
-const renderer = (name: string) => ({
-  getContext: () => ({
-    getExtension: () => ({ UNMASKED_RENDERER_WEBGL: 1 }),
-    getParameter: () => name,
-  }),
+
+it("groups chats by city, shares worktree districts, and keeps active chats visible", () => {
+  const { commandMapLayout } = loadScripts("layout.js");
+  const now = Date.parse("2026-01-02T12:00:00Z");
+  const updatedAt = new Date(now).toISOString();
+  const statuses = ["needs_you", "working", "review", "later", "settled", "idle"] as const;
+  const chats: Partial<Chat>[] = statuses.map((status) => ({
+    id: status,
+    status,
+    workspaceId: "project",
+    worktree: { id: "shared", kind: "folder" },
+    updatedAt,
+  }));
+  chats.push(
+    { id: "old-idle", status: "idle", updatedAt: "2025-01-01T00:00:00Z" },
+    { id: "old-working", status: "working", updatedAt: "2025-01-01T00:00:00Z" },
+  );
+  const layout = commandMapLayout(chats, [{ id: "project", name: "Example" }], now);
+  expect(layout.units.map(({ chat }) => chat.id).sort()).toEqual([
+    "idle",
+    "later",
+    "needs_you",
+    "old-working",
+    "review",
+    "working",
+  ]);
+  expect(layout.districts).toMatchObject([{ id: "shared", city: "project" }]);
+  expect(layout.cities).toMatchObject([
+    { id: "other", name: "Other" },
+    { id: "project", name: "Example" },
+  ]);
+});
+
+it("loads bounded saved messages and enables sound only when explicitly saved", () => {
+  const { commandMapSaved, CommandMap } = loadScripts("skin.js", "requests.js");
+  expect(commandMapSaved(null)).toEqual({
+    presets: ["Rebase on main", "Run the tests"],
+    sound: undefined,
+  });
+  expect(commandMapSaved({ presets: [null, " ", "x".repeat(8001)], sound: "yes" })).toEqual(
+    commandMapSaved(null),
+  );
+  const messages = Array.from({ length: 8 }, (_, index) => `Send message ${index}`);
+  expect(commandMapSaved({ presets: messages, sound: true })).toEqual({
+    presets: messages.slice(0, 6),
+    sound: true,
+  });
+  expect(Object.keys(CommandMap.skin.sounds).sort()).toEqual(["failed", "finished", "needsYou"]);
 });
 
 it("gives every chat status a distinct map state and a text label", () => {
-  const map = loadScripts("states.js");
+  const { CommandMap: map } = loadScripts("states.js");
   const states = (["needs_you", "working", "review", "later", "idle"] as const).map(
     (status) => map.unitState({ status }).state,
   );
@@ -135,7 +97,7 @@ it("gives every chat status a distinct map state and a text label", () => {
   expect(map.unitState({ status: "working" }).problem).toBe(false);
 });
 it("reports how long a chat has waited from its oldest request", () => {
-  const map = loadScripts("states.js"),
+  const { CommandMap: map } = loadScripts("states.js"),
     now = Date.parse("2026-01-02T12:00:00Z");
   const chat = { id: "a", updatedAt: "2026-01-02T11:58:00Z" };
   expect(map.waitingSince(chat, [])).toBe(Date.parse(chat.updatedAt));
@@ -149,111 +111,26 @@ it("reports how long a chat has waited from its oldest request", () => {
   expect(map.waited(now - 3 * 3600000, now)).toEqual({ short: "3 h", long: "3 hours" });
   expect(map.waited(now - 49 * 3600000, now).short).toBe("2 d");
 });
-it("starts at the low graphics level on a software renderer and steps down when frames are slow", () => {
-  const map = loadScripts("skin.js", "quality.js"),
-    changes: string[] = [];
-  expect(new map.Quality(map.skin, renderer("Google SwiftShader"), () => {}).level).toBe("low");
-  const quality = new map.Quality(map.skin, renderer("Apple M2"), (level) => changes.push(level));
-  expect(quality.level).toBe("high");
-  const frames = (ms: number, count: number, continuous = true) => {
-    for (let index = 0; index < count; index++) quality.measure(ms, continuous);
-  };
-  frames(8, 200);
-  frames(500, 200, false); // pauses between idle frames are not slow frames
-  expect(changes).toEqual([]);
-  frames(40, 12 + map.skin.quality.sampleFrames);
-  expect(changes).toEqual(["medium"]);
-  frames(40, 12 + map.skin.quality.sampleFrames);
-  expect(changes).toEqual(["medium", "low"]);
-  frames(40, 200);
-  expect(changes).toEqual(["medium", "low"]);
-  quality.choose("high"); // the owner's choice wins and is not stepped down
-  frames(40, 200);
-  expect(quality.level).toBe("high");
-  quality.choose("auto");
-  expect(quality.level).toBe("high");
-});
-it("turns off depth of field and ambient occlusion first, then shadows and bloom", () => {
-  const { quality } = loadScripts("skin.js").skin;
-  expect(quality.high).toMatchObject({
-    depthOfField: true,
-    ambientOcclusion: true,
-    shadows: true,
-    bloom: true,
-  });
-  expect(quality.medium).toMatchObject({
-    depthOfField: false,
-    ambientOcclusion: false,
-    shadows: true,
-    bloom: true,
-  });
-  expect(quality.low).toMatchObject({
-    depthOfField: false,
-    ambientOcclusion: false,
-    shadows: false,
-    bloom: false,
-  });
-});
-it("keeps day and night palettes in step and sound off unless saved on", () => {
-  const { skin } = loadScripts("skin.js");
-  expect(Object.keys(skin.palettes.day ?? {}).sort()).toEqual(
-    Object.keys(skin.palettes.night ?? {}).sort(),
-  );
-  expect(Object.keys(skin.sounds).sort()).toEqual(["failed", "finished", "needsYou"]);
-  const window = {} as { commandMapSaved(input: unknown): { sound?: boolean; quality?: string } };
-  vm.runInNewContext(readFileSync(new URL("panels.js", viewFolder), "utf8"), { window });
-  expect(window.commandMapSaved({}).sound).toBeUndefined();
-  expect(window.commandMapSaved({ sound: "yes", quality: "ultra" })).toMatchObject({
-    sound: undefined,
-    quality: undefined,
-  });
-  expect(window.commandMapSaved({ sound: true, quality: "medium" })).toMatchObject({
-    sound: true,
-    quality: "medium",
-  });
-});
-it("places 200 chats without overlap, inside their regions, with regions apart", () => {
-  const window = {} as {
-    commandMapLayout: (
-      chats: Partial<Chat>[],
-      workspaces: { id: string; name: string }[],
-    ) => {
-      regions: { id: string; x: number; z: number; w: number; d: number }[];
-      units: { region: string; x: number; z: number }[];
-    };
-  };
-  vm.runInNewContext(readFileSync(new URL("layout.js", viewFolder), "utf8"), { window });
-  const updatedAt = new Date().toISOString();
+it("places 200 chats in separate hexes on land owned by their cities", () => {
+  const { commandMapLayout } = loadScripts("layout.js");
   const chats: Partial<Chat>[] = Array.from({ length: 200 }, (_, index) => ({
     id: `chat-${index}`,
     status: "working",
     workspaceId: `space-${index % 7}`,
     ...(index % 5 ? { worktree: { id: `tree-${index % 23}`, kind: "worktree" as const } } : {}),
-    updatedAt,
   }));
-  const layout = window.commandMapLayout(
+  const layout = commandMapLayout(
     chats,
     Array.from({ length: 7 }, (_, index) => ({ id: `space-${index}`, name: `Space ${index}` })),
   );
+  const key = ({ q, r }: { q: number; r: number }) => `${q}:${r}`;
+  const land = new Map(layout.land.map((tile) => [key(tile), tile.city]));
+  const occupants = [...layout.cities, ...layout.districts, ...layout.units];
   expect(layout.units).toHaveLength(200);
-  expect(
-    new Set(layout.units.map((unit) => `${unit.x.toFixed(2)}:${unit.z.toFixed(2)}`)).size,
-  ).toBe(200);
-  for (const unit of layout.units) {
-    const region = layout.regions.find((item) => item.id === unit.region);
-    expect(region).toBeDefined();
-    if (!region) continue;
-    expect(unit.x).toBeGreaterThan(region.x);
-    expect(unit.x).toBeLessThan(region.x + region.w);
-    expect(unit.z).toBeGreaterThan(region.z);
-    expect(unit.z).toBeLessThan(region.z + region.d);
-  }
-  for (const a of layout.regions)
-    for (const b of layout.regions)
-      if (a !== b)
-        expect(a.x + a.w <= b.x || b.x + b.w <= a.x || a.z + a.d <= b.z || b.z + b.d <= a.z).toBe(
-          true,
-        );
+  expect(new Set(occupants.map(key)).size).toBe(occupants.length);
+  expect(land.size).toBe(layout.land.length);
+  for (const piece of [...layout.units, ...layout.districts])
+    expect(land.get(key(piece))).toBe(piece.city);
 });
 it("ships a readable folder under 5 MB that loads nothing from the network", () => {
   const files = readdirSync(viewFolder, { recursive: true, withFileTypes: true }).filter((entry) =>

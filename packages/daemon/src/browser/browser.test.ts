@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import { handle } from "@zoltbot/core";
 import { parseEvent } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
@@ -280,12 +281,11 @@ it("quotes launcher paths without relying on developer Node and rejects symlink 
     mkdirSync(special);
     const binding = browserBinding(special, special, { mode: "background" });
     materializeBrowser(binding);
-    expect(
-      execFileSync(binding.launcher, ["--version"], {
-        env: { PATH: "/usr/bin:/bin" },
-        encoding: "utf8",
-      }),
-    ).toContain("0.1.23");
+    const { stdout } = await promisify(execFile)("/bin/sh", [binding.launcher, "--version"], {
+      env: { PATH: "/usr/bin:/bin" },
+      timeout: 10_000,
+    });
+    expect(stdout).toContain("0.1.23");
     const cwd = path.join(f.root, "task");
     const outside = path.join(f.root, "outside");
     mkdirSync(cwd);
