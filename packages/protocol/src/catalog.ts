@@ -400,8 +400,9 @@ const rawMethodCatalog = {
     object({ pins: Type.Array(object({ itemId: Id, pinnedAt: Type.String() }), { maxItems: 50 }) }),
   ),
   /**
-   * C16: a file or picture the owner sent, read from this Mac for the phone, up to 5 MB. `data` is
-   * text for text kinds and base64 for pictures, in pieces that fit one link frame: call again
+   * C16: a file or picture the owner sent, read from this Mac for the phone, up to 5 MB, or a PDF up
+   * to 25 MB or a video up to 50 MB. `data` is text for text and SVG kinds and base64 for pictures,
+   * PDFs and videos, in pieces that fit one link frame: call again
    * with `offset: next` and the same `stamp` until `next` is null. Fails with
    * attachment_preview_unavailable, attachment_preview_too_large or attachment_changed.
    */
@@ -414,7 +415,7 @@ const rawMethodCatalog = {
       stamp: OptionalText,
     }),
     object({
-      kind: values(["image", "text", "csv", "tsv", "markdown", "zip"]),
+      kind: values(["image", "svg", "text", "csv", "tsv", "markdown", "zip", "pdf", "video"]),
       name: Text,
       mime: Text,
       size: Type.Integer({ minimum: 0 }),

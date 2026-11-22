@@ -1,9 +1,13 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, it } from "vitest";
 import { forkFixture } from "../../../tools/fakes/src/fork-fixture.js";
-import { attachmentPreviewApi, PHONE_PREVIEW_BYTES } from "./attachment-preview-api.js";
+import {
+  attachmentPreviewApi,
+  PHONE_PREVIEW_BYTES,
+  STREAMED_BYTES,
+} from "./attachment-preview-api.js";
 
 type Preview = {
   kind: string;
@@ -231,6 +235,65 @@ it("lists a ZIP of any size from its index, without unpacking it", async () => {
       files: 1,
       unpacked: 2048,
     });
+  } finally {
+    await f.done();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+it("returns SVG as text, and a PDF in base64 pieces read from disk that join back", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "attachment-src-"));
+  const svg = path.join(dir, "chart.svg");
+  const pdf = path.join(dir, "report.pdf");
+  await writeFile(
+    svg,
+    '<svg xmlns="http://www.w3.org/2000/svg"><rect width="4" height="4"/></svg>',
+  );
+  const bytes = Buffer.alloc(1_000_003);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31) % 256;
+  await writeFile(pdf, bytes);
+  const f = await fixture(
+    [
+      { type: "file", path: svg },
+      { type: "file", path: pdf },
+    ],
+    undefined,
+    dir,
+  );
+  try {
+    const drawing = await f.preview(0);
+    expect(drawing).toMatchObject({ kind: "svg", next: null });
+    expect(drawing.data).toContain("<rect");
+    let piece = await f.preview(1);
+    expect(piece).toMatchObject({ kind: "pdf", size: bytes.length });
+    const pieces = [piece.data];
+    while (piece.next !== null) {
+      expect(piece.data.length % 4).toBe(0);
+      piece = await f.preview(1, { offset: piece.next, stamp: piece.stamp });
+      pieces.push(piece.data);
+    }
+    expect(pieces.length).toBeGreaterThan(1);
+    // Each piece decodes alone, as the phone appends them to a file one at a time.
+    expect(Buffer.concat(pieces.map((p) => Buffer.from(p, "base64")))).toEqual(bytes);
+    await expect(f.preview(1, { offset: 3 })).rejects.toThrow("attachment_changed");
+    await writeFile(pdf, "changed");
+    await expect(f.preview(1, { offset: 0, stamp: piece.stamp })).rejects.toThrow(
+      "attachment_changed",
+    );
+  } finally {
+    await f.done();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+it("refuses a video over its cap without reading it", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "attachment-src-"));
+  const video = path.join(dir, "screen.mp4");
+  await writeFile(video, "");
+  await truncate(video, (STREAMED_BYTES.video ?? 0) + 1);
+  const f = await fixture([{ type: "file", path: video }], undefined, dir);
+  try {
+    await expect(f.preview(0)).rejects.toThrow("attachment_preview_too_large");
   } finally {
     await f.done();
     await rm(dir, { recursive: true, force: true });

@@ -2,11 +2,15 @@ import { DELIMITED_PREVIEW_ROWS, type DelimitedPreview, type ZipListing } from "
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
+import { SvgXml } from "react-native-svg";
 import {
   type AttachmentPreview,
   loadAttachmentPreview,
   previewProblem,
+  type SavedPreview,
 } from "../../data/attachment-preview";
+import { openSaved, saveToCache } from "../../data/preview-file";
+import { sanitizeSvg, svgRatio } from "../../data/svg-preview";
 import { useClient, useLink } from "../../state/link";
 import { mono, useTheme } from "../../theme";
 import { DetailScreen } from "../../ui/DetailScreen";
@@ -125,6 +129,44 @@ function Picture({ uri, name }: { uri: string; name: string }) {
   );
 }
 
+function Drawing({ xml, name }: { xml: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const clean = sanitizeSvg(xml);
+  if (failed) return <Txt>Can't show this drawing. Open it on your Mac.</Txt>;
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={name}
+      style={{ width: "100%", aspectRatio: svgRatio(clean) }}
+    >
+      <SvgXml xml={clean} width="100%" height="100%" onError={() => setFailed(true)} />
+    </View>
+  );
+}
+
+/** A PDF or video saved on the phone, opened in Quick Look or the app Android picks. */
+function Saved({ preview }: { preview: SavedPreview }) {
+  const [cannot, setCannot] = useState(false);
+  const open = () =>
+    openSaved(preview.uri, preview.name, preview.mime).then(
+      (opened) => setCannot(!opened),
+      () => setCannot(true),
+    );
+  // The owner tapped this file to see it, so open it once it's here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: opens once per file.
+  useEffect(() => {
+    void open();
+  }, [preview.uri]);
+  return (
+    <View style={{ gap: 12, alignItems: "flex-start" }}>
+      <Txt tone="secondary">{size(preview.size)}</Txt>
+      {cannot ? <Txt>Nothing on this phone can open this file.</Txt> : null}
+      <Button label={preview.kind === "video" ? "Play" : "Open"} onPress={() => void open()} />
+    </View>
+  );
+}
+
 /** C16: a file or picture the owner sent, read from the Mac. */
 export default function AttachmentScreen() {
   const params = useLocalSearchParams<{ id: string; item: string; part: string; name?: string }>();
@@ -132,18 +174,27 @@ export default function AttachmentScreen() {
   const [preview, setPreview] = useState<AttachmentPreview>();
   const [problem, setProblem] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [share, setShare] = useState<number>();
   useEffect(() => {
     void attempt;
     let live = true;
     setPreview(undefined);
     setProblem("");
+    setShare(undefined);
     const client = useLink.getState().client;
     if (!online || !client) return;
-    loadAttachmentPreview((method, p) => client.getState().call(method, p), {
-      threadId: params.id,
-      itemId: params.item,
-      part: Number(params.part),
-    })
+    loadAttachmentPreview(
+      (method, p) => client.getState().call(method, p),
+      {
+        threadId: params.id,
+        itemId: params.item,
+        part: Number(params.part),
+      },
+      saveToCache,
+      (value) => {
+        if (live) setShare(value);
+      },
+    )
       .then((value) => {
         if (live) setPreview(value);
       })
@@ -167,9 +218,15 @@ export default function AttachmentScreen() {
             ) : null}
           </>
         ) : !preview ? (
-          <Txt tone="secondary">Loading…</Txt>
+          <Txt tone="secondary">
+            {share === undefined ? "Loading…" : `Loading… ${Math.floor(share * 100)}%`}
+          </Txt>
         ) : preview.kind === "image" ? (
           <Picture uri={preview.uri} name={preview.name} />
+        ) : preview.kind === "svg" ? (
+          <Drawing xml={preview.xml} name={preview.name} />
+        ) : preview.kind === "pdf" || preview.kind === "video" ? (
+          <Saved preview={preview} />
         ) : preview.kind === "table" ? (
           <Table table={preview.table} />
         ) : preview.kind === "zip" ? (
