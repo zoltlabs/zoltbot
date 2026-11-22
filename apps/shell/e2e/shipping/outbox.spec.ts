@@ -50,9 +50,11 @@ test("messages written while Zoltbot is unreachable wait, then send once", async
     await composer.click();
     await composer.pressSequentially("Draft the changelog");
     await composer.press("Enter");
+    const first = chat.locator(".message-entry-user", { hasText: "Draft the changelog" });
+    await expect(first.getByText("Waiting to send")).toBeVisible();
+    await expect(composer).toBeEnabled();
     await composer.pressSequentially("Then tag the release");
     await composer.press("Enter");
-    const first = chat.locator(".message-entry-user", { hasText: "Draft the changelog" });
     const second = chat.locator(".message-entry-user", { hasText: "Then tag the release" });
     await expect(first.getByText("Waiting to send")).toBeVisible();
     await expect(second.getByText("Waiting to send")).toBeVisible();
