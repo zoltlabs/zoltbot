@@ -18,6 +18,7 @@ const task = (id: string, extra: Partial<TaskSummary> = {}): TaskSummary => ({
   owner: { profileId: "mira", name: "Mira" },
   teamId: "payments",
   teamName: "Payments",
+  document: null,
   createdAt: new Date(Date.now() - 4 * 60_000).toISOString(),
   updatedAt: new Date().toISOString(),
   ...extra,
@@ -55,6 +56,7 @@ const agent = {
 
 function renderPage() {
   const onOpenChat = vi.fn();
+  const onOpenDocument = vi.fn();
   render(() => {
     const store = createTasksStore();
     return (
@@ -65,10 +67,11 @@ function renderPage() {
         sidebarCollapsed={false}
         onShowSidebar={() => undefined}
         onOpenChat={onOpenChat}
+        onOpenDocument={onOpenDocument}
       />
     );
   });
-  return { onOpenChat };
+  return { onOpenChat, onOpenDocument };
 }
 
 const ADD: StaffCard = {
@@ -119,6 +122,16 @@ describe("TasksPage", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: /Refund endpoint/ }));
     expect(onOpenChat).toHaveBeenCalledWith("Refund endpoint-thread");
+  });
+
+  it("opens a document task's document, where its changes are reviewed", async () => {
+    agent.listTasks.mockResolvedValue([
+      task("Edit 03-storm.md", { state: "review", document: { path: "chapters/03-storm.md" } }),
+    ]);
+    const { onOpenChat, onOpenDocument } = renderPage();
+    await fireEvent.click((await screen.findAllByRole("button", { name: /^Edit 03-storm\.md/ }))[0] as HTMLElement);
+    expect(onOpenDocument).toHaveBeenCalledWith("acme", "chapters/03-storm.md");
+    expect(onOpenChat).not.toHaveBeenCalled();
   });
 
   it("filters by team and owner", async () => {

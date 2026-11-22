@@ -137,6 +137,7 @@ describe("Zoltbot connected desktop shell", () => {
         owner: { profileId: "mira", name: "Mira" },
         teamId: null,
         teamName: "",
+        document: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },

@@ -25,6 +25,7 @@ const task = (id: string, extra: Partial<TaskSummary> = {}): TaskSummary => ({
   owner: { profileId: "mira", name: "Mira" },
   teamId: null,
   teamName: "",
+  document: null,
   createdAt: "2026-11-19T10:00:00.000Z",
   updatedAt: "2026-11-19T10:00:00.000Z",
   ...extra,

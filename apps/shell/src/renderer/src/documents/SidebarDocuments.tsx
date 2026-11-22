@@ -1,8 +1,11 @@
+import { Show } from "solid-js";
 import { t } from "../i18n";
 
 /** The Documents row under a project's heading in the sidebar. */
 export function SidebarDocuments(props: {
   projectName: string;
+  /** Document tasks whose changes wait for review. */
+  ready: number;
   active: boolean;
   onOpen: () => void;
 }) {
@@ -25,6 +28,12 @@ export function SidebarDocuments(props: {
         />
       </svg>
       <span class="sidebar-channel-name">{t("documents.sidebar.name")}</span>
+      <Show when={props.ready > 0}>
+        <span class="sidebar-tasks-count">
+          {props.ready}
+          <span class="sr-only"> {t("documents.sidebar.ready")}</span>
+        </span>
+      </Show>
     </button>
   );
 }

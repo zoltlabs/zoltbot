@@ -26,6 +26,8 @@ interface TasksPageProps {
   sidebarCollapsed: boolean;
   onShowSidebar: () => void;
   onOpenChat: (botId: string) => void;
+  /** Opens a document task's document, where its changes are reviewed. */
+  onOpenDocument: (projectId: string, path: string) => void;
 }
 
 const ALL = "";
@@ -251,7 +253,11 @@ export function TasksPage(props: TasksPageProps) {
                               now={now()}
                               sendingBack={sendingBack() === task.id}
                               feedback={feedback()}
-                              onOpen={() => task.threadId && props.onOpenChat(task.threadId)}
+                              onOpen={() => {
+                                if (task.document && task.projectId)
+                                  props.onOpenDocument(task.projectId, task.document.path);
+                                else if (task.threadId) props.onOpenChat(task.threadId);
+                              }}
                               onAccept={() => accept(task)}
                               onStartSendBack={() => {
                                 setFeedback("");
@@ -300,7 +306,7 @@ function TaskRow(props: TaskRowProps) {
       <button
         type="button"
         class="task-row-open"
-        disabled={!props.task.threadId}
+        disabled={!props.task.threadId && !props.task.document}
         onClick={props.onOpen}
       >
         <span class={`task-dot task-dot-${dotOf(props.task)}`} aria-hidden="true" />

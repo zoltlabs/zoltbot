@@ -1083,6 +1083,7 @@
   "documents.send.consequence": "智能体会直接编辑文件。每处更改在最终确定前都由你审阅。",
   "documents.sidebar.label": "{project} 中的文档",
   "documents.sidebar.name": "文档",
+  "documents.sidebar.ready": "待审阅",
   "documents.editor.placeholder": "开始写作…",
   "documents.editor.text": "文档文本"
 }

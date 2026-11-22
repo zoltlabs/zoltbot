@@ -1083,6 +1083,7 @@
   "documents.send.consequence": "Der Agent bearbeitet die Datei direkt. Du prüfst jede Änderung, bevor sie endgültig ist.",
   "documents.sidebar.label": "Dokumente in {project}",
   "documents.sidebar.name": "Dokumente",
+  "documents.sidebar.ready": "bereit zur Prüfung",
   "documents.editor.placeholder": "Schreib los…",
   "documents.editor.text": "Dokumenttext"
 }

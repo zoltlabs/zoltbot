@@ -1083,6 +1083,7 @@
   "documents.send.consequence": "L’agent modifie directement le fichier. Vous relisez chaque modification avant qu’elle soit définitive.",
   "documents.sidebar.label": "Documents de {project}",
   "documents.sidebar.name": "Documents",
+  "documents.sidebar.ready": "prêts à relire",
   "documents.editor.placeholder": "Commencez à écrire…",
   "documents.editor.text": "Texte du document"
 }

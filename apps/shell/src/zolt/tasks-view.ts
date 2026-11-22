@@ -46,6 +46,7 @@ export function toTaskSummaries(snapshot: Snapshot): TaskSummary[] {
           : null,
         teamId: team ? text(team.id) : null,
         teamName: text(team?.name),
+        document: documentOf(task),
         createdAt: text(task.createdAt),
         updatedAt: text(task.updatedAt) || text(task.createdAt),
       },
@@ -101,4 +102,9 @@ export function taskReason(
 
 function lowerFirst(value: string): string {
   return /^[A-Z][a-z]/.test(value) ? `${value.slice(0, 1).toLowerCase()}${value.slice(1)}` : value;
+}
+
+function documentOf(task: Row): { path: string } | null {
+  const path = text((task.document as Row | undefined)?.path);
+  return path ? { path } : null;
 }

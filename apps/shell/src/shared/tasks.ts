@@ -37,6 +37,8 @@ export interface TaskSummary {
   owner: TaskOwner | null;
   teamId: string | null;
   teamName: string;
+  /** The document a document task edits, relative to the project folder. */
+  document: { path: string } | null;
   createdAt: string;
   updatedAt: string;
 }

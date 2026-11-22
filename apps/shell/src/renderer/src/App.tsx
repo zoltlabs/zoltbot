@@ -910,6 +910,14 @@ export function App() {
                 <>
                   <SidebarDocuments
                     projectName={projectName}
+                    ready={
+                      tasks
+                        .tasks()
+                        .filter(
+                          (task) =>
+                            task.document && task.state === "review" && task.projectId === projectId,
+                        ).length
+                    }
                     active={documentsRoute()?.projectId === projectId}
                     onOpen={() => openDocuments(projectId)}
                   />
@@ -1074,6 +1082,7 @@ export function App() {
               sidebarCollapsed={leftPanelCollapsed()}
               onShowSidebar={() => setSidebarCollapsed(false)}
               onOpenChat={selectBot}
+              onOpenDocument={openDocuments}
             />
           </Show>
           <Show when={channelOpen()}>

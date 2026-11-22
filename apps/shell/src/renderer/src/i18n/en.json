@@ -1083,6 +1083,7 @@
   "documents.send.consequence": "The agent edits the file directly. You review each change before it's final.",
   "documents.sidebar.label": "Documents in {project}",
   "documents.sidebar.name": "Documents",
+  "documents.sidebar.ready": "ready for review",
   "documents.editor.placeholder": "Start writing…",
   "documents.editor.text": "Document text"
 }

@@ -1083,6 +1083,7 @@
   "documents.send.consequence": "エージェントはファイルを直接編集します。各変更は確定前にあなたがレビューします。",
   "documents.sidebar.label": "{project}のドキュメント",
   "documents.sidebar.name": "ドキュメント",
+  "documents.sidebar.ready": "確認待ち",
   "documents.editor.placeholder": "書き始める…",
   "documents.editor.text": "ドキュメントのテキスト"
 }
