@@ -5,10 +5,12 @@ import { type AnswerDraft, approvalAnswer } from "../../data/interactions";
 import { isStaffApproval } from "../../data/staff";
 import { ago, type NeedsYouItem, needsYou, recentlyDone, workingNow } from "../../data/view";
 import { answer, useAction } from "../../state/actions";
+import { useCloud } from "../../state/cloud";
 import { useClient, useSnapshot } from "../../state/link";
 import { mono, useTheme } from "../../theme";
 import { BotAvatar } from "../../ui/BotAvatar";
 import { TabScreen } from "../../ui/chrome";
+import { CloudNeedsYou, useCloudPendingCount } from "../../ui/cloud/NeedsYou";
 import { StaffCard } from "../../ui/interactions/StaffCard";
 import { Button, Card, Chip, Group, styles as kitStyles, Row, Section, Txt } from "../../ui/kit";
 
@@ -184,6 +186,8 @@ function NeedsYouRow({
 
 export default function Overview() {
   const snapshot = useSnapshot();
+  const cloud = useCloud((state) => state.account.configured);
+  const cloudPending = useCloudPendingCount();
   const online = useClient((state) => state.status === "online");
   const items = needsYou(snapshot);
   const approvals = items.filter((item) => item.kind === "approval");
@@ -194,7 +198,7 @@ export default function Overview() {
     <TabScreen title="Activity">
       <Section
         title="Needs you"
-        count={items.length}
+        count={items.length + cloudPending}
         right={
           <Button
             kind="plain"
@@ -207,7 +211,7 @@ export default function Overview() {
       />
       {items.length === 0 ? (
         <Txt tone="muted" style={styles.empty}>
-          Nothing needs you right now.
+          {cloud ? "Nothing needs you on your Mac." : "Nothing needs you right now."}
         </Txt>
       ) : null}
       {approvals.map((item) => {
@@ -225,6 +229,8 @@ export default function Overview() {
           ))}
         </Group>
       ) : null}
+
+      <CloudNeedsYou />
 
       <Section title="Working now" count={working.length} />
       {working.length ? (

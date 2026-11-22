@@ -1,12 +1,10 @@
 import { linkId } from "@zoltbot/link";
 import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { create, useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { type Client, type ClientState, createClient } from "../data/client";
 import { FakeTransport } from "../data/fake";
-import { deviceIdentity, type SecretStore } from "../data/link-store";
 import {
   addMac,
   chooseMac,
@@ -19,20 +17,12 @@ import {
   saveMacs,
   seenMac,
 } from "../data/macs";
+import { nativeLinkKeychain as keychain, nativeDeviceIdentity } from "../data/native-link-store";
 import { type LinkSocket, type PairedMac, RelayTransport, readPairingUrl } from "../data/relay";
 import { sampleMacName } from "../data/sample";
 import { useDrawer } from "./drawer";
 import { usePush } from "./push";
 
-/** The iOS Keychain, readable only by this app and only after the phone was first unlocked. */
-const keychain: SecretStore = {
-  get: (key) => SecureStore.getItemAsync(key),
-  set: (key, value) =>
-    SecureStore.setItemAsync(key, value, {
-      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-    }),
-  remove: (key) => SecureStore.deleteItemAsync(key),
-};
 const socket = (url: string) => new WebSocket(url) as unknown as LinkSocket;
 const relays = new WeakMap<Client, RelayTransport>();
 /** The relay link behind a client, to register push tokens with that Mac's relay. */
@@ -117,7 +107,7 @@ export const useLink = create<LinkState>((set, get) => {
     mac: PairedMac,
     pairing?: ReturnType<typeof readPairingUrl>["pairing"],
   ) => {
-    const identity = await deviceIdentity(keychain);
+    const identity = await nativeDeviceIdentity();
     const transport = new RelayTransport({
       identity,
       mac,
@@ -186,7 +176,7 @@ export const useLink = create<LinkState>((set, get) => {
     clients: {},
     async boot() {
       try {
-        const identity = await deviceIdentity(keychain);
+        const identity = await nativeDeviceIdentity();
         saved = await loadMacs(keychain);
         const clients: Record<string, Client> = {};
         try {

@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCloud } from "../state/cloud";
 import { useClient, useLink } from "../state/link";
 import { mono, sans, useTheme } from "../theme";
 import { dark } from "../theme/tokens.generated";
@@ -38,6 +39,8 @@ export default function Pair() {
   const scanned = useRef(false);
   const { status, confirmCode, error, kind } = useClient((state) => state);
   const macName = useLink((state) => state.macName);
+  const cloud = useCloud((state) => state.account.configured);
+  const signedIn = useCloud((state) => state.account.signedIn);
   // Pairing another Mac: the ones already paired stay, and the sample makes no sense here.
   const another = useLink((state) => state.macs.length > 0 && !state.fake);
 
@@ -225,7 +228,16 @@ export default function Pair() {
         ) : another ? (
           <Button label="Cancel" onPress={() => router.back()} style={styles.big} />
         ) : (
-          <Button label="Try it with sample data" onPress={sample} style={styles.big} />
+          <>
+            {cloud ? (
+              <Button
+                label={signedIn ? "Open Cloud" : "Sign in to Cloud"}
+                onPress={() => router.push(signedIn ? "/cloud-needs-you" : "/cloud-account")}
+                style={styles.big}
+              />
+            ) : null}
+            <Button label="Try it with sample data" onPress={sample} style={styles.big} />
+          </>
         )}
       </View>
     </ScrollView>

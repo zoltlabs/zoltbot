@@ -4,6 +4,7 @@ import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { View } from "react-native";
 import { startAppLock, useAppLock } from "../state/app-lock";
+import { startCloud } from "../state/cloud";
 import { useLink } from "../state/link";
 import { startLiveActivity } from "../state/live-activity";
 import { startNotificationActions } from "../state/notifications";
@@ -27,6 +28,7 @@ export default function RootLayout() {
     loadVoicePrefs();
     void useTextSize.getState().load();
   }, []);
+  useEffect(startCloud, []);
   // Notification taps and Allow/Reject buttons, once screens can be navigated to.
   useEffect(() => (booted ? startNotificationActions() : undefined), [booted]);
   useEffect(() => {

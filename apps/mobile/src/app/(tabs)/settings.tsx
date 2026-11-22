@@ -6,6 +6,7 @@ import { type PhonePref, preferenceKey, readPhonePrefs } from "../../data/prefer
 import { since, text } from "../../data/view";
 import { useAction } from "../../state/actions";
 import { appIconAvailable, useAppIcon } from "../../state/app-icon";
+import { useCloud } from "../../state/cloud";
 import { useClient, useLink, useSnapshot } from "../../state/link";
 import { type ThemePreference, usePrefs } from "../../state/prefs";
 import { usePush } from "../../state/push";
@@ -20,6 +21,7 @@ import { VoiceSettings } from "../../ui/VoiceSettings";
 export default function Settings() {
   const prefs = usePrefs();
   const appIcon = useAppIcon((state) => state.current);
+  const cloud = useCloud((state) => state.account);
   const push = usePush();
   const snapshot = useSnapshot();
   const { status, kind } = useClient((state) => state);
@@ -70,6 +72,16 @@ export default function Settings() {
 
   return (
     <TabScreen title="Settings">
+      {cloud.configured ? (
+        <Group>
+          <Row
+            title="Zoltbot Cloud"
+            detail={cloud.account?.user.email ?? (cloud.signedIn ? "Account offline" : "Sign in")}
+            onPress={() => router.push("/cloud-account")}
+            last
+          />
+        </Group>
+      ) : null}
       <Section title="Appearance" />
       <Segmented<ThemePreference>
         label="Theme"

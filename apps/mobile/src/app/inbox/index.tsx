@@ -12,9 +12,11 @@ import {
 } from "../../data/inbox";
 import { ago, place, profileName, text } from "../../data/view";
 import { useAction } from "../../state/actions";
+import { useCloud } from "../../state/cloud";
 import { useSnapshot } from "../../state/link";
 import { useTheme } from "../../theme";
 import { BackBar, OfflineBanner } from "../../ui/chrome";
+import { CloudNeedsYou, useCloudPendingCount } from "../../ui/cloud/NeedsYou";
 import { Avatar, Chip, Group, type MenuItem, showMenu, Txt } from "../../ui/kit";
 
 /** The Inbox: every conversation filed by what it needs from you, read like mail. */
@@ -22,6 +24,8 @@ export default function Inbox() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const snapshot = useSnapshot();
+  const cloud = useCloud((state) => state.account.configured);
+  const cloudPending = useCloudPendingCount();
   const { run, busy } = useAction();
   const [box, setBox] = useState<Mailbox>("needs_you");
   const { items, counts } = useMemo(() => inbox(snapshot), [snapshot]);
@@ -56,12 +60,13 @@ export default function Inbox() {
         >
           {mailboxes.map((id) => {
             const on = id === box;
+            const count = counts[id] + (id === "needs_you" ? cloudPending : 0);
             return (
               <Pressable
                 key={id}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={`${mailboxLabels[id]}${counts[id] ? `, ${counts[id]}` : ""}`}
+                accessibilityLabel={`${mailboxLabels[id]}${count ? `, ${count}` : ""}`}
                 onPress={() => setBox(id)}
                 style={[
                   styles.box,
@@ -70,7 +75,7 @@ export default function Inbox() {
               >
                 <Txt v="bodyMedium" tone={on ? "text" : "secondary"}>
                   {mailboxLabels[id]}
-                  {counts[id] ? `  ${counts[id]}` : ""}
+                  {count ? `  ${count}` : ""}
                 </Txt>
               </Pressable>
             );
@@ -152,9 +157,14 @@ export default function Inbox() {
           </Group>
         ) : (
           <Txt tone="muted" style={styles.empty}>
-            {box === "needs_you" ? "Nothing needs you." : `Nothing in ${mailboxLabels[box]}.`}
+            {box === "needs_you"
+              ? cloud
+                ? "Nothing needs you on your Mac."
+                : "Nothing needs you."
+              : `Nothing in ${mailboxLabels[box]}.`}
           </Txt>
         )}
+        {box === "needs_you" ? <CloudNeedsYou /> : null}
       </ScrollView>
     </View>
   );

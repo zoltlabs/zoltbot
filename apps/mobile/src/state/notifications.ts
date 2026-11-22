@@ -9,6 +9,7 @@ import {
   readPushTarget,
 } from "../data/push";
 import { owner } from "./actions";
+import { cloudSession } from "./cloud";
 import { useLink } from "./link";
 
 // Notification actions. Category "approval" carries Allow once and Reject buttons that answer
@@ -95,6 +96,11 @@ async function answerFromPush(response: Extract<PushResponse, { kind: "answer" }
   }
 }
 
+async function openCloud(response: Extract<PushResponse, { kind: "open_cloud" }>) {
+  const params = await cloudSession.noticeTarget(response);
+  if (params) router.push({ pathname: "/cloud-needs-you", params });
+}
+
 const handled = new Set<string>();
 export function handleNotificationResponse(response: Notifications.NotificationResponse) {
   const content = response.notification.request.content;
@@ -115,6 +121,7 @@ export function handleNotificationResponse(response: Notifications.NotificationR
     router.push(`/chat/${next.threadId}`);
   }
   if (next.kind === "answer") void answerFromPush(next);
+  if (next.kind === "open_cloud") void openCloud(next).catch(() => undefined);
 }
 
 /** Registers the category and listens for taps and action buttons. Returns a cleanup. */

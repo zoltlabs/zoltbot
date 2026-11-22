@@ -79,7 +79,7 @@ export function approvalStdinHash(stdin = "") {
 export function signApproval(identity: Identity, payload: ApprovalPayload): SignedApproval {
   try {
     const signature = toB64(ed25519.sign(canonical(payload), identity.secretKey));
-    return { payload: structuredClone(payload), signature };
+    return { payload: { ...payload }, signature };
   } catch {
     throw new Error("approval_invalid");
   }

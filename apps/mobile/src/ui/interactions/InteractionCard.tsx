@@ -79,15 +79,30 @@ export function InteractionCard(props: CardProps) {
   const question = switchQuestion(row);
   if (question) return <SwitchPrompt request={props.request} question={question} who={props.who} />;
   if (isStaffApproval(row)) return <StaffCard request={row} showChat />;
-  return <RequestCard {...props} />;
+  return <LocalRequestCard {...props} />;
+}
+
+function LocalRequestCard(props: CardProps) {
+  return (
+    <RequestCard
+      {...props}
+      answer={useAnswer(props.request)}
+      offlineMessage="Answering is paused until your Mac is reachable."
+    />
+  );
 }
 
 /**
- * A pending question, approval, plan, form or sign-off, answerable on the phone. It stays until
- * the interaction stops being pending, so a failed or stale answer keeps the card and the draft.
+ * A pending question, approval, plan, form or sign-off. The caller provides the connection.
+ * A failed or stale answer leaves the card and the draft on screen.
  */
-function RequestCard({ request, who, position }: CardProps) {
-  const answer = useAnswer(request);
+export function RequestCard({
+  request,
+  who,
+  position,
+  answer,
+  offlineMessage,
+}: CardProps & { answer: ReturnType<typeof useAnswer>; offlineMessage?: string }) {
   const { busy, error, disabled, online } = answer;
   const submit = async (draft: AnswerDraft): Promise<boolean> => {
     if (disabled) return false;
@@ -149,9 +164,9 @@ function RequestCard({ request, who, position }: CardProps) {
           </Txt>
         ) : null}
       </View>
-      {!online ? (
+      {!online && offlineMessage ? (
         <Txt v="meta" tone="muted">
-          Answering is paused until your Mac is reachable.
+          {offlineMessage}
         </Txt>
       ) : null}
       <Context request={request} />
