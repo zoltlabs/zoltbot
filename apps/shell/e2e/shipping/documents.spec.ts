@@ -141,11 +141,14 @@ test("write, comment, send to an agent, review its changes, look back and commit
     await expect(send).toBeHidden();
     await expect(page.getByRole("status").filter({ hasText: `Sent to ${ceo.name}` })).toBeVisible();
     await expect(comments.getByText(`Sent to ${ceo.name}`)).toHaveCount(2);
-    const conversation = await shell.service.readConversation(ceo.id);
-    const message = conversation.messages.find((row) => row.author === "user")?.text ?? "";
-    expect(message).toContain("Please revise `chapters/03-storm.md`");
-    expect(message).toContain("Too familiar. Find a fresher image.");
-    expect(message).toContain("Keep the rhythm.");
+    // The comments become a document task for the agent.
+    const tasks = () => shell.rpc.rows("task");
+    await expect.poll(() => tasks().length).toBe(1);
+    const [task] = tasks();
+    expect(task?.document).toEqual({ path: "chapters/03-storm.md" });
+    expect(task?.brief).toContain("Please revise `chapters/03-storm.md`");
+    expect(task?.brief).toContain("Too familiar. Find a fresher image.");
+    expect(task?.brief).toContain("Keep the rhythm.");
 
     // Review waits for the agent.
     await documents.getByRole("tab", { name: "Review", exact: true }).click();
@@ -188,8 +191,16 @@ test("write, comment, send to an agent, review its changes, look back and commit
     const reviewed = readFileSync(join(folder, "chapters/03-storm.md"), "utf8");
     expect(reviewed).toContain("came down in sheets");
     expect(reviewed).toContain("until the lamps went out");
+    // The agent's task waits for review, and the Documents row counts it.
+    await expect.poll(() => tasks()[0]?.state, { timeout: 15_000 }).toBe("review");
+    await expect(page.locator(".sidebar-documents-row .sidebar-tasks-count")).toHaveText(
+      "1 ready for review",
+    );
     await documents.getByRole("button", { name: "Finish review" }).click();
     await expect(documents.getByText("No changes are waiting for review.")).toBeVisible();
+    // Finishing the review accepts the task.
+    await expect.poll(() => tasks()[0]?.state).toBe("completed");
+    await expect(page.locator(".sidebar-documents-row .sidebar-tasks-count")).toHaveCount(0);
 
     // History: compare the agent's version with now, and back out of restoring it.
     await documents.getByRole("tab", { name: "History", exact: true }).click();
