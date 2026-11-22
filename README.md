@@ -26,6 +26,7 @@ Hosted features (accounts, sharing, broker-based integrations, phone relay) are 
 
 - [Development](docs/development.md): checks, tests and the repository layout
 - [Architecture](docs/architecture.md): design invariants and glossary
+- [Documents](docs/documents.md): writing in a project's Markdown files with agents
 - Provider setup: [Claude Code and Codex](docs/run-claude-codex.md), [Cursor and Antigravity](docs/run-cursor-antigravity.md), [OpenCode and Copilot](docs/run-opencode-copilot.md)
 - [Packaging](docs/releasing.md): building a local `.dmg`
 

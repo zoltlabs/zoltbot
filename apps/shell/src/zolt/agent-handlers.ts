@@ -8,6 +8,7 @@ import { bridgeHandlers } from "./bridges-service";
 import { parseChannelRequest, parsePostChannel } from "./channel-parsers";
 import { coAuthorHandlers } from "./co-author-service";
 import { dataHandlers } from "./data-service";
+import { documentHandlers } from "./documents/handlers";
 import { hiddenHandlers } from "./hidden-service";
 import { linkHandlers } from "./links-service";
 import { parseTaskAction } from "./manager-cards";
@@ -107,6 +108,7 @@ export function agentHandlers(service: ZoltService): Record<string, Handler> {
     ...bridgeHandlers(service.client),
     ...routineHandlers(service.client),
     ...workflowHandlers(service.client),
+    ...documentHandlers(service.documents, service.artifactTexts),
     [IPC_CHANNELS.agentListChannels]: () => service.channels.list(),
     [IPC_CHANNELS.agentReadChannel]: (id) => service.channels.read(requireString(id, "channelId")),
     [IPC_CHANNELS.agentReadEarlierPosts]: (input) => {

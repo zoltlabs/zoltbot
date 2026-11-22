@@ -48,16 +48,19 @@ export const COLOR_SCHEMES = ["dark", "light"] as const;
 
 /**
  * Runs axe on the page in each color scheme and returns every violation, with its nodes. The
- * page is left in `colorScheme` afterwards.
+ * page is left in `colorScheme` afterwards. `include` limits the check to one part of the page,
+ * such as a modal dialog, whose backdrop dims the rest below the contrast minimum.
  */
 export async function axeViolations(
   page: Page,
   colorScheme: (typeof COLOR_SCHEMES)[number] = "dark",
+  include?: string,
 ): Promise<string[]> {
   const lines: string[] = [];
   for (const scheme of COLOR_SCHEMES) {
     await settleColorScheme(page, scheme);
-    const result = await new AxeBuilder({ page }).analyze();
+    const builder = new AxeBuilder({ page });
+    const result = await (include ? builder.include(include) : builder).analyze();
     for (const violation of result.violations) {
       lines.push(
         `${scheme} ${violation.id}: ${violation.nodes

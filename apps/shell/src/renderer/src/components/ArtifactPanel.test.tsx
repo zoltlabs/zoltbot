@@ -20,6 +20,10 @@ function stubPrepare(prepare: (hash: string) => Promise<{ url: string }>) {
       share: { status: vi.fn().mockResolvedValue({ kind: "unavailable" }) },
       repository: { state: vi.fn().mockResolvedValue(null) },
       agent: { onEvent: vi.fn(() => () => {}) },
+      // One version of an HTML artifact: no version picker, no compare and no save.
+      documents: {
+        artifactVersions: vi.fn(async () => ({ projectId: null, markdown: false, versions: [] })),
+      },
     },
   });
 }

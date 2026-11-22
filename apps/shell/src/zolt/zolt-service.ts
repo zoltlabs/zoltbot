@@ -35,6 +35,8 @@ import { decidePlan, readCompany, refreshBrief } from "./company-service";
 import { companyTree } from "./company-tree";
 import { contextService } from "./context-service";
 import type { DaemonClient, Row, SnapshotChange } from "./daemon-client";
+import { artifactDocuments } from "./documents/artifacts";
+import { DocumentsService } from "./documents/service";
 import { DraftStore } from "./draft-store";
 import { setFastMode } from "./fast-mode";
 import { withHidden } from "./hidden";
@@ -123,6 +125,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
   readonly outbox: Outbox;
   /** How full each chat's context is, and compaction. */
   readonly context: ReturnType<typeof contextService>;
+  /** Markdown files in project folders, with comments, reviews and versions. */
+  readonly documents: DocumentsService;
+  /** Agents' Markdown artifacts as text, to compare versions and save them as documents. */
+  readonly artifactTexts: ReturnType<typeof artifactDocuments>;
 
   constructor(
     readonly client: DaemonClient,
@@ -132,6 +138,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     this.accounts = modelsService(client);
     this.context = contextService(client, (botId) => this.preferences.bots[botId]?.contextFull);
     this.context.attach(this);
+    this.documents = new DocumentsService(client, join(dataPath, "documents"), {
+      send: (input) => this.sendMessage(input),
+      name: (botId) => this.listBots().find((bot) => bot.id === botId)?.name ?? null,
+    });
+    this.artifactTexts = artifactDocuments(client, this.documents);
     client.onChange((change) => this.changed(change));
     this.outbox = turnOutbox(client, this.file("outbox.json"), (id) => this.emitConversation(id));
   }

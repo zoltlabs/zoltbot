@@ -57,6 +57,24 @@ export class DaemonClient {
     return () => this.listeners.delete(listener);
   }
 
+  /** Reads an artifact file the daemon serves over HTTP on the loopback address. */
+  async fetchAsset(kind: "blob" | "manifest", hash: string, limit: number): Promise<Uint8Array> {
+    if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("artifact_asset_invalid");
+    const info = await this.connection();
+    const url = new URL(info.url.replace(/^ws:/, "http:"));
+    if (url.hostname !== "127.0.0.1") throw new Error("invalid_daemon_address");
+    url.pathname = `/artifact-${kind}/${hash}`;
+    url.search = "";
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${info.token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error("artifact_unavailable");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > limit) throw new Error("artifact_too_large");
+    return bytes;
+  }
+
   rows(kind: string): Row[] {
     return this.snapshot.entities[kind] ?? [];
   }

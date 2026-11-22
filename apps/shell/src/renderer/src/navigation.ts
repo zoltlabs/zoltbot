@@ -11,7 +11,8 @@ export type Route =
   | { id: "usage" }
   | { id: "routines" }
   | { id: "vault" }
-  | { id: "data" };
+  | { id: "data" }
+  | { id: "documents"; projectId: string; path: string | null };
 
 export type RouteId = Route["id"];
 
@@ -35,6 +36,8 @@ export function routesEqual(a: Route, b: Route): boolean {
       return a.projectId === (b as typeof a).projectId;
     case "memory":
       return a.agentId === (b as typeof a).agentId;
+    case "documents":
+      return a.projectId === (b as typeof a).projectId && a.path === (b as typeof a).path;
     default:
       return true;
   }

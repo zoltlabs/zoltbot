@@ -1,5 +1,7 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
+import type { ArtifactVersionView } from "../../../shared/documents";
 import type { ArtifactSummary } from "../../../shared/ipc";
+import { ArtifactCompare, ArtifactTools } from "../documents/ArtifactTools";
 import { ArtifactRepository } from "./ArtifactRepository";
 import { ArtifactShare } from "./ArtifactShare";
 import { PanelResizer } from "./PanelResizer";
@@ -81,9 +83,42 @@ export function ArtifactPanel(props: {
 }) {
   const [frame, setFrame] = createSignal<{ url?: string; error?: string }>({});
   const [attempt, setAttempt] = createSignal(0);
+  /** The version on screen: the card's, or an earlier one chosen above the frame. */
+  const [shown, setShown] = createSignal<{
+    versionId: string;
+    number: number;
+    manifestHash: string | null;
+  }>({
+    versionId: props.artifact.versionId,
+    number: props.artifact.version,
+    manifestHash: props.artifact.manifestHash,
+  });
+  const [comparing, setComparing] = createSignal(false);
+  createEffect(
+    on(
+      () => props.artifact.versionId,
+      () => {
+        setShown({
+          versionId: props.artifact.versionId,
+          number: props.artifact.version,
+          manifestHash: props.artifact.manifestHash,
+        });
+        setComparing(false);
+      },
+      { defer: true },
+    ),
+  );
+  const show = (version: ArtifactVersionView) => {
+    setShown({
+      versionId: version.versionId,
+      number: version.number,
+      manifestHash: version.manifestHash,
+    });
+    setComparing(false);
+  };
 
   createEffect(
-    on([() => props.artifact.manifestHash, attempt], ([hash]) => {
+    on([() => shown().manifestHash, attempt], ([hash]) => {
       let active = true;
       onCleanup(() => {
         active = false;
@@ -128,7 +163,7 @@ export function ArtifactPanel(props: {
       <header class="artifact-panel-header">
         <div class="artifact-panel-title">
           <h2>{props.artifact.title}</h2>
-          <span>{artifactKindLabel(props.artifact)}</span>
+          <span>{artifactKindLabel({ ...props.artifact, version: shown().number })}</span>
         </div>
         <Show when={props.artifact.manifestHash}>
           {(hash) => (
@@ -150,21 +185,40 @@ export function ArtifactPanel(props: {
           </svg>
         </button>
       </header>
+      <ArtifactTools
+        artifactId={props.artifact.id}
+        versionId={props.artifact.versionId}
+        title={props.artifact.title}
+        comparing={comparing()}
+        onShow={show}
+        onCompare={setComparing}
+      />
       <Show when={props.artifact.id} keyed>
         {(id) => <ArtifactRepository artifactId={id} />}
       </Show>
       <div class="artifact-panel-body">
+        <Show when={comparing()}>
+          <ArtifactCompare
+            artifactId={props.artifact.id}
+            versionId={shown().versionId}
+            number={shown().number}
+          />
+        </Show>
         <Show
-          when={frame().url}
+          when={!comparing() && frame().url}
           fallback={
             <Show
-              when={frame().error}
-              fallback={<output class="artifact-panel-status">Loading…</output>}
+              when={!comparing() && frame().error}
+              fallback={
+                <Show when={!comparing()}>
+                  <output class="artifact-panel-status">Loading…</output>
+                </Show>
+              }
             >
               {(error) => (
                 <div class="artifact-panel-status">
                   <output>{error()}</output>
-                  <Show when={props.artifact.manifestHash}>
+                  <Show when={shown().manifestHash}>
                     <button type="button" onClick={() => setAttempt((value) => value + 1)}>
                       Try again
                     </button>

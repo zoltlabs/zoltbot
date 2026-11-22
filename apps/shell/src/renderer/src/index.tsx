@@ -15,6 +15,8 @@ import "./models.css";
 import "./channels.css";
 import "./account.css";
 import "./appearance/appearance.css";
+import "./documents.css";
+import "./documents-review.css";
 
 const root = document.getElementById("root");
 followAppearance();

@@ -37,6 +37,8 @@ export const PAGES: Readonly<Record<RouteId, PageInfo>> = {
   routines: { id: "routines", label: "Routines", inSidebar: true },
   vault: { id: "vault", label: "Vault", inSidebar: true },
   data: { id: "data", label: "Data", inSidebar: true },
+  /** One per project, under the project in the sidebar. */
+  documents: { id: "documents", label: "Documents", inSidebar: false },
 };
 
 export type Pages = ReturnType<typeof createPages>;

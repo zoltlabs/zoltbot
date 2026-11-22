@@ -37,7 +37,14 @@
     "test:feel": "electron-vite build && playwright test"
   },
   "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@floating-ui/dom": "1.8.0",
+    "@lezer/highlight": "1.2.5",
+    "@lezer/markdown": "1.8.1",
     "@zoltbot/artifact-kit": "workspace:*",
     "@zoltbot/daemon": "workspace:*",
     "@zoltbot/daemon-client": "workspace:*",
