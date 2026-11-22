@@ -121,6 +121,23 @@ describe("task views", () => {
     const [running] = taskViews(companySnapshot()).filter((t) => t.id === "task-rounding");
     expect(running && taskMeta(running, now)).toBe("Sam · Web · 35m");
   });
+
+  it("names the document a document task edits", () => {
+    const snapshot: Snapshot = {
+      seq: 0,
+      counters: {},
+      entities: {
+        task: [
+          base("edit", "review", { document: { path: "chapters/03-storm.md" } }),
+          base("plain", "review"),
+        ],
+      },
+    };
+    expect(taskViews(snapshot).map((task) => task.documentPath)).toEqual([
+      "chapters/03-storm.md",
+      null,
+    ]);
+  });
 });
 
 describe("drawer", () => {

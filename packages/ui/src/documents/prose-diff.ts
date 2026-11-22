@@ -47,7 +47,7 @@ export function proseDiff(base: string, current: string): ProseDiff {
     else segments.push({ type: "equal", text });
   };
   for (let index = 0; index < ops.length; index++) {
-    const op = ops[index];
+    const op = ops[index] as Op;
     if (op.kind === "equal") {
       const text = baseLines.slice(baseIndex, baseIndex + op.count).join("");
       equal(text);
@@ -60,10 +60,9 @@ export function proseDiff(base: string, current: string): ProseDiff {
     // A run of deletes and inserts between two equal runs is one replaced block.
     let deleted = 0;
     let inserted = 0;
-    while (index < ops.length && ops[index].kind !== "equal") {
-      if (ops[index].kind === "delete") deleted += ops[index].count;
-      else inserted += ops[index].count;
-      index++;
+    for (let next = ops[index]; next && next.kind !== "equal"; next = ops[++index]) {
+      if (next.kind === "delete") deleted += next.count;
+      else inserted += next.count;
     }
     index--;
     const removedText = baseLines.slice(baseIndex, baseIndex + deleted).join("");
@@ -280,10 +279,9 @@ function myers(a: readonly string[], b: readonly string[]): Op[] | null {
   for (let d = 0; d <= max; d++) {
     trace.push(v.slice());
     for (let k = -d; k <= d; k += 2) {
-      let x =
-        k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1])
-          ? v[offset + k + 1]
-          : v[offset + k - 1] + 1;
+      const left = v[offset + k - 1] ?? 0;
+      const right = v[offset + k + 1] ?? 0;
+      let x = k === -d || (k !== d && left < right) ? right : left + 1;
       let y = x - k;
       while (x < n && y < m && a[x] === b[y]) {
         x++;
@@ -301,10 +299,12 @@ function backtrack(trace: Int32Array[], n: number, m: number, offset: number, de
   let x = n;
   let y = m;
   for (let d = depth; d > 0; d--) {
-    const v = trace[d];
+    const v = trace[d] as Int32Array;
     const k = x - y;
-    const prevK = k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1]) ? k + 1 : k - 1;
-    const prevX = v[offset + prevK];
+    const left = v[offset + k - 1] ?? 0;
+    const right = v[offset + k + 1] ?? 0;
+    const prevK = k === -d || (k !== d && left < right) ? k + 1 : k - 1;
+    const prevX = v[offset + prevK] ?? 0;
     const prevY = prevX - prevK;
     while (x > prevX && y > prevY) {
       reversed.push("equal");
@@ -321,8 +321,7 @@ function backtrack(trace: Int32Array[], n: number, m: number, offset: number, de
     y--;
   }
   const ops: Op[] = [];
-  for (let index = reversed.length - 1; index >= 0; index--) {
-    const kind = reversed[index];
+  for (const kind of reversed.reverse()) {
     const last = ops.at(-1);
     if (last?.kind === kind) last.count++;
     else ops.push({ kind, count: 1 });

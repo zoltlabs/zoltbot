@@ -28,6 +28,8 @@ export interface TaskView {
   /** Why it waits or failed, in a few words, such as "At limit". Empty when there's nothing to add. */
   reason: string;
   threadId: string | null;
+  /** The document a document task edits; its changes open instead of the chat. */
+  documentPath: string | null;
   ownerId: string | null;
   ownerName: string;
   /** The manager chat the task reports to. */
@@ -65,6 +67,7 @@ export function taskViews(snapshot: Snapshot): TaskView[] {
         revision: Number(task.revision) || 1,
         reason: taskReason(task, state, titles, states),
         threadId: thread && thread.archived !== true ? text(thread.id) : null,
+        documentPath: text((task.document as Row | undefined)?.path) || null,
         ownerId: profile ? text(profile.id) : null,
         ownerName: profile ? text(profile.name) || "Agent" : "",
         accountableThreadId: text(task.accountableThreadId) || null,

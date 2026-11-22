@@ -27,7 +27,8 @@ import { Button, Chip, Group, Section, showPrompt, Txt } from "../../ui/kit";
 import { pick } from "../../ui/SessionControls";
 
 const openThread = (task: TaskView) => {
-  if (task.threadId) router.push(`/chat/${encodeURIComponent(task.threadId)}`);
+  if (task.documentPath) router.push(`/document/${encodeURIComponent(task.id)}`);
+  else if (task.threadId) router.push(`/chat/${encodeURIComponent(task.threadId)}`);
 };
 
 /** A pill that opens a list of choices, like "All teams". */
@@ -102,7 +103,7 @@ function TaskRow({ task, last, online }: { task: TaskView; last: boolean; online
   return (
     <Pressable
       onPress={() => openThread(task)}
-      disabled={!task.threadId}
+      disabled={!task.threadId && !task.documentPath}
       accessibilityRole="button"
       accessibilityLabel={[
         task.title,
