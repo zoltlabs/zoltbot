@@ -7,6 +7,7 @@ import { touch, useTheme } from "../theme";
 import { Icon } from "./icons";
 import { Txt } from "./kit";
 import type { MarkActions } from "./message-marks";
+import { ProgressRow } from "./ProgressRow";
 import type { RowTracker } from "./row-positions";
 import { Message } from "./Transcript";
 
@@ -182,16 +183,20 @@ export function AssistantTurn({
             active={active && !paused && segment === segments.at(-1)}
           />
         ) : (
-          segment.rows.map((row) => (
-            <View key={row.id} {...track?.(row.id)}>
-              <Message
-                row={row.streaming && row !== last ? { ...row, streaming: false } : row}
-                threadId={threadId}
-                onForward={onForward}
-                {...(marks ? { marks } : {})}
-              />
-            </View>
-          ))
+          segment.rows.map((row) =>
+            row.progress ? (
+              <ProgressRow key={row.id} row={row} />
+            ) : (
+              <View key={row.id} {...track?.(row.id)}>
+                <Message
+                  row={row.streaming && row !== last ? { ...row, streaming: false } : row}
+                  threadId={threadId}
+                  onForward={onForward}
+                  {...(marks ? { marks } : {})}
+                />
+              </View>
+            ),
+          )
         ),
       )}
       {active && !paused && !last?.streaming && last?.status !== "running" ? (
