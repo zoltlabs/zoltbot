@@ -1160,7 +1160,7 @@ export function App() {
                   bots={botList()}
                   sidebarCollapsed={leftPanelCollapsed()}
                   onShowSidebar={() => setSidebarCollapsed(false)}
-                  onOpenChat={selectBot}
+                  onOpenTasks={openTasks}
                 />
               </Suspense>
             )}

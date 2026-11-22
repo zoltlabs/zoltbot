@@ -22,6 +22,8 @@ export interface StoredReview {
   startedAt: string;
   changedAt?: string | null;
   baselineHash: string;
+  /** The daemon task the agent works in; absent for reviews started from history. */
+  taskId?: string | null;
 }
 
 /** What the shell remembers about one document. None of it goes into the repository. */

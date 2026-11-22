@@ -14,7 +14,7 @@ interface DocumentsPageProps {
   bots: BotProfile[];
   sidebarCollapsed: boolean;
   onShowSidebar: () => void;
-  onOpenChat: (botId: string) => void;
+  onOpenTasks: (projectId: string) => void;
 }
 
 /**
@@ -211,7 +211,7 @@ export function DocumentsPage(props: DocumentsPageProps) {
                     </div>
                   }
                 >
-                  <DocumentPane store={store} bots={projectBots()} onOpenChat={props.onOpenChat} />
+                  <DocumentPane store={store} bots={projectBots()} onOpenTasks={() => props.onOpenTasks(props.projectId)} />
                 </Show>
               </section>
             </div>

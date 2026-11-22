@@ -1017,7 +1017,7 @@
   "documents.status.words": "{count, plural, one {#語} other {#語}}",
   "documents.send.sentTo": "{name}に送信しました",
   "documents.send.sentToAgent": "エージェントに送信しました",
-  "documents.send.openChat": "チャットを開く",
+  "documents.send.openTasks": "タスクを開く",
   "documents.useFile.title": "ファイルのバージョンを使用しますか？",
   "documents.useFile.body": "エディタ内の未保存の変更は破棄され、ファイルの現在のテキストが読み込まれます。",
   "documents.useFile.confirm": "変更を破棄",

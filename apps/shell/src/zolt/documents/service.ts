@@ -21,7 +21,6 @@ import {
   type UpdateCommentInput,
   type VersionTextInput,
 } from "../../shared/documents";
-import type { SendMessageInput } from "../../shared/ipc";
 import type { DaemonClient } from "../daemon-client";
 import { text as asText } from "../mapping";
 import { listDocuments, readDocument, resolveInRoot, writeDocument } from "./files";
@@ -30,10 +29,16 @@ import { commentsMessage } from "./message";
 import { type DocumentState, DocumentStore } from "./store";
 
 export interface DocumentChat {
-  send: (input: SendMessageInput) => Promise<unknown>;
   /** The chat's name, or null when it doesn't exist. */
   name: (botId: string) => string | null;
+  /** The agent profile behind the chat, which runs the document task. */
+  profileId: (botId: string) => string | null;
 }
+
+/** The daemon's limit on a task brief. */
+const BRIEF_LIMIT = 4000;
+/** Task states in which the agent still works on the document. */
+const WORKING = new Set(["queued", "running", "blocked"]);
 
 /**
  * Reads and writes a project's Markdown files for the Documents page, and keeps comments, review
@@ -254,9 +259,21 @@ export class DocumentsService {
     });
   }
 
+  /** The state of a document review's task, or null when it has none or it's gone. */
+  private taskState(taskId: string | null | undefined): string | null {
+    if (!taskId) return null;
+    return asText(this.client.rows("task").find((row) => row.id === taskId)?.state) || null;
+  }
+
+  /**
+   * Sends comments to an agent as a document task. The daemon keeps the text as it is now, so
+   * the changes can be reviewed here, in Tasks and on the phone. Comments sent while the task
+   * waits for review go back to the agent as review feedback on the same task.
+   */
   async sendComments(input: SendCommentsInput): Promise<OpenDocument> {
     const name = this.chat.name(input.botId);
-    if (!name) throw new Error("That chat isn't available.");
+    const profileId = this.chat.profileId(input.botId);
+    if (!name || !profileId) throw new Error("That chat isn't available.");
     const root = this.root(input.projectId);
     const file = await resolveInRoot(root, input.path);
     const state = await this.store.read(input.projectId, input.path);
@@ -265,35 +282,69 @@ export class DocumentsService {
       .filter((comment): comment is DocumentComment => Boolean(comment))
       .filter((comment) => comment.state !== "resolved");
     if (!comments.length) throw new Error("Choose at least one comment to send.");
-    await this.chat.send({
-      botId: input.botId,
-      text: commentsMessage({ path: input.path, absolutePath: file, comments, note: input.note }),
-    });
-    return this.store.update(input.projectId, input.path, async (current) => {
-      const disk = await this.sync(input, current);
+    const brief = commentsMessage({ path: input.path, absolutePath: file, comments, note: input.note });
+    if (brief.length > BRIEF_LIMIT)
+      throw new Error("These comments are too long to send at once. Send fewer of them.");
+    const current = state.review?.taskId ?? null;
+    const taskState = this.taskState(current);
+    if (taskState && WORKING.has(taskState))
+      throw new Error(`${state.review?.botName ?? "The agent"} is still working on this document.`);
+    return this.store.update(input.projectId, input.path, async (latest) => {
+      const disk = await this.sync(input, latest);
+      let taskId = current;
+      if (current && taskState === "review") {
+        const task = this.client.rows("task").find((row) => row.id === current);
+        await this.client.call(
+          "task.review",
+          {
+            id: current,
+            revision: Number(task?.revision ?? 1),
+            decision: "changes",
+            feedback: brief,
+            confirmed: true,
+          },
+          randomUUID(),
+        );
+      } else {
+        const task = (await this.client.call(
+          "task.create",
+          {
+            title: `Edit ${basename(input.path)}`,
+            brief,
+            profileId,
+            node: { type: "project", id: input.projectId },
+            workspaceMode: "shared",
+            document: { path: input.path, file, before: disk.text },
+          },
+          randomUUID(),
+        )) as { id?: unknown };
+        taskId = asText(task.id) || null;
+      }
       const now = new Date().toISOString();
-      for (const comment of current.comments)
+      for (const comment of latest.comments)
         if (input.commentIds.includes(comment.id) && comment.state !== "resolved") {
           comment.state = "sent";
           comment.sentTo = { botId: input.botId, name };
           comment.sentAt = now;
           comment.updatedAt = now;
         }
-      await this.store.addVersion(input.projectId, current, disk.text, "before-send", "You");
+      await this.store.addVersion(input.projectId, latest, disk.text, "before-send", "You");
       // A review already under way keeps its baseline, so earlier changes stay pending.
-      if (!current.review)
-        current.review = {
+      if (!latest.review)
+        latest.review = {
           botId: input.botId,
           botName: name,
           startedAt: now,
           changedAt: null,
           baselineHash: await this.store.putText(input.projectId, disk.text),
+          taskId,
         };
       else {
-        current.review.botId = input.botId;
-        current.review.botName = name;
+        latest.review.botId = input.botId;
+        latest.review.botName = name;
+        latest.review.taskId = taskId;
       }
-      return this.view(input, current, disk);
+      return this.view(input, latest, disk);
     });
   }
 
@@ -327,9 +378,19 @@ export class DocumentsService {
     });
   }
 
+  /** Ends the review. A document task waiting for review is accepted with what's kept. */
   endReview(ref: DocumentRef): Promise<OpenDocument> {
     return this.store.update(ref.projectId, ref.path, async (state) => {
       const disk = await this.sync(ref, state);
+      const taskId = state.review?.taskId;
+      if (taskId && this.taskState(taskId) === "review") {
+        const task = this.client.rows("task").find((row) => row.id === taskId);
+        await this.client.call(
+          "task.review",
+          { id: taskId, revision: Number(task?.revision ?? 1), decision: "accept", confirmed: true },
+          randomUUID(),
+        );
+      }
       state.review = null;
       return this.view(ref, state, disk);
     });

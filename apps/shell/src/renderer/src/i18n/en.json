@@ -1017,7 +1017,7 @@
   "documents.status.words": "{count, plural, one {# word} other {# words}}",
   "documents.send.sentTo": "Sent to {name}",
   "documents.send.sentToAgent": "Sent to the agent",
-  "documents.send.openChat": "Open chat",
+  "documents.send.openTasks": "Open Tasks",
   "documents.useFile.title": "Use the file's version?",
   "documents.useFile.body": "Your unsaved changes in the editor are discarded and the file's current text loads.",
   "documents.useFile.confirm": "Discard my changes",

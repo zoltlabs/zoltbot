@@ -1017,7 +1017,7 @@
   "documents.status.words": "{count, plural, one {# mot} other {# mots}}",
   "documents.send.sentTo": "Envoyé à {name}",
   "documents.send.sentToAgent": "Envoyé à l’agent",
-  "documents.send.openChat": "Ouvrir la discussion",
+  "documents.send.openTasks": "Ouvrir les tâches",
   "documents.useFile.title": "Utiliser la version du fichier ?",
   "documents.useFile.body": "Vos modifications non enregistrées dans l’éditeur sont abandonnées et le texte actuel du fichier est chargé.",
   "documents.useFile.confirm": "Abandonner mes modifications",

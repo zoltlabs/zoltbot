@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { seedMarkdownArtifact } from "../../../../../tools/fakes/src/artifact-seed";
 import { compareFixture } from "../../../../../tools/fakes/src/compare-fixture";
 import { anchorFor } from "../../shared/document-anchors";
@@ -132,12 +132,23 @@ describe("DocumentsService", () => {
     expect(sent.review).toMatchObject({ botId: ceo.id, changedAt: null });
     expect(sent.baseline).toBe(CHAPTER);
     expect(sent.comments.every((comment) => comment.state === "sent")).toBe(true);
-    const conversation = await service.readConversation(ceo.id);
-    const message = conversation.messages.find((row) => row.author === "user")?.text ?? "";
-    expect(message).toContain("Please revise `chapters/03-storm.md`");
-    expect(message).toContain("1. On “fell like a curtain”:");
-    expect(message).toContain("Too familiar. Find a fresher image.");
-    expect(message).toContain(join(book, "chapters", "03-storm.md").replace(/^\/private/, ""));
+    // The comments become a document task, and the daemon keeps the text from before.
+    const client = (service as unknown as { client: DaemonClient }).client;
+    await vi.waitFor(() =>
+      expect(client.rows("task").find((row) => row.title === "Edit 03-storm.md")).toBeDefined(),
+    );
+    const task = client.rows("task").find((row) => row.title === "Edit 03-storm.md");
+    expect(task?.document).toEqual({ path: ref.path });
+    expect(task?.workspaceMode).toBe("shared");
+    const brief = String(task?.brief);
+    expect(brief).toContain("Please revise `chapters/03-storm.md`");
+    expect(brief).toContain("1. On “fell like a curtain”:");
+    expect(brief).toContain("Too familiar. Find a fresher image.");
+    expect(brief).toContain(join(book, "chapters", "03-storm.md").replace(/^\/private/, ""));
+    expect(await client.call("document.changes", { id: task?.id })).toMatchObject({
+      path: ref.path,
+      before: CHAPTER,
+    });
 
     // The agent edits the file in place.
     const edited = CHAPTER.replace("fell like a curtain", "came down in sheets");

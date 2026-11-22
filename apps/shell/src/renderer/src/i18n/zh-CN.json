@@ -1017,7 +1017,7 @@
   "documents.status.words": "{count, plural, one {# 个字词} other {# 个字词}}",
   "documents.send.sentTo": "已发送给 {name}",
   "documents.send.sentToAgent": "已发送给智能体",
-  "documents.send.openChat": "打开对话",
+  "documents.send.openTasks": "打开任务",
   "documents.useFile.title": "使用文件中的版本？",
   "documents.useFile.body": "编辑器中未保存的更改将被丢弃，并载入文件当前的文本。",
   "documents.useFile.confirm": "丢弃我的更改",

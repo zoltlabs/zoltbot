@@ -141,8 +141,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     this.context = contextService(client, (botId) => this.preferences.bots[botId]?.contextFull);
     this.context.attach(this);
     this.documents = new DocumentsService(client, join(dataPath, "documents"), {
-      send: (input) => this.sendMessage(input),
       name: (botId) => this.listBots().find((bot) => bot.id === botId)?.name ?? null,
+      profileId: (botId) => this.listBots().find((bot) => bot.id === botId)?.profileId || null,
     });
     this.artifactTexts = artifactDocuments(client, this.documents);
     client.onChange((change) => this.changed(change));

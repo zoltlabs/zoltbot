@@ -1017,7 +1017,7 @@
   "documents.status.words": "{count, plural, one {# Wort} other {# Wörter}}",
   "documents.send.sentTo": "An {name} gesendet",
   "documents.send.sentToAgent": "An den Agenten gesendet",
-  "documents.send.openChat": "Chat öffnen",
+  "documents.send.openTasks": "Aufgaben öffnen",
   "documents.useFile.title": "Version der Datei verwenden?",
   "documents.useFile.body": "Deine ungespeicherten Änderungen im Editor werden verworfen und der aktuelle Text der Datei wird geladen.",
   "documents.useFile.confirm": "Meine Änderungen verwerfen",

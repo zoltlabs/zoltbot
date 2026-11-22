@@ -47,7 +47,8 @@ const SAVE_LABELS: Record<SaveState, MessageKey> = {
 interface DocumentPaneProps {
   store: DocumentsStore;
   bots: BotProfile[];
-  onOpenChat: (botId: string) => void;
+  /** Opens Tasks, where the agent's document task runs. */
+  onOpenTasks: () => void;
 }
 
 /** The open document: write, preview, review an agent's changes, or look through history. */
@@ -393,10 +394,7 @@ export function DocumentPane(props: DocumentPaneProps) {
                   message: name
                     ? t("documents.send.sentTo", { name })
                     : t("documents.send.sentToAgent"),
-                  action: {
-                    label: t("documents.send.openChat"),
-                    run: () => props.onOpenChat(botId),
-                  },
+                  action: { label: t("documents.send.openTasks"), run: props.onOpenTasks },
                 });
               }}
               onClose={() => setSending(false)}
