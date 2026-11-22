@@ -57,9 +57,10 @@ test("the model picker searches, stars and lists starred models first", async ({
     const name = (await star.getAttribute("aria-label"))?.replace(/^Star /, "") ?? "";
     await page.keyboard.press("Enter");
     await expect(panel.getByRole("button", { name: `Unstar ${name}` })).toBeVisible();
-    await expect(
-      panel.getByRole("group", { name: "Starred" }).getByRole("option").first(),
-    ).toHaveText(name);
+    // Starred models list first, and their names say so.
+    await expect(panel.getByRole("option").first()).toHaveAccessibleName(
+      new RegExp(`^${name}.*Starred$`),
+    );
     await expect.poll(() => shell.service.accounts.starred()).toEqual([expect.any(String)]);
 
     for (const scheme of COLOR_SCHEMES) {
@@ -72,7 +73,7 @@ test("the model picker searches, stars and lists starred models first", async ({
 
     // Unstar it again.
     await panel.getByRole("button", { name: `Unstar ${name}` }).click();
-    await expect(panel.getByRole("group", { name: "Starred" })).toHaveCount(0);
+    await expect(panel.getByRole("option", { name: /Starred$/ })).toHaveCount(0);
     await expect.poll(() => shell.service.accounts.starred()).toEqual([]);
     await page.keyboard.press("Escape");
     expect(shell.errors).toEqual([]);

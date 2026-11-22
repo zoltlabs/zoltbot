@@ -21,15 +21,13 @@ test("Fast mode switches the agent to the provider's faster tier", async ({ page
 
     await page.getByRole("button", { name: /^Agent model/ }).click();
     const panel = page.getByRole("dialog", { name: "Choose agent model" });
-    const toggle = panel.getByRole("switch", { name: "Fast mode" });
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    const speed = panel.getByRole("button", { name: /^Speed/ });
+    await expect(speed).toHaveAccessibleName("Speed: Standard");
     await expect(panel.getByText("Uses more of your plan")).toBeHidden();
 
-    // Tab from the search field reaches the switch.
-    await page.keyboard.press("Tab");
-    await expect(toggle).toBeFocused();
-    await page.keyboard.press("Space");
-    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await speed.click();
+    await page.getByRole("option", { name: "Fast" }).click();
+    await expect(speed).toHaveAccessibleName("Speed: Fast");
     await expect(panel.getByText("Uses more of your plan")).toBeVisible();
     await expect.poll(() => fixture.natives.get(bot.threadId ?? "")?.tiers).toEqual(["fast"]);
     for (const scheme of COLOR_SCHEMES) {
@@ -41,8 +39,9 @@ test("Fast mode switches the agent to the provider's faster tier", async ({ page
         await page.screenshot({ path: `${process.env.ZB_SHOTS}/a5-fast-mode-on-${scheme}.png` });
     }
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await speed.click();
+    await page.getByRole("option", { name: "Standard" }).click();
+    await expect(speed).toHaveAccessibleName("Speed: Standard");
     await expect.poll(() => fixture.natives.get(bot.threadId ?? "")?.tiers).toEqual(["fast", null]);
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();

@@ -239,12 +239,16 @@ describe("Zoltbot connected desktop shell", () => {
     expect(trigger.querySelector(".zb-kit-logo.mono")).toBeInTheDocument();
     await fireEvent.click(trigger);
     const picker = screen.getByRole("dialog", { name: "Choose agent model" });
-    expect(within(picker).getByRole("group", { name: "Codex" })).toBeInTheDocument();
+    expect(within(picker).getByRole("tab", { name: "Codex" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(within(picker).getByRole("option", { name: "Luna, default" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(window.openbot.agent.updateBot).not.toHaveBeenCalled();
+    await fireEvent.click(within(picker).getByRole("tab", { name: "Claude Code" }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
 
     await waitFor(() =>
@@ -286,12 +290,13 @@ describe("Zoltbot connected desktop shell", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Agent model: Luna" }));
     const picker = screen.getByRole("dialog", { name: "Choose agent model" });
+    await fireEvent.click(
+      within(picker).getByRole("tab", { name: "Claude, Claude CLI was not found." }),
+    );
+    expect(within(picker).getByText("Claude CLI was not found.")).toBeInTheDocument();
     expect(
-      within(picker).getByRole("group", { name: "Claude · Claude CLI was not found." }),
-    ).toBeInTheDocument();
-    const opus = within(picker).getByRole("option", { name: "Claude Opus 5, default" });
-    expect(opus).toHaveAttribute("aria-disabled", "true");
-    await fireEvent.click(opus);
+      within(picker).queryByRole("option", { name: "Claude Opus 5, default" }),
+    ).not.toBeInTheDocument();
     expect(window.openbot.agent.updateBot).not.toHaveBeenCalled();
   });
 
@@ -365,6 +370,7 @@ describe("Zoltbot connected desktop shell", () => {
 
     await fireEvent.click(within(settings).getByRole("button", { name: "Agent model: Luna" }));
     let picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
+    await fireEvent.click(within(picker).getByRole("tab", { name: "Claude Code" }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
     await waitFor(() =>
       expect(window.openbot.agent.updateBot).toHaveBeenCalledWith({
@@ -381,6 +387,7 @@ describe("Zoltbot connected desktop shell", () => {
       within(settings).getByRole("button", { name: "Agent model: Claude Opus 5" }),
     );
     picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
+    await fireEvent.click(within(picker).getByRole("tab", { name: "Codex" }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Sol" }));
     await fireEvent.click(
       within(settings).getByRole("button", { name: /^Agent reasoning level:/ }),
@@ -401,6 +408,7 @@ describe("Zoltbot connected desktop shell", () => {
     let settings = screen.getByRole("complementary", { name: "Agent settings" });
     await fireEvent.click(within(settings).getByRole("button", { name: "Agent model: Luna" }));
     let picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
+    await fireEvent.click(within(picker).getByRole("tab", { name: "Claude Code" }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
 
     await fireEvent.click(screen.getByRole("button", { name: /^Sales Outbound/ }));
@@ -410,6 +418,7 @@ describe("Zoltbot connected desktop shell", () => {
 
     await fireEvent.click(within(settings).getByRole("button", { name: "Agent model: Luna" }));
     picker = within(settings).getByRole("dialog", { name: "Choose agent model" });
+    await fireEvent.click(within(picker).getByRole("tab", { name: "Claude Code" }));
     await fireEvent.click(within(picker).getByRole("option", { name: "Claude Opus 5, default" }));
     await waitFor(() =>
       expect(window.openbot.agent.updateBot).toHaveBeenCalledWith({
@@ -443,14 +452,16 @@ describe("Zoltbot connected desktop shell", () => {
     const trigger = await screen.findByRole("button", { name: "Onboarding model: Luna" });
     await fireEvent.click(trigger);
     const picker = screen.getByRole("dialog", { name: "Choose agent model" });
-    expect(within(picker).getByRole("group", { name: "Codex" })).toBeInTheDocument();
-    expect(
-      within(picker).getByRole("group", { name: "Claude · Claude CLI was not found." }),
-    ).toBeInTheDocument();
-    expect(within(picker).getByRole("option", { name: "Claude Opus 5, default" })).toHaveAttribute(
-      "aria-disabled",
+    expect(within(picker).getByRole("tab", { name: "Codex" })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
+    expect(
+      within(picker).getByRole("tab", { name: "Claude, Claude CLI was not found." }),
+    ).toBeInTheDocument();
+    expect(
+      within(picker).queryByRole("option", { name: "Claude Opus 5, default" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not remount settings or discard an in-progress edit on bot list refresh", async () => {

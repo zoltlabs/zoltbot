@@ -597,6 +597,12 @@ export function Conversation(props: ConversationProps) {
         modelDisabled={modelDisabled()}
         working={working()}
         onModelChange={(model) => void selectAndConfirmModel(model)}
+        effort={settingsReasoning()}
+        onEffortChange={(reasoningEffort) => {
+          setSettingsReasoning(reasoningEffort);
+          void saveBotPatch({ reasoningEffort });
+        }}
+        onSetUpAgent={() => void props.onOpenAgentSetup()}
         onUndoModel={() => {
           // A10: back to what the session runs, which drops the held change.
           const bot = props.bot;

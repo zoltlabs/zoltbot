@@ -2,6 +2,7 @@ import { createMemo, createSignal, createUniqueId, For, onMount, Show } from "so
 import type {
   AgentModelId,
   AgentModelOption,
+  AgentReasoningEffort,
   AgentStatus,
   BotSummary,
 } from "../../../../shared/ipc";
@@ -37,6 +38,9 @@ export function ConversationHeader(props: {
   onModelChange: (model: AgentModelId) => void;
   onUndoModel(): void;
   onFastModeChange?: (on: boolean) => Promise<boolean>;
+  effort?: AgentReasoningEffort;
+  onEffortChange?: (effort: AgentReasoningEffort) => void;
+  onSetUpAgent?: () => void;
   organizationOpen: boolean;
   onToggleOrganization: () => void;
   browserControlled: boolean;
@@ -154,6 +158,9 @@ export function ConversationHeader(props: {
                     onChange={props.onModelChange}
                     fastMode={props.bot?.fastMode ?? null}
                     onFastModeChange={props.onFastModeChange}
+                    effort={props.effort}
+                    onEffortChange={props.onEffortChange}
+                    onSetUpAgent={props.onSetUpAgent}
                   />
                 </Show>
                 <Show when={props.bot?.projectId}>
