@@ -96,7 +96,7 @@ export function backupModelsApi(host: {
   return async (method: string, params: Params, commandId?: string): Promise<unknown> => {
     switch (method) {
       case "modelAccount.list": {
-        const state = store.snapshot(["settings", "agentDefinition", "session"]);
+        const state = store.snapshot(["settings", "agentDefinition", "session", "thread", "agent"]);
         const items = listAccounts(state);
         const free = catalogFreeModels(state).slice(0, 50);
         return { items, orders: readOrders(state), free };

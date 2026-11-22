@@ -248,7 +248,16 @@ it("writes one notice when every backup is at its limit", async () => {
 it("A7: moves to a free model when every paid entry is at its limit", async () => {
   const t = await fixture("claude-only");
   // Codex ran once in another chat and listed a free model, so the catalog offers it.
-  t.f.put("thread", { ...t.f.store.record("thread", "thread"), id: "other" });
+  t.f.put("agent", {
+    ...t.f.store.record("agent", "profile"),
+    id: "codex-agent",
+    definitionId: "codex-tool",
+  });
+  t.f.put("thread", {
+    ...t.f.store.record("thread", "thread"),
+    id: "other",
+    agentId: "codex-agent",
+  });
   t.f.put("session", {
     id: "codex-seen",
     threadId: "other",
