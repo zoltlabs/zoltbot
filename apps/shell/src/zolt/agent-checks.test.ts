@@ -61,6 +61,36 @@ describe("agent checks", () => {
     expect(statuses[2]?.message).toBe("Pi isn’t installed.");
   });
 
+  it("lists checked agents that aren't stored yet from their setup hints", () => {
+    const fresh = {
+      checks: [
+        {
+          kind: "agent",
+          definitionId: "claude",
+          displayName: "Claude Code",
+          setup: {
+            binary: "claude",
+            install: { docsUrl: "https://example.com/install" },
+            loginCommand: ["auth", "login"],
+          },
+          install: { selected: { path: "/bin/claude", state: "working", version: "2.1.0" } },
+          login: { state: "signed_in" },
+        },
+        { kind: "agent", definitionId: "goose", displayName: "Goose", install: { candidates: [] } },
+      ],
+    };
+    const statuses = providerStatuses([], agentChecks(fresh), true);
+    expect(statuses.map(({ id, state }) => [id, state])).toEqual([
+      ["claude", "available"],
+      ["goose", "not-installed"],
+    ]);
+    expect(statuses[0]).toMatchObject({
+      name: "Claude Code",
+      installUrl: "https://example.com/install",
+      loginCommand: "claude auth login",
+    });
+  });
+
   it("reads as checking before the report and not started while offline", () => {
     expect(providerStatuses(definitions, undefined, true)[0]?.state).toBe("checking");
     expect(providerStatuses(definitions, agentChecks(report), false)[1]?.state).toBe("not-started");

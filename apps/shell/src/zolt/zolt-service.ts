@@ -208,7 +208,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     try {
       if (scan) await this.client.call("detect.scan", {});
       let checks = agentChecks(await this.client.call("doctor.report", {}));
-      if (!scan && checks.size === 0 && this.client.rows("agentDefinition").length > 0) {
+      if (!scan && checks.size === 0) {
         await this.client.call("detect.scan", {});
         checks = agentChecks(await this.client.call("doctor.report", {}));
       }

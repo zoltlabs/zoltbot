@@ -20,14 +20,22 @@ export function agentChecks(report: unknown): Map<string, Row> {
 }
 
 /**
- * One status per agent definition the daemon knows. Install and sign-in state come from the
- * daemon's checks; until those arrive every agent reads as checking.
+ * One status per agent the daemon knows: every agent it checked, plus any stored definition it
+ * hasn't checked yet. Built-in agents are stored only once they are first used, so on a new
+ * install the checks are the full list. Until checks arrive every stored agent reads as checking.
  */
 export function providerStatuses(
-  definitions: Row[],
+  storedDefinitions: Row[],
   checks: AgentChecks,
   online: boolean,
 ): AgentProviderStatus[] {
+  const stored = new Map(storedDefinitions.map((row) => [text(row.id), row]));
+  const definitions = [
+    ...(checks instanceof Map
+      ? [...checks.values()].map((check) => stored.get(text(check.definitionId)) ?? fromCheck(check))
+      : []),
+    ...storedDefinitions.filter((row) => !(checks instanceof Map && checks.has(text(row.id)))),
+  ];
   return definitions.map((definition) => {
     const id = text(definition.id);
     const name = text(definition.displayName) || id;
@@ -51,6 +59,18 @@ export function providerStatuses(
           : null,
     };
   });
+}
+
+/** A definition-shaped row from a check's setup hints, for agents not stored yet. */
+function fromCheck(check: Row): Row {
+  const setup = record(check.setup);
+  return {
+    id: text(check.definitionId),
+    displayName: text(check.displayName),
+    binaryNames: text(setup.binary) ? [text(setup.binary)] : [],
+    install: record(setup.install),
+    auth: { loginCommand: setup.loginCommand },
+  };
 }
 
 function providerState(

@@ -172,6 +172,12 @@ export class DetectionService {
       checks.push({
         kind: "agent",
         ...scan,
+        // Setup hints, so the app can list an agent before it has been used once.
+        setup: {
+          binary: definition.binaryNames[0],
+          ...(definition.install ? { install: definition.install } : {}),
+          ...(definition.auth?.loginCommand ? { loginCommand: definition.auth.loginCommand } : {}),
+        },
         login: await this.login(scan.definitionId),
         overridden: definitions.overridden.includes(scan.definitionId),
         capabilities,

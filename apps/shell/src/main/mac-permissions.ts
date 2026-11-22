@@ -35,10 +35,13 @@ export async function requestMacPermission(
     return readMacPermissions();
   }
 
-  const state = systemPreferences.getMediaAccessStatus("screen");
-  if (state === "not-determined") {
-    await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } });
-  } else if (state === "denied" || state === "unknown") {
+  if (systemPreferences.getMediaAccessStatus("screen") === "granted") return readMacPermissions();
+  // macOS reports "denied" for an app that has never asked, and lists an app under Screen
+  // Recording only after it asks. Ask first so Zoltbot appears there, then open the pane.
+  await desktopCapturer
+    .getSources({ types: ["screen"], thumbnailSize: { width: 0, height: 0 } })
+    .catch(() => undefined);
+  if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
     await shell.openExternal(
       "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
     );
