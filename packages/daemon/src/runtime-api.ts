@@ -35,8 +35,6 @@ export function runtimeApi(options: {
   store: Store;
   manager?: SessionManager;
   publish(events: DomainEvent[]): void;
-  /** Asks a definition's provider for its models without opening a session. */
-  listModels?(definitionId: string): Promise<ModelList>;
   onError?(code: string): void;
 }) {
   let controls: ReturnType<typeof sessionCommands> | undefined;
@@ -44,11 +42,11 @@ export function runtimeApi(options: {
   const listed = new Map<string, ModelList>();
   const listing = new Map<string, Promise<boolean>>();
   const refresh = (definitionId: string) => {
-    const listModels = options.listModels;
-    if (!listModels) return Promise.resolve(false);
     let work = listing.get(definitionId);
     if (!work) {
-      work = listModels(definitionId)
+      const asked = options.manager?.listModels(definitionId);
+      if (!asked) return Promise.resolve(false);
+      work = asked
         .then((models) => {
           listed.set(definitionId, models);
           return true;

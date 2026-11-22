@@ -47,6 +47,8 @@ export interface RuntimeHost {
     },
     redactor: Redactor,
   ): Promise<PreparedRuntime>;
+  /** The models a definition offers, asked of its provider without opening a session. */
+  listModels?(definitionId: string): Promise<import("@zoltbot/adapters-sdk").ModelList>;
 }
 
 export interface RuntimeEntry {

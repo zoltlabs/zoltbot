@@ -309,7 +309,6 @@ async function startOwnedDaemon(
   const runtime = runtimeApi({
     store,
     ...(manager ? { manager } : {}),
-    ...(ownedRuntime?.listModels ? { listModels: ownedRuntime.listModels.bind(ownedRuntime) } : {}),
     publish,
     onError: (code) => logger.write("warn", code),
   });

@@ -1,6 +1,11 @@
+import type { ModelList } from "@zoltbot/adapters-sdk";
 import { expect, it } from "vitest";
 import { runtimeApi } from "./runtime-api.js";
+import type { SessionManager } from "./session-manager.js";
 
+/** A session manager whose runtime host lists models. */
+const manager = (listModels: (definitionId: string) => Promise<ModelList>) =>
+  ({ listModels }) as unknown as SessionManager;
 const store = (definitions: { id: string; adapter: string; archived?: boolean }[]) =>
   ({ snapshot: () => ({ agentDefinition: definitions }) }) as never;
 
@@ -15,11 +20,11 @@ it("serves model.refresh and lists the results in model.catalog", async () => {
     ]),
     publish() {},
     onError: (code) => errors.push(code),
-    async listModels(definitionId) {
+    manager: manager(async (definitionId) => {
       asked.push(definitionId);
       if (definitionId === "cursor") throw new Error("model_list_unavailable");
       return { list: [{ id: "opus", name: "Opus" }], effort: ["high"] };
-    },
+    }),
   });
   const catalog = () =>
     (api("model.catalog", {}) as { items: { definitionId: string; models: unknown[] }[] }).items;
@@ -42,12 +47,12 @@ it("asks a provider once while a refresh is already running", async () => {
   const api = runtimeApi({
     store: store([{ id: "codex", adapter: "codex" }]),
     publish() {},
-    listModels: () => {
+    manager: manager(() => {
       calls++;
       return new Promise((resolve) => {
         finish = () => resolve({ list: [], effort: [] });
       });
-    },
+    }),
   });
   const first = api("model.refresh", { definitionId: "codex" }) as Promise<unknown>;
   const second = api("model.refresh", { definitionId: "codex" }) as Promise<unknown>;
@@ -62,9 +67,9 @@ it("reports a failed listing without serving stale models", async () => {
     store: store([{ id: "claude", adapter: "claude" }]),
     publish() {},
     onError: (code) => errors.push(code),
-    listModels: async () => {
+    manager: manager(async () => {
       throw new Error("auth_required");
-    },
+    }),
   });
   expect(await api("model.refresh", {})).toEqual({ ok: false });
   expect(errors).toEqual(["model_refresh_failed:auth_required"]);

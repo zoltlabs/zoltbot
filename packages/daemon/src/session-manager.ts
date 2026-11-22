@@ -757,6 +757,10 @@ export class SessionManager {
   contextUsage(threadId: string) {
     return readContextUsage(this.entries, threadId);
   }
+  /** A definition's models from its provider, without a session; undefined when it can't ask. */
+  listModels(definitionId: string) {
+    return this.options.host.listModels?.(definitionId);
+  }
   /** Stops any live session handle for a thread before archiving or deleting it. */
   async stopThread(threadId: string, forceCleanup = false): Promise<void> {
     this.forks.assertNotLeased(threadId);

@@ -49,8 +49,6 @@ export interface OwnedRuntime extends RuntimeHost {
     definitionId: string,
     configDirectory?: string,
   ): Promise<"signed_in" | "signed_out" | "unknown">;
-  /** The models a definition offers, asked of its provider without opening a session. */
-  listModels?(definitionId: string): Promise<import("@zoltbot/adapters-sdk").ModelList>;
   close(): Promise<void>;
 }
 export interface DaemonOptions {
