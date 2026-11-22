@@ -5,6 +5,25 @@ The website publishes released entries only; Unreleased stays in this repository
 
 ## Unreleased
 
+- Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
+
+- Show cloud task audit records, including refused Mac commands, in their project.
+
+- Fix: Cloud tasks can connect to their account service on the hosted Worker runtime.
+
+- Improvement: Cloud tasks can create a review commit from a confirmed file preview.
+
+- Improvement: Cloud task acceptance keeps the reviewed commit fixed through branch publication and PR creation.
+
+- Improvement: Cloud task diffs stay scoped to their task and current revision.
+
+- Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
+- Fix: Mac command rules require fresh approval when a prefix only selects options.
+
+## v0.1.9: More ways to work with your agents
+
+November 21, 2026
+
 - New: Pin, hide or reply to a message, ask about a selected passage, and branch a chat from any message or edit it.
 - New: Ask a side question without interrupting the agent, send a queued message now or reorder the queue, and stop an agent by sending a stop phrase such as "stop".
 - New: Agents react to messages and show a one-line status and short progress notes while they work.
@@ -40,21 +59,6 @@ The website publishes released entries only; Unreleased stays in this repository
 - New: On iPhone, swipe a message to reply, set the text size, pick an app icon, watch the agent's browser, and change an agent's role and model.
 - New: Sign in to app connections from iPhone.
 - New: An Android app.
-
-- Prepare native Cloud connections and settings for API keys, Mac execution and sandbox usage; packaged integration is still pending.
-
-- Show cloud task audit records, including refused Mac commands, in their project.
-
-- Fix: Cloud tasks can connect to their account service on the hosted Worker runtime.
-
-- Improvement: Cloud tasks can create a review commit from a confirmed file preview.
-
-- Improvement: Cloud task acceptance keeps the reviewed commit fixed through branch publication and PR creation.
-
-- Improvement: Cloud task diffs stay scoped to their task and current revision.
-
-- Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
-- Fix: Mac command rules require fresh approval when a prefix only selects options.
 
 ## v0.1.8: Clearer setup
 
