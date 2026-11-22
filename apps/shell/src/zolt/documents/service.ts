@@ -282,7 +282,12 @@ export class DocumentsService {
       .filter((comment): comment is DocumentComment => Boolean(comment))
       .filter((comment) => comment.state !== "resolved");
     if (!comments.length) throw new Error("Choose at least one comment to send.");
-    const brief = commentsMessage({ path: input.path, absolutePath: file, comments, note: input.note });
+    const brief = commentsMessage({
+      path: input.path,
+      absolutePath: file,
+      comments,
+      note: input.note,
+    });
     if (brief.length > BRIEF_LIMIT)
       throw new Error("These comments are too long to send at once. Send fewer of them.");
     const current = state.review?.taskId ?? null;
@@ -387,7 +392,12 @@ export class DocumentsService {
         const task = this.client.rows("task").find((row) => row.id === taskId);
         await this.client.call(
           "task.review",
-          { id: taskId, revision: Number(task?.revision ?? 1), decision: "accept", confirmed: true },
+          {
+            id: taskId,
+            revision: Number(task?.revision ?? 1),
+            decision: "accept",
+            confirmed: true,
+          },
           randomUUID(),
         );
       }

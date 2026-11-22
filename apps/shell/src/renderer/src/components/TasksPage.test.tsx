@@ -129,7 +129,9 @@ describe("TasksPage", () => {
       task("Edit 03-storm.md", { state: "review", document: { path: "chapters/03-storm.md" } }),
     ]);
     const { onOpenChat, onOpenDocument } = renderPage();
-    await fireEvent.click((await screen.findAllByRole("button", { name: /^Edit 03-storm\.md/ }))[0] as HTMLElement);
+    await fireEvent.click(
+      (await screen.findAllByRole("button", { name: /^Edit 03-storm\.md/ }))[0] as HTMLElement,
+    );
     expect(onOpenDocument).toHaveBeenCalledWith("acme", "chapters/03-storm.md");
     expect(onOpenChat).not.toHaveBeenCalled();
   });

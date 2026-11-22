@@ -915,7 +915,9 @@ export function App() {
                         .tasks()
                         .filter(
                           (task) =>
-                            task.document && task.state === "review" && task.projectId === projectId,
+                            task.document &&
+                            task.state === "review" &&
+                            task.projectId === projectId,
                         ).length
                     }
                     active={documentsRoute()?.projectId === projectId}

@@ -211,7 +211,11 @@ export function DocumentsPage(props: DocumentsPageProps) {
                     </div>
                   }
                 >
-                  <DocumentPane store={store} bots={projectBots()} onOpenTasks={() => props.onOpenTasks(props.projectId)} />
+                  <DocumentPane
+                    store={store}
+                    bots={projectBots()}
+                    onOpenTasks={() => props.onOpenTasks(props.projectId)}
+                  />
                 </Show>
               </section>
             </div>

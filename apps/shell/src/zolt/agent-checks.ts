@@ -32,7 +32,9 @@ export function providerStatuses(
   const stored = new Map(storedDefinitions.map((row) => [text(row.id), row]));
   const definitions = [
     ...(checks instanceof Map
-      ? [...checks.values()].map((check) => stored.get(text(check.definitionId)) ?? fromCheck(check))
+      ? [...checks.values()].map(
+          (check) => stored.get(text(check.definitionId)) ?? fromCheck(check),
+        )
       : []),
     ...storedDefinitions.filter((row) => !(checks instanceof Map && checks.has(text(row.id)))),
   ];
