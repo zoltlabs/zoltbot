@@ -72,4 +72,8 @@ it("allows the public hook endpoint without allowing private module imports", ()
     "Public dependency boundary passed",
   );
   expect(() => check(`import value from ${JSON.stringify(route)};`)).toThrow();
+  expect(
+    check(`export const route = ${JSON.stringify(`${route}/hook-id/requests?since=now`)};`),
+  ).toContain("passed");
+  expect(() => check(`import value from ${JSON.stringify(`${route}/private.js`)};`)).toThrow();
 });

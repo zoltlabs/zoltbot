@@ -99,7 +99,15 @@ async function walk(directory) {
             text.slice(0, match.index),
           );
         // Routing enums and known HTTP routes grant no permission to import private modules.
-        if (!moduleReference && (value === "cloud" || publicAccountRoutes.has(value))) continue;
+        if (
+          !moduleReference &&
+          (value === "cloud" ||
+            publicAccountRoutes.has(value) ||
+            value.startsWith("/api/cloud/hooks/") ||
+            (relative.endsWith(".test.ts") &&
+              /^(GET|POST|DELETE) \/api\/cloud\/hooks(?:\/|$)/.test(value)))
+        )
+          continue;
         if (
           !moduleReference &&
           relative === "apps/mobile/src/cloud/account.test.ts" &&
