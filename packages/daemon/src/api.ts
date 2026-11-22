@@ -51,6 +51,7 @@ import { conversationServices } from "./conversation-services.js";
 import { creationApi } from "./creation-api.js";
 import { type Cleanup, withDaemonResources } from "./daemon-resources.js";
 import { deviceBook } from "./devices.js";
+import { documentReviews } from "./document-reviews.js";
 import { finishCheck } from "./finish-check.js";
 import { forkApi } from "./fork-api.js";
 import { githubAccountTokens } from "./github/bot.js";
@@ -281,8 +282,10 @@ async function startOwnedDaemon(
     resources.push(() => inProcess.runner.close());
     await loadInteractions();
   }
+  const documents = documentReviews(options.dataDir);
   const ownedTasks = taskRunner({
     store,
+    documents,
     ...(options.routineClock ? { now: options.routineClock } : {}),
     ...(options.routinePollMs ? { routinePollMs: options.routinePollMs } : {}),
     ...(options.eventRoutineTransport
@@ -634,6 +637,8 @@ async function startOwnedDaemon(
         client,
       );
     switch (request.method) {
+      case "document.changes":
+        return documents.changes(String(params.id));
       case "hello":
         // D3: the app that started this daemon names its version, so a newer app can tell the
         // daemon is older and replace it.

@@ -203,7 +203,13 @@ export const TaskStateSchema = values([
   "cancelled",
 ]);
 export type TaskState = Static<typeof TaskStateSchema>;
+/** A task that edits one document; its path is relative to the project folder. */
+export const TaskDocumentSchema = object({ path: Type.String({ minLength: 1, maxLength: 1000 }) });
+export type TaskDocument = Static<typeof TaskDocumentSchema>;
+/** The largest document text a document task keeps for review, in characters. */
+export const TASK_DOCUMENT_MAX_TEXT = 1_000_000;
 export const TaskSchema = object({
+  document: Type.Optional(TaskDocumentSchema),
   location: Type.Optional(TaskLocationSchema),
   sourceMessageId: Type.Optional(Id),
   accountableThreadId: Type.Optional(Id),

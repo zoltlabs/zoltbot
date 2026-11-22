@@ -54,6 +54,8 @@ export interface TaskInput {
   workspaceId?: string;
   routineInputs?: Routine["template"]["inputs"];
   workspace?: { id: string; path: string; repoRoot: string; baseRef: string };
+  /** The document a document task edits, relative to the project folder. */
+  document?: { path: string };
   /** False only for a workflow step whose gate is "none". */
   reviewRequired?: boolean;
 }
@@ -246,6 +248,7 @@ function buildTask(state: DomainState, input: TaskInput, context: CommandContext
         }
       : {}),
     ...(input.routineInputs ? { routineInputs: input.routineInputs } : {}),
+    ...(input.document ? { document: input.document } : {}),
     projectId: lineage.project.id,
     node: input.node,
     rootId: input.parentId

@@ -36,6 +36,7 @@ import { canonicalApprovalRoot } from "./approval-paths.js";
 import { materializeTaskArtifacts } from "./artifacts/repository-write.js";
 import { cleanupThreadStaging } from "./artifacts/staging.js";
 import { browserHoldReasons } from "./browser/errors.js";
+import type { DocumentReviews } from "./document-reviews.js";
 import { eventRoutines } from "./event-routines.js";
 import { prepareTaskWorktree } from "./prepare-task-worktree.js";
 import type { PublicWriteCheck } from "./private-input.js";
@@ -60,6 +61,8 @@ export interface TaskRunnerOptions {
   hookCloud?: import("./webhook-event-source.js").HookCloud;
   stopUnattended?(threadId: string): Promise<void>;
   worktrees?: ReturnType<typeof worktreeService>;
+  /** Keeps a document task's text from before the agent started. */
+  documents?: DocumentReviews;
   requestApproval?(draft: InteractionDraft, commandId: string): Promise<unknown>;
   publish(events: DomainEvent[]): void;
   checkPublic(value: unknown): Promise<PublicWriteCheck>;
@@ -482,6 +485,11 @@ export function taskRunner(options: TaskRunnerOptions) {
       }
       if (!commandId) throw new Error("command_id_required");
       if (method === "task.create") {
+        const document = params.document as
+          | { path: string; file: string; before: string }
+          | undefined;
+        if (document && params.workspaceMode === "worktree")
+          throw new Error("document_shared_only");
         const input = {
           ...(params.outputMode ? { outputMode: parse(OutputModeSchema, params.outputMode) } : {}),
           id: `task-${hash(commandId)}`,
@@ -496,11 +504,24 @@ export function taskRunner(options: TaskRunnerOptions) {
           workspaceMode:
             params.workspaceMode === "worktree" ? ("worktree" as const) : ("shared" as const),
           ...(typeof params.baseRef === "string" ? { baseRef: params.baseRef } : {}),
+          ...(document ? { document: { path: document.path } } : {}),
         };
-        const check = store.receipt(commandId)
-          ? undefined
-          : await options.checkPublic([input.title, input.brief, input.acceptance]);
+        const fresh = !store.receipt(commandId);
+        const file =
+          document && fresh
+            ? await (options.documents?.check(store.snapshot(), document) ??
+                Promise.reject(new Error("document_unavailable")))
+            : undefined;
+        const check = fresh
+          ? await options.checkPublic([input.title, input.brief, input.acceptance])
+          : undefined;
         const result = run(commandId, human, (s, context) => createTask(s, input, context), check);
+        if (document && file && options.documents)
+          await options.documents.save(input.id, {
+            path: document.path,
+            file,
+            before: document.before,
+          });
         if (input.workspaceMode === "worktree" && options.worktrees) {
           const prepared = await prepareTaskWorktree({
             store,
