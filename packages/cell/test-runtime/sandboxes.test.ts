@@ -243,6 +243,62 @@ it("wakes a sleeping sandbox for an answer without waiting for another input ite
   });
 });
 
+it.each([
+  false,
+  true,
+])("only schedules the pending question idle deadline when sleep preserves its process (%s)", async (sleepKeepsProcesses) => {
+  await runInDurableObject(stub(), async (_instance, state) => {
+    const store = sandboxFixture(state.storage, true);
+    const thread = String(store.record("task", "task")?.threadId);
+    const at = new Date(epoch).toISOString();
+    store.database
+      .prepare(
+        "INSERT INTO sessions(id,thread_id,provider,cwd,state,capabilities,started_at) VALUES('session',?,'claude','.','running','{}',?)",
+      )
+      .run(thread, at);
+    store.database
+      .prepare(
+        "INSERT INTO turns(id,thread_id,session_id,status,origin,started_at) VALUES('turn',?,'session','running','system',?)",
+      )
+      .run(thread, at);
+    store.database
+      .prepare(
+        "INSERT INTO interactions(id,version,agent_id,thread_id,turn_id,task_id,type,urgency,state,body,native_ref,created_at) VALUES('question',1,'cloud-claude',?,'turn','task','question','blocking','pending','{}','native-question',?)",
+      )
+      .run(thread, at);
+    const deadline = epoch + 1_800_000;
+    const checkpointAt = epoch + 3_600_000;
+    let now = deadline - 1;
+    const paths: string[] = [];
+    const sandboxes = new CellSandboxes(
+      store,
+      {
+        request: async (path) => {
+          paths.push(path);
+          return { ...record("sleeping"), sleepKeepsProcesses };
+        },
+      },
+      "org",
+      "member",
+      () => now,
+    );
+    saved(store, {
+      ...record(),
+      sleepKeepsProcesses,
+      expiresAt: new Date(checkpointAt + 60_000).toISOString(),
+    });
+    const checkpoint = async () => {
+      throw new Error("unexpected_checkpoint");
+    };
+    expect(await sandboxes.tick(checkpoint)).toBe(sleepKeepsProcesses ? deadline : checkpointAt);
+    expect(paths).toEqual([]);
+    now = deadline;
+    expect(await sandboxes.tick(checkpoint)).toBe(sleepKeepsProcesses ? undefined : checkpointAt);
+    expect(paths).toEqual(sleepKeepsProcesses ? ["sandboxes/sleep"] : []);
+    expect(sandboxes.get("task")?.state).toBe(sleepKeepsProcesses ? "sleeping" : "running");
+  });
+});
+
 it("checks each retained sandbox in bounded pages and keeps the earliest future alarm", async () => {
   await runInDurableObject(stub(), async (_instance, state) => {
     const store = sandboxFixture(state.storage, true);

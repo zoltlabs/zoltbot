@@ -327,11 +327,11 @@ export class CellSandboxes {
       const expiry = sandbox.expiresAt ? Date.parse(sandbox.expiresAt) - 60000 : undefined;
       const idleAt = active.at + (active.pending ? 1800000 : 1200000);
       const lifetime = expiry !== undefined && now >= expiry;
-      const idle =
+      const canSleepWhenIdle =
         task.state !== "queued" &&
         !this.pendingWork(task.id) &&
-        now >= idleAt &&
         (!active.turn || (active.pending && sandbox.sleepKeepsProcesses));
+      const idle = canSleepWhenIdle && now >= idleAt;
       if (lifetime && active.turn && !(active.pending && sandbox.sleepKeepsProcesses)) {
         await checkpoint(task.id);
         schedule(now + 15000);
@@ -349,7 +349,7 @@ export class CellSandboxes {
           schedule(now + 15000);
         }
       } else {
-        if (!active.turn || active.pending) schedule(idleAt);
+        if (canSleepWhenIdle) schedule(idleAt);
         if (expiry !== undefined) schedule(expiry);
       }
     }
