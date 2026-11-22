@@ -1,7 +1,7 @@
 import { chiefName } from "@zoltbot/ui/chief/data";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import { AppState, Linking, StyleSheet, View } from "react-native";
 import { type PhonePref, preferenceKey, readPhonePrefs } from "../../data/preferences";
 import { since, text } from "../../data/view";
 import { useAction } from "../../state/actions";
@@ -156,11 +156,15 @@ export default function Settings() {
           title="Push permission"
           detail={push.label}
           right={
-            <Button
-              label="Enable"
-              disabled={!online || push.busy || push.label === "Allowed" || push.label === "Denied"}
-              onPress={() => void push.refresh(true)}
-            />
+            push.label === "Allowed" ? undefined : push.label === "Denied" ? (
+              <Button label="Open Settings" onPress={() => void Linking.openSettings()} />
+            ) : (
+              <Button
+                label="Enable"
+                disabled={!online || push.busy}
+                onPress={() => void push.refresh(true)}
+              />
+            )
           }
           last
         />
