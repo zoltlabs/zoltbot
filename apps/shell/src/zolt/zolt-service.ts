@@ -27,7 +27,7 @@ import type {
 } from "../shared/ipc";
 import type { StaffActionInput } from "../shared/staff";
 import type { ReviewTaskInput, TaskSummary } from "../shared/tasks";
-import { type AgentChecks, agentChecks, providerStatuses } from "./agent-checks";
+import { type AgentChecks, agentChecks, missingAgents, providerStatuses } from "./agent-checks";
 import { chooseAgent } from "./agent-choice";
 import { asideSource, asideThreads, withAsides } from "./asides";
 import { CHANNEL_ROWS, channelService } from "./channel-service";
@@ -218,6 +218,41 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     } catch {
       this.agentChecks = this.client.status === "online" ? "failed" : undefined;
     }
+    await this.addReadyAgents().catch(() => undefined);
+  }
+
+  private adding?: Promise<void>;
+  /** Adds an agent for every installed, signed-in tool that doesn't have one yet. */
+  private addReadyAgents(): Promise<void> {
+    this.adding ??= (async () => {
+      for (const provider of missingAgents(
+        this.getStatus().providers ?? [],
+        this.client.rows("agent"),
+      )) {
+        const id = randomUUID();
+        const name = provider.name || provider.id;
+        await this.client.call(
+          "agent.create",
+          {
+            value: {
+              id,
+              name,
+              avatar: name.slice(0, 1) || "A",
+              kind: "profile",
+              definitionId: provider.id,
+              permissionProfile: "workspace_write",
+              instructions: "",
+              hidden: false,
+              archived: false,
+            },
+          },
+          `shell:agent:${provider.id}:${id}`,
+        );
+      }
+    })().finally(() => {
+      this.adding = undefined;
+    });
+    return this.adding;
   }
 
   async getUsage(): Promise<AccountUsage> {

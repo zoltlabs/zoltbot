@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { agentChecks, providerStatuses } from "./agent-checks";
+import { agentChecks, missingAgents, providerStatuses } from "./agent-checks";
 
 const definitions = [
   {
@@ -95,5 +95,28 @@ describe("agent checks", () => {
     expect(providerStatuses(definitions, undefined, true)[0]?.state).toBe("checking");
     expect(providerStatuses(definitions, agentChecks(report), false)[1]?.state).toBe("not-started");
     expect(providerStatuses(definitions, "failed", true)[1]?.state).toBe("error");
+  });
+});
+
+describe("missingAgents", () => {
+  const status = (id: string, state: "available" | "not-installed") => ({
+    id,
+    name: id,
+    state,
+    version: null,
+    message: null,
+  });
+
+  it("adds signed-in agents that have no profile yet", () => {
+    const providers = [
+      status("claude", "available"),
+      status("codex", "available"),
+      status("pi", "not-installed"),
+    ];
+    const profiles = [
+      { id: "a", definitionId: "claude", kind: "profile", archived: false },
+      { id: "b", definitionId: "codex", kind: "profile", archived: true },
+    ];
+    expect(missingAgents(providers, profiles).map((provider) => provider.id)).toEqual(["codex"]);
   });
 });

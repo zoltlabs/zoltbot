@@ -93,3 +93,18 @@ function providerState(
     return { state: "sign-in-required", message: `Sign in to ${name}.` };
   return { state: "available", message: null };
 }
+
+/** The installed, signed-in agents that don't have a profile to chat with yet. */
+export function missingAgents(
+  providers: AgentProviderStatus[],
+  profiles: Row[],
+): AgentProviderStatus[] {
+  return providers.filter(
+    (provider) =>
+      provider.state === "available" &&
+      !profiles.some(
+        (row) =>
+          row.definitionId === provider.id && row.kind === "profile" && row.archived !== true,
+      ),
+  );
+}
