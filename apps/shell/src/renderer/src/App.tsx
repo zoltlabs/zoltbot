@@ -457,7 +457,9 @@ export function App() {
       const stored = await window.openbot.agent.createProject();
       if (stored) showCreatedAgent(stored);
     } catch (error) {
-      if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
+      if (String(error).includes("Add an agent in Zoltbot first.")) setPermissionsOpen(true);
+      else if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
+      else window.alert(error instanceof Error ? error.message : String(error));
     } finally {
       setCreatingAgent(false);
     }

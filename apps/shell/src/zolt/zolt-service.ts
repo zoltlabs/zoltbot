@@ -279,6 +279,28 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   /** Creates a project for a folder and its CEO, the manager accountable for the whole project. */
   async createProject(path: string): Promise<BotSummary> {
+    const profiles = this.client
+      .rows("agent")
+      .filter((row) => row.archived !== true && row.hidden !== true);
+    if (!chooseAgent(profiles)) throw new Error("Add an agent in Zoltbot first.");
+    // A project saved for this folder without its CEO (an earlier attempt failed) gets one now.
+    const managed = new Set(
+      this.client
+        .rows("thread")
+        .filter((row) => row.kind === "manager")
+        .map((row) => row.projectId),
+    );
+    const unfinished = this.client
+      .rows("project")
+      .find(
+        (row) =>
+          row.archived !== true &&
+          !managed.has(row.id) &&
+          Array.isArray(row.roots) &&
+          (row.roots as Record<string, unknown>[]).some((root) => root.path === path),
+      );
+    if (typeof unfinished?.id === "string")
+      return this.createBot({ projectId: unfinished.id, manager: true });
     const now = new Date().toISOString();
     const id = randomUUID();
     const name = basename(path) || "Project";

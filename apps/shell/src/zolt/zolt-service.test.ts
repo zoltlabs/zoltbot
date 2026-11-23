@@ -171,6 +171,44 @@ describe("ZoltService against a real daemon", () => {
     );
   });
 
+  it("gives a CEO to a project an earlier attempt saved without one", async () => {
+    const { service, fixture } = await setup();
+    const folder = mkdtempSync(join(tmpdir(), "retry-"));
+    const projectId = randomUUID();
+    const other = new DaemonClient(async () => ({
+      url: fixture.daemon.url,
+      token: fixture.daemon.token,
+    }));
+    await other.start();
+    try {
+      await other.call(
+        "project.create",
+        {
+          value: {
+            id: projectId,
+            name: "retry",
+            goal: "",
+            instructions: "",
+            constraints: "",
+            roots: [{ path: folder, label: "Code" }],
+            hierarchyDepth: 3,
+            tags: [],
+            requireCodeReview: false,
+            skipFinalGateWhenReviewed: false,
+            archived: false,
+            createdAt: new Date().toISOString(),
+          },
+        },
+        `test:project:${projectId}`,
+      );
+    } finally {
+      other.stop();
+    }
+    await until(() => service.client.rows("project").find((row) => row.id === projectId));
+    const ceo = await service.createProject(folder);
+    expect(ceo).toMatchObject({ projectId, companyRole: "ceo" });
+  });
+
   it("shows a proposed plan, applies it on approval and writes a project brief", async () => {
     const { service, events, fixture } = await setup();
     const ceo = await service.createProject(mkdtempSync(join(tmpdir(), "company-")));
