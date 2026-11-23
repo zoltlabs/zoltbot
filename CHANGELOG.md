@@ -20,6 +20,14 @@ The website publishes released entries only; Unreleased stays in this repository
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
 - Fix: Mac command rules require fresh approval when a prefix only selects options.
 
+## v0.1.12: Projects start with your agents
+
+November 22, 2026
+
+- Fix: Zoltbot adds Claude Code, Codex and your other installed, signed-in agents on its own. You no longer set one up before your first chat or project.
+- Fix: New project adds the project to the sidebar with its CEO chat. When no agent is available, Zoltbot opens agent setup instead of doing nothing.
+- Improvement: A project's CEO chat is named after the project, such as "zoltbot CEO".
+
 ## v0.1.11: Write and review documents with agents
 
 November 22, 2026
