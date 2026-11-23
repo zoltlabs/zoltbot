@@ -1,5 +1,8 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { expect, it } from "vitest";
-import { Redactor } from "./logging.js";
+import { Logger, Redactor } from "./logging.js";
 
 it("redacts nested secret fields and known values while preserving usage counts", () => {
   const r = new Redactor(["canary-value"]);
@@ -78,4 +81,12 @@ it("omits image payload bytes in nested native image formats without mutating th
   expect(JSON.stringify(safe)).not.toContain("synthetic-image-bytes");
   expect(JSON.stringify(safe)).toContain("image/png");
   expect(original.content[0]?.source?.data).toBe("synthetic-image-bytes");
+});
+
+it("keeps logging in memory when the log folder is gone", () => {
+  const folder = mkdtempSync(path.join(tmpdir(), "zoltbot-log-"));
+  const logger = new Logger(path.join(folder, "daemon.log"), new Redactor());
+  rmSync(folder, { recursive: true, force: true });
+  expect(() => logger.write("info", "API request")).not.toThrow();
+  expect(logger.lines.at(-1)).toContain("API request");
 });

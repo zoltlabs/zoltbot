@@ -126,6 +126,9 @@ export class Logger {
     );
     this.lines.push(line);
     if (this.lines.length > 500) this.lines.shift();
-    appendFileSync(this.file, `${line}\n`, { mode: 0o600 });
+    // A log line that can't be written (folder removed, disk full) must not fail the request.
+    try {
+      appendFileSync(this.file, `${line}\n`, { mode: 0o600 });
+    } catch {}
   }
 }
