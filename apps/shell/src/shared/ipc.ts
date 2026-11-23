@@ -108,6 +108,7 @@ export const IPC_CHANNELS = {
   agentListModels: "agent:list-models",
   agentRefreshModels: "agent:refresh-models",
   agentListBots: "agent:list-bots",
+  agentListAgents: "agent:list-agents",
   agentCreateBot: "agent:create-bot",
   agentCreateProject: "agent:create-project",
   agentUpdateBot: "agent:update-bot",
@@ -253,6 +254,14 @@ export interface AgentProviderStatus {
   installCommand?: string | null;
   /** The shell command that signs the agent in, when the daemon knows one. */
   loginCommand?: string | null;
+}
+
+/** An agent you can start a chat with, such as Claude Code or Codex. */
+export interface AgentProfileSummary {
+  id: string;
+  name: string;
+  avatarShape: BotAvatarShape;
+  avatarColor: BotAvatarColor;
 }
 
 export interface CreateBotInput {
@@ -723,6 +732,8 @@ export interface AgentDesktopApi {
   /** Asks these agents for their models without starting a chat, then lists every model. */
   refreshModels: (providers: AgentProviderId[]) => Promise<AgentModelOption[]>;
   listBots: () => Promise<BotSummary[]>;
+  /** The agents you can start a chat with. */
+  listAgents: () => Promise<AgentProfileSummary[]>;
   createBot: (input?: CreateBotInput) => Promise<BotSummary>;
   /** Asks for a folder, then creates a project for it with its CEO. Null when cancelled. */
   createProject: () => Promise<BotSummary | null>;

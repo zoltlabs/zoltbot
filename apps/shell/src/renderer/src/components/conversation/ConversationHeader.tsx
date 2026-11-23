@@ -1,7 +1,16 @@
-import { createMemo, createSignal, createUniqueId, For, onMount, Show } from "solid-js";
+import {
+  createMemo,
+  createResource,
+  createSignal,
+  createUniqueId,
+  For,
+  onMount,
+  Show,
+} from "solid-js";
 import type {
   AgentModelId,
   AgentModelOption,
+  AgentProfileSummary,
   AgentReasoningEffort,
   AgentStatus,
   BotSummary,
@@ -28,6 +37,8 @@ export function ConversationHeader(props: {
   /** Without a bot: start a blank agent. With one: show the agent a template just created. */
   onCreateAgent: (created?: BotSummary) => void;
   onSelectAgent: (botId: string) => void;
+  /** Starts a new chat with this agent. */
+  onStartChat: (profileId: string) => void;
   onCloseAgentPicker: () => void;
   onOpenSettings: () => void;
   modelValue: AgentModelId;
@@ -199,11 +210,10 @@ export function ConversationHeader(props: {
           }
         >
           <AgentPicker
-            bots={props.bots}
             creatingAgent={props.creatingAgent}
             onCreateAgent={() => setNewAgentOpen(true)}
             listHidden={newAgentOpen()}
-            onSelectAgent={props.onSelectAgent}
+            onStartChat={props.onStartChat}
             onClose={props.onCloseAgentPicker}
           />
         </Show>
@@ -218,29 +228,31 @@ export function ConversationHeader(props: {
 function AgentPicker(props: {
   /** True while the New agent dialog covers the picker. */
   listHidden: boolean;
-  bots: BotProfile[];
   creatingAgent: boolean;
   onCreateAgent: () => void;
-  onSelectAgent: (botId: string) => void;
+  onStartChat: (profileId: string) => void;
   onClose: () => void;
 }) {
+  const [agents] = createResource<AgentProfileSummary[]>(
+    () => window.openbot.agent.listAgents?.() ?? Promise.resolve([]),
+    { initialValue: [] },
+  );
   const [pickerQuery, setPickerQuery] = createSignal("");
   const [activePickerOption, setActivePickerOption] = createSignal(0);
   let pickerInput: HTMLInputElement | undefined;
   const [field, setField] = createSignal<HTMLLabelElement>();
   const listId = createUniqueId();
   const optionId = (index: number) => `${listId}-${index}`;
-  const filteredBots = createMemo(() => {
+  const filteredAgents = createMemo(() => {
     const query = pickerQuery().trim().toLowerCase();
-    return query
-      ? props.bots.filter((bot) => `${bot.name} ${bot.role}`.toLowerCase().includes(query))
-      : props.bots;
+    const list = agents.error ? [] : agents();
+    return query ? list.filter((agent) => agent.name.toLowerCase().includes(query)) : list;
   });
 
   onMount(() => requestAnimationFrame(() => pickerInput?.focus()));
 
   function handleKeyDown(event: KeyboardEvent) {
-    const optionCount = filteredBots().length + 1;
+    const optionCount = filteredAgents().length + 1;
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActivePickerOption((current) => (current + 1) % optionCount);
@@ -249,9 +261,9 @@ function AgentPicker(props: {
       setActivePickerOption((current) => (current - 1 + optionCount) % optionCount);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const bot = filteredBots()[activePickerOption() - 1];
+      const agent = filteredAgents()[activePickerOption() - 1];
       if (activePickerOption() === 0) props.onCreateAgent();
-      else if (bot) props.onSelectAgent(bot.id);
+      else if (agent) props.onStartChat(agent.id);
     } else if (event.key === "Escape") props.onClose();
   }
 
@@ -296,8 +308,8 @@ function AgentPicker(props: {
                 </span>
                 <span>{props.creatingAgent ? "Creating agent…" : "Create new agent"}</span>
               </button>
-              <For each={filteredBots()}>
-                {(bot, index) => (
+              <For each={filteredAgents()}>
+                {(agent, index) => (
                   <button
                     type="button"
                     id={optionId(index() + 1)}
@@ -306,10 +318,11 @@ function AgentPicker(props: {
                     aria-selected={activePickerOption() === index() + 1}
                     class="agent-picker-option"
                     onPointerDown={(event) => event.preventDefault()}
-                    onClick={() => props.onSelectAgent(bot.id)}
+                    disabled={props.creatingAgent}
+                    onClick={() => props.onStartChat(agent.id)}
                   >
-                    <AgentAvatar bot={bot} />
-                    <span>{bot.name}</span>
+                    <AgentAvatar shape={agent.avatarShape} color={agent.avatarColor} />
+                    <span>{agent.name}</span>
                   </button>
                 )}
               </For>

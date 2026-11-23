@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { Row, Snapshot } from "./daemon-client";
-import { latestPlan, toMessages } from "./mapping";
+import { agentProfiles, latestPlan, toMessages } from "./mapping";
 
 const HASH = "a".repeat(64);
 const at = (minute: number) => `2026-11-19T10:${String(minute).padStart(2, "0")}:00.000Z`;
@@ -267,5 +267,20 @@ describe("purchase approvals", () => {
     expect(toResolution(card, { q: ["Deny"] }, "2026-01-01T00:00:00.000Z")).toMatchObject({
       action: "decline",
     });
+  });
+});
+
+describe("agentProfiles", () => {
+  it("lists the agents you can chat with, by name, with a stable avatar", () => {
+    const rows: Row[] = [
+      { id: "codex", name: "Codex", kind: "profile" },
+      { id: "claude", name: "Claude Code", kind: "profile" },
+      { id: "old", name: "Old", kind: "profile", archived: true },
+      { id: "hidden", name: "Hidden", kind: "profile", hidden: true },
+      { id: "lead", name: "Design lead", kind: "staff" },
+    ];
+    const agents = agentProfiles(rows);
+    expect(agents.map((agent) => agent.name)).toEqual(["Claude Code", "Codex"]);
+    expect(agentProfiles(rows)).toEqual(agents);
   });
 });

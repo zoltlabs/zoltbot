@@ -8,6 +8,7 @@ import type {
   AccountUsage,
   AgentEvent,
   AgentModelOption,
+  AgentProfileSummary,
   AgentStatus,
   AttachmentSummary,
   BotSummary,
@@ -42,6 +43,7 @@ import { setFastMode } from "./fast-mode";
 import { withHidden } from "./hidden";
 import { relatedThreads, runTaskAction } from "./manager-cards";
 import {
+  agentProfiles,
   type BotPreferences,
   body,
   latestPlan,
@@ -257,6 +259,10 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   async getUsage(): Promise<AccountUsage> {
     return { limits: [] };
+  }
+
+  listAgents(): AgentProfileSummary[] {
+    return agentProfiles(this.client.rows("agent"));
   }
 
   listBots(): BotSummary[] {

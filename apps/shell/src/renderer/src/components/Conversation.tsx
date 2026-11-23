@@ -75,6 +75,7 @@ interface ConversationProps {
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
   onCloseAgentPicker: () => void;
   onCreateAgent: (created?: BotSummary) => void;
+  onStartChat: (profileId: string) => void;
   onSelectAgent: (botId: string) => void;
   onUpdateBot: (botId: string, updates: Omit<UpdateBotInput, "botId">) => Promise<void>;
   onSendMessage: (
@@ -588,6 +589,7 @@ export function Conversation(props: ConversationProps) {
         bots={props.bots}
         creatingAgent={props.creatingAgent}
         onCreateAgent={props.onCreateAgent}
+        onStartChat={props.onStartChat}
         onSelectAgent={props.onSelectAgent}
         onCloseAgentPicker={props.onCloseAgentPicker}
         onOpenSettings={() => setActiveRightPanel("settings")}

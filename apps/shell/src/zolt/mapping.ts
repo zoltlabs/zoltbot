@@ -10,6 +10,7 @@ import {
 } from "@zoltbot/protocol";
 import type { BranchOrigin } from "../shared/branches";
 import type {
+  AgentProfileSummary,
   AgentPromptQuestion,
   ArtifactSummary,
   BotAvatarColor,
@@ -46,6 +47,29 @@ export function hash(value: string): number {
   let h = 2166136261;
   for (let i = 0; i < value.length; i++) h = Math.imul(h ^ value.charCodeAt(i), 16777619);
   return h >>> 0;
+}
+
+/** The agents you can start a chat with, by name, each with a stable avatar. */
+export function agentProfiles(rows: Row[]): AgentProfileSummary[] {
+  return rows
+    .filter(
+      (row) =>
+        typeof row.id === "string" &&
+        row.kind === "profile" &&
+        row.archived !== true &&
+        row.hidden !== true,
+    )
+    .map((row) => {
+      const id = text(row.id);
+      const seed = hash(id);
+      return {
+        id,
+        name: text(row.name) || "Agent",
+        avatarShape: BOT_AVATAR_SHAPES[seed % BOT_AVATAR_SHAPES.length] as BotAvatarShape,
+        avatarColor: BOT_AVATAR_COLORS[(seed >>> 8) % BOT_AVATAR_COLORS.length] as BotAvatarColor,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** The chats the sidebar shows, in company order. */

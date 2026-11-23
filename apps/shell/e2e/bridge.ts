@@ -248,6 +248,7 @@ export async function openShell(
         getUsage: call(channels.agentGetUsage),
         listModels: call(channels.agentListModels),
         listBots: call(channels.agentListBots),
+        listAgents: call(channels.agentListAgents),
         createBot: call(channels.agentCreateBot),
         createProject: call(channels.agentCreateProject),
         updateBot: call(channels.agentUpdateBot),

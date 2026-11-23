@@ -482,11 +482,15 @@ export function App() {
     setActiveBotId(newAgent.id);
   }
 
-  async function createAgent(projectId?: string) {
+  async function createAgent(projectId?: string, profileId?: string) {
     if (creatingAgent()) return;
     setCreatingAgent(true);
     try {
-      const stored = await window.openbot.agent.createBot(projectId ? { projectId } : undefined);
+      const stored = await window.openbot.agent.createBot(
+        projectId || profileId
+          ? { ...(projectId ? { projectId } : {}), ...(profileId ? { profileId } : {}) }
+          : undefined,
+      );
       showCreatedAgent(stored);
       setAgentPickerOpen(false);
     } catch (error) {
@@ -1057,6 +1061,7 @@ export function App() {
               settingsRequest={settingsRequest()}
               onboardingRequest={onboardingRequest()}
               onCloseAgentPicker={() => setAgentPickerOpen(false)}
+              onStartChat={(profileId) => void createAgent(undefined, profileId)}
               onCreateAgent={(created) => {
                 if (!created) return void createAgent();
                 showCreatedAgent(created);
