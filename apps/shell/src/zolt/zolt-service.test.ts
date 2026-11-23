@@ -157,6 +157,7 @@ describe("ZoltService against a real daemon", () => {
     const { service } = await setup();
     const ceo = await service.createProject(mkdtempSync(join(tmpdir(), "launch-")));
     expect(ceo).toMatchObject({ companyRole: "ceo", kind: "manager" });
+    expect(ceo.name).toMatch(/^launch-.* CEO$/);
     const chat = await service.createBot({ projectId: ceo.projectId });
     const bots = await until(() => {
       const rows = service.listBots();
@@ -206,7 +207,7 @@ describe("ZoltService against a real daemon", () => {
     }
     await until(() => service.client.rows("project").find((row) => row.id === projectId));
     const ceo = await service.createProject(folder);
-    expect(ceo).toMatchObject({ projectId, companyRole: "ceo" });
+    expect(ceo).toMatchObject({ projectId, companyRole: "ceo", name: "retry CEO" });
   });
 
   it("shows a proposed plan, applies it on approval and writes a project brief", async () => {

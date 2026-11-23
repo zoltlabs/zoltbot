@@ -711,7 +711,7 @@ export function Sidebar(props: SidebarProps) {
                           <span class="bot-row-heading">
                             <span class="bot-row-title">
                               <strong>{bot.name}</strong>
-                              <Show when={bot.roleLabel}>
+                              <Show when={bot.roleLabel && !bot.name.endsWith(bot.roleLabel)}>
                                 <em class="bot-row-role">{bot.roleLabel}</em>
                               </Show>
                               <Show when={bot.muted}>

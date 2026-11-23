@@ -335,7 +335,11 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
           (row.roots as Record<string, unknown>[]).some((root) => root.path === path),
       );
     if (typeof unfinished?.id === "string")
-      return this.createBot({ projectId: unfinished.id, manager: true });
+      return this.createBot({
+        projectId: unfinished.id,
+        manager: true,
+        title: `${text(unfinished.name) || "Project"} CEO`,
+      });
     const now = new Date().toISOString();
     const id = randomUUID();
     const name = basename(path) || "Project";
@@ -359,7 +363,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       },
       `shell:project:${id}`,
     );
-    return this.createBot({ projectId: id, manager: true });
+    return this.createBot({ projectId: id, manager: true, title: `${name} CEO` });
   }
 
   async createBot(
