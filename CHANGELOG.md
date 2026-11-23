@@ -20,6 +20,13 @@ The website publishes released entries only; Unreleased stays in this repository
 - Improvement: Allow listed commands can reuse a signed approval within one active cloud task.
 - Fix: Mac command rules require fresh approval when a prefix only selects options.
 
+## v0.1.13: Choose any agent from To:
+
+November 23, 2026
+
+- Improvement: The To: picker lists every agent you can chat with, such as Claude Code and Codex. Choose one to start a new chat with it.
+- Fix: Zoltbot keeps working when it can't write to its log file.
+
 ## v0.1.12: Projects start with your agents
 
 November 22, 2026

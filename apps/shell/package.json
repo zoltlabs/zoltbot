@@ -1,7 +1,7 @@
 {
   "name": "@zoltbot/shell",
   "productName": "Zoltbot Shell",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Zoltbot desktop shell, derived from OpenBot v0.1.11.",
   "author": {
     "name": "Norbert Bodziony",
