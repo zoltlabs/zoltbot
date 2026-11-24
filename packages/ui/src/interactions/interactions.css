@@ -514,6 +514,7 @@ button.letter-from {
   margin-left: auto;
 }
 .letter-text {
+  font-size: var(--zb-text-lg);
   line-height: var(--zb-leading-body);
 }
 .letter-work summary {

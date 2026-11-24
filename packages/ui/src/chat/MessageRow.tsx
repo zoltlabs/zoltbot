@@ -81,7 +81,7 @@ export const MessageRow = memo(function MessageRow({
             </a>
           ) : null}
         </div>
-        <p>{text(value.text)}</p>
+        <Markdown value={text(value.text)} />
       </article>
     );
   if (kind === "note" && value.code === "wake")
@@ -156,7 +156,12 @@ export const MessageRow = memo(function MessageRow({
           {keyed(parts, (part) => `${part.type}:${text(part.path) || text(part.text)}`).map(
             ({ value: part, key }) =>
               part.type === "text" ? (
-                <p key={key}>{text(part.text)}</p>
+                // Another chat's message is agent-written Markdown; your own words stay as typed.
+                from ? (
+                  <Markdown key={key} value={text(part.text)} />
+                ) : (
+                  <p key={key}>{text(part.text)}</p>
+                )
               ) : (
                 <span className="chat-attachment" key={key}>
                   {part.type === "image" ? "Image" : "File"}:{" "}
