@@ -209,6 +209,28 @@ export function routerInference(
   };
 }
 
+/**
+ * Models often wrap JSON replies in a Markdown fence or add a sentence around them.
+ * Read the outermost JSON object; the schema check after this still rejects anything malformed.
+ */
+export function parseModelJson(text: string): unknown {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed)?.[1]?.trim();
+    const body = fenced ?? trimmed;
+    const start = body.indexOf("{");
+    const end = body.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("router_output_not_json");
+    try {
+      return JSON.parse(body.slice(start, end + 1));
+    } catch {
+      throw new Error("router_output_not_json");
+    }
+  }
+}
+
 export async function routeRequest(
   request: string,
   context: RoutingContext,
@@ -221,6 +243,6 @@ export async function routeRequest(
   const result = await inference.infer(input, signal);
   signal.throwIfAborted();
   // Malformed output never reaches execution. No automatic replay after provider errors.
-  const route = parse(RouteSchema, JSON.parse(result.text));
+  const route = parse(RouteSchema, parseModelJson(result.text));
   return { ...resolveRoute(route, context), ...(result.usage ? { usage: result.usage } : {}) };
 }

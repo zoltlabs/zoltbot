@@ -2,6 +2,7 @@ import { Type } from "@sinclair/typebox";
 import { type Orchestration, parse } from "@zoltbot/protocol";
 import {
   canonicalRole,
+  parseModelJson,
   type RouterInference,
   type RoutingContext,
   resolveRoute,
@@ -40,7 +41,7 @@ export async function resolveFollowUp(
     }),
     signal,
   );
-  const command = parse(schema, JSON.parse(result.text));
+  const command = parse(schema, parseModelJson(result.text));
   if (command.action !== "update") return command;
   const matches = run.phases
     .map((phase, index) => ({ phase, index }))

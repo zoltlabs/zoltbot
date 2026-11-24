@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type RoutingContext, resolveRoute, routeRequest } from "./routing.js";
+import { parseModelJson, type RoutingContext, resolveRoute, routeRequest } from "./routing.js";
 
 const context: RoutingContext = {
   models: [
@@ -141,4 +141,22 @@ it("prefers an exact model id over other models' family aliases", () => {
     },
   );
   expect(result.phases[0]?.model).toBe("sonnet");
+});
+
+describe("parseModelJson", () => {
+  it("reads plain, fenced and wrapped JSON replies", () => {
+    expect(parseModelJson('{"intent":"chat","phases":[]}')).toEqual({ intent: "chat", phases: [] });
+    expect(parseModelJson('```json\n{\n"intent":"chat","phases":[]\n}\n```')).toEqual({
+      intent: "chat",
+      phases: [],
+    });
+    expect(parseModelJson('Here you go:\n```\n{"intent":"chat"}\n```\nDone.')).toEqual({
+      intent: "chat",
+    });
+    expect(parseModelJson('Sure. {"intent":"chat"}')).toEqual({ intent: "chat" });
+  });
+  it("rejects replies with no JSON object", () => {
+    expect(() => parseModelJson("I can't classify that.")).toThrow("router_output_not_json");
+    expect(() => parseModelJson("```json\n{broken\n```")).toThrow("router_output_not_json");
+  });
 });
