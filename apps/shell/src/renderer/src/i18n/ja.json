@@ -419,6 +419,8 @@
   "chat.askAbout": "これについて質問",
   "composer.pastedText": "貼り付けたテキスト · {lines, plural, one {#行} other {#行}}",
   "composer.pasteAsText": "テキストとして貼り付け",
+  "composer.commands": "コマンド",
+  "composer.noCommands": "使用できるコマンドはありません",
   "chat.progress.label": "進捗メモ：",
   "chat.reaction.agent": "{name}がリアクションしました",
   "chat.reaction.agentLabel": "{name}が{emoji}でリアクションしました",

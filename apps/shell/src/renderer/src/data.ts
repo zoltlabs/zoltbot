@@ -13,6 +13,7 @@ import {
   type ConversationNotice,
   type ManagerCard,
   type MessageReaction,
+  type SlashCommand,
   type TalkingStyle,
 } from "../../shared/ipc";
 
@@ -97,6 +98,7 @@ export interface BotProfile {
   contextFull?: ContextFullAction;
   talkingStyle?: TalkingStyle;
   branchedFrom?: BranchOrigin;
+  commands?: SlashCommand[];
 }
 
 export function accentForAvatarColor(color: BotAvatarColor): BotAccent {

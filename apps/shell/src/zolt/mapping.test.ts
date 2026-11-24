@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { Row, Snapshot } from "./daemon-client";
-import { agentProfiles, latestPlan, toMessages } from "./mapping";
+import { agentProfiles, latestPlan, slashCommands, toMessages } from "./mapping";
 
 const HASH = "a".repeat(64);
 const at = (minute: number) => `2026-11-19T10:${String(minute).padStart(2, "0")}:00.000Z`;
@@ -334,5 +334,30 @@ describe("agentProfiles", () => {
     const agents = agentProfiles(rows);
     expect(agents.map((agent) => agent.name)).toEqual(["Claude Code", "Codex"]);
     expect(agentProfiles(rows)).toEqual(agents);
+  });
+});
+
+describe("slashCommands", () => {
+  it("keeps valid commands from the session's capabilities", () => {
+    expect(
+      slashCommands({
+        capabilities: {
+          slashCommands: [
+            { name: "clear", description: "Start over" },
+            { name: "review", argumentHint: "[pr]", description: "" },
+            { description: "no name" },
+            null,
+          ],
+        },
+      }),
+    ).toEqual([
+      { name: "clear", description: "Start over" },
+      { name: "review", argumentHint: "[pr]" },
+    ]);
+  });
+
+  it("is undefined when the session reported no list", () => {
+    expect(slashCommands({ capabilities: {} })).toBeUndefined();
+    expect(slashCommands(undefined)).toBeUndefined();
   });
 });

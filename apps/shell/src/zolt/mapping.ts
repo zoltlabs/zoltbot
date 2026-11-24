@@ -22,6 +22,7 @@ import type {
   QueueDelivery,
   QueueDeliveryStatus,
   QueueSnapshot,
+  SlashCommand,
 } from "../shared/ipc";
 import { BOT_AVATAR_COLORS, BOT_AVATAR_SHAPES } from "../shared/ipc";
 import { type CompanyRole, companyTree, type TreeEntry } from "./company-tree";
@@ -91,6 +92,26 @@ export function latestSession(snapshot: Snapshot, threadId: string): Row | undef
     if (session.threadId === threadId && text(session.startedAt) >= text(latest?.startedAt))
       latest = session;
   return latest;
+}
+
+/** The slash commands the session's provider reported, or undefined when it reported none. */
+export function slashCommands(session: Row | undefined): SlashCommand[] | undefined {
+  const list = (session?.capabilities as Row | undefined)?.slashCommands;
+  if (!Array.isArray(list)) return undefined;
+  const commands: SlashCommand[] = [];
+  for (const entry of list.slice(0, 100) as Row[]) {
+    if (!entry || typeof entry.name !== "string" || !entry.name) continue;
+    commands.push({
+      name: entry.name,
+      ...(typeof entry.description === "string" && entry.description
+        ? { description: entry.description }
+        : {}),
+      ...(typeof entry.argumentHint === "string" && entry.argumentHint
+        ? { argumentHint: entry.argumentHint }
+        : {}),
+    });
+  }
+  return commands;
 }
 
 /** A5: the faster tiers the session's provider offers, from its capabilities. */
@@ -181,6 +202,7 @@ export function toBotSummary(
   const seed = hash(threadId);
   const branchedFrom = branchOrigin(thread);
   const unread = threadUnread(snapshot, thread);
+  const commands = slashCommands(session);
   return {
     id: threadId,
     name: text(thread.title) || text(profile?.name) || "New chat",
@@ -198,6 +220,7 @@ export function toBotSummary(
     model: text(session?.model) || text(profile?.model),
     reasoningEffort: text(session?.effort) || text(profile?.effort),
     fastMode: serviceTiers(session).length ? profile?.fastMode === true : null,
+    ...(commands ? { commands } : {}),
     continueTurns: continuesTurns(
       (snapshot.entities.settings ?? []).find(
         (row) => row.key === agentContinueKey(text(thread.agentId)),

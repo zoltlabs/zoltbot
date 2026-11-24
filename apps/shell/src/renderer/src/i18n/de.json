@@ -419,6 +419,8 @@
   "chat.askAbout": "Dazu fragen",
   "composer.pastedText": "Eingefügter Text · {lines, plural, one {# Zeile} other {# Zeilen}}",
   "composer.pasteAsText": "Als Text einfügen",
+  "composer.commands": "Befehle",
+  "composer.noCommands": "Keine Befehle verfügbar",
   "chat.progress.label": "Fortschrittsnotiz:",
   "chat.reaction.agent": "{name} hat reagiert",
   "chat.reaction.agentLabel": "{name} hat mit {emoji} reagiert",

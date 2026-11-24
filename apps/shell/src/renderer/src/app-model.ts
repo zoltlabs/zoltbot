@@ -118,6 +118,7 @@ export function toBotProfile(stored: BotSummary): BotProfile {
     contextFull: stored.contextFull,
     talkingStyle: stored.talkingStyle ?? "neutral",
     ...(stored.branchedFrom ? { branchedFrom: stored.branchedFrom } : {}),
+    ...(stored.commands ? { commands: stored.commands } : {}),
     unread: stored.unread === true,
     updatedAt: stored.updatedAt,
   };

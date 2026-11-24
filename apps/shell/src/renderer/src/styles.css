@@ -3569,6 +3569,45 @@ textarea {
   white-space: nowrap;
 }
 
+.command-picker {
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+}
+
+.command-picker-option {
+  height: auto;
+  min-height: 38px;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 0;
+}
+
+.command-picker-option strong {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+}
+
+.command-picker-hint,
+.command-picker-description {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-picker-description {
+  flex-basis: 100%;
+}
+
+.command-picker-empty {
+  margin: 0;
+  padding: 8px 9px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .composer-attachment {
   display: flex;
   max-width: 360px;

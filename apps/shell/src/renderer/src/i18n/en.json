@@ -419,6 +419,8 @@
   "chat.askAbout": "Ask about this",
   "composer.pastedText": "Pasted text · {lines, plural, one {# line} other {# lines}}",
   "composer.pasteAsText": "Paste as text",
+  "composer.commands": "Commands",
+  "composer.noCommands": "No commands available",
   "chat.progress.label": "Progress note:",
   "chat.reaction.agent": "{name} reacted",
   "chat.reaction.agentLabel": "{name} reacted {emoji}",

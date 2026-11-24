@@ -381,6 +381,15 @@ export interface BotSummary {
   branchedFrom?: BranchOrigin;
   /** A reply came after the owner last read the chat, or they marked it unread. */
   unread?: boolean;
+  /** The slash commands and skills the chat's live session reported; absent when it reported none. */
+  commands?: SlashCommand[];
+}
+
+/** A provider command or skill the composer's / menu offers. */
+export interface SlashCommand {
+  name: string;
+  description?: string;
+  argumentHint?: string;
 }
 
 /** Compact the chat on its own when its context is nearly full, or ask first. */

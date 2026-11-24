@@ -190,6 +190,7 @@ export function Composer(props: {
           <ComposerEditor
             botId={props.bot?.id}
             bots={props.bots}
+            {...(props.bot?.commands ? { commands: props.bot.commands } : {})}
             value={props.text}
             disabled={
               props.agentPickerOpen ||

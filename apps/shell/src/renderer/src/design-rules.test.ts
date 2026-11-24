@@ -11,6 +11,8 @@ const ALLOWED: Record<string, string> = {
   "agent-settings-description": "the field that edits the agent's description",
   "media-caption": "the file name and actions bar under a media preview",
   "link-card-description": "the linked page's own summary, shown on its card",
+  "command-picker-description": "the provider's own summary of a / command",
+  "command-picker-hint": "the provider's own argument syntax for a / command",
 };
 
 const SOURCES = import.meta.glob<string>(["./**/*.{tsx,css}", "!./**/*.test.tsx"], {

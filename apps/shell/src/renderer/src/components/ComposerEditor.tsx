@@ -1,5 +1,7 @@
 import { createEffect, createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
+import type { SlashCommand } from "../../../shared/ipc";
 import type { BotProfile } from "../data";
+import { t } from "../i18n";
 import { Suggestions } from "../kit";
 import { AgentAvatar } from "./AgentAvatar";
 import { attachPastedText, isLongPaste } from "./conversation/long-paste";
@@ -8,6 +10,8 @@ import { enterAction, followSendKey, sendKey } from "./send-key";
 interface ComposerEditorProps {
   botId: string | undefined;
   bots: BotProfile[];
+  /** The / menu's commands; undefined when the session reported none. */
+  commands?: SlashCommand[];
   value: string;
   placeholder: string;
   ariaLabel: string;
@@ -29,12 +33,30 @@ export function expandComposerMentions(value: string): string {
   return value.replace(MENTION_PATTERN, (_match, name: string) => `@${name}`);
 }
 
+/** Commands whose name contains the query, the ones that start with it first. */
+export function matchCommands(commands: SlashCommand[], query: string): SlashCommand[] {
+  const needle = query.toLocaleLowerCase();
+  const hits = commands.filter((command) => command.name.toLocaleLowerCase().includes(needle));
+  const starts = (command: SlashCommand) => command.name.toLocaleLowerCase().startsWith(needle);
+  return [...hits.filter(starts), ...hits.filter((command) => !starts(command))];
+}
+
 export function ComposerEditor(props: ComposerEditorProps) {
   followSendKey();
   const [mention, setMention] = createSignal<MentionContext | null>(null);
+  // The / menu is open while the message up to the caret is a single /word.
+  const [slash, setSlash] = createSignal<MentionContext | null>(null);
   const [activeOption, setActiveOption] = createSignal(0);
   const listId = createUniqueId();
-  const listOpen = () => mention() !== null && matchingBots().length > 0;
+  const matchingCommands = createMemo(() => {
+    const context = slash();
+    return context ? matchCommands(props.commands ?? [], context.query) : [];
+  });
+  // A bare / says when there is nothing to offer; a longer /word with no match stays quiet.
+  const slashOpen = () =>
+    slash() !== null && (matchingCommands().length > 0 || slash()?.query === "");
+  const listOpen = () =>
+    (mention() !== null && matchingBots().length > 0) || matchingCommands().length > 0;
   const matchingBots = createMemo(() => {
     const query = mention()?.query.trim().toLocaleLowerCase() ?? "";
     return props.bots.filter(
@@ -57,6 +79,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
     lastEmittedValue = value;
     renderEditorValue(editor, value, props.bots);
     setMention(null);
+    setSlash(null);
   });
 
   function emitValue() {
@@ -77,6 +100,15 @@ export function ComposerEditor(props: ComposerEditorProps) {
     range.selectNodeContents(editor);
     range.setEnd(selection.anchorNode ?? editor, selection.anchorOffset);
     const beforeCaret = range.toString();
+    const command = beforeCaret.match(/^\/([^\s/]{0,128})$/u);
+    if (command) {
+      const query = command[1] ?? "";
+      if (slash()?.query !== query) setActiveOption(0);
+      setSlash({ query, start: 0, end: beforeCaret.length });
+      setMention(null);
+      return;
+    }
+    setSlash(null);
     const match = beforeCaret.match(/(?:^|\s)@([^@\n]{0,60})$/u);
     if (!match) {
       setMention(null);
@@ -107,8 +139,55 @@ export function ComposerEditor(props: ComposerEditorProps) {
     editor.focus();
   }
 
+  function insertCommand(command: SlashCommand) {
+    const context = slash();
+    if (!editor || !context) return;
+    const range = rangeFromTextOffsets(editor, context.start, context.end);
+    if (!range) return;
+    range.deleteContents();
+    const textNode = document.createTextNode(`/${command.name} `);
+    range.insertNode(textNode);
+    const selection = window.getSelection();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    setSlash(null);
+    emitValue();
+    editor.focus();
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" && (isComposing || event.isComposing)) return;
+
+    const commands = matchingCommands();
+    if (commands.length > 0) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        setActiveOption((current) => (current + step + commands.length) % commands.length);
+        return;
+      }
+      const plainEnter =
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey;
+      const command = commands[activeOption()];
+      // Enter on a command typed out in full sends it like any other message.
+      const typedInFull = plainEnter && command?.name === slash()?.query;
+      if (command && !typedInFull && (plainEnter || event.key === "Tab")) {
+        event.preventDefault();
+        insertCommand(command);
+        return;
+      }
+    }
+    if (event.key === "Escape" && slash()) {
+      event.preventDefault();
+      setSlash(null);
+      return;
+    }
 
     const options = matchingBots();
     if (mention() && options.length > 0) {
@@ -211,7 +290,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
         onPaste={handlePaste}
         onBlur={() => {
           isComposing = false;
-          window.setTimeout(() => setMention(null), 100);
+          window.setTimeout(() => {
+            setMention(null);
+            setSlash(null);
+          }, 100);
         }}
       />
       <Show when={mention() && matchingBots().length > 0 && editor}>
@@ -238,6 +320,60 @@ export function ComposerEditor(props: ComposerEditorProps) {
                 )}
               </For>
             </div>
+          </Suggestions>
+        )}
+      </Show>
+      <Show when={slashOpen() && editor}>
+        {(anchor) => (
+          <Suggestions anchor={anchor()} placement="top-start" matchWidth>
+            <Show
+              when={matchingCommands().length > 0}
+              fallback={
+                <p class="command-picker-empty" role="status">
+                  {t("composer.noCommands")}
+                </p>
+              }
+            >
+              <div
+                id={listId}
+                class="mention-picker command-picker"
+                role="listbox"
+                aria-label={t("composer.commands")}
+              >
+                <For each={matchingCommands()}>
+                  {(command, index) => (
+                    <button
+                      type="button"
+                      id={`${listId}-${index()}`}
+                      tabIndex={-1}
+                      role="option"
+                      aria-selected={activeOption() === index()}
+                      class="mention-picker-option command-picker-option"
+                      classList={{ "mention-picker-option-active": activeOption() === index() }}
+                      ref={(element) =>
+                        createEffect(() => {
+                          if (activeOption() === index())
+                            element.scrollIntoView?.({ block: "nearest" });
+                        })
+                      }
+                      onPointerDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setActiveOption(index())}
+                      onClick={() => insertCommand(command)}
+                    >
+                      <strong>/{command.name}</strong>
+                      <Show when={command.argumentHint}>
+                        {(hint) => <span class="command-picker-hint">{hint()}</span>}
+                      </Show>
+                      <Show when={command.description}>
+                        {(description) => (
+                          <span class="command-picker-description">{description()}</span>
+                        )}
+                      </Show>
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
           </Suggestions>
         )}
       </Show>

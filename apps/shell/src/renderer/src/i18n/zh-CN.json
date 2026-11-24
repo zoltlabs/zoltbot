@@ -419,6 +419,8 @@
   "chat.askAbout": "就此提问",
   "composer.pastedText": "已粘贴文本 · {lines, plural, one {# 行} other {# 行}}",
   "composer.pasteAsText": "粘贴为文本",
+  "composer.commands": "命令",
+  "composer.noCommands": "没有可用的命令",
   "chat.progress.label": "进度备注：",
   "chat.reaction.agent": "{name} 做出了回应",
   "chat.reaction.agentLabel": "{name} 回应了 {emoji}",
