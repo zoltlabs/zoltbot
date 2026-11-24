@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import { SidebarToggleIcon } from "../components/SidebarIcons";
 import type { BotProfile } from "../data";
 import { t } from "../i18n";
@@ -6,6 +6,8 @@ import { CommitDialog } from "./CommitDialog";
 import { DocumentList } from "./DocumentList";
 import { DocumentPane } from "./DocumentPane";
 import { createDocumentsStore, errorText } from "./documents-store";
+
+const NARROW_WIDTH = 720;
 
 interface DocumentsPageProps {
   projectId: string;
@@ -27,14 +29,37 @@ export function DocumentsPage(props: DocumentsPageProps) {
   const [pushing, setPushing] = createSignal(false);
   const [gitError, setGitError] = createSignal<string | null>(null);
   const [filesOpen, setFilesOpen] = createSignal(true);
+  // Matches the 720px container query in documents-review.css, where the file list stacks above
+  // the editor and gets its own Hide files toggle.
+  const [narrow, setNarrow] = createSignal(false);
   let heading: HTMLHeadingElement | undefined;
+  let panel: HTMLElement | undefined;
   const projectBots = createMemo(() =>
     props.bots.filter((bot) => bot.projectId === props.projectId),
   );
+  // Wide windows have no toggle, so the list always shows there.
+  const filesShown = () => filesOpen() || !narrow();
   const overview = () => store.overview();
   const git = () => overview()?.git ?? null;
 
-  onMount(() => heading?.focus());
+  onMount(() => {
+    heading?.focus();
+    if (!panel) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setNarrow(entry.contentRect.width <= NARROW_WIDTH);
+    });
+    observer.observe(panel);
+    onCleanup(() => observer.disconnect());
+  });
+  // In a narrow window the list sits above the editor, so fold it away once a document opens
+  // and bring it back when none is open.
+  createEffect(
+    on(
+      () => store.document()?.path ?? null,
+      (path) => setFilesOpen(!(path && narrow())),
+      { defer: true },
+    ),
+  );
   createEffect(
     on(
       () => props.projectId,
@@ -78,7 +103,7 @@ export function DocumentsPage(props: DocumentsPageProps) {
   }
 
   return (
-    <main aria-label={t("documents.title")} class="map-panel docs-panel">
+    <main ref={panel} aria-label={t("documents.title")} class="map-panel docs-panel">
       <header class="window-drag map-header docs-header">
         <Show when={props.sidebarCollapsed}>
           <button
@@ -164,7 +189,7 @@ export function DocumentsPage(props: DocumentsPageProps) {
               </div>
             }
           >
-            <div class="docs-body" classList={{ "docs-files-hidden": !filesOpen() }}>
+            <div class="docs-body" classList={{ "docs-files-hidden": !filesShown() }}>
               <nav
                 class="docs-files"
                 aria-label={t("documents.files.label", { project: current().projectName })}
@@ -172,13 +197,13 @@ export function DocumentsPage(props: DocumentsPageProps) {
                 <button
                   type="button"
                   class="doc-link-button docs-files-toggle"
-                  aria-expanded={filesOpen()}
+                  aria-expanded={filesShown()}
                   aria-controls="docs-file-list"
-                  onClick={() => setFilesOpen(!filesOpen())}
+                  onClick={() => setFilesOpen(!filesShown())}
                 >
-                  {filesOpen() ? t("documents.files.hide") : t("documents.files.show")}
+                  {filesShown() ? t("documents.files.hide") : t("documents.files.show")}
                 </button>
-                <div id="docs-file-list" hidden={!filesOpen()}>
+                <div id="docs-file-list" hidden={!filesShown()}>
                   <DocumentList
                     projectName={current().projectName}
                     files={current().files}
