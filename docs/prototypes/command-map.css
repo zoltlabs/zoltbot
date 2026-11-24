@@ -138,6 +138,7 @@ body {
   margin: 0;
 }
 [hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: hidden must beat each component's display rule */
   display: none !important;
 }
 body {
@@ -256,10 +257,6 @@ kbd {
 .stat dd {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-}
-.stat dd span {
-  color: var(--text-muted);
-  font-weight: 400;
 }
 .meter {
   position: absolute;
@@ -745,4 +742,8 @@ kbd {
   .ping {
     animation: none;
   }
+}
+.stat dd span {
+  color: var(--text-muted);
+  font-weight: 400;
 }

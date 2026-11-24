@@ -461,7 +461,7 @@ function BridgeDetail(props: {
         </Show>
       </div>
       <PairingNote view={props.view} busy={props.busy} renew={props.renew} />
-      <section aria-labelledby="bridge-routes">
+      <section class="bridge-section" aria-labelledby="bridge-routes">
         <div class="bridge-section-head">
           <h3 id="bridge-routes">{t("bridges.routes")}</h3>
           <button
@@ -507,7 +507,7 @@ function BridgeDetail(props: {
         </Show>
       </section>
       <Show when={props.view.refused.length}>
-        <section aria-labelledby="bridge-refused">
+        <section class="bridge-section" aria-labelledby="bridge-refused">
           <h3 id="bridge-refused">{t("bridges.refused")}</h3>
           <ul class="bridge-list">
             <For each={props.view.refused}>

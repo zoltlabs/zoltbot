@@ -93,9 +93,9 @@
   const repoName = (id) => REPOS.find((r) => r.id === id).name;
   const groups = { 1: { name: 'Frontend', ids: ['inbox', 'pairing', 'biome'] }, 2: { name: 'Infra', ids: ['relay', 'usage', 'broker', 'canary'] }, 3: null };
   const sel = new Set();
-  let clock = 0, spendEarlier = 7.36, ciMinutes = 214, testRuns = 0, lastAlert = 'broker', needsCursor = -1;
+  let clock = 0, spendEarlier = 7.36, ciMinutes = 214, testRuns = 0, lastAlert = 'broker';
   const LIMIT = 40, CAP = 12, CI_LIMIT = 2000;
-  const stamp = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  const stamp = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const addLog = (a, text) => { a.log.unshift({ t: stamp(), text }); a.log.length = Math.min(a.log.length, 5); };
   AGENTS.forEach((a) => { addLog(a, a.ask ? a.ask.title : a.activity); });
 
@@ -220,16 +220,16 @@
     u.beacon.visible = s === 'needs';
     u.flag.visible = s === 'done';
     u.selRing.visible = sel.has(a.id);
-    const c = new THREE.Color(css('--provider-' + a.provider));
+    const c = new THREE.Color(css(`--provider-${a.provider}`));
     if (s === 'idle') c.lerp(new THREE.Color(T.plate), 0.62);
     u.bodyMat.color.copy(c);
     u.label.dataset.state = s;
     u.label.classList.toggle('is-selected', sel.has(a.id));
-    u.label.innerHTML = ICON[s] + '<span>' + esc(a.branch) + '</span>';
-    u.label.setAttribute('aria-label', a.branch + ', ' + PROVIDERS[a.provider] + ', ' + STATE_WORD[s]);
+    u.label.innerHTML = `${ICON[s]}<span>${esc(a.branch)}</span>`;
+    u.label.setAttribute('aria-label', `${a.branch}, ${PROVIDERS[a.provider]}, ${STATE_WORD[s]}`);
     u.label.setAttribute('aria-pressed', sel.has(a.id) ? 'true' : 'false');
-    u.ping.innerHTML = ARROW + '<span>' + esc(a.branch) + '</span>';
-    u.ping.setAttribute('aria-label', 'Go to ' + a.branch + ', needs you');
+    u.ping.innerHTML = `${ARROW}<span>${esc(a.branch)}</span>`;
+    u.ping.setAttribute('aria-label', `Go to ${a.branch}, needs you`);
   }
   function applyTheme() {
     themed.forEach(([m, token]) => { m.color.set(css(token)); });
@@ -288,9 +288,9 @@
   }
   function setGroup(n) {
     if (!sel.size) return;
-    groups[n] = { name: groups[n] ? groups[n].name : 'Group ' + n, ids: [...sel] };
+    groups[n] = { name: groups[n] ? groups[n].name : `Group ${n}`, ids: [...sel] };
     renderGroups(); renderPanel();
-    toast('Group ' + n + ' set: ' + plural(sel.size));
+    toast(`Group ${n} set: ${plural(sel.size)}`);
   }
   const plural = (n) => n + (n === 1 ? ' agent' : ' agents');
 
@@ -323,8 +323,8 @@
     if (drag.mode === 'pan') { panBy(x - drag.lx, y - drag.ly); snapCam(); }
     else {
       marquee.hidden = false;
-      marquee.style.left = Math.min(x, drag.sx) + 'px'; marquee.style.top = Math.min(y, drag.sy) + 'px';
-      marquee.style.width = Math.abs(x - drag.sx) + 'px'; marquee.style.height = Math.abs(y - drag.sy) + 'px';
+      marquee.style.left = `${Math.min(x, drag.sx)}px`; marquee.style.top = `${Math.min(y, drag.sy)}px`;
+      marquee.style.width = `${Math.abs(x - drag.sx)}px`; marquee.style.height = `${Math.abs(y - drag.sy)}px`;
     }
     drag.lx = x; drag.ly = y;
   });
@@ -429,10 +429,10 @@
   function changed() { units.forEach(refreshUnit); renderPanel(); renderBar(); }
   function raise(a, ask) {
     a.state = 'needs'; a.ask = ask; a.since = 0; a.busy = null; a.activity = 'Waiting for you'; lastAlert = a.id;
-    addLog(a, ask.title); announce(a.branch + ' needs you: ' + ask.title); play(ask.kind === 'tests' ? 'fail' : 'needs'); changed();
+    addLog(a, ask.title); announce(`${a.branch} needs you: ${ask.title}`); play(ask.kind === 'tests' ? 'fail' : 'needs'); changed();
   }
   function finish(a, text) {
-    a.state = 'done'; a.activity = text; a.busy = null; addLog(a, text); announce(a.branch + ' is done'); play('done'); changed();
+    a.state = 'done'; a.activity = text; a.busy = null; addLog(a, text); announce(`${a.branch} is done`); play('done'); changed();
   }
   function resolve(id, yes) {
     const a = A[id], ask = a.ask; if (!ask) return;
@@ -440,11 +440,11 @@
     if (ask.kind === 'tests' && !yes) { a.state = 'idle'; a.activity = 'Stopped'; }
     else {
       a.state = 'working';
-      a.activity = ask.kind === 'tests' ? 'Fixing the failing tests' : ask.kind === 'choice' ? 'Continuing with ' + (yes ? ask.yes : ask.no).toLowerCase() : yes ? 'Allowed. Continuing' : 'Denied. Continuing without it';
+      a.activity = ask.kind === 'tests' ? 'Fixing the failing tests' : ask.kind === 'choice' ? `Continuing with ${(yes ? ask.yes : ask.no).toLowerCase()}` : yes ? 'Allowed. Continuing' : 'Denied. Continuing without it';
     }
-    addLog(a, 'You: ' + (yes ? ask.yes : ask.no)); changed();
+    addLog(a, `You: ${yes ? ask.yes : ask.no}`); changed();
     const left = needsList();
-    if (left.length) toast(left.length === 1 ? '1 more needs you' : left.length + ' more need you');
+    if (left.length) toast(left.length === 1 ? '1 more needs you' : `${left.length} more need you`);
   }
   function order(kind) {
     const ids = [...sel], skipped = []; let sent = 0;
@@ -454,11 +454,11 @@
       if (a.state === 'needs') { skipped.push(a.branch); return; }
       a.busy = { kind, until: clock + (kind === 'rebase' ? 4 : 7), prev: a.state };
       a.state = 'working'; a.activity = kind === 'rebase' ? 'Rebasing on main' : 'Running pnpm test';
-      addLog(a, 'You: ' + (kind === 'rebase' ? 'Rebase on main' : 'Run tests')); sent++;
+      addLog(a, `You: ${kind === 'rebase' ? 'Rebase on main' : 'Run tests'}`); sent++;
     });
     const name = { rebase: 'Rebase on main', tests: 'Run tests', stop: 'Stop' }[kind];
-    let msg = name + ' sent to ' + plural(sent) + '.';
-    if (skipped.length) msg += ' ' + skipped.join(', ') + (skipped.length === 1 ? ' is' : ' are') + ' waiting for you.';
+    let msg = `${name} sent to ${plural(sent)}.`;
+    if (skipped.length) msg += ` ${skipped.join(', ')}${skipped.length === 1 ? ' is' : ' are'} waiting for you.`;
     toast(msg); changed();
   }
   const SCRIPT = [
@@ -491,30 +491,30 @@
   }
 
   // ---------- rendering: bar, groups, panel ----------
-  const money = (n) => '$' + n.toFixed(2);
-  const wait = (s) => (s < 60 ? s + 's' : Math.floor(s / 60) + 'm');
-  const tokens = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : Math.round(n / 1000) + 'k');
+  const money = (n) => `$${n.toFixed(2)}`;
+  const wait = (s) => (s < 60 ? `${s}s` : `${Math.floor(s / 60)}m`);
+  const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1000)}k`);
   function renderBar() {
     const spend = spendEarlier + AGENTS.reduce((s, a) => s + a.cost, 0);
     const active = AGENTS.filter((a) => a.state === 'working' || a.state === 'needs').length;
     const n = needsList().length;
-    $('#sSpend').textContent = money(spend); $('#sSpendBar').style.width = clamp(spend / LIMIT * 100, 0, 100) + '%';
-    $('#sActive').textContent = active; $('#sActiveBar').style.width = active / CAP * 100 + '%';
-    $('#sCi').textContent = ciMinutes; $('#sCiBar').style.width = ciMinutes / CI_LIMIT * 100 + '%';
+    $('#sSpend').textContent = money(spend); $('#sSpendBar').style.width = `${clamp(spend / LIMIT * 100, 0, 100)}%`;
+    $('#sActive').textContent = active; $('#sActiveBar').style.width = `${active / CAP * 100}%`;
+    $('#sCi').textContent = ciMinutes; $('#sCiBar').style.width = `${ciMinutes / CI_LIMIT * 100}%`;
     $('#needsCount').textContent = n; $('#needsBtn').classList.toggle('has', n > 0); $('#needsBtn').disabled = n === 0;
     regionLabels.forEach(({ r, el }) => {
       const mine = AGENTS.filter((a) => a.repo === r.id), w = mine.filter((a) => a.state === 'needs').length;
-      el.innerHTML = esc(r.name) + '<span>' + plural(mine.length) + (w ? ', ' + w + (w === 1 ? ' needs you' : ' need you') : '') + '</span>';
+      el.innerHTML = `${esc(r.name)}<span>${plural(mine.length)}${w ? `, ${w}${w === 1 ? ' needs you' : ' need you'}` : ''}</span>`;
     });
   }
   $('#needsBtn').addEventListener('click', nextNeeds);
   function renderGroups() {
     $('#groups').innerHTML = [1, 2, 3].filter((n) => groups[n]).map((n) =>
-      '<button type="button" class="btn group-btn" data-group="' + n + '"><kbd aria-hidden="true">' + n + '</kbd>' + esc(groups[n].name) + '<span>' + groups[n].ids.length + '</span></button>').join('');
+      `<button type="button" class="btn group-btn" data-group="${n}"><kbd aria-hidden="true">${n}</kbd>${esc(groups[n].name)}<span>${groups[n].ids.length}</span></button>`).join('');
   }
   $('#groups').addEventListener('click', (e) => { const b = e.target.closest('[data-group]'); if (b) selectGroup(+b.dataset.group); });
 
-  const stateText = (a) => '<span class="state st-' + a.state + '">' + STATE_WORD[a.state] + (a.state === 'needs' ? ' <span data-wait="' + a.id + '">' + wait(a.since) + '</span>' : '') + '</span>';
+  const stateText = (a) => `<span class="state st-${a.state}">${STATE_WORD[a.state]}${a.state === 'needs' ? ` <span data-wait="${a.id}">${wait(a.since)}</span>` : ''}</span>`;
   const row = (a) => '<li><button type="button" class="row" data-select="' + a.id + '">' + ICON[a.state] + '<span class="name">' + esc(a.branch) + '</span>' + stateText(a) +
     '<span class="meta">' + esc(repoName(a.repo)) + ' · ' + PROVIDERS[a.provider] + '</span></button></li>';
   const ORDERS = '<div class="section"><h3>Orders</h3><div class="actions">' +
@@ -537,16 +537,16 @@
     } else if (sel.size === 1) {
       const a = A[[...sel][0]];
       h = BACK + '<div class="head"><h2 class="mono">' + esc(a.branch) + '</h2><p class="sub">' + esc(repoName(a.repo)) + ' · ' + PROVIDERS[a.provider] + '</p></div>' +
-        '<div class="statechip st-' + a.state + '">' + ICON[a.state] + STATE_WORD[a.state] + (a.state === 'needs' ? ' for <span data-wait="' + a.id + '">' + wait(a.since) + '</span>' : '') + '</div>';
+        '<div class="statechip st-' + a.state + '">' + ICON[a.state] + STATE_WORD[a.state] + (a.state === 'needs' ? ` for <span data-wait="${a.id}">${wait(a.since)}</span>` : '') + '</div>';
       if (a.ask) h += '<div class="ask"><strong>' + esc(a.ask.title) + '</strong><p>' + esc(a.ask.detail) + '</p><div class="actions">' +
         '<button type="button" class="btn primary" data-resolve="yes">' + esc(a.ask.yes) + '</button><button type="button" class="btn" data-resolve="no">' + esc(a.ask.no) + '</button></div></div>';
-      else h += '<p>' + esc(a.activity) + '</p>';
+      else h += `<p>${esc(a.activity)}</p>`;
       h += '<dl class="facts"><div><dt>Running</dt><dd>' + a.mins + ' min</dd></div><div><dt>Cost</dt><dd data-cost="' + a.id + '">' + money(a.cost) + '</dd></div><div><dt>Tokens</dt><dd data-tokens="' + a.id + '">' + tokens(a.tokens) + '</dd></div></dl>' +
-        ORDERS + '<div class="section"><h3>Recent</h3><ol class="log">' + a.log.map((l) => '<li><time>' + l.t + '</time><span>' + esc(l.text) + '</span></li>').join('') + '</ol></div>';
+        ORDERS + '<div class="section"><h3>Recent</h3><ol class="log">' + a.log.map((l) => `<li><time>${l.t}</time><span>${esc(l.text)}</span></li>`).join('') + '</ol></div>';
     } else {
       const list = [...sel].map((id) => A[id]);
       h = BACK + '<h2>' + plural(sel.size) + ' selected</h2><ul class="rows">' + list.map(row).join('') + '</ul>' + ORDERS +
-        '<div class="section"><h3>Save as group</h3><div class="actions">' + [1, 2, 3].map((n) => '<button type="button" class="btn" data-setgroup="' + n + '" aria-label="Save as group ' + n + '">' + n + '</button>').join('') + '</div></div>';
+        '<div class="section"><h3>Save as group</h3><div class="actions">' + [1, 2, 3].map((n) => `<button type="button" class="btn" data-setgroup="${n}" aria-label="Save as group ${n}">${n}</button>`).join('') + '</div></div>';
     }
     panel.innerHTML = h;
     if (hadFocus) panel.focus({ preventScroll: true });
@@ -587,19 +587,19 @@
       const top = project(u.ux, s === 'needs' ? 4.2 : 3.2, u.uz);
       const on = c[0] > -40 && c[0] < W + 40 && c[1] > -20 && c[1] < H + 60;
       u.label.hidden = !on;
-      if (on) u.label.style.transform = 'translate(-50%,-100%) translate(' + top[0].toFixed(1) + 'px,' + top[1].toFixed(1) + 'px)';
+      if (on) u.label.style.transform = `translate(-50%,-100%) translate(${top[0].toFixed(1)}px,${top[1].toFixed(1)}px)`;
       const off = s === 'needs' && (c[0] < 8 || c[0] > W - 8 || c[1] < 8 || c[1] > H - 8);
       u.ping.hidden = !off;
       if (off) {
         const hw = Math.min(W / 2 - 4, u.ping.offsetWidth / 2 + 10);
         const px = clamp(c[0], hw, W - hw), py = clamp(c[1], 26, H - 26);
-        u.ping.style.transform = 'translate(-50%,-50%) translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)';
-        u.ping.firstElementChild.style.transform = 'rotate(' + Math.atan2(c[1] - py, c[0] - px).toFixed(2) + 'rad)';
+        u.ping.style.transform = `translate(-50%,-50%) translate(${px.toFixed(1)}px,${py.toFixed(1)}px)`;
+        u.ping.firstElementChild.style.transform = `rotate(${Math.atan2(c[1] - py, c[0] - px).toFixed(2)}rad)`;
       }
     });
     regionLabels.forEach(({ r, el }) => {
       const p = project(r.x + r.w, 0.5, r.z);
-      el.style.transform = 'translate(-50%,-100%) translate(' + p[0].toFixed(1) + 'px,' + (p[1] - 6).toFixed(1) + 'px)';
+      el.style.transform = `translate(-50%,-100%) translate(${p[0].toFixed(1)}px,${(p[1] - 6).toFixed(1)}px)`;
     });
     renderer.render(scene, camera);
     drawMini();

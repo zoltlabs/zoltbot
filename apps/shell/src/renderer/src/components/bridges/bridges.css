@@ -110,7 +110,8 @@
 }
 
 .bridge-section-head h3,
-section > h3 {
+.bridge-section > h3,
+.bridge-pairing > h3 {
   margin: 0 0 var(--zb-space-1);
   font-size: var(--zb-text-md);
   font-weight: 600;
