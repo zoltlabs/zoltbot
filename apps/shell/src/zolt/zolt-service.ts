@@ -186,7 +186,12 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
         browser: "unavailable",
         computerUse: "unavailable",
       },
-      message: online ? null : (this.client.error ?? "Connecting to Zoltbot…"),
+      // Online but not scanned yet: the provider list is empty until the first scan finishes.
+      message: online
+        ? this.agentChecks === undefined
+          ? "Looking for coding agents…"
+          : null
+        : (this.client.error ?? "Connecting to Zoltbot…"),
       fullAccess: false,
     };
   }

@@ -249,9 +249,10 @@ export function InitialSetup(props: InitialSetupProps) {
             when={providerOptions().length > 0}
             fallback={
               <p class="agent-setup-empty" role="status">
-                {props.agentStatus.phase === "ready"
-                  ? "No coding agents found."
-                  : (props.agentStatus.message ?? "Connecting to Zoltbot…")}
+                {props.agentStatus.message ??
+                  (props.agentStatus.phase === "ready"
+                    ? "No coding agents found."
+                    : "Connecting to Zoltbot…")}
               </p>
             }
           >
