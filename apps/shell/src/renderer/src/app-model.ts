@@ -3,9 +3,29 @@ import type {
   AgentStatus,
   BotSummary,
   ConversationMessage,
+  QueueSnapshot,
   UpdateStatus,
 } from "../../shared/ipc";
 import { accentForAvatarColor, accentForBot, type BotMessage, type BotProfile } from "./data";
+
+/**
+ * Whether the agent is working: from the moment a message is sent until its reply ends. A new
+ * chat's first message waits a few seconds for the agent's session to start.
+ */
+export function agentWorking(
+  activeTurnId: string | null | undefined,
+  queue: QueueSnapshot | undefined,
+): boolean {
+  if (activeTurnId) return true;
+  return Boolean(
+    queue?.deliveries.some(
+      (delivery) =>
+        delivery.status === "starting" ||
+        delivery.status === "running" ||
+        (delivery.status === "queued" && !queue.paused),
+    ),
+  );
+}
 
 export const FALLBACK_STATUS: AgentStatus = {
   phase: "starting",

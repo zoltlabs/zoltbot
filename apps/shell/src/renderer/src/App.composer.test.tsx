@@ -50,6 +50,30 @@ describe("Zoltbot connected desktop shell", () => {
           ],
         },
       });
+      // The service follows each send with the chat's queue.
+      emitAgentEvent?.({
+        type: "queue-changed",
+        snapshot: {
+          botId: input.botId,
+          paused: false,
+          deliveries: [
+            {
+              id: "delivery-visible",
+              messageId: "delivery-visible",
+              recipientBotId: input.botId,
+              sender: { kind: "user" },
+              text: input.text,
+              attachments: [],
+              replyToMessageId: null,
+              status: "queued",
+              position: 1,
+              turnId: null,
+              error: null,
+              createdAt: "2026-08-14T12:00:00.000Z",
+            },
+          ],
+        },
+      });
       return {
         messageId: "message-visible",
         deliveries: [
@@ -68,6 +92,9 @@ describe("Zoltbot connected desktop shell", () => {
     expect(
       await screen.findByText("Show this message", { selector: ".message-copy" }),
     ).toBeInTheDocument();
+    // A new chat's first message waits for its session to start; the agent is already on it.
+    expect(screen.getByRole("status", { name: "Chief is working" })).toHaveTextContent("Working");
+    expect(screen.queryByText("Queued")).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("Choose a model to get started.")).not.toBeInTheDocument();
       expect(

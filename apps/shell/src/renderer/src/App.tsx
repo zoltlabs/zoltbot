@@ -28,6 +28,7 @@ import type {
   UpdateStatus,
 } from "../../shared/ipc";
 import {
+  agentWorking,
   FALLBACK_STATUS,
   FALLBACK_UPDATE_STATUS,
   formatTime,
@@ -768,14 +769,7 @@ export function App() {
     const recent = recentReplies();
     const states: Record<string, SidebarAgentState> = {};
     for (const bot of botList()) {
-      const isWorking =
-        Boolean(turns[bot.id]) ||
-        Boolean(
-          queueSnapshots[bot.id]?.deliveries.some(
-            (delivery) => delivery.status === "starting" || delivery.status === "running",
-          ),
-        );
-      if (isWorking) states[bot.id] = { kind: "working" };
+      if (agentWorking(turns[bot.id], queueSnapshots[bot.id])) states[bot.id] = { kind: "working" };
       else if ((unread[bot.id] ?? 0) > 0) {
         states[bot.id] = { kind: "unread", count: unread[bot.id] ?? 1 };
       } else if (recent[bot.id]) states[bot.id] = { kind: "responded" };

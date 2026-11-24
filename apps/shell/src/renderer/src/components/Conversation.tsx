@@ -12,6 +12,7 @@ import type {
   QueueSnapshot,
   UpdateBotInput,
 } from "../../../shared/ipc";
+import { agentWorking } from "../app-model";
 import { useShortcut } from "../app-shortcuts";
 import type { BotMessage, BotProfile } from "../data";
 import { ARTIFACT_PANEL_MAX, ARTIFACT_PANEL_MIN, ArtifactPanel } from "./ArtifactPanel";
@@ -166,23 +167,9 @@ export function Conversation(props: ConversationProps) {
     const id = currentDraft().replyToMessageId;
     return id ? props.messages.find((message) => message.id === id) : undefined;
   });
-  const agentActivity = createMemo<"Queued" | "Working" | null>(() => {
-    if (
-      props.activeTurnId ||
-      props.queue?.deliveries.some(
-        (delivery) => delivery.status === "starting" || delivery.status === "running",
-      )
-    ) {
-      return "Working";
-    }
-    if (
-      !props.queue?.paused &&
-      props.queue?.deliveries.some((delivery) => delivery.status === "queued")
-    ) {
-      return "Queued";
-    }
-    return null;
-  });
+  const agentActivity = createMemo<"Working" | null>(() =>
+    agentWorking(props.activeTurnId, props.queue) ? "Working" : null,
+  );
   const queueBarVisible = createMemo(
     () =>
       Boolean(props.queue?.paused) ||

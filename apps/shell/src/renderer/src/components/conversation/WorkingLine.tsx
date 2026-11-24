@@ -6,13 +6,13 @@ import "./status-line.css";
 
 export function AgentActivityIndicator(props: {
   bot: BotProfile | undefined;
-  state: "Queued" | "Working" | null;
+  state: "Working" | null;
   /** C9: what the agent is doing, in its words or from its current tool. */
   line?: string | undefined;
 }) {
   // "Working" is the fallback, not something the agent said.
   const own = () => (props.line && props.line !== "Working" ? props.line : undefined);
-  const text = () => (props.state === "Working" ? (own() ?? "Working") : props.state);
+  const text = () => (props.state ? (own() ?? "Working") : undefined);
   const name = () => props.bot?.name ?? "Agent";
   const lineId = createUniqueId();
   return (
