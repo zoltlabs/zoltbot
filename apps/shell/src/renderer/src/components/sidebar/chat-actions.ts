@@ -55,6 +55,18 @@ export function createChatActions(deps: {
     ),
   );
 
+  // After Clear, the chat Zolt is leaving; its new chat opens once it appears.
+  const [leaving, setLeaving] = createSignal<string>();
+  createEffect(() => {
+    const from = leaving();
+    if (!from) return;
+    const next = deps.bots().find((bot) => bot.companyRole === "chief" && bot.id !== from);
+    if (!next) return;
+    setLeaving(undefined);
+    const active = deps.activeBotId();
+    if (!active || active === from) deps.select?.(next.id);
+  });
+
   function run(bot: BotProfile, action: ThreadAction) {
     if (action === "markUnread" && bot.id === deps.activeBotId()) keptUnread.add(bot.id);
     if (action === "markRead") deps.clearLocalUnread(bot.id);
@@ -62,7 +74,9 @@ export function createChatActions(deps: {
     if (action === "clear") {
       done
         .then((result) => {
-          if (result?.threadId && deps.activeBotId() === bot.id) deps.select?.(result.threadId);
+          if (deps.activeBotId() !== bot.id) return;
+          if (result?.handingOff) setLeaving(bot.id);
+          else if (result?.threadId) deps.select?.(result.threadId);
         })
         .catch(failed);
       return;

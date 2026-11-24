@@ -346,7 +346,7 @@
   "sidebar.chat.archive": "アーカイブ",
   "sidebar.chat.archived": "アーカイブしました。",
   "sidebar.chat.clear": "チャットをクリア",
-  "sidebar.chat.clearBody": "現在のチャットはアーカイブに移動します。{name}はあなたの作業についてのメモを保持します。",
+  "sidebar.chat.clearBody": "{name}は新しいチャットのために引き継ぎを保存します。このチャットはアーカイブに移動します。",
   "sidebar.chat.clearTitle": "{name}のチャットをクリアしますか？",
   "sidebar.chat.failed": "チャットを更新できませんでした。",
   "sidebar.chat.markRead": "既読にする",

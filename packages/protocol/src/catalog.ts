@@ -18,6 +18,7 @@ import {
   ChannelSchema,
   channelMethods,
 } from "./channels.js";
+import { chiefMethods } from "./chief.js";
 import {
   CloudProjectCreateSchema,
   CloudProjectListParamsSchema,
@@ -213,6 +214,7 @@ const rawMethodCatalog = {
   ...orchestrationMethods,
   ...knowledgeWriteMethods,
   ...quickChatMethods,
+  ...chiefMethods,
   ...backupModelMethods,
   ...vaultMethods,
   ...projectDataMethods,
@@ -294,8 +296,6 @@ const rawMethodCatalog = {
   "thread.pin": entry(object({ id: Id, pinned: Type.Boolean() }), ThreadSchema),
   "thread.archive": thread.archive,
   "thread.delete": entry(object({ id: Id, confirmed: Type.Boolean() }), ok),
-  /** Archive Zolt's chat and start a fresh one. Zolt keeps its notes. */
-  "chief.clear": entry(object({}), object({ threadId: Id, previousThreadId: Type.Optional(Id) })),
   "thread.fork": entry(
     object({
       id: Id,

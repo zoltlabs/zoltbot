@@ -2,6 +2,7 @@ import { mutedKey } from "@zoltbot/protocol";
 import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, View } from "react-native";
+import { followChiefClear } from "../../data/chief-clear";
 import { modelState, threadSession } from "../../data/session";
 import { text } from "../../data/view";
 import { t } from "../../i18n";
@@ -100,15 +101,20 @@ export default function ChatOptions() {
           onPress={() =>
             Alert.alert(
               `Clear ${name}'s chat?`,
-              `The current chat moves to Archived. ${name} keeps its notes about your work.`,
+              `${name} saves a handoff for its new chat. This chat moves to Archived.`,
               [
                 { text: "Cancel", style: "cancel" },
                 {
                   text: "Clear chat",
                   onPress: () => {
                     void run("chief.clear", {}).then((result) => {
-                      const next = (result as { threadId?: string } | undefined)?.threadId;
-                      if (next) router.replace(`/chat/${encodeURIComponent(next)}`);
+                      const done = result as
+                        | { threadId?: string; handingOff?: boolean }
+                        | undefined;
+                      if (!done?.threadId) return;
+                      // While Zolt writes its handoff, stay on this chat; it moves on by itself.
+                      if (done.handingOff) followChiefClear(id);
+                      router.replace(`/chat/${encodeURIComponent(done.threadId)}`);
                     });
                   },
                 },

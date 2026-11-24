@@ -346,7 +346,7 @@
   "sidebar.chat.archive": "Archivieren",
   "sidebar.chat.archived": "Archiviert.",
   "sidebar.chat.clear": "Chat leeren",
-  "sidebar.chat.clearBody": "Der aktuelle Chat wird archiviert. {name} behält seine Notizen zu deiner Arbeit.",
+  "sidebar.chat.clearBody": "{name} speichert eine Übergabe für den neuen Chat. Dieser Chat wird archiviert.",
   "sidebar.chat.clearTitle": "Chat mit {name} leeren?",
   "sidebar.chat.failed": "Der Chat konnte nicht aktualisiert werden.",
   "sidebar.chat.markRead": "Als gelesen markieren",

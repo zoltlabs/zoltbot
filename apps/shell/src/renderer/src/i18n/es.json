@@ -346,7 +346,7 @@
   "sidebar.chat.archive": "Archivar",
   "sidebar.chat.archived": "Archivado.",
   "sidebar.chat.clear": "Vaciar chat",
-  "sidebar.chat.clearBody": "El chat actual pasa a Archivados. {name} conserva sus notas sobre tu trabajo.",
+  "sidebar.chat.clearBody": "{name} guarda un traspaso para su nuevo chat. Este chat pasa a Archivados.",
   "sidebar.chat.clearTitle": "¿Vaciar el chat de {name}?",
   "sidebar.chat.failed": "No se pudo actualizar el chat.",
   "sidebar.chat.markRead": "Marcar como leído",

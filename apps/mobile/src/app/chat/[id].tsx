@@ -26,6 +26,7 @@ import { artifactReference } from "../../data/artifacts";
 import { withAsides } from "../../data/asides";
 import { type Attachment, composeInput } from "../../data/attachments";
 import { chatAccount } from "../../data/backup-models";
+import { chiefClearTarget } from "../../data/chief-clear";
 import { conversation } from "../../data/conversation";
 import { editsOf, forkInfo } from "../../data/forks";
 import { withHidden } from "../../data/hidden";
@@ -129,7 +130,12 @@ export default function Chat() {
   const who = profileName(snapshot, thread?.agentId);
   // P8: the agent's own browser, watched and taken over from here.
   const browserOpen = useBrowserRunning(thread ? id : undefined);
-  const chief = chiefThreadId(snapshot.entities) === id;
+  const chiefId = chiefThreadId(snapshot.entities);
+  const chief = chiefId === id;
+  useEffect(() => {
+    const next = chiefClearTarget(id, chiefId);
+    if (next) router.replace(`/chat/${encodeURIComponent(next)}`);
+  }, [id, chiefId]);
   const title = chief ? chiefName(snapshot.entities) : text(thread?.title) || "Chat";
   const location = place(snapshot, thread);
   const session = threadSession(snapshot, id);

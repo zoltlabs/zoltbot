@@ -14,9 +14,13 @@ export const THREAD_ACTIONS = [
 
 export type ThreadAction = (typeof THREAD_ACTIONS)[number];
 
-/** What clear returns: Zolt's new chat. Other actions return nothing. */
+/**
+ * What clear returns: Zolt's new chat, or its current chat while Zolt writes a handoff (the new
+ * chat follows when the daemon switches chief.thread). Other actions return nothing.
+ */
 export interface ThreadActionResult {
   threadId?: string;
+  handingOff?: boolean;
 }
 
 export interface ThreadActionInput {

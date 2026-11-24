@@ -50,6 +50,17 @@ export const chiefToolDefinitions = [
     },
   },
   {
+    name: "chief_handoff",
+    description:
+      "Before the person clears your chat: save what your next chat needs (work in progress, promises, what you wait on). Replaces any earlier handoff.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { text: { type: "string", minLength: 1, maxLength: 1500 } },
+      required: ["text"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "chief_start_chat",
     description:
       "Ask the user to approve starting a chat in a workspace or team (workspaceId) with a self-contained brief. Optional profileId. Stable key.",

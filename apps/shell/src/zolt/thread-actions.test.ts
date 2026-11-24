@@ -32,13 +32,16 @@ describe("thread actions", () => {
     ]);
   });
 
-  it("clears Zolt and returns its new chat", async () => {
+  it("clears Zolt and says whether it is writing a handoff first", async () => {
     expect(threadCommand({ botId: "z", action: "clear" })).toEqual(["chief.clear", {}]);
-    const call = vi.fn(async () => ({ threadId: "z2", previousThreadId: "z" }));
+    const call = vi
+      .fn()
+      .mockResolvedValueOnce({ threadId: "z2", previousThreadId: "z", handedOff: false })
+      .mockResolvedValueOnce({ threadId: "z", handingOff: true });
     const handlers = threadActionHandlers({ call } as unknown as DaemonClient);
-    expect(
-      await handlers[IPC_CHANNELS.agentThreadAction]?.({ botId: "z", action: "clear" }),
-    ).toEqual({ threadId: "z2" });
+    const clear = () => handlers[IPC_CHANNELS.agentThreadAction]?.({ botId: "z", action: "clear" });
+    expect(await clear()).toEqual({ threadId: "z2" });
+    expect(await clear()).toEqual({ threadId: "z", handingOff: true });
   });
 
   it("rejects unknown actions and missing chats", () => {

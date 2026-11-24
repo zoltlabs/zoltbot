@@ -46,9 +46,13 @@ export function threadActionHandlers(
     [IPC_CHANNELS.agentThreadAction]: async (input) => {
       const [method, params] = threadCommand(parseThreadAction(input));
       const result = (await client.call(method, params, randomUUID())) as
-        | { threadId?: unknown }
+        | { threadId?: unknown; handingOff?: unknown }
         | undefined;
-      return typeof result?.threadId === "string" ? { threadId: result.threadId } : undefined;
+      if (typeof result?.threadId !== "string") return undefined;
+      return {
+        threadId: result.threadId,
+        ...(result.handingOff === true ? { handingOff: true } : {}),
+      };
     },
   };
 }

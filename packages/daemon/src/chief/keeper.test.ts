@@ -4,7 +4,7 @@ import { at, runtimeFixture } from "../../../../tools/fakes/src/runtime-fixture.
 import { PrivateInputGuard } from "../private-input.js";
 import { threadActionsApi } from "../thread-actions.js";
 import { chiefThreadId } from "./identity.js";
-import { chiefClearApi, chiefKeeper, ensureChief, previousChiefChats } from "./keeper.js";
+import { chiefKeeper, ensureChief } from "./keeper.js";
 
 const system = { kind: "system" as const, id: "test" };
 function change(
@@ -103,42 +103,5 @@ describe("Zolt keeper", () => {
       "can't be archived or deleted",
     );
     expect(chiefThreadId(state(store))).toBe(id);
-  });
-
-  it("clears Zolt into a fresh chat, keeps its notes and lists the old chat", async () => {
-    const { store } = await runtimeFixture();
-    const first = ensureChief({ store, publish() {} }) as string;
-    const notes = { summary: { text: "Coach V2 ships Friday.", at }, chats: {} };
-    change(store, "notes", {
-      type: "create",
-      kind: "settings",
-      value: { key: "chief.notes", value: notes },
-    });
-    const stopped: string[] = [];
-    const clear = chiefClearApi({
-      store,
-      publish() {},
-      stopThread: async (id) => {
-        stopped.push(id);
-      },
-      clearInteractions: async () => undefined,
-    });
-    const result = (await clear("chief.clear", {}, "clear-1")) as {
-      threadId: string;
-      previousThreadId: string;
-    };
-    expect(result.previousThreadId).toBe(first);
-    expect(result.threadId).not.toBe(first);
-    expect(stopped).toEqual([first]);
-    const after = store.snapshot(["settings", "thread"]);
-    expect(chiefThreadId(after)).toBe(result.threadId);
-    expect(after.thread?.find((row) => row.id === first)?.archived).toBe(true);
-    expect(after.settings?.find((row) => row.key === "chief.notes")?.value).toEqual(notes);
-    expect(previousChiefChats(after)).toEqual([first]);
-    // A retried command returns the same result and makes no second chat.
-    expect(await clear("chief.clear", {}, "clear-1")).toEqual(result);
-    const second = (await clear("chief.clear", {}, "clear-2")) as { threadId: string };
-    expect(previousChiefChats(store.snapshot(["settings"]))).toEqual([result.threadId, first]);
-    expect(chiefThreadId(store.snapshot(["settings", "thread"]))).toBe(second.threadId);
   });
 });

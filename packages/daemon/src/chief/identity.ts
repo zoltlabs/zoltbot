@@ -20,6 +20,10 @@ export const chiefKeys = {
   timers: "chief.timers",
   /** Zolt's earlier chats, newest first, recorded by chief.clear. Written only by the daemon. */
   previous: "chief.previous",
+  /** A clear waiting for Zolt's handoff turn. Written only by the daemon. */
+  clearing: "chief.clearing",
+  /** What Zolt wrote for its next chat with chief_handoff. Written only by the daemon. */
+  handoff: "chief.handoff",
   /** The person's proactive settings; clients may write it. */
   proactive: "chief.proactive",
 } as const;
@@ -32,6 +36,8 @@ export const reservedChiefKeys: ReadonlySet<string> = new Set([
   chiefKeys.brief,
   chiefKeys.timers,
   chiefKeys.previous,
+  chiefKeys.clearing,
+  chiefKeys.handoff,
 ]);
 export const defaultChiefName = "Zolt";
 

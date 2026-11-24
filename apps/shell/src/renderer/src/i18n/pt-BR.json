@@ -346,7 +346,7 @@
   "sidebar.chat.archive": "Arquivar",
   "sidebar.chat.archived": "Arquivado.",
   "sidebar.chat.clear": "Limpar chat",
-  "sidebar.chat.clearBody": "O chat atual vai para Arquivados. {name} mantém as anotações sobre seu trabalho.",
+  "sidebar.chat.clearBody": "{name} salva uma passagem para o novo chat. Este chat vai para Arquivados.",
   "sidebar.chat.clearTitle": "Limpar o chat de {name}?",
   "sidebar.chat.failed": "Não foi possível atualizar o chat.",
   "sidebar.chat.markRead": "Marcar como lido",

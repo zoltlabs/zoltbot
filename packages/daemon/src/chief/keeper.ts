@@ -11,7 +11,7 @@ import {
 } from "./identity.js";
 
 // Every person has one Zolt. The daemon creates its chat as soon as an agent profile exists,
-// refuses to archive or delete it, and "clear" swaps in a fresh chat while keeping Zolt's notes.
+// refuses to archive or delete it. chief.clear (clear.ts) swaps in a fresh chat.
 
 const system = { kind: "system", id: "chief-keeper" } as const;
 const kinds = ["settings", "thread", "agent", "agentDefinition"] as const;
@@ -78,9 +78,9 @@ export function ensureChiefEvents(
   return newChiefChat(state, context, agentId, newId());
 }
 
-function newChiefChat(
+export function newChiefChat(
   state: DomainState,
-  context: { commandId: string; at: string; actor: typeof system },
+  context: { commandId: string; at: string; actor: { kind: "system"; id: string } },
   agentId: string,
   id: string,
 ): { events: DomainEvent[]; threadId: string } {
@@ -158,70 +158,6 @@ export function chiefKeeper(host: {
 /** Whether a thread is Zolt's chat, so it cannot be archived or deleted. */
 export function isChiefThread(state: ChiefState, id: string): boolean {
   return chiefThreadId(state) === id;
-}
-
-/**
- * chief.clear: archive Zolt's current chat and point Zolt at a fresh one with the same agent.
- * Notes, queue, inbox and timers stay, so Zolt keeps what it knows about the person's work.
- */
-export function chiefClearApi(host: {
-  store: Store;
-  publish(events: DomainEvent[]): void;
-  stopThread(threadId: string, forceCleanup?: boolean): Promise<void> | undefined;
-  clearInteractions(threadId: string, commandId: string): Promise<unknown> | undefined;
-}) {
-  return async (method: string, _params: Record<string, unknown>, commandId?: string) => {
-    if (method !== "chief.clear") return undefined;
-    if (!commandId) throw new Error("command_id_required");
-    const replay = host.store.receipt(commandId);
-    if (replay) return replay.result;
-    const old = chiefThreadId(host.store.snapshot([...kinds]));
-    if (old) {
-      await host.stopThread(old, false);
-      await host.clearInteractions(old, `${commandId}:clear`);
-    }
-    const at = new Date().toISOString();
-    const before = host.store.lastSeq();
-    const receipt = host.store.dispatch(commandId, (state) => {
-      const current = chiefThreadId(state);
-      const context = { commandId, at, actor: system };
-      const events: DomainEvent[] = [];
-      let next = state;
-      let agentId = chiefProfile(state);
-      if (current) {
-        const row = state.thread?.find((entry) => entry.id === current);
-        if (typeof row?.agentId === "string") agentId = row.agentId;
-        const archived = handle(
-          state,
-          {
-            type: "update",
-            kind: "thread",
-            id: current,
-            changes: { archived: true, archiveWhenIdle: undefined, wakePending: undefined },
-          },
-          { ...context, commandId: `${commandId}:archive` },
-        );
-        events.push(...archived.events);
-        next = applyEvents(state, archived.events);
-      }
-      if (!agentId) throw new Error("invalid_state: no agent to run Zolt with");
-      const fresh = newChiefChat(next, context, agentId, randomUUID());
-      events.push(...fresh.events);
-      next = applyEvents(next, fresh.events);
-      if (current) {
-        const previous = [current, ...previousChiefChats(next).filter((id) => id !== current)];
-        events.push(
-          ...handle(next, settingCommand(next, chiefKeys.previous, previous), {
-            ...context,
-            commandId: `${commandId}:previous`,
-          }).events,
-        );
-      }
-      return { events, result: { threadId: fresh.threadId, previousThreadId: current } };
-    });
-    host.publish(host.store.eventsSince(before));
-    return receipt.result;
-  };
 }
 
 /** Zolt's earlier chats, newest first, as chief.clear recorded them. */

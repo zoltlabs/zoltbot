@@ -10,6 +10,7 @@ import {
 } from "@zoltbot/knowledge";
 import { HOST_WORKSPACE_REF } from "@zoltbot/protocol";
 import type { RuntimeContext } from "../api.js";
+import { handoffLimit } from "./clear.js";
 import { type ChiefChatStatus, chiefChats } from "./digest.js";
 import {
   chiefKeys,
@@ -200,6 +201,29 @@ export function chiefTools(context: RuntimeContext) {
               : { type: "create", kind: "settings", value: { key: chiefKeys.notes, value } },
             { commandId, at, actor: { kind: "agent", id: call.actor.agentId } },
           );
+        });
+        context.publish(context.store.eventsSince(before));
+        return { ok: true };
+      },
+    ],
+    [
+      "chief_handoff",
+      async (call) => {
+        const args = call.arguments as { text: string };
+        const handoff = args.text.trim().slice(0, handoffLimit);
+        if (!handoff) return refusal("handoff_empty");
+        const check = await context.privacy.prepareData(handoff);
+        const commandId = `chief-handoff:${randomUUID()}`,
+          before = context.store.lastSeq();
+        context.store.dispatch(commandId, (state) => {
+          check(state);
+          const at = new Date().toISOString();
+          const value = { text: handoff, at, fromThreadId: call.actor.threadId };
+          return handle(state, settingCommand(state, chiefKeys.handoff, value), {
+            commandId,
+            at,
+            actor: { kind: "agent", id: call.actor.agentId },
+          });
         });
         context.publish(context.store.eventsSince(before));
         return { ok: true };

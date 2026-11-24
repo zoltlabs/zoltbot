@@ -346,7 +346,7 @@
   "sidebar.chat.archive": "Archiver",
   "sidebar.chat.archived": "Archivée.",
   "sidebar.chat.clear": "Vider le chat",
-  "sidebar.chat.clearBody": "Le chat actuel est archivé. {name} garde ses notes sur votre travail.",
+  "sidebar.chat.clearBody": "{name} enregistre une passation pour son nouveau chat. Ce chat est archivé.",
   "sidebar.chat.clearTitle": "Vider le chat de {name} ?",
   "sidebar.chat.failed": "Impossible de mettre à jour la discussion.",
   "sidebar.chat.markRead": "Marquer comme lue",
