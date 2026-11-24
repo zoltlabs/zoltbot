@@ -17,6 +17,8 @@ import type {
 } from "../shared/ipc";
 import type { Row, Snapshot } from "./daemon-client";
 import { withStaffCards } from "./staff-view";
+import { taskReason } from "./tasks-view";
+import type { TaskState } from "../shared/tasks";
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 const body = (row: Row | undefined): Row =>
@@ -385,7 +387,33 @@ export function withManagerCards(
       }),
     );
   }
+  const held = heldNotice(snapshot, threadId);
+  if (held) list.push(held);
   return withStaffCards(snapshot, threadId, list);
+}
+
+const HELD_WORDS: Record<string, string> = {
+  queued: "is on hold:",
+  blocked: "is blocked:",
+  failed: "couldn't start:",
+};
+
+/**
+ * A line in a task's own chat saying why it waits, is blocked or failed. Without it a task that
+ * never started, such as one whose worktree could not be prepared, shows an empty chat.
+ */
+function heldNotice(snapshot: Snapshot, threadId: string): ConversationMessage | undefined {
+  const task = rows(snapshot, "task").find((row) => row.threadId === threadId);
+  const state = text(task?.state);
+  const verb = HELD_WORDS[state];
+  if (!task || !verb) return undefined;
+  const titles = new Map(rows(snapshot, "task").map((row) => [text(row.id), text(row.title)]));
+  const states = new Map(rows(snapshot, "task").map((row) => [text(row.id), text(row.state)]));
+  const reason = taskReason(task, state as TaskState, titles, states);
+  if (!reason) return undefined;
+  return entry(`notice:held:${text(task.id)}`, text(task.updatedAt), {
+    notice: { kind: "supervision", from: chat(snapshot, threadId), verb, text: reason },
+  });
 }
 
 /** Chats whose conversation shows a changed row, beyond the row's own chat. */
@@ -395,7 +423,8 @@ export function relatedThreads(snapshot: Snapshot, kind: string, row: Row): stri
     const source = find(snapshot, "message", task.sourceMessageId);
     return [text(task.accountableThreadId), text(source?.fromThread)].filter(Boolean);
   };
-  if (kind === "task") return forTask(row);
+  // The task's own chat too: its hold line comes from the task row.
+  if (kind === "task") return [text(row.threadId), ...forTask(row)].filter(Boolean);
   if (kind === "taskResult" || kind === "deliverable" || kind === "usage")
     return forTask(find(snapshot, "task", row.taskId));
   if (kind === "message") return [text(row.fromThread)].filter(Boolean);

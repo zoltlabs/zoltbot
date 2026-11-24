@@ -107,6 +107,35 @@ const message = (id: string, createdAt: string, turnId?: string): ConversationMe
   }) as ConversationMessage;
 
 describe("withManagerCards", () => {
+  it("says in a task's own chat why the task never started", () => {
+    const task = {
+      id: "plan",
+      threadId: "plan:thread",
+      title: "Plan agents",
+      state: "queued",
+      holdReason: "Worktree preparation: Check the repository and setup, then retry.",
+      updatedAt: at(4),
+    };
+    const state = snapshot({
+      thread: [{ id: "plan:thread", title: "Plan agents", agentId: "a", archived: false }],
+      task: [task],
+    });
+    expect(withManagerCards(state, "plan:thread", [])).toEqual([
+      expect.objectContaining({
+        id: "notice:held:plan",
+        notice: expect.objectContaining({
+          kind: "supervision",
+          verb: "is on hold:",
+          text: "worktree preparation: Check the repository and setup, then retry.",
+        }),
+      }),
+    ]);
+    expect(relatedThreads(state, "task", task)).toContain("plan:thread");
+    expect(
+      withManagerCards(snapshot({ task: [{ ...task, state: "running" }] }), "plan:thread", []),
+    ).toEqual([]);
+  });
+
   const conversation = [message("reply", at(4), "turn1"), message("note", at(9))];
 
   it("adds one delegation card per turn after its last message", () => {
