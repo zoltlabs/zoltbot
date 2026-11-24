@@ -7,8 +7,10 @@
   color: var(--text-row-meta);
 }
 
+/* The page is the size container, so narrow-window rules can change .docs-body's own grid. */
 .docs-panel {
   overflow: hidden;
+  container-type: inline-size;
 }
 
 .docs-header {
@@ -73,7 +75,6 @@
   flex: 1 1 auto;
   grid-template-columns: minmax(200px, 250px) minmax(0, 1fr);
   border-top: 1px solid var(--openbot-line);
-  container-type: inline-size;
 }
 
 .docs-files {
