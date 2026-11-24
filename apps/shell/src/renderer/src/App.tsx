@@ -794,6 +794,7 @@ export function App() {
         ? undefined
         : activeBot()?.id,
     clearLocalUnread: clearReplyIndicators,
+    select: (botId) => selectBot(botId),
   });
 
   function setSidebarCollapsed(collapsed: boolean) {

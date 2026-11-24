@@ -1,7 +1,7 @@
 import { mutedKey } from "@zoltbot/protocol";
-import { chiefThreadId } from "@zoltbot/ui/chief/data";
+import { chiefName, chiefThreadId } from "@zoltbot/ui/chief/data";
 import { router, useLocalSearchParams } from "expo-router";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import { modelState, threadSession } from "../../data/session";
 import { text } from "../../data/view";
 import { t } from "../../i18n";
@@ -25,6 +25,7 @@ export default function ChatOptions() {
     compareMember?.ceiling === "read_only" ||
     snapshot.entities.compare?.some((group) => group.summaryThreadId === id);
   const chief = chiefThreadId(snapshot.entities) === id;
+  const name = chiefName(snapshot.entities);
   const wake = snapshot.entities.wake?.find(
     (row) =>
       row.threadId === id &&
@@ -91,16 +92,42 @@ export default function ChatOptions() {
       {chief ? (
         <Button label="Brief and notifications" onPress={() => router.replace("/zolt-settings")} />
       ) : null}
-      <Button
-        kind="plain"
-        label={busy ? "Archiving…" : "Archive chat"}
-        disabled={!online || busy}
-        onPress={() => {
-          void run("thread.settle", { id }).then((result) => {
-            if (result) router.replace("/chats");
-          });
-        }}
-      />
+      {chief ? (
+        <Button
+          kind="plain"
+          label={busy ? "Clearing…" : "Clear chat"}
+          disabled={!online || busy}
+          onPress={() =>
+            Alert.alert(
+              `Clear ${name}'s chat?`,
+              `The current chat moves to Archived. ${name} keeps its notes about your work.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Clear chat",
+                  onPress: () => {
+                    void run("chief.clear", {}).then((result) => {
+                      const next = (result as { threadId?: string } | undefined)?.threadId;
+                      if (next) router.replace(`/chat/${encodeURIComponent(next)}`);
+                    });
+                  },
+                },
+              ],
+            )
+          }
+        />
+      ) : (
+        <Button
+          kind="plain"
+          label={busy ? "Archiving…" : "Archive chat"}
+          disabled={!online || busy}
+          onPress={() => {
+            void run("thread.settle", { id }).then((result) => {
+              if (result) router.replace("/chats");
+            });
+          }}
+        />
+      )}
     </DetailScreen>
   );
 }

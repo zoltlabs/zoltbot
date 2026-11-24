@@ -18,6 +18,8 @@ export const chiefKeys = {
   inbox: "chief.inbox",
   /** Wake-ups Zolt set for itself. Written only by the daemon. */
   timers: "chief.timers",
+  /** Zolt's earlier chats, newest first, recorded by chief.clear. Written only by the daemon. */
+  previous: "chief.previous",
   /** The person's proactive settings; clients may write it. */
   proactive: "chief.proactive",
 } as const;
@@ -29,6 +31,7 @@ export const reservedChiefKeys: ReadonlySet<string> = new Set([
   chiefKeys.inbox,
   chiefKeys.brief,
   chiefKeys.timers,
+  chiefKeys.previous,
 ]);
 export const defaultChiefName = "Zolt";
 

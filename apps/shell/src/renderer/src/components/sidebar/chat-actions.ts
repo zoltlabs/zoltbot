@@ -17,6 +17,8 @@ export function createChatActions(deps: {
   activeBotId: () => string | null | undefined;
   /** Clears the app's own count of replies the owner hasn't seen. */
   clearLocalUnread: (botId: string) => void;
+  /** Opens a chat: after Clear, Zolt's new one. */
+  select?: (botId: string) => void;
 }) {
   // A chat the owner marks unread while it's open stays unread until they leave it.
   const keptUnread = new Set<string>();
@@ -57,6 +59,14 @@ export function createChatActions(deps: {
     if (action === "markUnread" && bot.id === deps.activeBotId()) keptUnread.add(bot.id);
     if (action === "markRead") deps.clearLocalUnread(bot.id);
     const done = send(bot.id, action);
+    if (action === "clear") {
+      done
+        .then((result) => {
+          if (result?.threadId && deps.activeBotId() === bot.id) deps.select?.(result.threadId);
+        })
+        .catch(failed);
+      return;
+    }
     // A3: say what Mute keeps, since the owner can't see it.
     if (action === "mute")
       done.then(() => showToast({ message: t("sidebar.chat.mutedNote") })).catch(failed);

@@ -24,14 +24,25 @@ export function chatMenuItems(
   state: { unread: boolean; working: boolean },
   run: ((bot: BotProfile, action: ThreadAction) => void) | undefined,
 ): MenuItem[] {
-  if (!bot || !run || bot.kind === "task" || (bot.companyRole && bot.companyRole !== "chat"))
-    return [];
+  if (!bot || !run || bot.kind === "task") return [];
   const item = (id: ThreadAction, label: MessageKey, Icon: () => JSX.Element): MenuItem => ({
     id,
     label: t(label),
     icon: <Icon />,
     run: () => run(bot, id),
   });
+  // Zolt can't be archived or deleted; Clear starts a fresh chat instead.
+  if (bot.companyRole === "chief")
+    return [
+      state.unread
+        ? item("markRead", "sidebar.chat.markRead", UnreadIcon)
+        : item("markUnread", "sidebar.chat.markUnread", UnreadIcon),
+      bot.muted
+        ? item("unmute", "sidebar.chat.unmute", MutedIcon)
+        : item("mute", "sidebar.chat.mute", MutedIcon),
+      ...(state.working ? [] : [item("clear", "sidebar.chat.clear", ArchiveIcon)]),
+    ];
+  if (bot.companyRole && bot.companyRole !== "chat") return [];
   return [
     bot.pinned
       ? item("unpin", "sidebar.chat.unpin", PinIcon)
@@ -55,6 +66,8 @@ export function AgentContextMenu(props: {
   onEdit: (botId: string) => void;
   onDelete: (botId: string) => void;
   onCall?: (botId: string) => void;
+  /** False for Zolt, which can't be deleted. */
+  deletable?: boolean;
 }) {
   const botId = props.menu.botId;
   const call = props.onCall;
@@ -72,17 +85,35 @@ export function AgentContextMenu(props: {
             : []),
         ],
         props.chatItems ?? [],
-        [
-          {
-            id: "delete",
-            label: "Delete agent",
-            icon: <DeleteIcon />,
-            danger: true,
-            run: () => props.onDelete(botId),
-          },
-        ],
+        props.deletable === false
+          ? []
+          : [
+              {
+                id: "delete",
+                label: "Delete agent",
+                icon: <DeleteIcon />,
+                danger: true,
+                run: () => props.onDelete(botId),
+              },
+            ],
       ]}
       onClose={props.onClose}
+    />
+  );
+}
+
+export function ClearChiefDialog(props: {
+  bot: BotProfile;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title={t("sidebar.chat.clearTitle", { name: props.bot.name })}
+      body={t("sidebar.chat.clearBody", { name: props.bot.name })}
+      confirmLabel={t("sidebar.chat.clear")}
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
     />
   );
 }

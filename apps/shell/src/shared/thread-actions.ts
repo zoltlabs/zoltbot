@@ -8,9 +8,16 @@ export const THREAD_ACTIONS = [
   "unarchive",
   "mute",
   "unmute",
+  /** Zolt only: archive its chat and start a fresh one. */
+  "clear",
 ] as const;
 
 export type ThreadAction = (typeof THREAD_ACTIONS)[number];
+
+/** What clear returns: Zolt's new chat. Other actions return nothing. */
+export interface ThreadActionResult {
+  threadId?: string;
+}
 
 export interface ThreadActionInput {
   botId: string;

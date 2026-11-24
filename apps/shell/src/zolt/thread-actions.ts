@@ -34,6 +34,8 @@ export function threadCommand({ botId: id, action }: ThreadActionInput): [string
     case "mute":
     case "unmute":
       return ["settings.set", { key: mutedKey(id), value: action === "mute" }];
+    case "clear":
+      return ["chief.clear", {}];
   }
 }
 
@@ -43,7 +45,10 @@ export function threadActionHandlers(
   return {
     [IPC_CHANNELS.agentThreadAction]: async (input) => {
       const [method, params] = threadCommand(parseThreadAction(input));
-      await client.call(method, params, randomUUID());
+      const result = (await client.call(method, params, randomUUID())) as
+        | { threadId?: unknown }
+        | undefined;
+      return typeof result?.threadId === "string" ? { threadId: result.threadId } : undefined;
     },
   };
 }

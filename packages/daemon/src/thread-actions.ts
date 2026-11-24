@@ -1,11 +1,13 @@
 import { activeWake, applyEvents, cancelWake, type DomainState, handle } from "@zoltbot/core";
 import { type DomainEvent, parseEvent } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { isChiefThread } from "./chief/keeper.js";
 import type { PrivateInputGuard } from "./private-input.js";
 
 const methods = new Set(["thread.rename", "thread.pin", "thread.archive", "thread.delete"]);
 const owner = { kind: "human", id: "local-owner" } as const;
 const noItems = { items: { ids: [] } };
+const chiefRefusal = "invalid_state: Zolt's chat can't be archived or deleted. Clear it instead.";
 
 function refusedThreadKind(state: DomainState, id: string, row: Record<string, unknown>) {
   return (
@@ -75,11 +77,12 @@ export function threadActionsApi(host: {
       if (params.confirmed !== true) throw new Error("confirmation_required");
       const archiveCommandId = `${commandId}:archive`;
       if (host.store.receipt(archiveCommandId)) return { ok: true };
-      const snapshot = host.store.snapshot(["thread", "compareMember"]);
+      const snapshot = host.store.snapshot(["thread", "compareMember", "settings"]);
       const row = snapshot.thread?.find((entry) => entry.id === id);
       if (!row) throw new Error("not_found: thread");
       if (refusedThreadKind(snapshot, id, row))
         throw new Error("invalid_state: task and compare threads cannot be archived as chats");
+      if (isChiefThread(snapshot, id)) throw new Error(chiefRefusal);
       await host.stopThread(id, false);
       await host.clearInteractions(id, `${commandId}:clear`);
       const before = host.store.lastSeq();
@@ -90,6 +93,7 @@ export function threadActionsApi(host: {
           if (!current) throw new Error("not_found: thread");
           if (refusedThreadKind(state, id, current))
             throw new Error("invalid_state: task and compare threads cannot be archived as chats");
+          if (isChiefThread(state, id)) throw new Error(chiefRefusal);
           if (current.archived && !current.archiveWhenIdle && !current.wakePending)
             return { events: [], result: { ok: true } };
           const at = new Date().toISOString();
@@ -131,11 +135,12 @@ export function threadActionsApi(host: {
 
     if (params.confirmed !== true) throw new Error("confirmation_required");
     if (host.store.receipt(commandId)) return { ok: true };
-    const snapshot = host.store.snapshot(["thread", "compareMember"]);
+    const snapshot = host.store.snapshot(["thread", "compareMember", "settings"]);
     const row = snapshot.thread?.find((entry) => entry.id === id);
     if (!row) throw new Error("not_found: thread");
     if (refusedThreadKind(snapshot, id, row))
       throw new Error("invalid_state: task and compare threads cannot be deleted as chats");
+    if (isChiefThread(snapshot, id)) throw new Error(chiefRefusal);
     await host.stopThread(id, true);
     const before = host.store.lastSeq();
     const receipt = host.store.dispatch(
@@ -145,6 +150,7 @@ export function threadActionsApi(host: {
         if (!current) return { events: [], result: { ok: true } };
         if (refusedThreadKind(state, id, current))
           throw new Error("invalid_state: task and compare threads cannot be deleted as chats");
+        if (isChiefThread(state, id)) throw new Error(chiefRefusal);
         return {
           events: [
             parseEvent({

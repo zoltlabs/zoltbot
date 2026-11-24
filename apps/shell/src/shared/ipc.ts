@@ -69,7 +69,7 @@ import { ROUTINE_CHANNELS, type RoutinesDesktopApi } from "./routines";
 import { SPEND_CHANNELS, type SpendDesktopApi } from "./spend";
 import type { StaffActionInput, StaffOverview } from "./staff";
 import type { ReviewTaskInput, TaskSummary } from "./tasks";
-import type { ThreadActionInput } from "./thread-actions";
+import type { ThreadActionInput, ThreadActionResult } from "./thread-actions";
 import { VAULT_CHANNELS, type VaultDesktopApi } from "./vault";
 import type { ViewsDesktopApi } from "./views";
 import { VOICE_CHANNELS, type VoiceDesktopApi } from "./voice";
@@ -753,7 +753,7 @@ export interface AgentDesktopApi {
   /** Starts a new chat from a point in this one. */
   branch: (request: BranchRequest) => Promise<BranchResult>;
   /** Pins, marks read or unread, or archives a chat. */
-  threadAction: (input: ThreadActionInput) => Promise<void>;
+  threadAction: (input: ThreadActionInput) => Promise<ThreadActionResult | undefined>;
   chooseAttachments: () => Promise<DraftAttachment[]>;
   onAttachmentImport: (listener: (event: AttachmentImportEvent) => void) => () => void;
   discardDraftAttachment: (attachmentId: string) => Promise<void>;

@@ -2,6 +2,7 @@ import type { InteractionDraft } from "@zoltbot/protocol";
 import type { OwnedRuntime, RuntimeContext } from "./api.js";
 import { backupModelsApi } from "./backup-models/service.js";
 import { backupSupervisor } from "./backup-models/supervisor.js";
+import { chiefClearApi } from "./chief/keeper.js";
 import { entityEditsApi } from "./entity-edits.js";
 import { memoryImportApi } from "./memory-import.js";
 import { memoryTidyTimer } from "./memory-tidy.js";
@@ -34,6 +35,12 @@ export function conversationServices(host: {
   const threadActions = threadActionsApi({
     store,
     privacy,
+    publish,
+    stopThread: host.stopThread,
+    clearInteractions: host.clearInteractions,
+  });
+  const chiefClear = chiefClearApi({
+    store,
     publish,
     stopThread: host.stopThread,
     clearInteractions: host.clearInteractions,
@@ -110,6 +117,7 @@ export function conversationServices(host: {
         (await entityEdits(method, params, commandId)) ??
         (await backupModels(method, params, commandId)) ??
         (await threadActions(method, params, commandId)) ??
+        (await chiefClear(method, params, commandId)) ??
         (await memoryImport.api(method, params, commandId)) ??
         (await projectData(method, params))
       );

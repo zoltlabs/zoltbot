@@ -32,6 +32,15 @@ describe("thread actions", () => {
     ]);
   });
 
+  it("clears Zolt and returns its new chat", async () => {
+    expect(threadCommand({ botId: "z", action: "clear" })).toEqual(["chief.clear", {}]);
+    const call = vi.fn(async () => ({ threadId: "z2", previousThreadId: "z" }));
+    const handlers = threadActionHandlers({ call } as unknown as DaemonClient);
+    expect(
+      await handlers[IPC_CHANNELS.agentThreadAction]?.({ botId: "z", action: "clear" }),
+    ).toEqual({ threadId: "z2" });
+  });
+
   it("rejects unknown actions and missing chats", () => {
     expect(() => parseThreadAction({ botId: "c", action: "delete" })).toThrow();
     expect(() => parseThreadAction({ action: "pin" })).toThrow();

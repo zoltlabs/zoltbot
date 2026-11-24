@@ -12,6 +12,7 @@ import {
   type UserInput,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
+import { isChiefThread } from "./chief/keeper.js";
 import { notifyCode } from "./chief/notify.js";
 
 type Row = Record<string, unknown>;
@@ -78,6 +79,8 @@ export function inboxApi(host: {
       commandId,
       id,
       (row, state) => {
+        // Zolt's chat is never archived; settling it only leaves Needs you.
+        if (isChiefThread(state, id)) return undefined;
         const facts = threadFacts(state);
         if (facts.pending(id) || facts.working(id)) {
           if (row.archiveWhenIdle) return undefined;

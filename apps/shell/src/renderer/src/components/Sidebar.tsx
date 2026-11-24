@@ -62,6 +62,7 @@ import {
 import {
   AgentContextMenu,
   type BotContextMenu,
+  ClearChiefDialog,
   chatMenuItems,
   DeleteAgentDialog,
 } from "./sidebar/AgentMenus";
@@ -140,6 +141,7 @@ export function Sidebar(props: SidebarProps) {
   const [query, setQuery] = createSignal("");
   const [contextMenu, setContextMenu] = createSignal<BotContextMenu | null>(null);
   const [deleteTargetId, setDeleteTargetId] = createSignal<string | null>(null);
+  const [clearTarget, setClearTarget] = createSignal<BotProfile | null>(null);
   const [deleting, setDeleting] = createSignal(false);
   const [deleteError, setDeleteError] = createSignal<string | null>(null);
   const [renamingId, setRenamingId] = createSignal<string | null>(null);
@@ -172,7 +174,13 @@ export function Sidebar(props: SidebarProps) {
   const chatItems = (botId: string) => {
     const bot = props.bots.find((entry) => entry.id === botId);
     const working = props.agentStates[botId]?.kind === "working";
-    return chatMenuItems(bot, { unread: !!bot && isUnread(bot), working }, props.onChatAction);
+    const run = props.onChatAction;
+    return chatMenuItems(
+      bot,
+      { unread: !!bot && isUnread(bot), working },
+      run &&
+        ((target, action) => (action === "clear" ? setClearTarget(target) : run(target, action))),
+    );
   };
   /** Bots in order; an employee running several tasks becomes one row, unless filtered. */
   const entries = createMemo(() =>
@@ -912,6 +920,7 @@ export function Sidebar(props: SidebarProps) {
             <AgentContextMenu
               menu={menu()}
               chatItems={chatItems(menu().botId)}
+              deletable={props.bots.find((bot) => bot.id === menu().botId)?.companyRole !== "chief"}
               onClose={() => setContextMenu(null)}
               onRename={startRename}
               onEdit={props.onEditBot}
@@ -924,6 +933,18 @@ export function Sidebar(props: SidebarProps) {
           )}
         </Show>
 
+        <Show when={clearTarget()}>
+          {(bot) => (
+            <ClearChiefDialog
+              bot={bot()}
+              onCancel={() => setClearTarget(null)}
+              onConfirm={() => {
+                setClearTarget(null);
+                props.onChatAction?.(bot(), "clear");
+              }}
+            />
+          )}
+        </Show>
         <Show when={deleteTarget()}>
           {(bot) => (
             <DeleteAgentDialog

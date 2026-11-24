@@ -15,6 +15,7 @@ import {
   settingCommand,
 } from "./identity.js";
 import { chiefInbox } from "./inbox.js";
+import { chiefKeeper } from "./keeper.js";
 import { chiefNotices } from "./notify.js";
 import { chiefQueue, lessonCandidates, queueCandidates, settleQueue } from "./queue.js";
 import { chiefTimers, timerCommand, timerDue } from "./timers.js";
@@ -309,6 +310,7 @@ export function chiefWaker(options: ChiefWakerOptions) {
   // At start the person has the app open, so the first wake-up waits for them to step away.
   let lastActive = now();
   let running: Promise<unknown> | undefined;
+  const keeper = chiefKeeper(options);
   const kinds = [
     "settings",
     "thread",
@@ -503,6 +505,7 @@ export function chiefWaker(options: ChiefWakerOptions) {
     return verdict;
   }
   const timer = setInterval(() => {
+    keeper.keep();
     if (running) return;
     running = tick()
       .catch(() => options.onError?.("chief_tick_failed"))
@@ -516,9 +519,11 @@ export function chiefWaker(options: ChiefWakerOptions) {
     /** The person used the app: sent something, answered, or opened a chat. */
     active() {
       lastActive = now();
+      keeper.soon();
     },
     close() {
       clearInterval(timer);
+      keeper.close();
     },
   };
 }

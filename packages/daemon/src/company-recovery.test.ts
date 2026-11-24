@@ -76,8 +76,9 @@ it("survives daemon restart during a running-work reorg handoff and deduplicates
       },
       "seed-chief",
     );
+    // The daemon made a Zolt chat at start; point Zolt at this one instead.
     daemon.dispatch(
-      { type: "create", kind: "settings", value: { key: "chief.thread", value: "chief" } },
+      { type: "update", kind: "settings", id: "chief.thread", changes: { value: "chief" } },
       "seed-chief-setting",
     );
 
