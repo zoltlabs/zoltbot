@@ -273,10 +273,13 @@ it("inherits only workspace and ancestor direction instructions and uses a priva
       ),
     });
     expect((await f.resolve(chat())).instructions).not.toContain('to: "chief"');
+    expect((await f.resolve(chat())).instructions).not.toContain("company_work staff add");
     f.change("thread", "thread", { kind: "manager" });
     expect((await f.resolve(chat())).instructions).toMatch(
       /Instructions: Handle units\n\nWhen you finish a piece of work .*to: "chief", idea: true/,
     );
+    // A manager asks about goals and staffs agents instead of starting a code run.
+    expect((await f.resolve(chat())).instructions).toContain("company_work staff add");
   } finally {
     f.close();
   }

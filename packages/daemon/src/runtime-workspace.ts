@@ -11,6 +11,7 @@ import {
   chiefName,
   chiefThreadId,
   leadIdeasInstruction,
+  staffingInstruction,
 } from "./chief/identity.js";
 import type { NativeRuntimeOptions } from "./native-runtime.js";
 import { worktreeService } from "./worktree-service.js";
@@ -95,6 +96,7 @@ export function runtimeWorkspace(options: {
     // Leads bring back what they noticed outside their brief.
     const ideas =
       lineage && thread.kind === "manager" && chiefThreadId(state) ? leadIdeasInstruction : "";
+    const staffing = thread.kind === "manager" ? staffingInstruction : "";
     const fork = thread.fork as ForkProvenance | undefined;
     if (fork) {
       const root = canonicalApprovalRoot(fork.cwd);
@@ -114,7 +116,10 @@ export function runtimeWorkspace(options: {
             throw Error("runtime_workspace_changed");
         }
       }
-      return { cwd: root.path, instructions: [instructions, ideas].filter(Boolean).join("\n\n") };
+      return {
+        cwd: root.path,
+        instructions: [instructions, ideas, staffing].filter(Boolean).join("\n\n"),
+      };
     }
     let cwd: string;
     const selectedTask = thread.taskId
@@ -178,7 +183,7 @@ export function runtimeWorkspace(options: {
       cwd = directory(selected, create);
     }
     if (input.previous && input.previous.cwd !== cwd) throw new Error("native_cwd_changed");
-    const text = [instructions, ideas].filter(Boolean).join("\n\n");
+    const text = [instructions, ideas, staffing].filter(Boolean).join("\n\n");
     return { cwd, ...(text ? { instructions: text } : {}) };
   };
 }

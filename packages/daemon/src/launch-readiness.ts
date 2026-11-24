@@ -19,7 +19,7 @@ import {
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { createArtifactBinding } from "./artifacts/binding.js";
-import { chiefThreadId, leadIdeasInstruction } from "./chief/identity.js";
+import { chiefThreadId, leadIdeasInstruction, staffingInstruction } from "./chief/identity.js";
 import { connectionsRuntime } from "./connections-runtime.js";
 import { fixedContextBudget } from "./fixed-budget.js";
 import {
@@ -92,6 +92,7 @@ export function taskLaunchReadiness(
     : "";
   const ideas =
     lineage && threadRow?.kind === "manager" && chiefThreadId(state) ? leadIdeasInstruction : "";
+  const staffing = threadRow?.kind === "manager" ? staffingInstruction : "";
   const artifactGuidance = createArtifactBinding("/workspace").guidanceText;
   const instructions = [
     profile?.roleText,
@@ -104,7 +105,7 @@ export function taskLaunchReadiness(
       ),
     ),
     artifactGuidance,
-    [workspaceText, ideas].filter(Boolean).join("\n\n"),
+    [workspaceText, ideas, staffing].filter(Boolean).join("\n\n"),
   ]
     .filter((text): text is string => typeof text === "string" && text.length > 0)
     .join("\n\n");

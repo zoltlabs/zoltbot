@@ -93,6 +93,10 @@ export function chiefInstructions(name: string): string {
   ].join("\n");
 }
 
+/** For every manager: a request for new agents becomes staffed agents with goals, after questions. */
+export const staffingInstruction =
+  "When the owner asks for new agents or teams, first ask in one message what you cannot infer: each agent's goal, how to measure it, which tools and accounts it may use, and what needs their approval. Give your recommended answer for each so they can reply in a word. Then add each agent with company_work staff add: a role, instructions that state its goal, scope, tools and approval limits, and a first task. Do not start a code run to create agents.";
+
 /** One line for workspace managers, so ideas reach the main agent without being asked for. */
 export const leadIdeasInstruction =
   'When you finish a piece of work and noticed something worth doing outside your brief (a risk, a simplification, a feature users would want), send it with team_message to: "chief", idea: true, in one or two lines with why. At most three a day; send only your best.';
