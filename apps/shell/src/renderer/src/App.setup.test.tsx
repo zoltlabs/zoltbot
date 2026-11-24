@@ -159,7 +159,7 @@ describe("Zoltbot connected desktop shell", () => {
     vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce({
       ...READY_STATUS,
       providers: [
-        ...READY_STATUS.providers,
+        ...(READY_STATUS.providers ?? []),
         { id: "goose", name: "Goose", state: "not-installed", version: null, message: null },
       ],
     });
