@@ -2832,10 +2832,134 @@ textarea {
 
 .message-copy {
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 24px;
   overflow-wrap: anywhere;
   white-space: pre-line;
+}
+
+.message-markdown > :first-child {
+  margin-top: 0;
+}
+
+.message-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.message-markdown p,
+.message-markdown ul,
+.message-markdown ol,
+.message-markdown pre,
+.message-markdown blockquote,
+.message-markdown-table {
+  margin: 0 0 12px;
+}
+
+.message-markdown ul,
+.message-markdown ol {
+  padding-left: 22px;
+  white-space: normal;
+}
+
+.message-markdown li {
+  margin: 0 0 4px;
+  padding-left: 2px;
+  white-space: pre-line;
+}
+
+.message-markdown li > ul,
+.message-markdown li > ol {
+  margin: 4px 0 0;
+}
+
+.message-markdown li::marker {
+  color: rgb(var(--ink) / 0.5);
+}
+
+.message-markdown ol > li::marker {
+  font-variant-numeric: tabular-nums;
+}
+
+.message-markdown h2,
+.message-markdown h3,
+.message-markdown h4,
+.message-markdown h5,
+.message-markdown h6 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 24px;
+}
+
+.message-markdown h2 {
+  font-size: 17px;
+}
+
+.message-markdown strong {
+  font-weight: 620;
+}
+
+.message-markdown code {
+  border-radius: 4px;
+  background: rgb(var(--ink) / 0.07);
+  padding: 1px 4px;
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 0.88em;
+}
+
+.message-markdown pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: rgb(var(--ink) / 0.05);
+  padding: 10px 12px;
+  white-space: pre;
+}
+
+.message-markdown pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.message-markdown blockquote {
+  border-left: 2px solid rgb(var(--ink) / 0.2);
+  padding-left: 12px;
+  color: rgb(var(--ink) / calc(0.72 * var(--ink-text-boost)));
+}
+
+.message-markdown hr {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid rgb(var(--ink) / 0.12);
+}
+
+.message-markdown-table {
+  overflow-x: auto;
+  white-space: normal;
+}
+
+.message-markdown table {
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.message-markdown th,
+.message-markdown td {
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
+  padding: 6px 12px 6px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.message-markdown th {
+  font-weight: 600;
+}
+
+.message-markdown input[type="checkbox"] {
+  margin: 0 6px 0 0;
+  vertical-align: -1px;
 }
 
 .message-link {
@@ -2940,7 +3064,7 @@ textarea {
 }
 
 .user-bubble .message-copy {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .message-agent-tag {

@@ -1,5 +1,5 @@
 import { splitQuote } from "@zoltbot/protocol";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import type {
   AgentModelId,
   AgentModelOption,
@@ -22,6 +22,7 @@ import { HiddenMessage } from "./HiddenMessage";
 import { LinkIcon } from "./icons";
 import { LinkCards } from "./link-cards";
 import { MessageActions, type MessageActionsState } from "./MessageActions";
+import { MessageMarkdown } from "./MessageMarkdown";
 import { ProgressNote } from "./ProgressNote";
 import { WaitingToSend } from "./WaitingToSend";
 import { ThinkingDisclosure } from "./WorkingLine";
@@ -175,14 +176,26 @@ export function MessageBody(props: {
         )}
       </Show>
       <Show when={words()}>
-        <p class="message-copy">
-          <RichMessageText
-            body={words()}
-            bots={props.bots}
-            onSelectAgent={props.onSelectAgent}
-            onOpenLink={props.onOpenLink}
-          />
-        </p>
+        <Show
+          when={props.message.author === "you"}
+          fallback={
+            <MessageMarkdown
+              body={words()}
+              bots={props.bots}
+              onSelectAgent={props.onSelectAgent}
+              onOpenLink={props.onOpenLink}
+            />
+          }
+        >
+          <p class="message-copy">
+            <RichMessageText
+              body={words()}
+              bots={props.bots}
+              onSelectAgent={props.onSelectAgent}
+              onOpenLink={props.onOpenLink}
+            />
+          </p>
+        </Show>
       </Show>
       <Show
         when={
@@ -239,28 +252,9 @@ export function RichMessageText(props: {
       {(part) => {
         if (part.url) {
           return (
-            <a
-              class="message-link"
-              href={part.url}
-              title={part.url}
-              onClick={(event) => {
-                event.preventDefault();
-                props.onOpenLink(part.url ?? "");
-              }}
-            >
-              <span class="message-link-icon" aria-hidden="true">
-                <LinkIcon />
-                <img
-                  src={faviconUrl(part.url)}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  onError={(event) => event.currentTarget.remove()}
-                />
-              </span>
+            <MessageLink url={part.url} onOpenLink={props.onOpenLink}>
               {part.text}
-            </a>
+            </MessageLink>
           );
         }
         if (part.bot) {
@@ -279,6 +273,37 @@ export function RichMessageText(props: {
         return part.text;
       }}
     </For>
+  );
+}
+
+export function MessageLink(props: {
+  url: string;
+  onOpenLink: (url: string) => void;
+  children: JSX.Element;
+}) {
+  return (
+    <a
+      class="message-link"
+      href={props.url}
+      title={props.url}
+      onClick={(event) => {
+        event.preventDefault();
+        props.onOpenLink(props.url);
+      }}
+    >
+      <span class="message-link-icon" aria-hidden="true">
+        <LinkIcon />
+        <img
+          src={faviconUrl(props.url)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={(event) => event.currentTarget.remove()}
+        />
+      </span>
+      {props.children}
+    </a>
   );
 }
 
