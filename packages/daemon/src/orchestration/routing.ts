@@ -231,6 +231,20 @@ export function parseModelJson(text: string): unknown {
   }
 }
 
+/** Asks to run a phase on a named model, such as "use Sol for planning". */
+export const PHASE_MODEL_REQUEST =
+  /\buse\b.+\bfor\b.+\b(plan(?:ning)?|implement(?:ation)?|review|tests?)\b/i;
+const WORK_VERB =
+  /\b(build|implement|fix|add|create|make|write|rewrite|refactor|change|update|edit|improve|remove|delete|rename|move|migrate|port|ship|deploy|release|set ?up|install|configure|review|test|plan|design|debug|investigate|research|audit|optimi[sz]e|clean ?up|upgrade|integrate|automate|generate|draft|prepare)\b/i;
+
+/**
+ * Whether a message might be a task worth splitting into phases. Greetings, questions and short
+ * replies skip the router call and go straight to the agent.
+ */
+export function mightNeedRouting(request: string) {
+  return PHASE_MODEL_REQUEST.test(request) || WORK_VERB.test(request);
+}
+
 export async function routeRequest(
   request: string,
   context: RoutingContext,

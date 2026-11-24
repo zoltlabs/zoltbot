@@ -13,7 +13,7 @@ import type { PrivateInputGuard } from "../private-input.js";
 import type { InferenceAdapter } from "../quick-chat/providers.js";
 import { routingContext } from "./catalog.js";
 import { followUpInstructions, resolveFollowUp } from "./follow-up.js";
-import { routeRequest, routerInference } from "./routing.js";
+import { mightNeedRouting, PHASE_MODEL_REQUEST, routeRequest, routerInference } from "./routing.js";
 import { orchestrationRunner } from "./runner.js";
 
 type RouterConnection = {
@@ -88,11 +88,13 @@ export function orchestrationService(host: {
     if (active.length > 1) throw Error("orchestration_ambiguous: select the task to continue.");
     if (state.turn?.some((row) => row.threadId === threadId && row.status === "running"))
       return undefined;
+    // Routing costs a model call; a message that asks for no work goes straight to the agent.
+    if (!active.length && !mightNeedRouting(request)) return undefined;
     const check = await host.privacy.prepareData(request);
     const connection = await host.router();
     if (!connection) {
       if (active.length) throw Error("router_unavailable: open the active phase or stop the run.");
-      if (/\buse\b.+\bfor\b.+\b(plan(?:ning)?|implement(?:ation)?|review|tests?)\b/i.test(request))
+      if (PHASE_MODEL_REQUEST.test(request))
         throw Error(
           "router_connection_required: connect a coding tool or local router to assign models by phase.",
         );

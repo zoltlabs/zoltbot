@@ -659,6 +659,8 @@ export function App() {
       playSound("messageSent");
       return true;
     } catch (error) {
+      // Stopping before the agent picks the message up puts it back in the composer; no error.
+      if (error instanceof Error && /^Stopped\.?$/.test(error.message)) return false;
       appendUiError(botId, error, "Send failed");
       return false;
     }

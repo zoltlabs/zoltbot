@@ -14,7 +14,7 @@ import {
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import type { PrivateVault } from "../private-context.js";
-import { type ConnectionEntry, quickConnections } from "./connections.js";
+import { type ConnectionEntry, fastModel, quickConnections } from "./connections.js";
 import { gatherContext, listWorkspaceFiles } from "./context.js";
 import {
   type FetchLike,
@@ -504,7 +504,12 @@ export function quickChatService(options: QuickChatOptions) {
       if (!entry) return undefined;
       return {
         adapter: adapter(entry),
-        model: entry.row.recommendedModel ?? entry.row.models[0]?.id ?? "",
+        // Routing only classifies the request, so the fastest model keeps sending quick.
+        model:
+          fastModel(entry.row.models) ??
+          entry.row.recommendedModel ??
+          entry.row.models[0]?.id ??
+          "",
         entries: entries
           .filter((entry) => entry.row.kind === "coding_tool")
           .map((entry) => ({

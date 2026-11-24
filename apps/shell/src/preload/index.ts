@@ -152,7 +152,7 @@ const openbotApi: OpenBotDesktopApi = {
     discardDraftAttachment: (attachmentId) =>
       ipcRenderer.invoke(IPC_CHANNELS.agentDiscardDraftAttachment, attachmentId),
     openAttachment: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentOpenAttachment, input),
-    sendMessage: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentSendMessage, input),
+    sendMessage: (input) => invokeShown(IPC_CHANNELS.agentSendMessage, input),
     setMessageReaction: (input) => ipcRenderer.invoke(IPC_CHANNELS.agentSetMessageReaction, input),
     listQueue: (botId) => ipcRenderer.invoke(IPC_CHANNELS.agentListQueue, botId),
     cancelQueuedMessage: (input) =>

@@ -168,7 +168,7 @@ export function Conversation(props: ConversationProps) {
     return id ? props.messages.find((message) => message.id === id) : undefined;
   });
   const agentActivity = createMemo<"Working" | null>(() =>
-    agentWorking(props.activeTurnId, props.queue) ? "Working" : null,
+    submitting() || agentWorking(props.activeTurnId, props.queue) ? "Working" : null,
   );
   const queueBarVisible = createMemo(
     () =>
@@ -504,16 +504,21 @@ export function Conversation(props: ConversationProps) {
     stickToLatest = true;
     setSubmitting(true);
     setComposerError(null);
+    // The message leaves the composer at once; it comes back only if sending fails.
+    if (!override) setDrafts((current) => ({ ...current, [botId]: EMPTY_DRAFT }));
     const sent = await props.onSendMessage(
       text,
       attachments.map((item) => item.id),
       override ? null : draft.replyToMessageId,
     );
     setSubmitting(false);
-    if (sent) {
-      setDrafts((current) => ({ ...current, [botId]: EMPTY_DRAFT }));
-      finishOnboarding(botId);
-    }
+    if (sent) finishOnboarding(botId);
+    else if (!override)
+      setDrafts((current) => {
+        const now = current[botId] ?? EMPTY_DRAFT;
+        const untouched = !now.text.trim() && now.attachments.length === 0;
+        return untouched ? { ...current, [botId]: draft } : current;
+      });
   }
 
   function removeAttachment(id: string) {

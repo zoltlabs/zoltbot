@@ -194,7 +194,6 @@ export function Composer(props: {
             value={props.text}
             disabled={
               props.agentPickerOpen ||
-              props.submitting ||
               !props.agentReady ||
               props.onboardingModelRequired
             }
@@ -219,7 +218,6 @@ export function Composer(props: {
             dictation={props.dictation}
             disabled={
               props.agentPickerOpen ||
-              props.submitting ||
               !props.agentReady ||
               props.onboardingModelRequired
             }
@@ -235,7 +233,7 @@ export function Composer(props: {
               disabled={props.submitting || !props.agentReady || props.onboardingModelRequired}
               onClick={props.onSubmit}
             >
-              {props.submitting ? "…" : "↑"}
+              ↑
             </button>
           }
         >

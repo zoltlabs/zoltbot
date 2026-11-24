@@ -133,7 +133,8 @@ it("routes ordinary project chat without manager setup, preserves receipts, and 
     const first = await service.api("turn.send", build, "build");
     expect(first).toMatchObject({ disposition: "handled" });
     expect(await service.api("turn.send", build, "build")).toEqual(first);
-    expect(inferenceCalls).toBe(2);
+    // The question skipped the router; only the build request paid for a routing call.
+    expect(inferenceCalls).toBe(1);
     await service.start();
     const latest = () =>
       parse(OrchestrationSchema, f.store.snapshot(["orchestration"]).orchestration?.[0]);

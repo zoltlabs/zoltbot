@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { parseModelJson, type RoutingContext, resolveRoute, routeRequest } from "./routing.js";
+import { describe, expect, it, test } from "vitest";
+import {
+  mightNeedRouting,
+  parseModelJson,
+  type RoutingContext,
+  resolveRoute,
+  routeRequest,
+} from "./routing.js";
 
 const context: RoutingContext = {
   models: [
@@ -159,4 +165,11 @@ describe("parseModelJson", () => {
     expect(() => parseModelJson("I can't classify that.")).toThrow("router_output_not_json");
     expect(() => parseModelJson("```json\n{broken\n```")).toThrow("router_output_not_json");
   });
+});
+
+test("only work requests pay for a routing call", () => {
+  for (const text of ["hb now", "thanks!", "How does this work?", "what changed today"])
+    expect(mightNeedRouting(text)).toBe(false);
+  for (const text of ["Build a feature", "fix the login bug", "Use Sol for planning", "set up CI"])
+    expect(mightNeedRouting(text)).toBe(true);
 });

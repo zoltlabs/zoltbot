@@ -445,7 +445,37 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.input(composer);
     await fireEvent.keyDown(composer, { key: "Enter" });
     expect(await screen.findByText("Mailbox unavailable")).toBeInTheDocument();
-    expect(composer).toHaveTextContent("Retry me");
+    await waitFor(() => expect(composer).toHaveTextContent("Retry me"));
+  });
+
+  it("clears the composer as soon as a message is sent", async () => {
+    let finish!: (value: unknown) => void;
+    vi.mocked(window.openbot.agent.sendMessage).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }) as never,
+    );
+    render(() => <App />);
+    await confirmOnboardingModel();
+    const composer = await screen.findByRole("textbox", { name: "Message Chief" });
+    composer.textContent = "Start now";
+    await fireEvent.input(composer);
+    await fireEvent.keyDown(composer, { key: "Enter" });
+    await waitFor(() => expect(composer).toHaveTextContent(""));
+    expect(composer).toHaveAttribute("contenteditable", "true");
+    finish({ messageId: "m1", deliveries: [] });
+  });
+
+  it("puts a stopped message back without an error", async () => {
+    vi.mocked(window.openbot.agent.sendMessage).mockRejectedValueOnce(new Error("Stopped."));
+    render(() => <App />);
+    await confirmOnboardingModel();
+    const composer = await screen.findByRole("textbox", { name: "Message Chief" });
+    composer.textContent = "Never mind";
+    await fireEvent.input(composer);
+    await fireEvent.keyDown(composer, { key: "Enter" });
+    await waitFor(() => expect(composer).toHaveTextContent("Never mind"));
+    expect(screen.queryByText("Stopped.")).not.toBeInTheDocument();
   });
 
   it("supports picker and attachment-only messages", async () => {

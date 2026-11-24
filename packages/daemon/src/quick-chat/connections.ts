@@ -32,8 +32,12 @@ const privateHost = (url: URL) =>
   ) || url.hostname.endsWith(".local");
 /** A cheap conversational model to suggest first; the person can always choose another. */
 export function recommendedModel(models: readonly QuickModel[]): string | undefined {
+  return fastModel(models) ?? models[0]?.id;
+}
+/** The first small, fast model in the list, if there is one. */
+export function fastModel(models: readonly QuickModel[]): string | undefined {
   const fast = /(mini|nano|haiku|flash|luna|small|lite|instant)/i;
-  return (models.find((model) => fast.test(model.id)) ?? models[0])?.id;
+  return models.find((model) => fast.test(model.id))?.id;
 }
 const isTool = (value: string): value is QuickTool =>
   (quickTools as readonly string[]).includes(value);
