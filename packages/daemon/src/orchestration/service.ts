@@ -57,7 +57,9 @@ export function orchestrationService(host: {
     const threadId = String(params.threadId);
     const state = host.store.snapshot();
     const thread = state.thread?.find((row) => row.id === threadId && !row.archived);
-    if (!thread?.projectId || thread.kind === "task") return undefined;
+    // Manager chats plan and delegate through their own tools, so their requests never become
+    // phased code runs.
+    if (!thread?.projectId || thread.kind === "task" || thread.kind === "manager") return undefined;
     const active =
       state.orchestration?.filter(
         (row) => row.threadId === threadId && ["running", "blocked"].includes(String(row.state)),
