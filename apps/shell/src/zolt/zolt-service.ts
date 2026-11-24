@@ -223,6 +223,22 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
     await this.addReadyAgents().catch(() => undefined);
   }
 
+  private usableProfiles(): Row[] {
+    return this.client.rows("agent").filter((row) => row.archived !== true && row.hidden !== true);
+  }
+
+  /**
+   * Makes sure an agent exists before something needs one. Adds one for every installed,
+   * signed-in tool first, so a project never saves without an agent to run its CEO.
+   */
+  private async ensureAgent(): Promise<void> {
+    if (chooseAgent(this.usableProfiles())) return;
+    if (this.agentChecks === undefined || this.agentChecks === "failed")
+      await this.readAgentChecks(false);
+    else await this.addReadyAgents();
+    if (!chooseAgent(this.usableProfiles())) throw new Error("Add an agent in Zoltbot first.");
+  }
+
   private adding?: Promise<void>;
   /** Adds an agent for every installed, signed-in tool that doesn't have one yet. */
   private addReadyAgents(): Promise<void> {
@@ -320,10 +336,7 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
 
   /** Creates a project for a folder and its CEO, the manager accountable for the whole project. */
   async createProject(path: string): Promise<BotSummary> {
-    const profiles = this.client
-      .rows("agent")
-      .filter((row) => row.archived !== true && row.hidden !== true);
-    if (!chooseAgent(profiles)) throw new Error("Add an agent in Zoltbot first.");
+    await this.ensureAgent();
     // A project saved for this folder without its CEO (an earlier attempt failed) gets one now.
     const managed = new Set(
       this.client
@@ -380,9 +393,8 @@ export class ZoltService extends EventEmitter<{ event: [AgentEvent] }> {
       title?: string;
     } = {},
   ): Promise<BotSummary> {
-    const profiles = this.client
-      .rows("agent")
-      .filter((row) => row.archived !== true && row.hidden !== true);
+    await this.ensureAgent();
+    const profiles = this.usableProfiles();
     const project = input.projectId
       ? this.client.rows("project").find((row) => row.id === input.projectId)
       : undefined;

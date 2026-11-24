@@ -226,6 +226,7 @@ export function setUpAppTest() {
           },
         ]),
         listBots: vi.fn().mockResolvedValue(BOTS),
+        createProject: vi.fn().mockResolvedValue(null),
         createBot: vi
           .fn()
           .mockResolvedValue({ ...BOTS[0], id: "bot-new", name: "New agent", onboarding: false }),

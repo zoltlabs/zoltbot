@@ -193,6 +193,13 @@ export function App() {
   const [setupState, setSetupState] = createSignal<AppSetupState | null>(null);
   const [setupLoaded, setSetupLoaded] = createSignal(false);
   const [permissionsOpen, setPermissionsOpen] = createSignal(false);
+  // Set when New project stopped to ask for an agent, so saving one picks the project back up.
+  let projectAfterSetup = false;
+  function openPermissions() {
+    // The To: picker's menu floats above everything, so close it under the dialog.
+    setAgentPickerOpen(false);
+    setPermissionsOpen(true);
+  }
   const [cloudAccount, setCloudAccount] = createSignal<CloudAccountStatus | null>(null);
   const [cloudWorkspace, setCloudWorkspace] = createSignal<CloudWorkspace>();
   const [cloudView, setCloudView] = createSignal<
@@ -457,8 +464,10 @@ export function App() {
       const stored = await window.openbot.agent.createProject();
       if (stored) showCreatedAgent(stored);
     } catch (error) {
-      if (String(error).includes("Add an agent in Zoltbot first.")) setPermissionsOpen(true);
-      else if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
+      if (String(error).includes("Add an agent in Zoltbot first.")) {
+        projectAfterSetup = true;
+        openPermissions();
+      } else if (activeBotId()) appendUiError(activeBotId(), error, "Create failed");
       else window.alert(error instanceof Error ? error.message : String(error));
     } finally {
       setCreatingAgent(false);
@@ -802,6 +811,10 @@ export function App() {
     const state = await window.openbot.saveSetup({ preferredProvider });
     setSetupState(state);
     setPermissionsOpen(false);
+    if (projectAfterSetup) {
+      projectAfterSetup = false;
+      void createProject();
+    }
   }
 
   // Remember setup once an agent works, so later launches skip the setup screen.
@@ -1007,7 +1020,7 @@ export function App() {
               onRefreshUsage={refreshAccountUsage}
               onUpdateAction={runUpdateAction}
               onOpenExternal={(destination) => window.openbot.openExternal(destination)}
-              onOpenPermissions={() => setPermissionsOpen(true)}
+              onOpenPermissions={openPermissions}
               onCollapse={() => setSidebarCollapsed(true)}
             >
               <PanelResizer
@@ -1077,7 +1090,7 @@ export function App() {
               onActivateBrowserTab={activateBrowserTab}
               onCloseBrowserTab={closeBrowserTab}
               onToggleLeftSidebar={() => setSidebarCollapsed(false)}
-              onOpenAgentSetup={async () => void setPermissionsOpen(true)}
+              onOpenAgentSetup={async () => openPermissions()}
               onStop={stopActiveTurn}
               onOpenTasks={openTasks}
               onOpenMemory={openMemory}
@@ -1245,7 +1258,10 @@ export function App() {
               onSave={saveSetup}
               onCheckAgents={checkAgents}
               onOpenUrl={(url) => window.openbot.openUrl(url)}
-              onClose={() => setPermissionsOpen(false)}
+              onClose={() => {
+                projectAfterSetup = false;
+                setPermissionsOpen(false);
+              }}
             />
           </Show>
         </div>

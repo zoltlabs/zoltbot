@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudAccountStatus } from "../../shared/ipc";
 import { App } from "./App";
 import {
+  BOTS,
   confirmOnboardingModel,
   emitAgentEvent,
   emitUpdateStatus,
+  READY_STATUS,
   SETUP_STATUS,
   setUpAppTest,
 } from "./app-test-harness";
@@ -151,6 +153,30 @@ describe("Zoltbot connected desktop shell", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(window.openbot.saveSetup).toHaveBeenLastCalledWith({ preferredProvider: "claude" });
     expect(screen.queryByRole("dialog", { name: "Agents & permissions" })).not.toBeInTheDocument();
+  });
+
+  it("lists only installed agents and makes the project after an agent is saved", async () => {
+    vi.mocked(window.openbot.agent.getStatus).mockResolvedValueOnce({
+      ...READY_STATUS,
+      providers: [
+        ...READY_STATUS.providers,
+        { id: "goose", name: "Goose", state: "not-installed", version: null, message: null },
+      ],
+    });
+    vi.mocked(window.openbot.agent.createProject)
+      .mockRejectedValueOnce(new Error("Add an agent in Zoltbot first."))
+      .mockResolvedValueOnce({ ...BOTS[0], id: "bot-ceo", name: "zoltbot CEO" });
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+
+    await fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Agents & permissions" });
+    expect(screen.queryByRole("option", { name: "Create new agent" })).not.toBeInTheDocument();
+    const agents = within(dialog).getByRole("radiogroup", { name: "Default agent" });
+    expect(within(agents).queryByRole("radio", { name: /Goose/ })).not.toBeInTheDocument();
+    await fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(window.openbot.agent.createProject).toHaveBeenCalledTimes(2));
   });
 
   it("opens the create-agent picker for a new user with no agents", async () => {

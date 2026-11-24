@@ -57,7 +57,13 @@ export function InitialSetup(props: InitialSetupProps) {
   const [starters, setStarters] = createSignal<StarterJobItem[] | null>(null);
   const [starterBusy, setStarterBusy] = createSignal<string | null>(null);
   let starterList: HTMLUListElement | undefined;
-  const providers = createMemo(() => props.agentStatus.providers ?? []);
+  // After setup, list only tools on this Mac. First-run setup lists them all so one can be installed.
+  const providers = createMemo(() => {
+    const all = props.agentStatus.providers ?? [];
+    if (!props.reviewing) return all;
+    const installed = all.filter((provider) => provider.state !== "not-installed");
+    return installed.length ? installed : all;
+  });
   const providerOptions = createMemo<ProviderPickerOption[]>(() =>
     providers().map((provider) => ({
       id: provider.id,
