@@ -44,7 +44,7 @@ export const teamToolDefinitions = [
   {
     name: "team_report",
     description:
-      "Send a result, update or question to the nearest manager above you. Up to 2000 characters, stable key. If you have no manager, ask the human instead. Optional learned: up to 5 durable {kind,title,body,evidence} entries, written like team_write_knowledge.",
+      "Report to the nearest manager above you only to ask, say you are blocked, or finish. Finish in three sentences: what you did, what you found, what is left, and whether it worked. Up to 2000 characters, stable key. If you have no manager, ask the human instead. Optional learned: up to 5 durable {kind,title,body,evidence} entries, written like team_write_knowledge.",
     inputSchema: {
       type: "object" as const,
       properties: {

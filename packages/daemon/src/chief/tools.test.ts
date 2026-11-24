@@ -1,5 +1,7 @@
 import { referenceTokenEstimate } from "@zoltbot/adapters-sdk/tokens";
+import { writingRules } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
+import { fixedContextBudget } from "../fixed-budget.js";
 import { chiefProviderToolDefinitions } from "../runtime-tools.js";
 import { chiefFragments } from "./digest.js";
 import { chiefInstructions } from "./identity.js";
@@ -152,11 +154,13 @@ it("names the agent from the setting", () => {
   expect(chiefInstructions("Atlas")).toMatch(/^You are Atlas, the user's main agent/);
 });
 
-it("fits its frozen tools and instructions in the 1500 token fixed launch budget", () => {
+it("fits its frozen tools, instructions and writing rules in the fixed launch budget", () => {
   const fixed =
     referenceTokenEstimate(JSON.stringify(chiefProviderToolDefinitions)) +
-    referenceTokenEstimate(chiefInstructions("Zolt"));
-  expect(fixed).toBeLessThan(1500);
+    referenceTokenEstimate(chiefInstructions("Zolt")) +
+    referenceTokenEstimate(writingRules);
+  // Room left for the profile's own role text and instructions.
+  expect(fixed).toBeLessThan(fixedContextBudget - 150);
   // The server still validates every call against the full contracts.
   expect(chiefProviderToolDefinitions.map((tool) => tool.name)).toEqual([
     ...chiefToolDefinitions.map((tool) => tool.name),

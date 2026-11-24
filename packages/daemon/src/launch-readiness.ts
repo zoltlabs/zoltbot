@@ -15,11 +15,13 @@ import {
   type Task,
   ThreadSchema,
   talkingStyleLine,
+  writingRules,
 } from "@zoltbot/protocol";
 import type { Store } from "@zoltbot/store";
 import { createArtifactBinding } from "./artifacts/binding.js";
 import { chiefThreadId, leadIdeasInstruction } from "./chief/identity.js";
 import { connectionsRuntime } from "./connections-runtime.js";
+import { fixedContextBudget } from "./fixed-budget.js";
 import {
   artifactBrowserToolDefinitions,
   artifactRuntimeToolDefinitions,
@@ -49,7 +51,7 @@ export function taskLaunchReadiness(
   state: DomainState,
   task: Task,
 ): TaskLaunchReadiness {
-  const limit = 1500;
+  const limit = fixedContextBudget;
   const profileRow = state.agent?.find((r) => r.id === task.ownerAgentId && !r.archived);
   const profile = profileRow ? parse(ProfileSchema, profileRow) : undefined;
   const threadRow = task.threadId
@@ -94,6 +96,7 @@ export function taskLaunchReadiness(
   const instructions = [
     profile?.roleText,
     profile?.instructions,
+    writingRules,
     talkingStyleLine(
       effectiveTalkingStyle(
         profile?.style,

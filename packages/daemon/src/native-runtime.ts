@@ -17,6 +17,7 @@ import {
   parse,
   type Thread,
   talkingStyleLine,
+  writingRules,
 } from "@zoltbot/protocol";
 import type { LaunchContributions, LaunchManifest } from "../../connections/src/launch-manifest.js";
 import { canonicalApprovalRoot } from "./approval-paths.js";
@@ -25,6 +26,7 @@ import { cleanupStaging } from "./artifacts/staging.js";
 import { accountHomeKeys } from "./backup-models/records.js";
 import { type BrowserBinding, browserGuidance, materializeBrowser } from "./browser/runtime.js";
 import type { connectionsRuntime } from "./connections-runtime.js";
+import { fixedContextBudget } from "./fixed-budget.js";
 import { forkPermission } from "./fork-configuration.js";
 import type { Redactor } from "./logging.js";
 import type { PreparedRuntime, RuntimeHost } from "./session-manager.js";
@@ -258,6 +260,7 @@ export class NativeRuntimeHost implements RuntimeHost {
       stable.profile.roleText,
       stable.profile.instructions,
       // A resume without a saved configuration runs on the live profile; it had no style line.
+      stable.previous && !saved ? undefined : writingRules,
       stable.previous && !saved
         ? undefined
         : talkingStyleLine(effectiveTalkingStyle(stable.profile.style, undefined)),
@@ -272,7 +275,8 @@ export class NativeRuntimeHost implements RuntimeHost {
     let fixedInjectedTokens =
       estimated +
       (baseTools ? this.options.estimate(JSON.stringify(baseTools)) : this.options.toolTokens);
-    if (fixedInjectedTokens > 1500) throw new Error("injection_fixed_budget_exceeded");
+    if (fixedInjectedTokens > fixedContextBudget)
+      throw new Error("injection_fixed_budget_exceeded");
     const availableConnections = legacyResume
       ? []
       : (saved?.launchManifest?.connections ??
@@ -294,7 +298,7 @@ export class NativeRuntimeHost implements RuntimeHost {
         ? undefined
         : await this.options.contributions?.(
             structuredClone(stable),
-            Math.max(0, 1500 - fixedInjectedTokens - connectionTokens),
+            Math.max(0, fixedContextBudget - fixedInjectedTokens - connectionTokens),
           );
     const browser =
       saved?.launchManifest?.browser ??
@@ -313,16 +317,16 @@ export class NativeRuntimeHost implements RuntimeHost {
             this.options.estimate(JSON.stringify(baseTools))
           : (this.options.browserToolTokens ?? 0)
         : 0);
-    if (fixedInjectedTokens + browserTokens > 1500)
+    if (fixedInjectedTokens + browserTokens > fixedContextBudget)
       throw new Error("injection_fixed_budget_exceeded");
     const skillTokens = (contributions?.skills ?? []).reduce((n, s) => n + s.wrapperTokens, 0);
     if (
       !saved?.launchManifest &&
       !legacyResume &&
-      fixedInjectedTokens + browserTokens + connectionTokens + skillTokens > 1500
+      fixedInjectedTokens + browserTokens + connectionTokens + skillTokens > fixedContextBudget
     )
       throw new Error(
-        `context_budget_hold: Fixed context (${fixedInjectedTokens + browserTokens}), connections (${connectionTokens}), and skills (${skillTokens}) exceed 1500 tokens.`,
+        `context_budget_hold: Fixed context (${fixedInjectedTokens + browserTokens}), connections (${connectionTokens}), and skills (${skillTokens}) exceed ${fixedContextBudget} tokens.`,
       );
     const selectedHostTools = hostTools(!!browser);
     const launchManifest =
@@ -356,7 +360,8 @@ export class NativeRuntimeHost implements RuntimeHost {
         factory(redactor).manifest().supportsNativeSkills !== true)
     )
       throw new Error("native_skills_loading_unavailable");
-    if (fixedInjectedTokens > 1500) throw new Error("injection_fixed_budget_exceeded");
+    if (fixedInjectedTokens > fixedContextBudget)
+      throw new Error("injection_fixed_budget_exceeded");
     const privateValues: string[] = [];
     if (launchManifest && this.options.extensions) {
       const resolved = await this.options.extensions.resolve(launchManifest, redactor, true);

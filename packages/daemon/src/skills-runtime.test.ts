@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentAdapter, AgentSession, OpenOptions } from "@zoltbot/adapters-sdk";
 import type { AgentDefinition, Profile, Thread } from "@zoltbot/protocol";
+import { writingRules } from "@zoltbot/protocol";
 import { openStore } from "@zoltbot/store";
 import { expect, it } from "vitest";
 import { composeLaunchManifest } from "../../connections/src/launch-manifest.js";
@@ -154,7 +155,8 @@ it("restores the same app-owned skill bytes after crash, edit and removal withou
     });
     expect(preparedCount).toBe(1);
     expect(opened?.nativeId).toBe("same-native");
-    expect(opened?.appendInstructions).toBeUndefined();
+    // A resume with its saved configuration keeps the same instructions, and no skill history.
+    expect(opened?.appendInstructions).toBe(writingRules);
     expect(opened?.managedSkills?.[0]).toEqual(descriptor);
     expect(readFileSync(path.join(descriptor?.path ?? "", "SKILL.md"), "utf8")).toContain(
       "Original skill bytes",

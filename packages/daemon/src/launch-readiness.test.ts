@@ -244,7 +244,7 @@ it("exposes launch readiness, distinguishes required vs optional knowledge holds
     };
     const readinessBefore = initialView.tasks.find((t) => t.id === "task-opt")?.launchReadiness;
     expect(readinessBefore).toBeDefined();
-    expect(readinessBefore?.fixed).toBeLessThan(1250);
+    expect(readinessBefore?.fixed).toBeLessThan(1450);
     expect(readinessBefore?.ready).toBe(false);
     expect(readinessBefore?.requiredKnowledgeIds).toContain("req-spec");
     expect(readinessBefore?.optionalKnowledgeIds).toEqual(

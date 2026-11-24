@@ -198,7 +198,7 @@ export const chiefToolDefinitions = [
   {
     name: "chief_notify",
     description:
-      "In a turn you started yourself, tell the user something via their Inbox and notifications. chatId links a chat.",
+      "In a turn you started yourself, tell the user something via their Inbox and notifications. Lead with what they need to know or do, in plain words. chatId links a chat.",
     inputSchema: {
       type: "object" as const,
       properties: {

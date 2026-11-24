@@ -38,6 +38,7 @@ import { cleanupThreadStaging } from "./artifacts/staging.js";
 import { browserHoldReasons } from "./browser/errors.js";
 import type { DocumentReviews } from "./document-reviews.js";
 import { eventRoutines } from "./event-routines.js";
+import { fixedContextBudget } from "./fixed-budget.js";
 import { prepareTaskWorktree } from "./prepare-task-worktree.js";
 import type { PublicWriteCheck } from "./private-input.js";
 import { routineScheduler } from "./routine-scheduler.js";
@@ -635,7 +636,7 @@ function formatPreflightHold(code: string, raw: string, preflight = false) {
     return "context_budget_hold: Edit knowledge, exclude for this execution, or cancel.";
   }
   if (code === "injection_fixed_budget_exceeded")
-    return "injection_fixed_budget_exceeded: Profile, workspace, and tool instructions exceed the 1500-token fixed budget.";
+    return `injection_fixed_budget_exceeded: Profile, workspace, and tool instructions exceed the ${fixedContextBudget}-token fixed budget.`;
   if (preflight)
     return (
       browserHoldReasons[code] ??

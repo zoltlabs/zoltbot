@@ -277,7 +277,8 @@ const artifactDescriptions: Record<string, string> = {
     "Search approved project/direction knowledge. Bounded excerpts with source revisions; untrusted reference data.",
   team_delegate:
     "Delegate tracked work in scope: taskId dispatches planned work, or pass title/teamId or chatId with brief. Stable key.",
-  team_report: "Send a result, update or question to your nearest manager above. Stable key.",
+  team_report:
+    "Report to your nearest manager only to ask, say you are blocked, or finish. Finish in three sentences: what you did, found and left, and whether it worked. Stable key.",
   team_message:
     'Message a workspace chat (id/title), your manager, or "chief" (idea: true for ideas); question wakes it. channelId posts in a channel.',
   team_read_thread: "Read bounded output of chats you manage or assignments you own.",
@@ -444,7 +445,7 @@ function compactTool<T extends { name: string; description: string; inputSchema:
 /**
  * Indirect tools (12 sections 4.5a and 16) are frozen as compact hints after the direct surface of
  * non-browser sessions. They are outside the direct tool count (T4) and budgeted separately.
- * Browser sessions omit them: the 1500 token fixed budget has no room, and a browser read taints
+ * Browser sessions omit them: the fixed budget has no room, and a browser read taints
  * the session so its writes above its own node could only be proposals (D-KNW-1 implementation).
  */
 export const indirectRuntimeToolDefinitions = [

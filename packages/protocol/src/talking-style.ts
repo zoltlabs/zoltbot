@@ -29,6 +29,13 @@ export function effectiveTalkingStyle(own: unknown, fallback: unknown): TalkingS
   return isTalkingStyle(fallback) ? fallback : "neutral";
 }
 
+/**
+ * How every agent writes to the owner, whatever its style. Sessions start with it (I3), and it
+ * counts against the fixed launch budget, so keep it short.
+ */
+export const writingRules =
+  "Writing to the owner: lead with the result or decision. Say what changed for them, not what you ran: no hashes, IDs, paths or tool names unless asked. Put what matters most first and fold minor items into one line. Use short paragraphs; lists only for three or more parallel items, tables only to compare, no headings under 150 words. Status words: done (only after you checked), drafted, waiting on what, blocked because why. To ask, ask one question with why and your pick, after doing what doesn't depend on it. No closing recap, no 'let me know', no 'want me to…?' after finished work.";
+
 /** The sentence a session's instructions end with, or undefined for neutral. */
 export function talkingStyleLine(style: TalkingStyle): string | undefined {
   return lines[style];

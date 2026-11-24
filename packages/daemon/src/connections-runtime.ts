@@ -8,6 +8,7 @@ import {
 import { resolveConnections } from "../../connections/src/materialize.js";
 import { ConnectionOAuth, type OAuthCredential } from "../../connections/src/oauth.js";
 import { ConnectionRegistry } from "../../connections/src/registry.js";
+import { fixedContextBudget } from "./fixed-budget.js";
 import { startGoogleAdapter } from "./google-adapter.js";
 import type { Redactor } from "./logging.js";
 import type { PrivateVault } from "./private-context.js";
@@ -79,7 +80,7 @@ export function connectionsRuntime(
             .digest("hex"),
         },
         contributions,
-        { limit: 1500, fixed: input.fixed },
+        { limit: fixedContextBudget, fixed: input.fixed },
       );
     },
     select(projectId: string | undefined, profileId: string, supported: boolean) {
