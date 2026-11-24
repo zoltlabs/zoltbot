@@ -670,6 +670,10 @@ export interface AgentPromptQuestion {
   options: Array<{ label: string; description: string }> | null;
   /** Only the options answer it (no typed answer), e.g. the browser's Hand back. */
   choiceOnly?: boolean;
+  /** A tool approval: the first option is the main action, and every option answers in one click. */
+  approval?: boolean;
+  /** The command or input the approval is about, shown as code. */
+  detail?: string;
 }
 
 export interface RespondToPromptInput {

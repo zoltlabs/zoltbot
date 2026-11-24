@@ -3914,6 +3914,26 @@ textarea {
   gap: 8px;
 }
 
+.prompt-actions-start {
+  justify-content: flex-start;
+  justify-self: start;
+}
+
+.prompt-detail {
+  max-height: 128px;
+  margin: 0;
+  overflow: auto;
+  border-radius: 8px;
+  background: rgb(var(--ink) / 0.05);
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 17px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .prompt-question .choice-option {
   display: grid;
   justify-items: start;

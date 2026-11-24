@@ -561,6 +561,21 @@ export function toPrompt(interaction: Row): {
     }
     options.set(id, choices);
     const context = (interaction.context ?? {}) as Row;
+    const tool = type === "approval" && !purchase;
+    if (tool)
+      return {
+        id,
+        header: text(item.header) || text(item.prompt) || text(interaction.title) || "Approval",
+        question: text(context.markdown),
+        isSecret: false,
+        choiceOnly: true,
+        approval: true,
+        ...(text(context.command) ? { detail: text(context.command) } : {}),
+        options: choices.map((choice) => ({
+          label: choice.label,
+          description: choice.description,
+        })),
+      };
     const detail = [text(context.command), text(context.markdown)].filter(Boolean).join("\n\n");
     return {
       id,

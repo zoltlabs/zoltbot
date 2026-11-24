@@ -214,6 +214,36 @@ describe("gate prompts", () => {
   });
 });
 
+describe("tool approvals", () => {
+  it("puts the command in its own field and answers with one click", async () => {
+    const { toPrompt, toResolution } = await import("./mapping");
+    const card = {
+      type: "approval",
+      title: "Bash",
+      context: { command: "ls -la" },
+      items: [
+        {
+          id: "approval",
+          prompt: "Allow Bash?",
+          choices: [{ id: "allow_once" }, { id: "reject_once" }],
+        },
+      ],
+    };
+    const [question] = toPrompt(card).questions;
+    expect(question).toMatchObject({
+      header: "Allow Bash?",
+      question: "",
+      detail: "ls -la",
+      choiceOnly: true,
+      approval: true,
+    });
+    expect(question?.options?.map((o) => o.label)).toEqual(["Allow once", "Deny"]);
+    expect(
+      toResolution(card, { approval: ["Allow once"] }, "2026-01-01T00:00:00.000Z"),
+    ).toMatchObject({ action: "accept", choice: "allow_once" });
+  });
+});
+
 describe("purchase approvals", () => {
   it("shows the purchase card's own buttons and answers with the offered choice", async () => {
     const { toPrompt, toResolution } = await import("./mapping");
@@ -245,7 +275,7 @@ describe("purchase approvals", () => {
     expect(toResolution(card, { choice: ["Cancel"] }, at)).toMatchObject({ action: "decline" });
   });
 
-  it("leaves other approvals with options, like a tool permission, as they were", async () => {
+  it("answers other approvals with options, like a tool permission, from their own choices", async () => {
     const { toPrompt, toResolution } = await import("./mapping");
     const card = {
       id: "acp-permission-1",
@@ -263,7 +293,7 @@ describe("purchase approvals", () => {
       ],
     };
     const [question] = toPrompt(card).questions;
-    expect(question?.choiceOnly).toBeUndefined();
+    expect(question?.options?.map((o) => o.label)).toEqual(["Allow once", "Deny"]);
     expect(toResolution(card, { q: ["Deny"] }, "2026-01-01T00:00:00.000Z")).toMatchObject({
       action: "decline",
     });

@@ -97,7 +97,7 @@ export function PromptCard(props: {
     return props.questions.length === 1 &&
       question?.choiceOnly &&
       options.length >= 1 &&
-      options.length <= 3
+      options.length <= (question.approval ? 4 : 3)
       ? { question, options }
       : undefined;
   };
@@ -189,22 +189,40 @@ export function PromptCard(props: {
         >
           <div class="prompt-question">
             <strong>{only().question.header}</strong>
-            <p id={`prompt-text-${only().question.id}`} class="prompt-single-text">
-              {only().question.question}
-            </p>
+            <Show when={only().question.question}>
+              <p id={`prompt-text-${only().question.id}`} class="prompt-single-text">
+                {only().question.question}
+              </p>
+            </Show>
+            <Show when={only().question.detail}>
+              {(detail) => (
+                <pre
+                  id={only().question.question ? undefined : `prompt-text-${only().question.id}`}
+                  class="prompt-detail"
+                >
+                  {detail()}
+                </pre>
+              )}
+            </Show>
           </div>
           <p class="sr-only" role="status">
             {arrived()}
           </p>
-          <div class="prompt-actions">
+          <div
+            class="prompt-actions"
+            classList={{ "prompt-actions-start": only().question.approval }}
+          >
             <For each={only().options}>
               {(option, index) => (
                 <button
                   type="button"
+                  title={option.description || undefined}
                   class={
-                    only().options.length > 1
-                      ? `zb-kit-button${index() === only().options.length - 1 ? " primary" : ""}`
-                      : "prompt-submit"
+                    only().question.approval
+                      ? `zb-kit-button${index() === 0 ? " primary" : ""}`
+                      : only().options.length > 1
+                        ? `zb-kit-button${index() === only().options.length - 1 ? " primary" : ""}`
+                        : "prompt-submit"
                   }
                   disabled={submitting()}
                   onClick={() => void answerSingle(only().question.id, option.label)}
