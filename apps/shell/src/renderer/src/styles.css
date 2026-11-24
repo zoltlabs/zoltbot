@@ -2832,8 +2832,8 @@ textarea {
 
 .message-copy {
   margin: 0;
-  font-size: 15px;
-  line-height: 24px;
+  font-size: 16px;
+  line-height: 26px;
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
@@ -2886,13 +2886,13 @@ textarea {
 .message-markdown h5,
 .message-markdown h6 {
   margin: 20px 0 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 620;
-  line-height: 24px;
+  line-height: 26px;
 }
 
 .message-markdown h2 {
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .message-markdown strong {
@@ -2941,8 +2941,8 @@ textarea {
 
 .message-markdown table {
   border-collapse: collapse;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .message-markdown th,
@@ -3064,7 +3064,7 @@ textarea {
 }
 
 .user-bubble .message-copy {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .message-agent-tag {
