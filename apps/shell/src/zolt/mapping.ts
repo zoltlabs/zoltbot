@@ -565,7 +565,7 @@ export function toPrompt(interaction: Row): {
     if (tool)
       return {
         id,
-        header: text(item.header) || text(item.prompt) || text(interaction.title) || "Approval",
+        header: text(item.prompt) || text(item.header) || text(interaction.title) || "Approval",
         question: text(context.markdown),
         isSecret: false,
         choiceOnly: true,

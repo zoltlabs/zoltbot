@@ -175,8 +175,9 @@ test("the owner allows an agent's sign-in from its chat, and the page gets the p
       expect(await axeViolations(page)).toEqual([]);
       await page.screenshot({ path: test.info().outputPath(`vault-card-${scheme}.png`) });
     }
+    // An approval answers on the first click; there is no Send answer step.
+    await expect(chat.getByRole("button", { name: "Send answer" })).toHaveCount(0);
     await chat.getByRole("button", { name: "Allow once" }).click();
-    await chat.getByRole("button", { name: "Send answer" }).click();
     await expect
       .poll(() => store.record("interaction", `vault-fill:session:${id}:1`)?.resolution)
       .toBeTruthy();

@@ -242,6 +242,28 @@ describe("tool approvals", () => {
       toResolution(card, { approval: ["Allow once"] }, "2026-01-01T00:00:00.000Z"),
     ).toMatchObject({ action: "accept", choice: "allow_once" });
   });
+
+  it("titles the card with the prompt, not the item's short header", async () => {
+    const { toPrompt } = await import("./mapping");
+    const [question] = toPrompt({
+      type: "approval",
+      title: "Sign in to github.com",
+      context: { markdown: "Zoltbot types the password into the page." },
+      items: [
+        {
+          id: "vault",
+          header: "Vault",
+          prompt: "Let Research sign in to github.com with your saved login?",
+          choices: [{ id: "allow_once" }, { id: "allow_session" }, { id: "reject_once" }],
+        },
+      ],
+    }).questions;
+    expect(question).toMatchObject({
+      header: "Let Research sign in to github.com with your saved login?",
+      question: "Zoltbot types the password into the page.",
+    });
+    expect(question?.options).toHaveLength(3);
+  });
 });
 
 describe("purchase approvals", () => {
