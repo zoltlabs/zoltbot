@@ -5,6 +5,7 @@ import { AsyncQueue } from "@zoltbot/adapters-sdk";
 import type { AgentDefinition, AgentEvent, Profile, Thread } from "@zoltbot/protocol";
 import { talkingStyleLine, writingRules } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
+import { fixedContextBudget } from "./fixed-budget.js";
 import { Redactor } from "./logging.js";
 import { NativeRuntimeHost } from "./native-runtime.js";
 
@@ -213,7 +214,7 @@ it("rejects replaced workspaces, mismatched resume paths, unsupported adapters a
     ).rejects.toThrow("runtime_adapter_unavailable");
     await expect(
       f.host.prepare(
-        { ...f, profile: { ...f.profile, instructions: "x".repeat(2000) } },
+        { ...f, profile: { ...f.profile, instructions: "x".repeat(fixedContextBudget * 4) } },
         f.redactor,
       ),
     ).rejects.toThrow("injection_fixed_budget_exceeded");
@@ -488,7 +489,7 @@ it("throws injection_fixed_budget_exceeded before composeLaunchManifest can misr
       hostWithExtensions.prepare(
         {
           ...f,
-          profile: { ...f.profile, instructions: "x".repeat(5000) },
+          profile: { ...f.profile, instructions: "x".repeat(fixedContextBudget * 4) },
         },
         f.redactor,
       ),

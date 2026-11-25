@@ -4,6 +4,7 @@ import { ProfileSchema, parse, ThreadSchema } from "@zoltbot/protocol";
 import { expect, it } from "vitest";
 import { at, runtimeFixture } from "../../../tools/fakes/src/runtime-fixture.js";
 import { companyApi } from "./company-api.js";
+import { fixedContextBudget } from "./fixed-budget.js";
 import { knowledgeLaunch } from "./knowledge-launch.js";
 import { PrivateInputGuard } from "./private-input.js";
 import { taskRunner } from "./task-runner.js";
@@ -139,6 +140,36 @@ it("exposes launch readiness, distinguishes required vs optional knowledge holds
         ctx(),
       ),
     );
+    // Notes hold at most 1,200 characters, so overflowing the launch budget takes several.
+    const extraNotes = Array.from(
+      { length: Math.ceil(fixedContextBudget / 250) },
+      (_, index) => `opt-notes-${index + 3}`,
+    );
+    for (const id of extraNotes)
+      dispatch((s) =>
+        upsertKnowledge(
+          s,
+          {
+            id,
+            scope: { type: "project", id: "harbor" },
+            kind: "lesson",
+            title: `Archive triage notes ${id}`,
+            body: "Legacy archive notes for old imports ".repeat(30),
+            status: "active",
+            tags: [],
+            sources: [],
+            revision: 1,
+            owner: { kind: "human", id: "local-owner" },
+            verification: "human",
+            writer: { kind: "human", id: "local-owner" },
+            createdAt: at,
+            updatedAt: at,
+            pinned: false,
+          },
+          0,
+          ctx(),
+        ),
+      );
 
     const proposed = (await api(
       "company.propose",
@@ -194,7 +225,7 @@ it("exposes launch readiness, distinguishes required vs optional knowledge holds
           node: { type: "project", id: "harbor" },
           profileId: "profile",
           routineInputs: {
-            knowledge: ["req-spec", "opt-notes", "opt-notes-2"],
+            knowledge: ["req-spec", "opt-notes", "opt-notes-2", ...extraNotes],
             skills: [],
             connections: [],
           },

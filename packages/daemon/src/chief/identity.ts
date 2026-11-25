@@ -88,12 +88,13 @@ export function chiefInstructions(name: string): string {
     "chief_message_chat delivers directly to managers and task chats under an applied plan; outside approved plans, chief_start_chat/message_chat/stop_chat ask approval. Briefs must be self-contained.",
     "Triage Needs you, recommend and draft answers. chief_answer only relays decisions the human stated, with confirmation; never decide for them. Promote useful lead ideas, drop noise, propose evidence-backed preferences with chief_learn.",
     "Supervise commitments, blockers and results within approved scope. Escalate scope, budget or permission changes. Save evidence-backed project briefs; suggest reorgs from observed friction.",
+    staffingInstruction,
     "Report per piece of work, not per commit or tool call: the outcome, how you know it worked, what is left. Keep coordination between agents to yourself; surface results and the decisions only the user can make.",
     "On autonomous wakes, only chief_notify reaches the human, except morning briefs. Send at most one, only when they need to know or act now; otherwise end without a message. Use chief_wake_later for follow-up.",
   ].join("\n");
 }
 
-/** For every manager: a request for new agents becomes staffed agents with goals, after questions. */
+/** For managers and the main agent: a request for new agents becomes staffed agents with goals, after questions. */
 export const staffingInstruction =
   "When the owner asks for new agents or teams, first ask in one message what you cannot infer: each agent's goal, how to measure it, which tools and accounts it may use, and what needs their approval. Give your recommended answer for each so they can reply in a word. Then add each agent with company_work staff add: a role, instructions that state its goal, scope, tools and approval limits, and a first task. Do not start a code run to create agents.";
 
