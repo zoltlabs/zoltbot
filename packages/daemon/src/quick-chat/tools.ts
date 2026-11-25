@@ -175,13 +175,18 @@ export function toolInference(options: {
   idleMs?: number;
 }) {
   const warm = new Map<string, Warm>();
+  /** Router sessions opened ahead of time, one per tool, model and instructions. */
+  const spares = new Map<string, Warm>();
+  const opening = new Set<string>();
+  let closed = false;
   const idleMs = options.idleMs ?? 10 * 60_000;
   const retire = (entry: Warm) => {
     if (warm.get(entry.key) === entry) warm.delete(entry.key);
+    if (spares.get(entry.key) === entry) spares.delete(entry.key);
     void entry.session.close().catch(() => {});
   };
   const sweep = setInterval(() => {
-    for (const entry of warm.values())
+    for (const entry of [...warm.values(), ...spares.values()])
       if (!entry.turn && Date.now() - entry.usedAt > idleMs) retire(entry);
   }, 60_000);
   sweep.unref();
@@ -275,12 +280,55 @@ export function toolInference(options: {
     entry.turn?.done("failed", "The coding tool stopped.");
     retire(entry);
   };
+  /**
+   * Opens the next router session in the background. Each routing call uses a session once, so
+   * keeping one ready means routing skips the coding tool's start-up.
+   */
+  const prepareSpare = (tool: QuickTool, model: string, text: string) => {
+    const key = `spare:${tool}:${model}:${text}`;
+    if (closed || spares.has(key) || opening.has(key)) return key;
+    opening.add(key);
+    void options.runtime
+      .open(definition(tool), {
+        conversationId: `router-${randomUUID()}`,
+        model,
+        instructions: text,
+        tools: false,
+      })
+      .then(
+        (session) => {
+          if (closed) return void session.close().catch(() => {});
+          const entry: Warm = { key, conversationId: key, session, usedAt: Date.now() };
+          spares.set(key, entry);
+          void pump(entry);
+        },
+        () => {},
+      )
+      .finally(() => opening.delete(key));
+    return key;
+  };
   const acquire = async (tool: QuickTool, request: InferenceRequest) => {
     const conversationId = request.conversationId ?? randomUUID();
     const tools = Boolean(request.tools);
     const off = [...(request.tools?.off() ?? [])].sort();
     // A server setting change opens a new session, since a session's tools are fixed at launch.
     const key = `${tool}:${conversationId}:${request.model}:${tools ? `tools:${off.join(",")}` : "plain"}`;
+    if (conversationId.startsWith("router-") && !tools) {
+      const text = instructions(request.instructions, false);
+      const spareKey = `spare:${tool}:${request.model}:${text}`;
+      const spare = spares.get(spareKey);
+      if (spare) spares.delete(spareKey);
+      prepareSpare(tool, request.model, text);
+      if (spare) {
+        Object.assign(spare, { key, conversationId, usedAt: Date.now() });
+        warm.set(key, spare);
+        const earlier = request.turns.slice(0, -1);
+        return {
+          entry: spare,
+          input: `${earlier.length ? transcript(earlier) : ""}${request.turns.at(-1)?.text ?? ""}`,
+        };
+      }
+    }
     const existing = warm.get(key);
     const previous = request.turns.at(-2);
     const question = request.turns.at(-3);
@@ -406,9 +454,15 @@ export function toolInference(options: {
   return {
     adapter,
     async close() {
+      closed = true;
       clearInterval(sweep);
-      await Promise.all([...warm.values()].map((entry) => entry.session.close().catch(() => {})));
+      await Promise.all(
+        [...warm.values(), ...spares.values()].map((entry) =>
+          entry.session.close().catch(() => {}),
+        ),
+      );
       warm.clear();
+      spares.clear();
       await options.runtime.close();
     },
   };
